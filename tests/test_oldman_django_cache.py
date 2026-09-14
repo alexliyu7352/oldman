@@ -20,7 +20,7 @@ from oldman.cache import RedisCache
 from oldman.compat.django import cache
 from oldman.conf.schemas import RedisConfig, RedisConnectionConfig
 from oldman.providers.redis import RedisClientRegistry
-from tests.test_oldman_web_sse_redis import RedisProcess, require_redis_server
+from tests.redis_support import RedisProcess, require_redis_server
 
 
 @unittest.skipUnless(importlib.util.find_spec("django"), "Django is required for the optional interoperability check")

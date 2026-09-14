@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import unittest
 import uuid
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from oldman.cache.backends.memory import MemoryCache
 from oldman.cache.backends.redis import RedisCache
 from oldman.cache.base import SENTINEL, CacheKey
 from oldman.cache.two_level import TwoLevelCache
-from oldman.conf.schemas import DefaultSettings, RedisCacheConfig
+from oldman.conf.schemas import RedisCacheConfig
 from oldman.providers.redis.client import RedisClientRegistry
+from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
 
 class ObservingMemoryCache(MemoryCache):
@@ -47,10 +50,26 @@ class ObservingMemoryCache(MemoryCache):
 
 
 class RealRedisCacheTest(unittest.IsolatedAsyncioTestCase):
-    """Exercise Cache behavior against the configured local Redis service."""
+    """Exercise Cache behavior against an owned redis-server process."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Start one isolated Redis Unix socket for this test class."""
+        cls.temporary_directory = tempfile.TemporaryDirectory()
+        cls.redis_process = RedisProcess(require_redis_server(), Path(cls.temporary_directory.name), "cache")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Stop the owned Redis process and remove its socket directory."""
+        cls.redis_process.stop()
+        cls.temporary_directory.cleanup()
+
+    def owned_registry(self) -> RedisClientRegistry:
+        """Return a registry whose CACHE alias points at the owned socket, keeping database 2."""
+        return RedisClientRegistry(owned_redis_config(self.redis_process.socket_path, {"CACHE": 2}))
 
     async def asyncSetUp(self) -> None:
-        self.registry = RedisClientRegistry(DefaultSettings().redis)
+        self.registry = self.owned_registry()
         self.alias = self.registry.using("CACHE")
         self.namespace = f"oldman-test:{uuid.uuid4().hex}"
         self.cache = RedisCache(client=self.alias, namespace=self.namespace, serializer="pickle")
@@ -116,7 +135,7 @@ class RealRedisCacheTest(unittest.IsolatedAsyncioTestCase):
         await null_cache.clear()
 
     async def test_concurrent_first_access_uses_one_lazy_provider_client(self) -> None:
-        registry = RedisClientRegistry(DefaultSettings().redis)
+        registry = self.owned_registry()
         alias = registry.using("CACHE")
         cache = RedisCache(
             client=alias,

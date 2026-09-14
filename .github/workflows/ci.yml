@@ -19,7 +19,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.12", "3.13"]
+        # 3.13 is pinned to a patch release: uvloop 0.22.1 crashes in its async-generator
+        # finalizer under asyncio debug mode on CPython 3.13.15 (MagicStack/uvloop#699).
+        # Lift the pin when uvloop ships a fix.
+        python: ["3.12", "3.13.11"]
     steps:
       - uses: actions/checkout@v4
 
@@ -38,11 +41,23 @@ jobs:
           pnpm install --frozen-lockfile
           uv sync --group dev
 
+      # The Redis integration tests fail (not skip) without a redis-server binary; each test
+      # class starts its own server on a temporary Unix socket, so no system service is needed.
+      - name: Install redis-server for the integration gate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-server
+          redis-server --version
+
+      # test_oldman_web_pack_boundary reads the built oldman-web package (dist/).
+      - name: Build oldman-web
+        run: pnpm --filter oldman-web build
+
       - name: Lint
         run: uv run ruff check oldman tests scripts
 
       - name: Type check
-        if: matrix.python == '3.12'
+        if: startsWith(matrix.python, '3.12')
         run: uv run pyright
 
       # Tests that need NATS or Redis skip themselves unless NATS_SERVER / REDIS_SERVER are set.
@@ -50,9 +65,9 @@ jobs:
         run: uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .
 
       - name: Frontend tests and type checks
-        if: matrix.python == '3.12'
+        if: startsWith(matrix.python, '3.12')
         run: pnpm verify:frontend
 
       - name: Web boundary inventory
-        if: matrix.python == '3.12'
+        if: startsWith(matrix.python, '3.12')
         run: pnpm verify:web-boundaries

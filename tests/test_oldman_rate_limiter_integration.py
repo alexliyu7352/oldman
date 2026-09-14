@@ -2,25 +2,39 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 from oldman.conf.schemas import (
-    DefaultSettings,
     FingerprintRateLimitConfig,
     FingerprintSecurityConfig,
 )
 from oldman.providers.redis.client import RedisClientRegistry
 from oldman.web.security.rate_limiter import FingerprintIPRateLimiter, RedisFixedWindowRateLimiter
+from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
 
 class RedisRateLimiterIntegrationTest(unittest.IsolatedAsyncioTestCase):
-    """Verify fixed-window and Lua policies against the configured real Redis."""
+    """Verify fixed-window and Lua policies against an owned redis-server process."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Start one isolated Redis Unix socket for this test class."""
+        cls.temporary_directory = tempfile.TemporaryDirectory()
+        cls.redis_process = RedisProcess(require_redis_server(), Path(cls.temporary_directory.name), "rate-limiter")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Stop the owned Redis process and remove its socket directory."""
+        cls.redis_process.stop()
+        cls.temporary_directory.cleanup()
 
     async def asyncSetUp(self) -> None:
         """Open a test-owned DEFAULT Redis registry and exact-key ledger."""
-        self.registry = RedisClientRegistry(DefaultSettings().redis)
+        self.registry = RedisClientRegistry(owned_redis_config(self.redis_process.socket_path, {"DEFAULT": 3}))
         self.client = self.registry.using("DEFAULT")
         self.connection = await self.client.async_get_conn()
         self.keys: set[str] = set()

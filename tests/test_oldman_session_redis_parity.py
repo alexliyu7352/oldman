@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
-import subprocess
 import tempfile
 import time
 import unittest
-from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -22,14 +19,7 @@ from oldman.conf.schemas import RedisConfig
 from oldman.providers.redis import RedisClientRegistry
 from oldman.serializers import MsgspecModel
 from oldman.web.session import DefaultSessionInterface, Session, SessionData, get_session_data
-
-
-def require_redis_server(resolver: Callable[[str], str | None] = shutil.which) -> str:
-    """Fail the Linux integration gate instead of silently skipping Redis."""
-    executable = resolver("redis-server")
-    if executable is None:
-        raise RuntimeError("redis-server is required for the Linux integration gate")
-    return executable
+from tests.redis_support import RedisProcess, require_redis_server
 
 
 class SessionProfile(MsgspecModel, kw_only=True):
@@ -74,40 +64,14 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         """Start one isolated Redis Unix socket for this test class."""
-        redis_server = require_redis_server()
         cls._temporary_directory = tempfile.TemporaryDirectory()
-        cls._socket_path = Path(cls._temporary_directory.name) / "redis.sock"
-        cls._redis_process = subprocess.Popen(
-            [
-                redis_server,
-                "--save",
-                "",
-                "--appendonly",
-                "no",
-                "--port",
-                "0",
-                "--unixsocket",
-                str(cls._socket_path),
-                "--unixsocketperm",
-                "700",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        deadline = time.monotonic() + 5
-        while not cls._socket_path.exists() and cls._redis_process.poll() is None and time.monotonic() < deadline:
-            time.sleep(0.01)
-        if not cls._socket_path.exists():
-            cls._redis_process.terminate()
-            cls._redis_process.wait(timeout=5)
-            cls._temporary_directory.cleanup()
-            raise RuntimeError("redis-server did not create its owned Unix socket")
+        cls._redis_process = RedisProcess(require_redis_server(), Path(cls._temporary_directory.name), "redis")
+        cls._socket_path = cls._redis_process.socket_path
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Stop the owned Redis process and remove its socket directory."""
-        cls._redis_process.terminate()
-        cls._redis_process.wait(timeout=5)
+        cls._redis_process.stop()
         cls._temporary_directory.cleanup()
 
     async def asyncSetUp(self) -> None:

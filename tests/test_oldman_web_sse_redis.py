@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
-import subprocess
 import tempfile
 import time
 import unittest
@@ -22,14 +20,7 @@ from oldman.providers.redis import RedisClientRegistry
 from oldman.serializers import MsgspecModel
 from oldman.web.sse import SSEExtension, SSEPublisher, SSEQueueMode, SSEStream
 from oldman.web.sse.connection import SSEConnection, SSEWriter
-
-
-def require_redis_server(resolver: Callable[[str], str | None] = shutil.which) -> str:
-    """Fail the Linux integration gate instead of silently skipping Redis."""
-    executable = resolver("redis-server")
-    if executable is None:
-        raise RuntimeError("redis-server is required for the Linux integration gate")
-    return executable
+from tests.redis_support import RedisProcess, require_redis_server
 
 
 class DistributedStatus(MsgspecModel, kw_only=True):
@@ -77,42 +68,6 @@ class RecordingWriter:
 
     async def eof(self) -> None:
         self.eof_count += 1
-
-
-class RedisProcess:
-    """Own one redis-server bound only to a temporary Unix socket."""
-
-    def __init__(self, executable: str, directory: Path, name: str) -> None:
-        self.socket_path = directory / f"{name}.sock"
-        self.process = subprocess.Popen(
-            [
-                executable,
-                "--save",
-                "",
-                "--appendonly",
-                "no",
-                "--port",
-                "0",
-                "--unixsocket",
-                str(self.socket_path),
-                "--unixsocketperm",
-                "700",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        deadline = time.monotonic() + 5
-        while not self.socket_path.exists() and self.process.poll() is None and time.monotonic() < deadline:
-            time.sleep(0.01)
-        if not self.socket_path.exists():
-            self.stop()
-            raise RuntimeError("redis-server did not create its owned Unix socket")
-
-    def stop(self) -> None:
-        """Stop Redis if it is still running."""
-        if self.process.poll() is None:
-            self.process.terminate()
-            self.process.wait(timeout=5)
 
 
 class SSERedisIntegrationTest(unittest.IsolatedAsyncioTestCase):

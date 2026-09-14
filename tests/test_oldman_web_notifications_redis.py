@@ -35,12 +35,8 @@ from oldman.web.sse import (
     SSEStream,
 )
 from oldman.web.sse.connection import SSEConnection, SSEWriter
-from tests.test_oldman_web_sse_redis import (
-    Catalog,
-    RecordingWriter,
-    RedisProcess,
-    require_redis_server,
-)
+from tests.redis_support import RedisProcess, require_redis_server
+from tests.test_oldman_web_sse_redis import Catalog, RecordingWriter
 
 
 class NotificationRedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
