@@ -19,10 +19,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.13 is pinned to a patch release: uvloop 0.22.1 crashes in its async-generator
-        # finalizer under asyncio debug mode on CPython 3.13.15 (MagicStack/uvloop#699).
-        # Lift the pin when uvloop ships a fix.
-        python: ["3.12", "3.13.11", "3.14"]
+        # 3.13 and 3.14 are pinned to patch releases: uvloop 0.22.1 crashes in its
+        # async-generator finalizer under asyncio debug mode on CPython 3.13.15 and 3.14.7
+        # (MagicStack/uvloop#699). Lift the pins when uvloop ships a fix.
+        python: ["3.12", "3.13.11", "3.14.2"]
     steps:
       - uses: actions/checkout@v4
 
