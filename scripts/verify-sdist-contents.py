@@ -27,7 +27,16 @@ try:
         require_clean_oldman_tree,
         sdist_oldman_inventory,
     )
+    from scripts.release_artifacts import python_distribution_version
 except ModuleNotFoundError:  # pragma: no cover - direct/build-hook execution
+    artifacts_path = Path(__file__).resolve().with_name("release_artifacts.py")
+    artifacts_spec = importlib.util.spec_from_file_location("oldman_release_artifacts", artifacts_path)
+    if artifacts_spec is None or artifacts_spec.loader is None:
+        raise RuntimeError(f"Cannot load release artifacts helper: {artifacts_path}") from None
+    artifacts_module = importlib.util.module_from_spec(artifacts_spec)
+    sys.modules[artifacts_spec.name] = artifacts_module
+    artifacts_spec.loader.exec_module(artifacts_module)
+    python_distribution_version = artifacts_module.python_distribution_version
     inventory_path = Path(__file__).resolve().with_name("python_release_inventory.py")
     inventory_spec = importlib.util.spec_from_file_location("oldman_python_release_inventory", inventory_path)
     if inventory_spec is None or inventory_spec.loader is None:
@@ -159,7 +168,7 @@ def core_metadata_errors(payload: bytes, source_files: Mapping[str, bytes], *, l
     scalar_headers = {
         "Metadata-Version": "2.4",
         "Name": project.get("name"),
-        "Version": project.get("version"),
+        "Version": python_distribution_version(project["version"]),
         "Summary": project.get("description"),
         "Description-Content-Type": "text/markdown",
         "License-File": "LICENSE",
@@ -240,7 +249,7 @@ def sdist_metadata_errors(
     errors: list[str] = []
     try:
         project = project_table(source_files)
-        expected_root = f"{project['name']}-{project['version']}"
+        expected_root = f"{project['name']}-{python_distribution_version(project['version'])}"
     except (KeyError, RuntimeError) as exc:
         return [f"Source distribution metadata cannot be bound to frozen project metadata: {exc}"]
     if root != expected_root:
@@ -299,7 +308,10 @@ def safe_sdist_member_errors(member: tarfile.TarInfo, root: str) -> list[str]:
     if member.mtime != SDIST_MTIME:
         errors.append(f"Source distribution member has non-canonical mtime: {name}")
     if member.pax_headers:
-        errors.append(f"Source distribution member has unexpected PAX metadata: {name}")
+        # tarfile emits a PAX header once a member path exceeds the 100-byte ustar name field;
+        # that header may carry the path and nothing else (no mtime, uid, or other overrides).
+        if set(member.pax_headers) != {"path"} or len(name) <= 100 or member.pax_headers["path"] != name:
+            errors.append(f"Source distribution member has unexpected PAX metadata: {name}")
     if member.linkname or member.devmajor != 0 or member.devminor != 0 or member.sparse is not None:
         errors.append(f"Source distribution member has unexpected link/device metadata: {name}")
     return errors

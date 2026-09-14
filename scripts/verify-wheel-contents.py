@@ -33,6 +33,7 @@ try:
         require_clean_oldman_tree,
         wheel_oldman_inventory,
     )
+    from scripts.release_artifacts import python_distribution_version
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
     from python_release_inventory import (
         committed_oldman_inventory,
@@ -40,6 +41,7 @@ except ModuleNotFoundError:  # pragma: no cover - direct script execution
         require_clean_oldman_tree,
         wheel_oldman_inventory,
     )
+    from release_artifacts import python_distribution_version
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -189,7 +191,7 @@ def core_metadata_errors(payload: bytes, source_files: Mapping[str, bytes], *, l
     scalar_headers = {
         "Metadata-Version": "2.4",
         "Name": project.get("name"),
-        "Version": project.get("version"),
+        "Version": python_distribution_version(project["version"]),
         "Summary": project.get("description"),
         "Description-Content-Type": "text/markdown",
         "License-File": "LICENSE",
@@ -270,7 +272,7 @@ def wheel_metadata_errors(
     errors: list[str] = []
     try:
         project = project_table(source_files)
-        expected_root = f"{project['name']}-{project['version']}.dist-info"
+        expected_root = f"{project['name']}-{python_distribution_version(project['version'])}.dist-info"
     except (KeyError, RuntimeError) as exc:
         return [f"Wheel metadata cannot be bound to frozen project metadata: {exc}"]
     if dist_info_root != expected_root:

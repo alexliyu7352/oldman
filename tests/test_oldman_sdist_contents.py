@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import re
 import subprocess
 import tarfile
 import tempfile
@@ -15,6 +16,9 @@ import tomllib
 import unittest
 from pathlib import Path
 from types import ModuleType
+from unittest.mock import patch
+
+from scripts.release_artifacts import python_distribution_version
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "scripts" / "verify-sdist-contents.py"
@@ -30,6 +34,13 @@ def load_verifier() -> ModuleType:
     return module
 
 
+def archive_root(source_files: dict[str, bytes] | None = None) -> str:
+    """Return the sdist root directory Hatchling produces for the frozen (or given) project version."""
+    pyproject = source_files["pyproject.toml"].decode() if source_files else (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    project = tomllib.loads(pyproject)["project"]
+    return f"{project['name']}-{python_distribution_version(project['version'])}"
+
+
 def core_metadata_fixture(source_files: dict[str, bytes]) -> bytes:
     """Render semantically complete PKG-INFO for a synthetic sdist."""
     project = tomllib.loads(source_files["pyproject.toml"].decode())["project"]
@@ -37,7 +48,7 @@ def core_metadata_fixture(source_files: dict[str, bytes]) -> bytes:
     headers = [
         "Metadata-Version: 2.4",
         f"Name: {project['name']}",
-        f"Version: {project['version']}",
+        f"Version: {python_distribution_version(project['version'])}",
         f"Summary: {project['description']}",
     ]
     headers.extend(f"Project-URL: {name}, {url}" for name, url in project["urls"].items())
@@ -55,18 +66,20 @@ def write_archive(
     *,
     unsafe_link: str | None = None,
     payloads: dict[str, bytes] | None = None,
+    root: str | None = None,
 ) -> None:
     """Create a small source distribution fixture."""
+    root = root or archive_root()
     archive_buffer = io.BytesIO()
     with tarfile.open(fileobj=archive_buffer, mode="w") as archive:
         for name in members:
             payload = (payloads or {}).get(name, b"fixture\n")
-            info = tarfile.TarInfo(f"oldman-0.1.0/{name}")
+            info = tarfile.TarInfo(f"{root}/{name}")
             info.mtime = 1_580_601_600
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
         if unsafe_link is not None:
-            info = tarfile.TarInfo(f"oldman-0.1.0/{unsafe_link}")
+            info = tarfile.TarInfo(f"{root}/{unsafe_link}")
             info.mtime = 1_580_601_600
             info.type = tarfile.SYMTYPE
             info.linkname = "../../outside"
@@ -99,7 +112,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
 
     def test_hollow_source_distribution_is_rejected_by_committed_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "oldman-0.1.0.tar.gz"
+            path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             write_archive(path, sorted(self.verifier.REQUIRED_PATHS))
 
             expected = {
@@ -113,7 +126,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
 
     def test_complete_source_distribution_inventory_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "oldman-0.1.0.tar.gz"
+            path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             members = sorted(self.verifier.REQUIRED_PATHS | {"oldman/tasks/base.py"})
             source_files = self.verifier.release_source_files(ROOT)
             write_archive(
@@ -136,9 +149,29 @@ class OldmanSdistContentsTest(unittest.TestCase):
                 ),
             )
 
+    def test_prerelease_root_and_long_member_path_pass(self) -> None:
+        """A longer (pre-release) root pushes one migration path past the 100-byte ustar name field;
+        the resulting PAX path header is deterministic and must be accepted, and the root uses the PEP 440 form."""
+        long_member = "oldman/web/messages/notifications/migrations/4858aab957ee_create_oldman_notification.py"
+        source_files = dict(self.verifier.release_source_files(ROOT))
+        source_files["pyproject.toml"] = re.sub(
+            rb'^version = ".*"$', b'version = "9.9.9-rc.1"', source_files["pyproject.toml"], count=1, flags=re.MULTILINE
+        )
+        root = archive_root(source_files)
+        self.assertEqual("oldman-9.9.9rc1", root)
+        members = sorted(self.verifier.REQUIRED_PATHS | {"oldman/tasks/base.py", long_member})
+        with patch.object(self.verifier, "release_source_files", return_value=source_files), tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / f"{root}.tar.gz"
+            write_archive(path, members, payloads={**source_files, "PKG-INFO": core_metadata_fixture(source_files)}, root=root)
+            with tarfile.open(path, "r:gz") as archive:
+                self.assertTrue(any(member.pax_headers for member in archive.getmembers()))
+            expected = {name: hashlib.sha256(b"fixture\n").hexdigest() for name in members if name.startswith("oldman/")}
+
+            self.assertEqual([], self.verifier.verify_sdist(path, expected_inventory=expected, expected_source_files=source_files))
+
     def test_unexpected_consumer_and_frontend_sources_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "oldman-0.1.0.tar.gz"
+            path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             write_archive(
                 path,
                 sorted(self.verifier.REQUIRED_PATHS)
@@ -152,7 +185,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
 
     def test_sdist_rejects_arbitrary_root_files_and_gitignore(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "oldman-0.1.0.tar.gz"
+            path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             write_archive(path, sorted(self.verifier.REQUIRED_PATHS) + [".gitignore", "notes.txt"])
 
             errors = self.verifier.verify_sdist(path)
@@ -162,7 +195,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
 
     def test_sdist_rejects_links_and_traversal_members(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "oldman-0.1.0.tar.gz"
+            path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             write_archive(
                 path,
                 sorted(self.verifier.REQUIRED_PATHS) + ["../escaped.txt"],
@@ -268,7 +301,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
             rebuilt_output.mkdir()
             subprocess.run(
                 ["uv", "build", "--sdist", "--out-dir", str(rebuilt_output)],
-                cwd=extracted / "oldman-0.1.0",
+                cwd=extracted / archive_root(),
                 check=True,
                 capture_output=True,
                 text=True,

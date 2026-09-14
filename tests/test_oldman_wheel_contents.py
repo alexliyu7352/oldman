@@ -8,6 +8,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import re
 import stat
 import subprocess
 import tempfile
@@ -15,6 +16,9 @@ import tomllib
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
+
+from scripts.release_artifacts import python_distribution_version
 
 ROOT = Path(__file__).resolve().parents[1]
 VERIFY_WHEEL_SCRIPT = ROOT / "scripts" / "verify-wheel-contents.py"
@@ -37,7 +41,7 @@ def core_metadata_fixture(source_files: dict[str, bytes]) -> bytes:
     headers = [
         "Metadata-Version: 2.4",
         f"Name: {project['name']}",
-        f"Version: {project['version']}",
+        f"Version: {python_distribution_version(project['version'])}",
         f"Summary: {project['description']}",
     ]
     headers.extend(f"Project-URL: {name}, {url}" for name, url in project["urls"].items())
@@ -85,7 +89,7 @@ def write_closed_wheel(
         files.setdefault(f"{prefix}fixture.txt", b"fixture\n")
     source_files = module.release_source_files(ROOT)
     project = module.project_table(source_files)
-    dist_info = f"{project['name']}-{project['version']}.dist-info"
+    dist_info = f"{project['name']}-{python_distribution_version(project['version'])}.dist-info"
     entry_points = "[console_scripts]\n" + "".join(
         f"{name} = {target}\n" for name, target in project["scripts"].items()
     )
@@ -378,6 +382,21 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             wheel = Path(tmp) / "oldman.whl"
             expected = write_closed_wheel(wheel, module)
+
+            self.assertEqual([], module.verify_wheel(wheel, expected_inventory=expected))
+
+    def test_closed_wheel_fixture_passes_for_prerelease_versions(self) -> None:
+        """Hatchling writes the PEP 440 form (9.9.9rc1) into dist-info names and METADATA; the verifier must expect it."""
+        module = load_verify_wheel_module()
+        source_files = dict(module.release_source_files(ROOT))
+        source_files["pyproject.toml"] = re.sub(
+            rb'^version = ".*"$', b'version = "9.9.9-rc.1"', source_files["pyproject.toml"], count=1, flags=re.MULTILINE
+        )
+        with patch.object(module, "release_source_files", return_value=source_files), tempfile.TemporaryDirectory() as tmp:
+            wheel = Path(tmp) / "oldman.whl"
+            expected = write_closed_wheel(wheel, module)
+            with zipfile.ZipFile(wheel) as archive:
+                self.assertIn("oldman-9.9.9rc1.dist-info/METADATA", archive.namelist())
 
             self.assertEqual([], module.verify_wheel(wheel, expected_inventory=expected))
 
