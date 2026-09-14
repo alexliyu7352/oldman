@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm/action-setup reads "packageManager" from package.json (pnpm 9.12.3).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          uv sync --group dev
+
+      - name: Lint
+        run: uv run ruff check oldman tests scripts
+
+      - name: Type check
+        if: matrix.python == '3.12'
+        run: uv run pyright
+
+      # Tests that need NATS or Redis skip themselves unless NATS_SERVER / REDIS_SERVER are set.
+      - name: Python tests
+        run: uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .
+
+      - name: Frontend tests and type checks
+        if: matrix.python == '3.12'
+        run: pnpm verify:frontend
+
+      - name: Web boundary inventory
+        if: matrix.python == '3.12'
+        run: pnpm verify:web-boundaries

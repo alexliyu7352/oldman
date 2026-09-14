@@ -1,0 +1,153 @@
+name: Release
+
+# Triggered by an annotated tag "v<version>" where <version> equals project.version in
+# pyproject.toml (for example v0.1.1 or v0.1.1-rc.1). Builds and verifies the artifacts
+# once, then publishes to PyPI and npm through trusted publishing (OIDC, no stored tokens),
+# and finally attaches the verified files to a GitHub Release.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build and verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      python_version: ${{ steps.version.outputs.python_version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Install both supported interpreters for the install smoke
+        run: uv python install 3.12 3.13
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          uv sync --group dev
+
+      - name: Resolve the release version and check the tag
+        id: version
+        run: |
+          uv run python - <<'PY' | tee -a "$GITHUB_OUTPUT"
+          from pathlib import Path
+          from scripts.release_artifacts import authoritative_version, python_distribution_version
+          version = authoritative_version(Path("."))
+          print(f"version={version}")
+          print(f"python_version={python_distribution_version(version)}")
+          print(f"prerelease={'true' if '-' in version else 'false'}")
+          PY
+          expected="v$(uv run python -c 'from pathlib import Path; from scripts.release_artifacts import authoritative_version; print(authoritative_version(Path(".")))')"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match pyproject.toml version ($expected)"
+            exit 1
+          fi
+
+      - name: Build wheel, sdist and npm tarball
+        run: |
+          pnpm build:python
+          pnpm pack:web
+
+      - name: Verify the artifacts
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PY_VERSION: ${{ steps.version.outputs.python_version }}
+        run: |
+          wheel="dist/oldman-${PY_VERSION}-py3-none-any.whl"
+          sdist="dist/oldman-${PY_VERSION}.tar.gz"
+          tgz="frontend/packages/oldman-web/oldman-web-${VERSION}.tgz"
+          ls -l "$wheel" "$sdist" "$tgz"
+          uv run python scripts/verify-wheel-contents.py "$wheel"
+          uv run python scripts/verify-sdist-contents.py "$sdist"
+          uv run python scripts/verify-python-package-install.py \
+            --wheel "$wheel" --sdist "$sdist" \
+            --python "$(uv python find 3.12)" --python "$(uv python find 3.13)"
+          uv run python scripts/verify-oldman-web-package.py \
+            --wheel "$wheel" --npm-tarball "$tgz" --evidence-dir "$RUNNER_TEMP/web-evidence"
+          mkdir -p release/python release/npm
+          cp "$wheel" "$sdist" release/python/
+          cp "$tgz" release/npm/
+          (cd release && sha256sum python/* npm/* > SHA256SUMS && cat SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/
+          if-no-files-found: error
+
+  publish-pypi:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release/python
+          print-hash: true
+
+  publish-npm:
+    name: publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships an older npm.
+      - run: npm install -g npm@latest && npm --version
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - name: Publish the verified tarball
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          DIST_TAG: ${{ needs.build.outputs.prerelease == 'true' && 'next' || 'latest' }}
+        run: npm publish "release/npm/oldman-web-${VERSION}.tgz" --access public --tag "$DIST_TAG"
+
+  github-release:
+    name: GitHub release
+    needs: [build, publish-pypi, publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/python/*
+            release/npm/*
+            release/SHA256SUMS
+          prerelease: ${{ needs.build.outputs.prerelease == 'true' }}
+          generate_release_notes: true
