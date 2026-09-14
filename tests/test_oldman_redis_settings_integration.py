@@ -3,22 +3,36 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import unittest
 import uuid
+from pathlib import Path
 
 from redis.exceptions import ResponseError
 
 from oldman.conf.containers import RedisSettings
-from oldman.conf.schemas import DefaultSettings
 from oldman.providers.redis.client import RedisClientRegistry
+from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
 
 class RedisSettingsIntegrationTest(unittest.IsolatedAsyncioTestCase):
-    """Verify settings types and Redis-native structures against real Redis."""
+    """Verify settings types and Redis-native structures against an owned redis-server process."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Start one isolated Redis Unix socket for this test class."""
+        cls.temporary_directory = tempfile.TemporaryDirectory()
+        cls.redis_process = RedisProcess(require_redis_server(), Path(cls.temporary_directory.name), "settings")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Stop the owned Redis process and remove its socket directory."""
+        cls.redis_process.stop()
+        cls.temporary_directory.cleanup()
 
     async def asyncSetUp(self) -> None:
-        """Create an isolated namespace on the configured DEFAULT Redis database."""
-        self.registry = RedisClientRegistry(DefaultSettings().redis)
+        """Create an isolated namespace on the owned DEFAULT Redis database."""
+        self.registry = RedisClientRegistry(owned_redis_config(self.redis_process.socket_path, {"DEFAULT": 3}))
         self.client = self.registry.using("DEFAULT")
         self.namespace = f"oldman-test:settings:{uuid.uuid4().hex}"
         self.settings = RedisSettings(self.client, namespace=self.namespace)
