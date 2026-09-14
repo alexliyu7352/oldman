@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Oldman Admin{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    <div class="om-page-header">
+      <div>
+        <h1 class="om-page-title">{{ _("Administration") }}</h1>
+        <p class="mt-1 text-sm text-default-500">{{ _("Manage registered models.") }}</p>
+      </div>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {% for item in menu_items %}
+        <a href="{{ item.url }}" class="om-card block transition hover:border-primary-100 hover:shadow-sm">
+          <div class="om-card-body">
+            <div class="flex items-start gap-3">
+              <i class="{{ item.icon }} mt-0.5 text-xl text-primary" aria-hidden="true"></i>
+              <div>
+                <p class="text-base font-semibold text-default-950">{{ item.label }}</p>
+                {% if item.app_display_name %}
+                  <p class="mt-0.5 text-xs text-default-500">{{ item.app_display_name }}</p>
+                {% endif %}
+              </div>
+            </div>
+            <p class="mt-2 text-sm text-default-500">{{ _("Open model records.") }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

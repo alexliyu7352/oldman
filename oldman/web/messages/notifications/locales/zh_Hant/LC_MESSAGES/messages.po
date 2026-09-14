@@ -1,0 +1,68 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: oldman\n"
+"Language: zh_Hant\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Notification"
+msgstr "通知"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "User notifications"
+msgstr "使用者通知"
+
+msgid "Current activity"
+msgstr "目前活動"
+
+msgid "Notification filters"
+msgstr "通知篩選"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Unread"
+msgstr "未讀"
+
+msgid "Read"
+msgstr "已讀"
+
+msgid "Mark as read"
+msgstr "標記為已讀"
+
+msgid "Mark selected as read"
+msgstr "將所選標記為已讀"
+
+msgid "Mark all as read"
+msgstr "全部標記為已讀"
+
+msgid "Delete"
+msgstr "刪除"
+
+msgid "Delete selected"
+msgstr "刪除所選"
+
+msgid "New notifications available"
+msgstr "有新通知"
+
+msgid "Select notification"
+msgstr "選取通知"
+
+msgid "No notifications"
+msgstr "暫無通知"
+
+msgid "Notification pages"
+msgstr "通知分頁"
+
+msgid "Previous"
+msgstr "上一頁"
+
+msgid "Next"
+msgstr "下一頁"
+
+msgid "Open"
+msgstr "開啟"

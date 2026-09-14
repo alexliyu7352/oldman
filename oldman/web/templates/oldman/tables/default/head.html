@@ -1,0 +1,19 @@
+<thead>
+  <tr>
+    {% if selectable %}
+    <th data-om-column-selection data-om-column-label="{{ _('Select') }}"><input type="checkbox" class="om-check" data-om-table-select-all aria-label="{{ _('Select all rows') }}"></th>
+    {% endif %}
+    {% for cell in header_cells %}
+    <th{{ cell.attrs|html_attrs }}>
+      {% if cell.column.sortable %}
+      <button type="button" class="om-sort-header" data-om-table-sort="{{ cell.column.name }}" aria-sort="none">
+        <span>{{ cell.label }}</span>
+        <i class="ri-arrow-up-down-line text-xs" data-om-table-sort-icon aria-hidden="true"></i>
+      </button>
+      {% else %}
+      {{ cell.label }}
+      {% endif %}
+    </th>
+    {% endfor %}
+  </tr>
+</thead>

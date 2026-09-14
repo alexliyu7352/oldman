@@ -1,0 +1,547 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: oldman\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "Enter username"
+msgstr "输入用户名"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Enter password"
+msgstr "输入密码"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Search username, email, display name"
+msgstr "搜索用户名、邮箱或显示名称"
+
+msgid "Active"
+msgstr "已启用"
+
+msgid "Staff"
+msgstr "工作人员"
+
+msgid "Superuser"
+msgstr "超级用户"
+
+msgid "Last Login From"
+msgstr "最后登录起始时间"
+
+msgid "Last Login To"
+msgstr "最后登录结束时间"
+
+msgid "Username already exists"
+msgstr "用户名已存在"
+
+msgid "Email already exists"
+msgstr "邮箱已存在"
+
+#, python-format
+msgid "%(field)s already exists"
+msgstr "%(field)s 已存在"
+
+msgid "cannot disable current user"
+msgstr "不能停用当前用户"
+
+msgid "cannot remove current user staff access"
+msgstr "不能移除当前用户的工作人员权限"
+
+msgid "cannot remove current user superuser access"
+msgstr "不能移除当前用户的超级用户权限"
+
+msgid "Passwords do not match"
+msgstr "两次输入的密码不一致"
+
+msgid "New Password"
+msgstr "新密码"
+
+msgid "Password must be 8-128 characters and include letters and numbers"
+msgstr "密码必须为 8 至 128 个字符，并同时包含字母和数字"
+
+msgid "Confirm Password"
+msgstr "确认密码"
+
+msgid "Email"
+msgstr "邮箱"
+
+msgid "Display Name"
+msgstr "显示名称"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Users"
+msgstr "用户"
+
+msgid "User"
+msgstr "用户"
+
+msgid "Users List"
+msgstr "用户列表"
+
+msgid "New User"
+msgstr "新建用户"
+
+msgid "Delete User"
+msgstr "删除用户"
+
+msgid "Edit User"
+msgstr "编辑用户"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Last Login"
+msgstr "最后登录"
+
+msgid "User created"
+msgstr "用户已创建"
+
+msgid "User saved"
+msgstr "用户已保存"
+
+#, python-format
+msgid "%(username)s can now access the dashboard."
+msgstr "%(username)s 现在可以访问管理面板。"
+
+#, python-format
+msgid "%(username)s profile was updated."
+msgstr "%(username)s 的资料已更新。"
+
+msgid "Just now"
+msgstr "刚刚"
+
+msgid "Disabled"
+msgstr "已停用"
+
+msgid "No Staff"
+msgstr "非工作人员"
+
+msgid "Never"
+msgstr "从未"
+
+msgid "Disable"
+msgstr "停用"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "User actions"
+msgstr "用户操作"
+
+msgid "Change Password"
+msgstr "修改密码"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Unsupported language."
+msgstr "不支持该语言。"
+
+msgid "Language preference saved."
+msgstr "语言偏好已保存。"
+
+msgid "Filter"
+msgstr "筛选"
+
+msgid "User save failed"
+msgstr "用户保存失败"
+
+msgid "User not found"
+msgstr "未找到用户"
+
+msgid "User not found."
+msgstr "未找到用户。"
+
+msgid "User deleted"
+msgstr "用户已删除"
+
+#, python-format
+msgid "%(username)s was removed from dashboard access."
+msgstr "已移除 %(username)s 的管理面板访问权限。"
+
+msgid "Password changed"
+msgstr "密码已修改"
+
+#, python-format
+msgid "%(username)s password was updated."
+msgstr "%(username)s 的密码已更新。"
+
+msgid "Change Status"
+msgstr "修改状态"
+
+#, python-format
+msgid "%(action)s User · %(username)s"
+msgstr "%(action)s用户 · %(username)s"
+
+msgid "User status updated"
+msgstr "用户状态已更新"
+
+#, python-format
+msgid "%(username)s is now %(status)s."
+msgstr "%(username)s 现在为%(status)s状态。"
+
+msgid "active"
+msgstr "启用"
+
+msgid "disabled"
+msgstr "停用"
+
+msgid "Authentication required"
+msgstr "需要登录"
+
+msgid "Invalid username or password."
+msgstr "用户名或密码错误。"
+
+msgid "Action"
+msgstr "操作"
+
+msgid "User avatar"
+msgstr "用户头像"
+
+msgid "Welcome"
+msgstr "欢迎"
+
+msgid "Session"
+msgstr "会话"
+
+msgid "Logout"
+msgstr "退出登录"
+
+msgid "User Session"
+msgstr "用户会话"
+
+msgid "Permissions"
+msgstr "权限"
+
+msgid "Current Session"
+msgstr "当前会话"
+
+msgid "Login Time"
+msgstr "登录时间"
+
+msgid "Login IP"
+msgstr "登录 IP"
+
+msgid "Session Boundaries"
+msgstr "会话边界"
+
+msgid "Page Scope"
+msgstr "页面范围"
+
+msgid "Current session only"
+msgstr "仅当前会话"
+
+msgid "Password Scope"
+msgstr "密码范围"
+
+msgid "Current user only"
+msgstr "仅当前用户"
+
+msgid "Logout Flow"
+msgstr "退出流程"
+
+msgid "End current session"
+msgstr "结束当前会话"
+
+msgid "Session Permissions"
+msgstr "会话权限"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "This page manages the current authenticated session. User administration remains in the application user-management area."
+msgstr "此页面管理当前已认证的会话；用户管理仍在应用的用户管理区域中进行。"
+
+msgid "Session password changed"
+msgstr "会话密码已修改"
+
+msgid "Session password change failed"
+msgstr "会话密码修改失败"
+
+msgid "Open the remote form to change the current session password."
+msgstr "打开远程表单以修改当前会话密码。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Change Session Password"
+msgstr "修改会话密码"
+
+msgid "Current session user not found."
+msgstr "未找到当前会话用户。"
+
+msgid "Current session user not found"
+msgstr "未找到当前会话用户"
+
+msgid "cannot delete current user"
+msgstr "不能删除当前用户"
+
+msgid "cannot delete superuser"
+msgstr "不能删除超级用户"
+
+msgid "Models"
+msgstr "模型"
+
+msgid "Applications"
+msgstr "应用"
+
+msgid "Authentication"
+msgstr "身份认证"
+
+msgid "Administration"
+msgstr "管理后台"
+
+msgid "Manage registered models."
+msgstr "管理已注册的模型。"
+
+msgid "Open model records."
+msgstr "打开模型记录。"
+
+msgid "Sign In"
+msgstr "登录"
+
+msgid "Welcome Back"
+msgstr "欢迎回来"
+
+msgid "Sign in"
+msgstr "登录"
+
+msgid "Use a staff account to continue."
+msgstr "请使用工作人员账号继续。"
+
+msgid "This action cannot be undone."
+msgstr "此操作无法撤销。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Delete user?"
+msgstr "删除该用户？"
+
+msgid "Password change failed"
+msgstr "密码修改失败"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Select a row action to continue."
+msgstr "请选择一项行操作以继续。"
+
+msgid "User status update failed"
+msgstr "用户状态更新失败"
+
+msgid "User delete failed"
+msgstr "用户删除失败"
+
+msgid "Enable user?"
+msgstr "启用该用户？"
+
+msgid "Disable user?"
+msgstr "停用该用户？"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Logout"
+msgstr "退出登录"
+
+msgid "Form validation failed"
+msgstr "表单验证失败"
+
+msgid "Not a valid choice."
+msgstr "不是有效的选项。"
+
+msgid "Show password"
+msgstr "显示密码"
+
+msgid "Hide password"
+msgstr "隐藏密码"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "Previous"
+msgstr "上一页"
+
+msgid "Next"
+msgstr "下一页"
+
+msgid "Back to top"
+msgstr "返回顶部"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Primary navigation"
+msgstr "主导航"
+
+msgid "Close navigation"
+msgstr "关闭导航"
+
+msgid "Delete notifications"
+msgstr "删除通知"
+
+msgid "Toggle navigation"
+msgstr "切换导航"
+
+msgid "Fullscreen"
+msgstr "全屏"
+
+msgid "Toggle theme"
+msgstr "切换主题"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "unread notifications"
+msgstr "条未读通知"
+
+msgid "New"
+msgstr "新建"
+
+msgid "Select notification"
+msgstr "选择通知"
+
+msgid "View all notifications"
+msgstr "查看全部通知"
+
+msgid "Select"
+msgstr "选择"
+
+msgid "Result"
+msgstr "结果"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Remove notifications"
+msgstr "移除通知"
+
+msgid "Are you sure?"
+msgstr "确定吗？"
+
+msgid "Selected notifications will be removed from this om-dropdown."
+msgstr "选中的通知将从此下拉菜单中移除。"
+
+msgid "Rows per page"
+msgstr "每页行数"
+
+msgid "Select all rows"
+msgstr "选择全部行"
+
+msgid "Select row"
+msgstr "选择此行"
+
+msgid "Search:"
+msgstr "搜索："
+
+msgid "Loading..."
+msgstr "加载中..."
+
+#, python-format
+msgid "Showing %(start)s to %(end)s of %(total)s entries"
+msgstr "显示第 %(start)s 至 %(end)s 条，共 %(total)s 条记录"
+
+msgid "File is too large"
+msgstr "文件过大"
+
+msgid "No chart data"
+msgstr "暂无图表数据"
+
+msgid "No matching records"
+msgstr "没有匹配的记录"
+
+msgid "No notifications"
+msgstr "暂无通知"
+
+msgid "No results found"
+msgstr "未找到结果"
+
+msgid "No choices available"
+msgstr "没有可选项"
+
+msgid "Press to select"
+msgstr "按下以选择"
+
+msgid "Only unique values can be added"
+msgstr "只能添加唯一值"
+
+msgid "Only values matching specific conditions can be added"
+msgstr "只能添加符合条件的值"
+
+#, python-brace-format
+msgid "Press Enter to add \"{value}\""
+msgstr "按 Enter 添加“{value}”"
+
+#, python-brace-format
+msgid "{count} value can be added"
+msgid_plural "{count} values can be added"
+msgstr[0] "最多可添加 {count} 个值"
+
+msgid "Notification"
+msgstr "通知"
+
+msgid "Request failed"
+msgstr "请求失败"
+
+msgid "Save failed"
+msgstr "保存失败"
+
+msgid "Saved"
+msgstr "已保存"
+
+msgid "Saving..."
+msgstr "保存中..."
+
+msgid "This is a placeholder set in the config"
+msgstr "这是配置中设置的占位内容"
+
+msgid "No users found."
+msgstr "未找到用户。"
+
+msgid "No records found."
+msgstr "未找到记录。"
+
+msgid "Save changes"
+msgstr "保存更改"
+
+msgid "Create"
+msgstr "创建"
+
+msgid "This field is required."
+msgstr "此字段为必填项。"
+
+msgid "Field must be between 8 and 128 characters long."
+msgstr "字段长度必须在 8 至 128 个字符之间。"
+
+msgid "Create Superuser"
+msgstr "创建超级用户"
+
+msgid "Username cannot be empty."
+msgstr "用户名不能为空。"

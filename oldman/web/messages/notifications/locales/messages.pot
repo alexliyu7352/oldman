@@ -1,0 +1,66 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: oldman\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Notification"
+msgstr ""
+
+msgid "Notifications"
+msgstr ""
+
+msgid "User notifications"
+msgstr ""
+
+msgid "Current activity"
+msgstr ""
+
+msgid "Notification filters"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Unread"
+msgstr ""
+
+msgid "Read"
+msgstr ""
+
+msgid "Mark as read"
+msgstr ""
+
+msgid "Mark selected as read"
+msgstr ""
+
+msgid "Mark all as read"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete selected"
+msgstr ""
+
+msgid "New notifications available"
+msgstr ""
+
+msgid "Select notification"
+msgstr ""
+
+msgid "No notifications"
+msgstr ""
+
+msgid "Notification pages"
+msgstr ""
+
+msgid "Previous"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "Open"
+msgstr ""

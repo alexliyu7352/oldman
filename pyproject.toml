@@ -1,0 +1,154 @@
+[project]
+name = "oldman"
+version = "0.1.0"
+description = "Oldman backend-rendered Python Web and application framework."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12, <3.14"
+dependencies = [
+    "aiodns>=3.5.0",
+    "aiofiles>=24.1",
+    "aiohttp==3.14.3",
+    "aiosqlite>=0.20",
+    "alembic>=1.18.5",
+    "async-lru>=2.0.5",
+    "babel>=2.14.0",
+    "billiard>=4.2.2",
+    "cryptography>=45.0.6",
+    "curl-cffi==0.15.0",
+    "fake-useragent>=2.2.0",
+    "faststream[nats]>=0.7.1",
+    "hiredis>=3.3.0",
+    "httpx[socks]>=0.28.1",
+    "isodate>=0.7.2",
+    "jinja2>=3.1.0",
+    "lxml>=6.0.1",
+    "markupsafe>=2.1",
+    "msgspec>=0.20.0",
+    "nats-py[nkeys]==2.15.0",  # The instance-scoped close fix is tied to this implementation.
+    "orjson>=3.11.5",
+    "pillow>=11.3.0",
+    "pycares>=4.9.0,<5.0",
+    "pycryptodomex>=3.23.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12",
+    "pyprctl>=0.1.3; sys_platform == 'linux'",
+    "python-slugify>=8.0.4",
+    "redis>=8,<9",
+    "rich>=13.9",
+    "ruamel.yaml>=0.18.14",
+    "sanic==25.12.1",
+    "sanic-ext==25.12.0",
+    "sqlalchemy>=2.0.44",
+    "sqlmodel>=0.0.27",
+    "sqids>=0.5.2",
+    "taskiq==0.12.6",
+    "taskiq-nats==0.6.0",
+    "taskiq-redis==1.2.3",
+    "tenacity>=9.1.2",
+    "typer>=0.16.1",
+    "ujson>=5.10",
+    "uuid6>=2025.0.1",
+    "wtforms>=3.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/alexliyu7352/oldman"
+Documentation = "https://github.com/alexliyu7352/oldman#readme"
+Repository = "https://github.com/alexliyu7352/oldman.git"
+Issues = "https://github.com/alexliyu7352/oldman/issues"
+
+[project.scripts]
+oldman = "oldman.cli:main"
+
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "Babel>=2.15",
+    "hatchling==1.31.0",
+    "packaging>=24.2",
+    "pyright[nodejs]>=1.1",
+    "ruff>=0.8.0",
+    "sanic-testing>=24.6",
+]
+
+[tool.pyright]
+include = ["oldman", "tests", "scripts"]
+exclude = ["**/__pycache__", ".venv", "build", "dist", "node_modules"]
+extraPaths = ["."]
+executionEnvironments = [
+    { root = ".", extraPaths = ["."] },
+]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 150
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    "__pycache__",
+    ".venv",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = [
+    "E501",
+    "B008",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.hatch.build.targets.wheel]
+packages = ["oldman"]
+artifacts = [
+    "/oldman/apps/admin/locales/**/*.mo",
+    "/oldman/cli/locales/**/*.mo",
+    "/oldman/web/messages/notifications/locales/**/*.mo",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+    "/oldman/apps/admin/locales/**/*.po",
+    "/oldman/cli/locales/**/*.po",
+    "/oldman/cli/locales/messages.pot",
+    "/oldman/web/messages/notifications/locales/**/*.po",
+    "/oldman/web/messages/notifications/locales/messages.pot",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSES" = "oldman/licenses"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/LICENSES",
+    "/README.md",
+    "/oldman",
+    "/pyproject.toml",
+    "/scripts/hatch_sdist_hook.py",
+]
+artifacts = [
+    "/oldman/apps/admin/locales/**/*.mo",
+    "/oldman/cli/locales/**/*.mo",
+    "/oldman/cli/locales/messages.pot",
+    "/oldman/web/messages/notifications/locales/**/*.mo",
+    "/oldman/web/messages/notifications/locales/messages.pot",
+]
+exclude = ["/.gitignore"]
+
+[tool.hatch.build.targets.sdist.hooks.custom]
+path = "scripts/hatch_sdist_hook.py"

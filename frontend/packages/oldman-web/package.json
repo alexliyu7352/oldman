@@ -1,0 +1,279 @@
+{
+  "name": "oldman-web",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexliyu7352/oldman.git",
+    "directory": "frontend/packages/oldman-web"
+  },
+  "bugs": {
+    "url": "https://github.com/alexliyu7352/oldman/issues"
+  },
+  "homepage": "https://github.com/alexliyu7352/oldman#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js",
+  "bin": {
+    "oldman-web-icons": "./bin/oldman-web-icons.mjs",
+    "oldman-web-i18n": "./bin/oldman-web-i18n.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
+  "sideEffects": [
+    "./dist/**/*.css",
+    "./dist/**/*.scss",
+    "./src/**/*.css",
+    "./src/**/*.scss"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./app": {
+      "types": "./dist/app/index.d.ts",
+      "import": "./dist/app/index.js"
+    },
+    "./dashboard": {
+      "types": "./dist/dashboard/index.d.ts",
+      "import": "./dist/dashboard/index.js"
+    },
+    "./dashboard/feedback": {
+      "types": "./dist/dashboard/feedback.d.ts",
+      "import": "./dist/dashboard/feedback.js"
+    },
+    "./dashboard/modal": {
+      "types": "./dist/dashboard/modal.d.ts",
+      "import": "./dist/dashboard/modal.js"
+    },
+    "./sse": {
+      "types": "./dist/sse/index.d.ts",
+      "import": "./dist/sse/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./components/apex-chart": {
+      "types": "./dist/components/apex-chart.d.ts",
+      "import": "./dist/components/apex-chart.js"
+    },
+    "./components/alert": {
+      "types": "./dist/components/alert.d.ts",
+      "import": "./dist/components/alert.js"
+    },
+    "./components/autocomplete": {
+      "types": "./dist/components/autocomplete.d.ts",
+      "import": "./dist/components/autocomplete.js"
+    },
+    "./components/back-to-top": {
+      "types": "./dist/components/back-to-top.d.ts",
+      "import": "./dist/components/back-to-top.js"
+    },
+    "./components/avatar": {
+      "types": "./dist/components/avatar.d.ts",
+      "import": "./dist/components/avatar.js"
+    },
+    "./components/carousel": {
+      "types": "./dist/components/carousel.d.ts",
+      "import": "./dist/components/carousel.js"
+    },
+    "./components/color-picker": {
+      "types": "./dist/components/color-picker.d.ts",
+      "import": "./dist/components/color-picker.js"
+    },
+    "./components/countdown": {
+      "types": "./dist/components/countdown.d.ts",
+      "import": "./dist/components/countdown.js"
+    },
+    "./components/date-time-picker": {
+      "types": "./dist/components/date-time-picker.d.ts",
+      "import": "./dist/components/date-time-picker.js"
+    },
+    "./components/dropdown": {
+      "types": "./dist/components/dropdown.d.ts",
+      "import": "./dist/components/dropdown.js"
+    },
+    "./components/feedback": {
+      "types": "./dist/components/feedback.d.ts",
+      "import": "./dist/components/feedback.js"
+    },
+    "./components/form": {
+      "types": "./dist/components/form.d.ts",
+      "import": "./dist/components/form.js"
+    },
+    "./components/form-mask": {
+      "types": "./dist/components/form-mask.d.ts",
+      "import": "./dist/components/form-mask.js"
+    },
+    "./components/form-repeater": {
+      "types": "./dist/components/form-repeater.d.ts",
+      "import": "./dist/components/form-repeater.js"
+    },
+    "./components/form-validator": {
+      "types": "./dist/components/form-validator.d.ts",
+      "import": "./dist/components/form-validator.js"
+    },
+    "./components/gallery": {
+      "types": "./dist/components/gallery.d.ts",
+      "import": "./dist/components/gallery.js"
+    },
+    "./components/history-back": {
+      "types": "./dist/components/history-back.d.ts",
+      "import": "./dist/components/history-back.js"
+    },
+    "./components/input-spinner": {
+      "types": "./dist/components/input-spinner.d.ts",
+      "import": "./dist/components/input-spinner.js"
+    },
+    "./components/rich-text-editor": {
+      "types": "./dist/components/rich-text-editor.d.ts",
+      "import": "./dist/components/rich-text-editor.js"
+    },
+    "./components/language-switcher": {
+      "types": "./dist/components/language-switcher.d.ts",
+      "import": "./dist/components/language-switcher.js"
+    },
+    "./components/list": {
+      "types": "./dist/components/list.d.ts",
+      "import": "./dist/components/list.js"
+    },
+    "./components/modal": {
+      "types": "./dist/components/modal.d.ts",
+      "import": "./dist/components/modal.js"
+    },
+    "./components/multi-step-form": {
+      "types": "./dist/components/multi-step-form.d.ts",
+      "import": "./dist/components/multi-step-form.js"
+    },
+    "./components/popover": {
+      "types": "./dist/components/popover.d.ts",
+      "import": "./dist/components/popover.js"
+    },
+    "./components/preloader": {
+      "types": "./dist/components/preloader.d.ts",
+      "import": "./dist/components/preloader.js"
+    },
+    "./components/scroll-area": {
+      "types": "./dist/components/scroll-area.d.ts",
+      "import": "./dist/components/scroll-area.js"
+    },
+    "./components/select": {
+      "types": "./dist/components/select.d.ts",
+      "import": "./dist/components/select.js"
+    },
+    "./components/sidebar-menu": {
+      "types": "./dist/components/sidebar-menu.d.ts",
+      "import": "./dist/components/sidebar-menu.js"
+    },
+    "./components/slider": {
+      "types": "./dist/components/slider.d.ts",
+      "import": "./dist/components/slider.js"
+    },
+    "./components/slug-input": {
+      "types": "./dist/components/slug-input.d.ts",
+      "import": "./dist/components/slug-input.js"
+    },
+    "./components/tags-input": {
+      "types": "./dist/components/tags-input.d.ts",
+      "import": "./dist/components/tags-input.js"
+    },
+    "./components/sortable-list": {
+      "types": "./dist/components/sortable-list.d.ts",
+      "import": "./dist/components/sortable-list.js"
+    },
+    "./components/table": {
+      "types": "./dist/components/table.d.ts",
+      "import": "./dist/components/table.js"
+    },
+    "./components/table-filter-form": {
+      "types": "./dist/components/table-filter-form.d.ts",
+      "import": "./dist/components/table-filter-form.js"
+    },
+    "./components/tabs": {
+      "types": "./dist/components/tabs.d.ts",
+      "import": "./dist/components/tabs.js"
+    },
+    "./components/tooltip": {
+      "types": "./dist/components/tooltip.d.ts",
+      "import": "./dist/components/tooltip.js"
+    },
+    "./components/upload": {
+      "types": "./dist/components/upload.d.ts",
+      "import": "./dist/components/upload.js"
+    },
+    "./styles/tailwind.css": "./dist/styles/tailwind.css",
+    "./styles/icons.css": "./dist/styles/icons.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "pnpm clean && tsc -p tsconfig.build.json && node scripts/copy-css.mjs",
+    "clean": "rm -rf dist *.tgz",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "generate:icons": "node ./bin/oldman-web-icons.mjs --output src/styles/icons.css --source src/app --source src/components --source src/core --source src/dashboard --source ../../../oldman/web/templates",
+    "generate:i18n-messages": "node ./scripts/generate-i18n-messages.mjs",
+    "check:i18n-messages": "node ./scripts/generate-i18n-messages.mjs --check",
+    "build:i18n-cli": "node ./scripts/build-i18n-cli.mjs",
+    "check:i18n-cli": "node ./scripts/build-i18n-cli.mjs --check",
+    "prebuild": "pnpm generate:icons && pnpm generate:i18n-messages && pnpm build:i18n-cli",
+    "predev": "pnpm generate:icons",
+    "prepack": "pnpm -C ../../.. verify:version && pnpm build",
+    "pretest": "pnpm generate:icons && pnpm check:i18n-messages && pnpm check:i18n-cli",
+    "pretypecheck": "pnpm generate:icons && pnpm check:i18n-messages && pnpm check:i18n-cli",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo": "^8.0.12",
+    "@iconify-json/bx": "^1.2.3",
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify-json/ri": "^1.2.10",
+    "@simonwep/pickr": "^1.9.1",
+    "@tanstack/table-core": "^9.2.4",
+    "apexcharts": "^4.7.0",
+    "axios": "^1.13.2",
+    "choices.js": "^11.2.3",
+    "cleave.js": "^1.6.0",
+    "flatpickr": "^4.6.13",
+    "node-waves": "^0.7.6",
+    "nouislider": "^15.8.1",
+    "quill": "^2.0.3",
+    "sass": "1.69.5",
+    "simplebar": "^6.3.1",
+    "sortablejs": "^1.15.6",
+    "sweetalert2": "^11.22.0",
+    "swiper": "^14.2.0",
+    "toastify-js": "^1.12.0",
+    "typescript": "^5.7.2",
+    "wnumb": "^1.2.0"
+  },
+  "peerDependencies": {
+    "tailwindcss": ">=4.0.0 <5"
+  },
+  "peerDependenciesMeta": {
+    "tailwindcss": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/sortablejs": "^1.15.9",
+    "jsdom": "^25.0.1",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.8"
+  }
+}

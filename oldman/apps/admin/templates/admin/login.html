@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ _("Sign In") }} · Oldman Admin{% endblock %}
+
+{% block dashboard_head_meta %}
+  {{ super() }}
+  <meta name="turbo-cache-control" content="no-cache">
+  <meta name="turbo-visit-control" content="reload">
+{% endblock %}
+
+{% block content %}
+  {% set language_switcher_classes = "om-dropdown absolute right-5 top-5 z-20" %}
+  {% set language_switcher_button_classes = "oldman-icon-button bg-white shadow-card" %}
+  {% set language_switcher_flag_id = "login-lang-img" %}
+  {% include "admin/partials/language_switcher.html" %}
+
+  <main class="grid min-h-screen grid-cols-1 lg:grid-cols-[minmax(28rem,34rem)_1fr]">
+    <section class="flex min-h-screen items-center justify-center bg-white px-6 py-12 sm:px-10 lg:px-12">
+      <div class="w-full max-w-md">
+        <a href="{{ admin_prefix }}/login" class="mb-10 inline-flex items-center gap-3">
+          <span class="oldman-brand-mark" aria-hidden="true"><span></span></span>
+          <span class="text-2xl font-semibold tracking-normal text-default-950">Oldman Admin</span>
+        </a>
+
+        <div class="mb-8">
+          <p class="mb-2 text-sm font-medium text-primary">{{ _("Welcome Back") }}</p>
+          <h1 class="text-2xl font-semibold leading-8 text-default-950">{{ _("Sign in") }}</h1>
+          <p class="mt-2 max-w-sm text-sm leading-6 text-default-500">{{ _("Use a staff account to continue.") }}</p>
+        </div>
+
+        {% if login_error %}
+          <div class="om-alert-danger mb-5">{{ login_error }}</div>
+        {% endif %}
+
+        {# Authentication changes the Session, so preserve the fixed source's full-page navigation boundary. #}
+        <form action="{{ admin_prefix }}/login" method="post" data-turbo="false" data-om-component="form" class="space-y-5">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next_url }}">
+
+          <div>
+            {{ login_form.render_field("username") }}
+          </div>
+
+          <div>
+            {{ login_form.render_field("password") }}
+          </div>
+
+          <button class="om-button om-button-primary w-full" type="submit">{{ _("Sign In") }}</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="hidden min-h-screen items-center justify-center bg-default-50 lg:flex" aria-hidden="true">
+      <div class="flex items-center gap-4 text-default-300">
+        <span class="oldman-brand-mark opacity-50"><span></span></span>
+        <span class="text-3xl font-semibold">Oldman Admin</span>
+      </div>
+    </section>
+  </main>
+{% endblock %}

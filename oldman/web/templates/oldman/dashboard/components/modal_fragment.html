@@ -1,0 +1,14 @@
+{% from "oldman/dashboard/components/modal.html" import modal %}
+
+{% call modal(
+  modal_id,
+  modal_title,
+  component=modal_component,
+  close_label=modal_close_label,
+  managed=modal_managed,
+  footer_close_label=modal_footer_close_label,
+  dialog_class=modal_dialog_class,
+  hidden=modal_hidden
+) %}
+  {{ modal_body }}
+{% endcall %}

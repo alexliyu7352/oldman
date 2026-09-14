@@ -1,0 +1,11 @@
+<div data-om-table-pagination class="om-pagination">
+  <button type="button" class="om-page-button"{% if previous_page %} data-om-table-page="{{ previous_page }}"{% else %} disabled{% endif %}>{{ _("Previous") }}</button>
+  {% for item in pages %}
+    {% if item.ellipsis %}
+    <span class="px-2 text-xs text-default-400">...</span>
+    {% else %}
+    <button type="button" class="om-page-button{% if item.active %} is-active{% endif %}" data-om-table-page="{{ item.page }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.page }}</button>
+    {% endif %}
+  {% endfor %}
+  <button type="button" class="om-page-button"{% if next_page %} data-om-table-page="{{ next_page }}"{% else %} disabled{% endif %}>{{ _("Next") }}</button>
+</div>

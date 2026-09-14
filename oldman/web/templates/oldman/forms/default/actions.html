@@ -1,0 +1,5 @@
+<div{{ attrs|html_attrs }}>
+  <button{{ submit_attrs|html_attrs }}>{{ submit_label }}</button>
+  {% if cancel_url %}<a{{ cancel_attrs|html_attrs }}>{{ cancel_label }}</a>{% endif %}
+  {{ extra_buttons }}
+</div>

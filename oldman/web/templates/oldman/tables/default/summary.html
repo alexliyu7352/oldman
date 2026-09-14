@@ -1,0 +1,5 @@
+<div data-om-table-summary class="text-sm text-default-500">
+  {% set start = 0 if result.filtered_total == 0 else ((result.page - 1) * result.page_size + 1) %}
+  {% set end = 0 if result.filtered_total == 0 else ((result.page - 1) * result.page_size + result.rows|length) %}
+  {{ _("Showing %(start)s to %(end)s of %(total)s entries", start=start, end=end, total=result.filtered_total) }}
+</div>

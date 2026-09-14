@@ -1,0 +1,135 @@
+{% from "oldman/dashboard/components/modal.html" import modal with context %}
+
+<div class="om-page-section">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-12">
+    <div class="md:col-span-12">
+      <div class="om-page-header">
+        <h1 class="om-page-title">{{ _('User Session') }}</h1>
+        <div class="page-title-right">
+          <button type="button" class="om-button om-button-soft-info om-button-sm mr-2" data-om-modal-target="#user-session-permissions-modal">
+            <i class="ri-information-line align-bottom mr-1"></i>{{ _('Permissions') }}
+          </button>
+          <a href="{{ logout_path }}" class="om-button om-button-soft-danger om-button-sm">
+            <i class="mdi mdi-logout align-middle mr-1"></i>{{ _('Logout') }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="user-session-feedback" data-om-component="feedback"></div>
+
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-12">
+    <div class="md:col-span-12 xl:col-span-4">
+      <div class="om-card">
+        <div class="om-card-body">
+          <div class="flex items-center">
+            <div class="om-avatar-lg">
+              <span class="om-avatar-title bg-primary-50 text-primary-600 rounded-full text-2xl">
+                <i class="mdi mdi-account-circle"></i>
+              </span>
+            </div>
+            <div class="flex-1 ml-3 min-w-0">
+              <h5 class="text-base mb-1 break-all">{{ session_profile.display_name }}</h5>
+              <p class="text-default-500 mb-2 break-all">{{ session_profile.username }}</p>
+              {% if session_profile.is_active %}
+                <span class="om-badge bg-green-50 text-green-700">{{ _('Active') }}</span>
+              {% else %}
+                <span class="om-badge bg-red-50 text-red-700">{{ _('Disabled') }}</span>
+              {% endif %}
+              {% if session_profile.is_superuser %}
+                <span class="om-badge bg-primary-50 text-primary-600">{{ _('Superuser') }}</span>
+              {% elif session_profile.is_staff %}
+                <span class="om-badge bg-default-100 text-default-500">{{ _('Staff') }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="button"
+                    class="om-button om-button-primary w-full"
+                    data-om-modal-target="#user-session-password-modal"
+                    data-om-modal-url="{{ password_modal_path }}">
+              <i class="ri-lock-password-line align-bottom mr-1"></i>{{ _('Change Password') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md:col-span-12 xl:col-span-8">
+      <div class="om-card">
+        <div class="om-card-header items-center flex">
+          <h4 class="om-card-title mb-0 flex-1">{{ _('Current Session') }}</h4>
+        </div>
+        <div class="om-card-body">
+          <form class="grid grid-cols-1 gap-4 md:grid-cols-12 g-3" data-om-component="form" data-om-form data-user-session-readonly-form>
+            <div class="md:col-span-6">
+              <label class="om-form-label">{{ _('Username') }}</label>
+              <input type="text" class="om-field" value="{{ session_profile.username }}" disabled>
+            </div>
+            <div class="md:col-span-6">
+              <label class="om-form-label">{{ _('Display Name') }}</label>
+              <input type="text" class="om-field" value="{{ session_profile.display_name }}" disabled>
+            </div>
+            <div class="md:col-span-6">
+              <label class="om-form-label">{{ _('Login Time') }}</label>
+              <input type="text" class="om-field" value="{{ session_profile.login_time }}" disabled>
+            </div>
+            <div class="md:col-span-6">
+              <label class="om-form-label">{{ _('Login IP') }}</label>
+              <input type="text" class="om-field" value="{{ session_profile.login_ip }}" disabled>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="om-card">
+        <div class="om-card-header items-center flex">
+          <h4 class="om-card-title mb-0 flex-1">{{ _('Session Boundaries') }}</h4>
+        </div>
+        <div class="om-card-body">
+          <div class="om-table-scroll">
+            <table class="om-table whitespace-nowrap align-middle mb-0">
+              <tbody>
+                <tr>
+                  <th scope="row" class="text-default-500">{{ _('Page Scope') }}</th>
+                  <td>{{ _('Current session only') }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-default-500">{{ _('Password Scope') }}</th>
+                  <td>{{ _('Current user only') }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="text-default-500">{{ _('Logout Flow') }}</th>
+                  <td><a href="{{ logout_path }}" class="font-medium text-red-600 hover:text-red-700">{{ _('End current session') }}</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% call modal(
+  'user-session-permissions-modal',
+  _('Session Permissions'),
+  close_label=_('Close'),
+  footer_close_label=_('Close'),
+  hidden=false
+) %}
+  <p class="text-default-500 mb-0">{{ _('This page manages the current authenticated session. User administration remains in the application user-management area.') }}</p>
+{% endcall %}
+
+{% call modal(
+  'user-session-password-modal',
+  _('Change Password'),
+  component='modal',
+  close_label=_('Close'),
+  dialog_scrollable=true,
+  remote_content=true,
+  inline_hidden_style=true
+) %}
+  <p class="text-default-500 mb-0">{{ _('Open the remote form to change the current session password.') }}</p>
+{% endcall %}

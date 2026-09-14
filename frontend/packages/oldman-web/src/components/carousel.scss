@@ -1,0 +1,16 @@
+@import "swiper/css" layer(oldman-vendor);
+@import "swiper/css/a11y" layer(oldman-vendor);
+@import "swiper/css/pagination" layer(oldman-vendor);
+
+[data-om-carousel-prev].swiper-button-disabled,
+[data-om-carousel-next].swiper-button-disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+[data-om-carousel-pagination] {
+  --swiper-pagination-color: var(--om-color-primary);
+  --swiper-pagination-bullet-inactive-color: var(--om-color-text-muted);
+  position: static;
+  width: auto;
+}

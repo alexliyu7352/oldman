@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="{% block dashboard_language %}{{ locale | default('en') }}{% endblock %}" data-layout="vertical" data-theme="light" data-sidenav-color="light" data-sidenav-size="default" data-topbar="light" data-sidebar-size="lg" data-preloader="enable">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% block dashboard_head_meta %}{% endblock %}
+    {% block dashboard_critical_styles %}
+      {% include "oldman/dashboard/partials/preloader_critical_css.html" %}
+    {% endblock %}
+    <link rel="icon" href="data:,">
+    <title>{% block title %}Oldman{% endblock %}</title>
+    {% block dashboard_head_assets %}{% endblock %}
+    {% block head %}{% endblock %}
+  </head>
+  <body class="oldman-shell{{ dashboard_body_classes | default('') }}" data-om-page="{{ page_entry | default('backend') }}">
+    {% block dashboard_preloader %}
+      {% include "oldman/dashboard/partials/preloader.html" %}
+    {% endblock %}
+    <div id="layout-wrapper" class="wrapper oldman-layout">
+      {% block dashboard_sidebar %}{% endblock %}
+      <div class="page-content oldman-page-content">
+        {% block dashboard_topbar %}{% endblock %}
+        {% block dashboard_content %}
+          <div class="oldman-main">
+            <div class="oldman-page-container">
+              {% include "oldman/messages/flash_message.html" %}
+              {% block content %}{% endblock %}
+            </div>
+          </div>
+        {% endblock %}
+      </div>
+    </div>
+    <div id="om-modal-root"></div>
+    {% block dashboard_after_shell %}
+      {% block dashboard_back_to_top %}
+        {% include "oldman/dashboard/partials/back_to_top.html" %}
+      {% endblock %}
+    {% endblock %}
+    {% block body_end %}{% endblock %}
+  </body>
+</html>

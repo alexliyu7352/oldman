@@ -1,0 +1,82 @@
+{% extends "oldman/dashboard/base.html" %}
+{% from "oldman/dashboard/partials/shell.html" import dashboard_main_frame, dashboard_sidebar with context %}
+
+{% block title %}Oldman Admin{% endblock %}
+
+{% block dashboard_head_meta %}
+  <meta name="oldman-asset-base" content="{{ bundle_asset_base_url(admin_bundle_name) }}">
+  <meta name="oldman-admin-base" content="{{ admin_prefix }}">
+  <meta name="csrf-token" content="{{ admin_csrf_token }}">
+  {% if admin_is_authenticated and admin_user_events_url %}
+    <meta name="oldman-user-events-url" content="{{ admin_user_events_url }}">
+  {% endif %}
+  <script id="oldman-admin-i18n" type="application/json">{{ admin_i18n | tojson }}</script>
+{% endblock %}
+
+{% block dashboard_head_assets %}
+  {% set extension_bundle_name = admin_extension_bundle_name | default(none) %}
+  {{ bundle_client(admin_bundle_name) }}
+  {% if extension_bundle_name %}
+    {{ bundle_client(extension_bundle_name) }}
+  {% endif %}
+  {{ bundle_modulepreload(admin_bundle_name) }}
+  {{ bundle_styles(admin_bundle_name) }}
+  {% if extension_bundle_name %}
+    {{ bundle_styles(extension_bundle_name) }}
+  {% endif %}
+  {{ bundle_script(admin_bundle_name) }}
+{% endblock %}
+
+{% block dashboard_sidebar %}
+  {% if admin_is_authenticated %}
+    {% call dashboard_sidebar(admin_prefix, _("Applications"), brand_subtitle="Admin", declarative_menu=true) %}
+      {% for group in menu_groups %}
+        {% set app_state = namespace(active=false) %}
+        {% for model in group.models %}
+          {% if request.path == model.url or request.path.startswith(model.url ~ '/') %}
+            {% set app_state.active = true %}
+          {% endif %}
+        {% endfor %}
+        <li class="menu-item oldman-menu-item nav-item{% if app_state.active %} active open{% endif %}" data-om-menu-item>
+          <button class="menu-link oldman-menu-link{% if app_state.active %} active{% endif %}" type="button" data-om-menu-toggle aria-expanded="{{ 'true' if app_state.active else 'false' }}" aria-controls="admin-app-{{ group.app_label }}">
+            <i class="menu-icon oldman-menu-icon {{ group.icon }}" aria-hidden="true"></i>
+            <span class="menu-text">{{ group.label or _("Models") }}</span>
+            <i class="menu-arrow oldman-menu-chevron ri-arrow-right-s-line" aria-hidden="true"></i>
+          </button>
+          <ul class="sub-menu oldman-submenu menu-om-dropdown {{ 'show' if app_state.active else 'hidden' }}" id="admin-app-{{ group.app_label }}" data-om-menu-panel{% if not app_state.active %} hidden{% endif %}>
+            {% for model in group.models %}
+              {% set model_active = request.path == model.url or request.path.startswith(model.url ~ '/') %}
+              <li class="menu-item">
+                <a class="menu-link oldman-submenu-link nav-link{% if model_active %} active{% endif %}" href="{{ model.url }}">
+                  <span class="menu-text">{{ model.label }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </li>
+      {% endfor %}
+    {% endcall %}
+  {% endif %}
+{% endblock %}
+
+{% block dashboard_topbar %}
+  {% if admin_is_authenticated %}
+    {% include "admin/partials/topbar.html" %}
+  {% endif %}
+{% endblock %}
+
+{% block dashboard_content %}
+  {% if admin_is_authenticated %}
+    {% call dashboard_main_frame() %}
+      {{ super() }}
+    {% endcall %}
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block dashboard_back_to_top %}
+  {% if admin_is_authenticated %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}

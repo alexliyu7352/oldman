@@ -1,0 +1,28 @@
+{
+  "name": "oldman-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm clean && vite build",
+    "clean": "rm -rf ../../../oldman/apps/admin/static/oldman/admin",
+    "dev": "vite --host 0.0.0.0",
+    "generate:icons": "oldman-web-icons --output src/generated/icons.css --source src --source ../../../oldman/apps/admin --source ../../../oldman/auth --exclude-shared",
+    "prebuild": "pnpm generate:icons",
+    "predev": "pnpm generate:icons",
+    "pretest": "pnpm generate:icons",
+    "pretypecheck": "pnpm generate:icons",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.2.7",
+    "oldman-web": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.8"
+  }
+}

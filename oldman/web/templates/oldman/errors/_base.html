@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{ request.ctx.locale | default('en') }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>{% block title %}Oldman{% endblock %}</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172033; background: #f6f8fb; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 2rem; }
+      main { width: min(100%, 40rem); }
+      .brand { display: inline-flex; align-items: center; gap: .7rem; color: inherit; font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+      .brand-mark { position: relative; width: 1.45rem; height: 1.45rem; transform: rotate(45deg); border-radius: .35rem; background: #155eef; }
+      .brand-mark::after { content: ""; position: absolute; inset: .42rem -.28rem -.28rem .42rem; border-radius: .3rem; background: #079455; }
+      .status { margin: 5rem 0 0; color: #155eef; font-size: clamp(4rem, 16vw, 6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+      h1 { margin: 1.25rem 0 0; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 1.15; text-wrap: balance; }
+      p { max-width: 38rem; margin: 1rem 0 0; color: #475467; font-size: 1rem; line-height: 1.7; text-wrap: pretty; }
+      .action { display: inline-flex; margin-top: 2rem; padding: .7rem 1rem; border-radius: .5rem; background: #155eef; color: #fff; font-weight: 600; text-decoration: none; }
+      .action:focus-visible { outline: .2rem solid #84adff; outline-offset: .2rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/" aria-label="Oldman">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Oldman</span>
+      </a>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

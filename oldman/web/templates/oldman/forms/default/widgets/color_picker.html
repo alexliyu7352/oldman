@@ -1,0 +1,5 @@
+<div class="om-color-picker" data-om-component="color-picker" data-om-color-picker-alpha="{{ 'true' if allow_alpha else 'false' }}">
+  <input{{ input_attrs|html_attrs }}>
+  <input type="hidden" value="{{ value }}" data-om-color-picker-value disabled>
+  <button type="button" class="om-color-picker-trigger" data-om-color-picker-trigger aria-label="{{ choose_label }}" hidden></button>
+</div>

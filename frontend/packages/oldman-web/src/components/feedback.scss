@@ -1,0 +1,52 @@
+@import "toastify-js/src/toastify.css";
+
+.toastify.om-toast {
+  z-index: var(--om-layer-feedback);
+  display: flex;
+  min-width: min(22rem, calc(100vw - 2rem));
+  max-width: min(28rem, calc(100vw - 2rem));
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-left: 0.25rem solid var(--om-toast-accent, var(--om-color-primary));
+  border-radius: var(--om-radius-surface);
+  background: var(--om-color-surface-raised);
+  color: var(--om-color-text-strong);
+  box-shadow: var(--om-shadow-dropdown);
+}
+
+.toastify.om-toast-success {
+  --om-toast-accent: var(--om-color-success);
+}
+
+.toastify.om-toast-warning {
+  --om-toast-accent: var(--om-color-warning);
+}
+
+.toastify.om-toast-error {
+  --om-toast-accent: var(--om-color-danger);
+}
+
+.om-toast-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.om-toast-title,
+.om-toast-body {
+  display: block;
+}
+
+.om-toast-title {
+  font-weight: 600;
+}
+
+.om-toast-body {
+  margin-top: 0.125rem;
+  color: var(--om-color-text-muted);
+  font-size: var(--om-font-size-body);
+}
+
+.toastify.om-toast .toast-close {
+  flex: none;
+  color: currentColor;
+}

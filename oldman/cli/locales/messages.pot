@@ -1,0 +1,585 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-10 15:28-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: oldman/cli/_main.py:64
+msgid "Arguments"
+msgstr ""
+
+#: oldman/cli/_main.py:65 oldman/cli/_main.py:150
+msgid "Commands"
+msgstr ""
+
+#: oldman/cli/_main.py:66
+msgid "Options"
+msgstr ""
+
+#: oldman/cli/_main.py:67
+#, python-brace-format
+msgid "No such command {name!r}."
+msgstr ""
+
+#: oldman/cli/_main.py:68
+#, python-brace-format
+msgid "default: {default}"
+msgstr ""
+
+#: oldman/cli/_main.py:69
+msgid "required"
+msgstr ""
+
+#: oldman/cli/_main.py:83
+msgid "Usage"
+msgstr ""
+
+#: oldman/cli/_main.py:102 oldman/cli/_main.py:123
+msgid "Show this message and exit."
+msgstr ""
+
+#: oldman/cli/_main.py:179
+msgid "Service commands"
+msgstr ""
+
+#: oldman/cli/_main.py:185
+msgid "Framework commands"
+msgstr ""
+
+#: oldman/cli/_main.py:189
+msgid "Services"
+msgstr ""
+
+#: oldman/cli/_main.py:202 oldman/cli/_main.py:934 oldman/cli/_main.py:951
+#: oldman/cli/_main.py:991 oldman/cli/_main.py:1018 oldman/cli/service.py:61
+#: oldman/cli/service.py:109
+#, python-format
+msgid "Error: %(error)s"
+msgstr ""
+
+#: oldman/cli/_main.py:221
+#, python-format
+msgid "Warning: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py:229
+msgid "Project directory name."
+msgstr ""
+
+#: oldman/cli/_main.py:235
+msgid "Project type [cli/service/api/web/dashboard]"
+msgstr ""
+
+#: oldman/cli/_main.py:245
+msgid "Database [none/sqlite/mysql/postgres]"
+msgstr ""
+
+#: oldman/cli/_main.py:255
+msgid "Dashboard projects require a database."
+msgstr ""
+
+#: oldman/cli/_main.py:266
+#, python-format
+msgid "Created project at %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py:272
+msgid "Application name."
+msgstr ""
+
+#: oldman/cli/_main.py:278
+msgid "App template [service/api/web/dashboard]"
+msgstr ""
+
+#: oldman/cli/_main.py:285
+msgid "Display name"
+msgstr ""
+
+#: oldman/cli/_main.py:290
+msgid "Display name cannot be empty."
+msgstr ""
+
+#: oldman/cli/_main.py:300
+#, python-format
+msgid "Created app %(name)s"
+msgstr ""
+
+#: oldman/cli/_main.py:307
+msgid "Service module name."
+msgstr ""
+
+#: oldman/cli/_main.py:313
+msgid "Service type [simple/web/taskiq_worker/taskiq_scheduler]"
+msgstr ""
+
+#: oldman/cli/_main.py:322
+#, python-format
+msgid "Created service %(name)s"
+msgstr ""
+
+#: oldman/cli/_main.py:337
+#, python-format
+msgid "Settings file already exists: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py:342
+#, python-format
+msgid "Initialized settings: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py:357 oldman/cli/_main.py:379 oldman/cli/_main.py:410
+#: oldman/cli/_main.py:680
+#, python-format
+msgid ""
+"Settings file does not exist: %(path)s. Run `oldman %(service)s settings "
+"init` first."
+msgstr ""
+
+#: oldman/cli/_main.py:365
+#, python-format
+msgid "Settings OK: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py:388
+#, python-format
+msgid "Synchronized settings: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py:421
+#, python-format
+msgid "Warning: %(path)s uses %(winner)s; ignored %(ignored)s"
+msgstr ""
+
+#: oldman/cli/_main.py:430
+#, python-format
+msgid ""
+"Collected static files to %(destination)s: %(copied)s copied, "
+"%(unchanged)s unchanged, %(removed)s removed."
+msgstr ""
+
+#: oldman/cli/_main.py:441
+msgid "Extracting messages..."
+msgstr ""
+
+#: oldman/cli/_main.py:448
+msgid "Canonical language code."
+msgstr ""
+
+#: oldman/cli/_main.py:455
+#, python-format
+msgid "Invalid canonical language code: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py:457
+#, python-format
+msgid "Initializing locale: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py:464
+msgid "Updating translations..."
+msgstr ""
+
+#: oldman/cli/_main.py:470
+msgid "Compiling translations..."
+msgstr ""
+
+#: oldman/cli/_main.py:480
+msgid "Manage CLI display language."
+msgstr ""
+
+#: oldman/cli/_main.py:488
+msgid "Supported CLI languages:"
+msgstr ""
+
+#: oldman/cli/_main.py:497
+#, python-format
+msgid "Current language: %(code)s (%(name)s)"
+msgstr ""
+
+#: oldman/cli/_main.py:505
+#, python-format
+msgid "Saved language: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py:510
+msgid "Saved language: not set"
+msgstr ""
+
+#: oldman/cli/_main.py:514
+#, python-format
+msgid "Environment override: %(variable)s=%(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py:523
+msgid "CLI language code or registered alias."
+msgstr ""
+
+#: oldman/cli/_main.py:531
+#, python-format
+msgid "Unsupported CLI language %(language)s. Supported: %(supported)s"
+msgstr ""
+
+#: oldman/cli/_main.py:542
+#, python-format
+msgid "CLI language set to %(language)s."
+msgstr ""
+
+#: oldman/cli/_main.py:547
+msgid "List supported CLI languages."
+msgstr ""
+
+#: oldman/cli/_main.py:552
+msgid "Show the current CLI language."
+msgstr ""
+
+#: oldman/cli/_main.py:557
+msgid "Set the CLI language."
+msgstr ""
+
+#: oldman/cli/_main.py:569
+msgid "Manage explicit Oldman settings files."
+msgstr ""
+
+#: oldman/cli/_main.py:578 oldman/cli/_main.py:587 oldman/cli/_main.py:596
+#: oldman/cli/_main.py:635 oldman/cli/_main.py:665
+msgid "Settings YAML path."
+msgstr ""
+
+#: oldman/cli/_main.py:604
+msgid "Create a settings file explicitly."
+msgstr ""
+
+#: oldman/cli/_main.py:609
+msgid "Validate the current settings file."
+msgstr ""
+
+#: oldman/cli/_main.py:614
+msgid "Add missing managed settings keys."
+msgstr ""
+
+#: oldman/cli/_main.py:626
+msgid "Collect project and installed-App static files."
+msgstr ""
+
+#: oldman/cli/_main.py:641
+msgid "Remove previously collected output first."
+msgstr ""
+
+#: oldman/cli/_main.py:650
+msgid "Collect static files into settings.web.static.root."
+msgstr ""
+
+#: oldman/cli/_main.py:688
+msgid "Open a bootstrapped Python shell."
+msgstr ""
+
+#: oldman/cli/_main.py:696
+msgid "Manage project translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py:703
+msgid "Extract translation messages."
+msgstr ""
+
+#: oldman/cli/_main.py:708
+msgid "Initialize a language catalog."
+msgstr ""
+
+#: oldman/cli/_main.py:713
+msgid "Update translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py:718
+msgid "Compile translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py:734
+msgid "Oldman application framework command line."
+msgstr ""
+
+#: oldman/cli/_main.py:741
+msgid "Create an Oldman project scaffold."
+msgstr ""
+
+#: oldman/cli/_main.py:746
+msgid "Create an Oldman app module."
+msgstr ""
+
+#: oldman/cli/_main.py:751
+msgid "Create an Oldman service entry."
+msgstr ""
+
+#: oldman/cli/_main.py:767
+#, python-format
+msgid "Web service %(service)s."
+msgstr ""
+
+#: oldman/cli/_main.py:770
+#, python-format
+msgid "Application service %(service)s."
+msgstr ""
+
+#: oldman/cli/_main.py:829
+msgid "Install completion for the current shell."
+msgstr ""
+
+#: oldman/cli/_main.py:831
+msgid "Show completion for the current shell."
+msgstr ""
+
+#: oldman/cli/_main.py:854
+#, python-format
+msgid "%(value)s is not one of %(choices)s."
+msgstr ""
+
+#: oldman/cli/_main.py:867
+#, python-format
+msgid "No such option: %(option)s"
+msgstr ""
+
+#: oldman/cli/_main.py:872
+#, python-format
+msgid "%(text)s (Possible options: %(options)s)"
+msgstr ""
+
+#: oldman/cli/_main.py:884
+#, python-format
+msgid "Missing argument %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py:885
+#, python-format
+msgid "Missing option %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py:886 oldman/cli/_main.py:890
+#, python-format
+msgid "Missing parameter %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py:899
+#, python-format
+msgid "Invalid value for %(parameter)s: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py:903
+#, python-format
+msgid "Invalid value: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py:909
+#, python-format
+msgid "Got unexpected extra argument(s): %(arguments)s"
+msgstr ""
+
+#: oldman/cli/_main.py:927
+#, python-format
+msgid "Try '%(command)s --help' for help."
+msgstr ""
+
+#: oldman/cli/_main.py:958
+#, python-format
+msgid "Error: Service names conflict with root commands: %(services)s"
+msgstr ""
+
+#: oldman/cli/_main.py:983
+#, python-format
+msgid ""
+"Error: Settings file does not exist: %(path)s. Run `oldman %(service)s "
+"settings init` first."
+msgstr ""
+
+#: oldman/cli/_main.py:1031
+msgid "Aborted."
+msgstr ""
+
+#: oldman/cli/database.py:80
+msgid "Manage project database migrations."
+msgstr ""
+
+#: oldman/cli/database.py:93
+msgid "No migration was generated."
+msgstr ""
+
+#: oldman/cli/database.py:97
+#, python-format
+msgid "Generated %(app)s revision %(revision)s: %(path)s"
+msgstr ""
+
+#: oldman/cli/database.py:110
+msgid "Recovered Oldman migration state."
+msgstr ""
+
+#: oldman/cli/database.py:114
+#, python-format
+msgid "Applied revisions: %(revisions)s"
+msgstr ""
+
+#: oldman/cli/database.py:119
+msgid "No pending migrations."
+msgstr ""
+
+#: oldman/cli/database.py:127
+msgid "No applied App can be downgraded."
+msgstr ""
+
+#: oldman/cli/database.py:131
+#, python-format
+msgid "Downgraded %(app)s to %(revision)s; removed: %(removed)s"
+msgstr ""
+
+#: oldman/cli/database.py:144
+msgid "No App was retired."
+msgstr ""
+
+#: oldman/cli/database.py:148
+#, python-format
+msgid "Retired %(app)s; retained tables: %(tables)s"
+msgstr ""
+
+#: oldman/cli/database.py:155
+#, python-format
+msgid "Remove %(package)s from: %(files)s"
+msgstr ""
+
+#: oldman/cli/database.py:168
+msgid "Migration state: not initialized."
+msgstr ""
+
+#: oldman/cli/database.py:172
+#, python-format
+msgid "Migration state: incomplete; missing %(tables)s"
+msgstr ""
+
+#: oldman/cli/database.py:177
+msgid "Migration state: complete tables, but owner is missing."
+msgstr ""
+
+#: oldman/cli/database.py:181
+#, python-format
+msgid "Migration owner: %(name)s (%(project_id)s)"
+msgstr ""
+
+#: oldman/cli/database.py:189
+#, python-format
+msgid "%(app)s: current=%(current)s; heads=%(heads)s; pending=%(pending)s"
+msgstr ""
+
+#: oldman/cli/database.py:203
+msgid "No registered Apps."
+msgstr ""
+
+#: oldman/cli/database.py:208
+msgid "  no revisions"
+msgstr ""
+
+#: oldman/cli/database.py:226
+msgid "Generate one reviewed migration revision."
+msgstr ""
+
+#: oldman/cli/database.py:231
+msgid "Apply pending project migrations."
+msgstr ""
+
+#: oldman/cli/database.py:236
+msgid "Downgrade one App migration branch."
+msgstr ""
+
+#: oldman/cli/database.py:241
+msgid "Retire one App without dropping its tables."
+msgstr ""
+
+#: oldman/cli/database.py:246
+msgid "Show read-only migration status."
+msgstr ""
+
+#: oldman/cli/database.py:251
+msgid "Show source migration history."
+msgstr ""
+
+#: oldman/cli/fixtures.py:21
+msgid "Export registered model data as JSON."
+msgstr ""
+
+#: oldman/cli/fixtures.py:42
+msgid "Load registered model data from JSON."
+msgstr ""
+
+#: oldman/cli/fixtures.py:50
+#, python-format
+msgid "Loaded %(count)s fixture records."
+msgstr ""
+
+#: oldman/cli/localization.py:70
+#, python-format
+msgid "Ignoring invalid CLI language configuration: %(path)s"
+msgstr ""
+
+#: oldman/cli/localization.py:80
+#, python-format
+msgid "Ignoring unsupported language in CLI configuration: %(path)s"
+msgstr ""
+
+#: oldman/cli/localization.py:192
+#, python-format
+msgid "Ignoring unsupported %(variable)s value: %(language)s"
+msgstr ""
+
+#: oldman/cli/localization.py:223
+#, python-format
+msgid ""
+"Could not save the CLI language to %(path)s; using it for this invocation"
+" only."
+msgstr ""
+
+#: oldman/cli/service.py:49
+msgid "Command arguments."
+msgstr ""
+
+#: oldman/cli/service.py:67 oldman/cli/service.py:115
+#, python-format
+msgid "Error executing command: %(error)s"
+msgstr ""
+
+#: oldman/cli/service.py:149
+#, python-format
+msgid "Service command names conflict with framework commands: %(commands)s"
+msgstr ""
+
+#: oldman/cli/service.py:157
+#, python-format
+msgid "App command names conflict with service commands: %(commands)s"
+msgstr ""
+
+#: oldman/cli/staticfiles.py:26
+msgid "The project settings profile does not include static files."
+msgstr ""
+
+#: oldman/cli/staticfiles.py:28
+msgid "settings.web.static.root is empty; static files cannot be collected."
+msgstr ""
+
+#: oldman/runtime/base.py:61
+msgid "Start service."
+msgstr ""
+
+#: oldman/runtime/base.py:62
+msgid "Stop service."
+msgstr ""
+
+#: oldman/runtime/base.py:63
+msgid "Restart service."
+msgstr ""

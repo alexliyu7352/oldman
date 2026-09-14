@@ -1,0 +1,71 @@
+{% extends "admin/base.html" %}
+{% from "oldman/dashboard/components/modal.html" import modal %}
+
+{% block title %}{{ model_admin.verbose_name_plural }} · Oldman Admin{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    <div class="om-page-header">
+      <h1 class="om-page-title">{{ model_admin.verbose_name_plural }}</h1>
+    </div>
+    <div class="om-card">
+      <div class="om-card-header">
+        <h2 class="om-card-title">{{ model_admin.get_list_card_title() }}</h2>
+        {% if model_admin.has_add_permission(request) %}
+          <a class="om-button om-button-primary om-button-sm" href="{{ admin_prefix }}/{{ model_admin.model_path }}/new">
+            <i class="{{ model_admin.add_button_icon }} align-bottom mr-1" aria-hidden="true"></i>
+            <span>{{ model_admin.get_add_button_label() }}</span>
+          </a>
+        {% endif %}
+      </div>
+      <div class="om-card-body">
+        {% if filter_form_html %}
+          {{ filter_form_html }}
+        {% endif %}
+        {% if admin_user_management %}
+          <div id="admin-{{ model_admin.model_path }}-feedback" data-om-component="feedback"></div>
+        {% endif %}
+        {{ table_html }}
+      </div>
+    </div>
+  </div>
+
+  {% if admin_user_management %}
+    {% call modal(
+      "user-password-modal",
+      _("Change Password"),
+      component="modal",
+      close_label=_("Close"),
+      dialog_scrollable=true,
+      remote_content=true
+    ) %}
+      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
+    {% endcall %}
+  {% endif %}
+
+  {% if admin_user_management %}
+    {% call modal(
+      "user-status-modal",
+      _("Change Status"),
+      component="modal",
+      close_label=_("Close"),
+      dialog_scrollable=true,
+      remote_content=true
+    ) %}
+      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
+    {% endcall %}
+  {% endif %}
+
+  {% if admin_user_management %}
+    {% call modal(
+      "user-delete-modal",
+      _("Delete User"),
+      component="modal",
+      close_label=_("Close"),
+      dialog_scrollable=true,
+      remote_content=true
+    ) %}
+      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
+    {% endcall %}
+  {% endif %}
+{% endblock %}

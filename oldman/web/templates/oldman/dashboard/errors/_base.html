@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="{{ request.ctx.locale | default('en') }}" data-layout="vertical" data-theme="light" data-sidenav-color="light" data-sidenav-size="default" data-topbar="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>{% block title %}Oldman{% endblock %}</title>
+    <style>
+      :root { color-scheme: light; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; color: #18181b; background: #fafafa; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 2rem; }
+      main { width: min(100%, 46rem); }
+      .brand { display: inline-flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; color: inherit; font-size: 1.5rem; font-weight: 700; text-decoration: none; }
+      .brand-mark { position: relative; width: 1.4rem; height: 1.4rem; transform: rotate(45deg); border-radius: .35rem; background: #2563eb; }
+      .brand-mark::after { content: ""; position: absolute; inset: .42rem -.28rem -.28rem .42rem; border-radius: .3rem; background: #16a34a; }
+      .error-panel { padding: clamp(2rem, 6vw, 4rem); border: 1px solid #e4e4e7; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px rgb(24 24 27 / .06), 0 8px 24px -16px rgb(24 24 27 / .25); }
+      .error-status { font-size: clamp(4.5rem, 14vw, 6rem); font-weight: 700; letter-spacing: -.05em; line-height: 1; }
+      .error-status--primary { color: #2563eb; }
+      .error-status--warning { color: #f59e0b; }
+      .error-status--danger { color: #dc2626; }
+      .error-title { margin: 1.5rem 0 0; font-size: clamp(1.875rem, 5vw, 2.5rem); line-height: 1.2; }
+      .error-description { max-width: 38rem; margin: 1rem 0 0; color: #52525b; font-size: 1rem; line-height: 1.7; }
+      .error-action { display: inline-flex; margin-top: 2rem; padding: .75rem 1rem; border-radius: .375rem; background: #2563eb; color: #fff; font-weight: 600; text-decoration: none; transition: background-color 150ms ease; }
+      .error-action:hover { background: #1d4ed8; }
+      .error-action:focus-visible { outline: .2rem solid #93c5fd; outline-offset: .2rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="/" aria-label="Oldman">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Oldman</span>
+      </a>
+      <section class="error-panel">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+  </body>
+</html>

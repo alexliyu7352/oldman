@@ -1,0 +1,3 @@
+{% for item in fields %}
+  <div{{ item.attrs|html_attrs }}>{{ item.field_html }}</div>
+{% endfor %}

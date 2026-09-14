@@ -1,0 +1,47 @@
+@import "components/inline-icons";
+
+$white: #fff;
+$dark: var(--om-color-text);
+$purple: var(--om-chart-6);
+
+$theme-colors: (
+  "primary": var(--om-color-primary),
+  "secondary": var(--om-color-text-muted),
+  "success": var(--om-color-success),
+  "info": var(--om-color-info),
+  "warning": var(--om-color-warning),
+  "danger": var(--om-color-danger)
+);
+
+$tooltip-padding-y: 0.35rem;
+$tooltip-padding-x: 0.7rem;
+$tooltip-border-radius: var(--om-radius-control);
+
+$input-padding-y: 0.45rem;
+$input-padding-x: 0.75rem;
+$input-font-size: var(--om-font-size-body);
+$input-bg: var(--om-color-surface);
+$input-color: var(--om-color-text);
+$input-border-color: var(--om-color-border-strong);
+$input-border-radius: var(--om-radius-control);
+$input-placeholder-color: var(--om-color-text-muted);
+$input-focus-border-color: var(--om-color-primary);
+
+$form-select-bg: $input-bg;
+$form-select-padding-x: 0.75rem;
+$form-select-indicator-padding: 1.5rem;
+$form-select-border-width: 1px;
+$form-select-border-color: $input-border-color;
+$form-select-border-radius: $input-border-radius;
+
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+
+$element-shadow: var(--om-shadow-card);
+$dropdown-box-shadow: var(--om-shadow-dropdown);
+$dropdown-border-color: var(--om-color-border);
+$dropdown-font-size: var(--om-font-size-body);
+$dropdown-item-padding-y: 0.45rem;
+$dropdown-item-padding-x: 0.75rem;
+$btn-close-white-filter: invert(1) grayscale(100%) brightness(200%);

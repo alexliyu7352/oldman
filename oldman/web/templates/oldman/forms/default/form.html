@@ -1,0 +1,9 @@
+<form{{ attrs|html_attrs }}>
+  {% if validator %}<span data-om-component="form-validator" hidden></span>{% endif %}
+  {% for hidden in hidden_fields %}{{ hidden }}{% endfor %}
+  {{ csrf_field }}
+  {{ message_html }}
+  <div{% if fields_wrapper_class %} class="{{ fields_wrapper_class }}"{% endif %}>{{ fields_html }}</div>
+  {{ status_html }}
+  {{ actions_html }}
+</form>

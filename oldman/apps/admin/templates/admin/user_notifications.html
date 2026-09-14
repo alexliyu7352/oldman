@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ _("User notifications") }} · Oldman Admin{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    <div class="om-page-header">
+      <h1 class="om-page-title">{{ _("User notifications") }}</h1>
+    </div>
+    {{ notification_center_content }}
+  </div>
+{% endblock %}

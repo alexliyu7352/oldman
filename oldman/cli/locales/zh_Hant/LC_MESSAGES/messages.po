@@ -1,0 +1,660 @@
+# Chinese (Traditional) translations for Oldman CLI.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the Oldman CLI project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oldman CLI 0.1.0\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-09-10 15:28-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hant\n"
+"Language-Team: zh_Hant <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: oldman/cli/_main.py:64
+msgid "Arguments"
+msgstr "參數"
+
+#: oldman/cli/_main.py:65 oldman/cli/_main.py:150
+msgid "Commands"
+msgstr "命令"
+
+#: oldman/cli/_main.py:66
+msgid "Options"
+msgstr "選項"
+
+#: oldman/cli/_main.py:67
+#, python-brace-format
+msgid "No such command {name!r}."
+msgstr "沒有命令 {name!r}。"
+
+#: oldman/cli/_main.py:68
+#, python-brace-format
+msgid "default: {default}"
+msgstr "預設值：{default}"
+
+#: oldman/cli/_main.py:69
+msgid "required"
+msgstr "必填"
+
+#: oldman/cli/_main.py:83
+msgid "Usage"
+msgstr "用法"
+
+#: oldman/cli/_main.py:102 oldman/cli/_main.py:123
+msgid "Show this message and exit."
+msgstr "顯示此說明並結束。"
+
+#: oldman/cli/_main.py:179
+msgid "Service commands"
+msgstr "服務命令"
+
+#: oldman/cli/_main.py:185
+msgid "Framework commands"
+msgstr "框架命令"
+
+#: oldman/cli/_main.py:189
+msgid "Services"
+msgstr "服務"
+
+#: oldman/cli/_main.py:202 oldman/cli/_main.py:934 oldman/cli/_main.py:951
+#: oldman/cli/_main.py:991 oldman/cli/_main.py:1018 oldman/cli/service.py:61
+#: oldman/cli/service.py:109
+#, python-format
+msgid "Error: %(error)s"
+msgstr "錯誤：%(error)s"
+
+#: oldman/cli/_main.py:221
+#, python-format
+msgid "Warning: %(detail)s"
+msgstr "警告：%(detail)s"
+
+#: oldman/cli/_main.py:229
+msgid "Project directory name."
+msgstr "專案目錄名稱。"
+
+#: oldman/cli/_main.py:235
+msgid "Project type [cli/service/api/web/dashboard]"
+msgstr "專案類型 [cli/service/api/web/dashboard]"
+
+#: oldman/cli/_main.py:245
+msgid "Database [none/sqlite/mysql/postgres]"
+msgstr "資料庫 [none/sqlite/mysql/postgres]"
+
+#: oldman/cli/_main.py:255
+msgid "Dashboard projects require a database."
+msgstr "Dashboard 專案必須設定資料庫。"
+
+#: oldman/cli/_main.py:266
+#, python-format
+msgid "Created project at %(path)s"
+msgstr "已在 %(path)s 建立專案"
+
+#: oldman/cli/_main.py:272
+msgid "Application name."
+msgstr "應用程式名稱。"
+
+#: oldman/cli/_main.py:278
+msgid "App template [service/api/web/dashboard]"
+msgstr "應用程式範本 [service/api/web/dashboard]"
+
+#: oldman/cli/_main.py:285
+msgid "Display name"
+msgstr "顯示名稱"
+
+#: oldman/cli/_main.py:290
+msgid "Display name cannot be empty."
+msgstr "顯示名稱不能為空。"
+
+#: oldman/cli/_main.py:300
+#, python-format
+msgid "Created app %(name)s"
+msgstr "已建立應用程式 %(name)s"
+
+#: oldman/cli/_main.py:307
+msgid "Service module name."
+msgstr "服務模組名稱。"
+
+#: oldman/cli/_main.py:313
+msgid "Service type [simple/web/taskiq_worker/taskiq_scheduler]"
+msgstr "服務類型 [simple/web/taskiq_worker/taskiq_scheduler]"
+
+#: oldman/cli/_main.py:322
+#, python-format
+msgid "Created service %(name)s"
+msgstr "已建立服務 %(name)s"
+
+#: oldman/cli/_main.py:337
+#, python-format
+msgid "Settings file already exists: %(path)s"
+msgstr "設定檔已存在：%(path)s"
+
+#: oldman/cli/_main.py:342
+#, python-format
+msgid "Initialized settings: %(path)s"
+msgstr "已初始化設定：%(path)s"
+
+#: oldman/cli/_main.py:357 oldman/cli/_main.py:379 oldman/cli/_main.py:410
+#: oldman/cli/_main.py:680
+#, python-format
+msgid ""
+"Settings file does not exist: %(path)s. Run `oldman %(service)s settings "
+"init` first."
+msgstr "設定檔不存在：%(path)s。請先執行 `oldman %(service)s settings init`。"
+
+#: oldman/cli/_main.py:365
+#, python-format
+msgid "Settings OK: %(path)s"
+msgstr "設定有效：%(path)s"
+
+#: oldman/cli/_main.py:388
+#, python-format
+msgid "Synchronized settings: %(path)s"
+msgstr "已同步設定：%(path)s"
+
+#: oldman/cli/_main.py:421
+#, python-format
+msgid "Warning: %(path)s uses %(winner)s; ignored %(ignored)s"
+msgstr "警告：%(path)s 使用 %(winner)s；已忽略 %(ignored)s"
+
+#: oldman/cli/_main.py:430
+#, python-format
+msgid ""
+"Collected static files to %(destination)s: %(copied)s copied, "
+"%(unchanged)s unchanged, %(removed)s removed."
+msgstr ""
+"已將靜態檔案收集到 %(destination)s：複製 %(copied)s 個，未變更 %(unchanged)s 個，刪除 "
+"%(removed)s 個。"
+
+#: oldman/cli/_main.py:441
+msgid "Extracting messages..."
+msgstr "正在擷取翻譯訊息……"
+
+#: oldman/cli/_main.py:448
+msgid "Canonical language code."
+msgstr "標準語言代碼。"
+
+#: oldman/cli/_main.py:455
+#, python-format
+msgid "Invalid canonical language code: %(language)s"
+msgstr "無效的標準語言代碼：%(language)s"
+
+#: oldman/cli/_main.py:457
+#, python-format
+msgid "Initializing locale: %(language)s"
+msgstr "正在初始化語言：%(language)s"
+
+#: oldman/cli/_main.py:464
+msgid "Updating translations..."
+msgstr "正在更新翻譯……"
+
+#: oldman/cli/_main.py:470
+msgid "Compiling translations..."
+msgstr "正在編譯翻譯……"
+
+#: oldman/cli/_main.py:480
+msgid "Manage CLI display language."
+msgstr "管理 CLI 顯示語言。"
+
+#: oldman/cli/_main.py:488
+msgid "Supported CLI languages:"
+msgstr "支援的 CLI 語言："
+
+#: oldman/cli/_main.py:497
+#, python-format
+msgid "Current language: %(code)s (%(name)s)"
+msgstr "目前語言：%(code)s（%(name)s）"
+
+#: oldman/cli/_main.py:505
+#, python-format
+msgid "Saved language: %(language)s"
+msgstr "已儲存語言：%(language)s"
+
+#: oldman/cli/_main.py:510
+msgid "Saved language: not set"
+msgstr "已儲存語言：未設定"
+
+#: oldman/cli/_main.py:514
+#, python-format
+msgid "Environment override: %(variable)s=%(language)s"
+msgstr "環境變數覆寫：%(variable)s=%(language)s"
+
+#: oldman/cli/_main.py:523
+msgid "CLI language code or registered alias."
+msgstr "CLI 語言代碼或已註冊別名。"
+
+#: oldman/cli/_main.py:531
+#, python-format
+msgid "Unsupported CLI language %(language)s. Supported: %(supported)s"
+msgstr "不支援 CLI 語言 %(language)s。支援：%(supported)s"
+
+#: oldman/cli/_main.py:542
+#, python-format
+msgid "CLI language set to %(language)s."
+msgstr "CLI 語言已設定為 %(language)s。"
+
+#: oldman/cli/_main.py:547
+msgid "List supported CLI languages."
+msgstr "列出支援的 CLI 語言。"
+
+#: oldman/cli/_main.py:552
+msgid "Show the current CLI language."
+msgstr "顯示目前 CLI 語言。"
+
+#: oldman/cli/_main.py:557
+msgid "Set the CLI language."
+msgstr "設定 CLI 語言。"
+
+#: oldman/cli/_main.py:569
+msgid "Manage explicit Oldman settings files."
+msgstr "管理明確的 Oldman 設定檔。"
+
+#: oldman/cli/_main.py:578 oldman/cli/_main.py:587 oldman/cli/_main.py:596
+#: oldman/cli/_main.py:635 oldman/cli/_main.py:665
+msgid "Settings YAML path."
+msgstr "設定 YAML 路徑。"
+
+#: oldman/cli/_main.py:604
+msgid "Create a settings file explicitly."
+msgstr "明確建立設定檔。"
+
+#: oldman/cli/_main.py:609
+msgid "Validate the current settings file."
+msgstr "驗證目前設定檔。"
+
+#: oldman/cli/_main.py:614
+msgid "Add missing managed settings keys."
+msgstr "補充缺少的受管設定項。"
+
+#: oldman/cli/_main.py:626
+msgid "Collect project and installed-App static files."
+msgstr "收集專案和已安裝應用程式的靜態檔案。"
+
+#: oldman/cli/_main.py:641
+msgid "Remove previously collected output first."
+msgstr "先刪除上次收集的輸出。"
+
+#: oldman/cli/_main.py:650
+msgid "Collect static files into settings.web.static.root."
+msgstr "將靜態檔案收集到 settings.web.static.root。"
+
+#: oldman/cli/_main.py:688
+msgid "Open a bootstrapped Python shell."
+msgstr "開啟已完成框架初始化的 Python Shell。"
+
+#: oldman/cli/_main.py:696
+msgid "Manage project translation catalogs."
+msgstr "管理專案翻譯目錄。"
+
+#: oldman/cli/_main.py:703
+msgid "Extract translation messages."
+msgstr "擷取翻譯訊息。"
+
+#: oldman/cli/_main.py:708
+msgid "Initialize a language catalog."
+msgstr "初始化語言目錄。"
+
+#: oldman/cli/_main.py:713
+msgid "Update translation catalogs."
+msgstr "更新翻譯目錄。"
+
+#: oldman/cli/_main.py:718
+msgid "Compile translation catalogs."
+msgstr "編譯翻譯目錄。"
+
+#: oldman/cli/_main.py:734
+msgid "Oldman application framework command line."
+msgstr "Oldman 應用框架命令列。"
+
+#: oldman/cli/_main.py:741
+msgid "Create an Oldman project scaffold."
+msgstr "建立 Oldman 專案鷹架。"
+
+#: oldman/cli/_main.py:746
+msgid "Create an Oldman app module."
+msgstr "建立 Oldman 應用程式模組。"
+
+#: oldman/cli/_main.py:751
+msgid "Create an Oldman service entry."
+msgstr "建立 Oldman 服務入口。"
+
+#: oldman/cli/_main.py:767
+#, python-format
+msgid "Web service %(service)s."
+msgstr "Web 服務 %(service)s。"
+
+#: oldman/cli/_main.py:770
+#, python-format
+msgid "Application service %(service)s."
+msgstr "應用程式服務 %(service)s。"
+
+#: oldman/cli/_main.py:829
+msgid "Install completion for the current shell."
+msgstr "為目前 shell 安裝補全。"
+
+#: oldman/cli/_main.py:831
+msgid "Show completion for the current shell."
+msgstr "顯示目前 shell 的補全指令稿。"
+
+#: oldman/cli/_main.py:854
+#, python-format
+msgid "%(value)s is not one of %(choices)s."
+msgstr "%(value)s 不是以下選項之一：%(choices)s。"
+
+#: oldman/cli/_main.py:867
+#, python-format
+msgid "No such option: %(option)s"
+msgstr "沒有此選項：%(option)s"
+
+#: oldman/cli/_main.py:872
+#, python-format
+msgid "%(text)s (Possible options: %(options)s)"
+msgstr "%(text)s（可用選項：%(options)s）"
+
+#: oldman/cli/_main.py:884
+#, python-format
+msgid "Missing argument %(parameter)s."
+msgstr "缺少參數 %(parameter)s。"
+
+#: oldman/cli/_main.py:885
+#, python-format
+msgid "Missing option %(parameter)s."
+msgstr "缺少選項 %(parameter)s。"
+
+#: oldman/cli/_main.py:886 oldman/cli/_main.py:890
+#, python-format
+msgid "Missing parameter %(parameter)s."
+msgstr "缺少參數 %(parameter)s。"
+
+#: oldman/cli/_main.py:899
+#, python-format
+msgid "Invalid value for %(parameter)s: %(detail)s"
+msgstr "參數 %(parameter)s 的值無效：%(detail)s"
+
+#: oldman/cli/_main.py:903
+#, python-format
+msgid "Invalid value: %(detail)s"
+msgstr "值無效：%(detail)s"
+
+#: oldman/cli/_main.py:909
+#, python-format
+msgid "Got unexpected extra argument(s): %(arguments)s"
+msgstr "收到非預期的多餘參數：%(arguments)s"
+
+#: oldman/cli/_main.py:927
+#, python-format
+msgid "Try '%(command)s --help' for help."
+msgstr "執行「%(command)s --help」查看說明。"
+
+#: oldman/cli/_main.py:958
+#, python-format
+msgid "Error: Service names conflict with root commands: %(services)s"
+msgstr "錯誤：服務名稱與框架命令衝突：%(services)s"
+
+#: oldman/cli/_main.py:983
+#, python-format
+msgid ""
+"Error: Settings file does not exist: %(path)s. Run `oldman %(service)s "
+"settings init` first."
+msgstr "錯誤：設定檔不存在：%(path)s。請先執行 `oldman %(service)s settings init`。"
+
+#: oldman/cli/_main.py:1031
+msgid "Aborted."
+msgstr "已中止。"
+
+#: oldman/cli/database.py:80
+msgid "Manage project database migrations."
+msgstr "管理專案資料庫遷移。"
+
+#: oldman/cli/database.py:93
+msgid "No migration was generated."
+msgstr "未產生遷移檔案。"
+
+#: oldman/cli/database.py:97
+#, python-format
+msgid "Generated %(app)s revision %(revision)s: %(path)s"
+msgstr "已產生 %(app)s 遷移版本 %(revision)s：%(path)s"
+
+#: oldman/cli/database.py:110
+msgid "Recovered Oldman migration state."
+msgstr "已恢復 Oldman 遷移狀態。"
+
+#: oldman/cli/database.py:114
+#, python-format
+msgid "Applied revisions: %(revisions)s"
+msgstr "已套用遷移版本：%(revisions)s"
+
+#: oldman/cli/database.py:119
+msgid "No pending migrations."
+msgstr "沒有待執行的遷移。"
+
+#: oldman/cli/database.py:127
+msgid "No applied App can be downgraded."
+msgstr "沒有可以回退的已遷移應用程式。"
+
+#: oldman/cli/database.py:131
+#, python-format
+msgid "Downgraded %(app)s to %(revision)s; removed: %(removed)s"
+msgstr "已將 %(app)s 回退到 %(revision)s；移除：%(removed)s"
+
+#: oldman/cli/database.py:144
+msgid "No App was retired."
+msgstr "未停用任何應用程式。"
+
+#: oldman/cli/database.py:148
+#, python-format
+msgid "Retired %(app)s; retained tables: %(tables)s"
+msgstr "已停用 %(app)s；保留資料表：%(tables)s"
+
+#: oldman/cli/database.py:155
+#, python-format
+msgid "Remove %(package)s from: %(files)s"
+msgstr "請從以下檔案中移除 %(package)s：%(files)s"
+
+#: oldman/cli/database.py:168
+msgid "Migration state: not initialized."
+msgstr "遷移狀態：尚未初始化。"
+
+#: oldman/cli/database.py:172
+#, python-format
+msgid "Migration state: incomplete; missing %(tables)s"
+msgstr "遷移狀態：不完整；缺少 %(tables)s"
+
+#: oldman/cli/database.py:177
+msgid "Migration state: complete tables, but owner is missing."
+msgstr "遷移狀態：資料表完整，但缺少所屬專案記錄。"
+
+#: oldman/cli/database.py:181
+#, python-format
+msgid "Migration owner: %(name)s (%(project_id)s)"
+msgstr "遷移所屬專案：%(name)s（%(project_id)s）"
+
+#: oldman/cli/database.py:189
+#, python-format
+msgid "%(app)s: current=%(current)s; heads=%(heads)s; pending=%(pending)s"
+msgstr "%(app)s：目前=%(current)s；最新=%(heads)s；待執行=%(pending)s"
+
+#: oldman/cli/database.py:203
+msgid "No registered Apps."
+msgstr "沒有已註冊的應用程式。"
+
+#: oldman/cli/database.py:208
+msgid "  no revisions"
+msgstr "  沒有遷移版本"
+
+#: oldman/cli/database.py:226
+msgid "Generate one reviewed migration revision."
+msgstr "產生一個供檢查的遷移版本。"
+
+#: oldman/cli/database.py:231
+msgid "Apply pending project migrations."
+msgstr "執行專案中待處理的遷移。"
+
+#: oldman/cli/database.py:236
+msgid "Downgrade one App migration branch."
+msgstr "回退一個應用程式的遷移分支。"
+
+#: oldman/cli/database.py:241
+msgid "Retire one App without dropping its tables."
+msgstr "停用一個應用程式，但保留其資料表。"
+
+#: oldman/cli/database.py:246
+msgid "Show read-only migration status."
+msgstr "顯示唯讀遷移狀態。"
+
+#: oldman/cli/database.py:251
+msgid "Show source migration history."
+msgstr "顯示原始碼中的遷移歷史。"
+
+#: oldman/cli/fixtures.py:21
+msgid "Export registered model data as JSON."
+msgstr "將已註冊模型的資料匯出為 JSON。"
+
+#: oldman/cli/fixtures.py:42
+msgid "Load registered model data from JSON."
+msgstr "從 JSON 匯入已註冊模型的資料。"
+
+#: oldman/cli/fixtures.py:50
+#, python-format
+msgid "Loaded %(count)s fixture records."
+msgstr "已匯入 %(count)s 筆 fixture 記錄。"
+
+#: oldman/cli/localization.py:70
+#, python-format
+msgid "Ignoring invalid CLI language configuration: %(path)s"
+msgstr "忽略無效的 CLI 語言設定：%(path)s"
+
+#: oldman/cli/localization.py:80
+#, python-format
+msgid "Ignoring unsupported language in CLI configuration: %(path)s"
+msgstr "忽略 CLI 設定中不支援的語言：%(path)s"
+
+#: oldman/cli/localization.py:192
+#, python-format
+msgid "Ignoring unsupported %(variable)s value: %(language)s"
+msgstr "忽略不支援的 %(variable)s 值：%(language)s"
+
+#: oldman/cli/localization.py:223
+#, python-format
+msgid ""
+"Could not save the CLI language to %(path)s; using it for this invocation"
+" only."
+msgstr "無法將 CLI 語言儲存到 %(path)s；僅在本次執行中使用。"
+
+#: oldman/cli/service.py:49
+msgid "Command arguments."
+msgstr "命令參數。"
+
+#: oldman/cli/service.py:67 oldman/cli/service.py:115
+#, python-format
+msgid "Error executing command: %(error)s"
+msgstr "執行命令時發生錯誤：%(error)s"
+
+#: oldman/cli/service.py:149
+#, python-format
+msgid "Service command names conflict with framework commands: %(commands)s"
+msgstr "服務命令名稱與框架命令衝突：%(commands)s"
+
+#: oldman/cli/service.py:157
+#, python-format
+msgid "App command names conflict with service commands: %(commands)s"
+msgstr "應用命令名稱與服務命令衝突：%(commands)s"
+
+#: oldman/cli/staticfiles.py:26
+msgid "The project settings profile does not include static files."
+msgstr "專案設定配置不包含靜態檔案。"
+
+#: oldman/cli/staticfiles.py:28
+msgid "settings.web.static.root is empty; static files cannot be collected."
+msgstr "settings.web.static.root 為空，無法收集靜態檔案。"
+
+#: oldman/runtime/base.py:61
+msgid "Start service."
+msgstr "啟動服務。"
+
+#: oldman/runtime/base.py:62
+msgid "Stop service."
+msgstr "停止服務。"
+
+#: oldman/runtime/base.py:63
+msgid "Restart service."
+msgstr "重新啟動服務。"
+
+#~ msgid "  Commands:"
+#~ msgstr "  命令："
+
+#~ msgid "  No commands available."
+#~ msgstr "  沒有可用命令。"
+
+#~ msgid "Aborted!"
+#~ msgstr "已中止！"
+
+#~ msgid "Allow writing into an existing directory."
+#~ msgstr "允許寫入既有目錄。"
+
+#~ msgid "Application scaffold type."
+#~ msgstr "應用程式鷹架類型。"
+
+#~ msgid "Available services:"
+#~ msgstr "可用服務："
+
+#~ msgid "Database example configuration."
+#~ msgstr "資料庫範例設定。"
+
+#~ msgid "Display project settings."
+#~ msgstr "顯示專案設定。"
+
+#~ msgid "Error"
+#~ msgstr "錯誤"
+
+#~ msgid "List available services and commands."
+#~ msgstr "列出可用服務與命令。"
+
+#~ msgid "Missing command."
+#~ msgstr "缺少命令。"
+
+#~ msgid "No services were discovered."
+#~ msgstr "未發現任何服務。"
+
+#~ msgid "Overwrite an existing settings file."
+#~ msgstr "覆寫既有設定檔。"
+
+#~ msgid "Overwrite existing scaffold files."
+#~ msgstr "覆寫既有鷹架檔案。"
+
+#~ msgid "Print the validated managed settings."
+#~ msgstr "輸出驗證後的受管設定。"
+
+#~ msgid "Project root directory."
+#~ msgstr "專案根目錄。"
+
+#~ msgid "Project scaffold type."
+#~ msgstr "專案鷹架類型。"
+
+#~ msgid "Schema: %(hash)s"
+#~ msgstr "結構：%(hash)s"
+
+#~ msgid "The project settings file is missing. Run `oldman settings init` first."
+#~ msgstr "缺少專案設定檔。請先執行 `oldman settings init`。"
+
+#~ msgid "The top-level services package was not found."
+#~ msgstr "未找到頂層 services 套件。"
+
+#~ msgid "This command requires config.schemas.Settings in the current project."
+#~ msgstr "此命令要求目前專案包含 config.schemas.Settings。"
+
+#~ msgid "This command requires config.settings in the current project."
+#~ msgstr "此命令要求目前專案包含 config.settings。"
+
+#~ msgid "config.schemas.SETTINGS_FILE must be a string or pathlib.Path."
+#~ msgstr "config.schemas.SETTINGS_FILE 必須是字串或 pathlib.Path。"
+
+#~ msgid "config.schemas.Settings must inherit oldman.conf.DefaultSettings."
+#~ msgstr "config.schemas.Settings 必須繼承 oldman.conf.DefaultSettings。"

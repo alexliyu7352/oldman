@@ -1,0 +1,21 @@
+{% from "oldman/dashboard/partials/topbar.html" import dashboard_topbar with context %}
+{% from "oldman/auth/partials/account_controls.html" import user_account_controls with context %}
+
+{% macro admin_language_switcher() %}
+  {% include "admin/partials/language_switcher.html" %}
+{% endmacro %}
+
+{% macro admin_account_controls() %}
+  {{ user_account_controls(
+    display_name=request.ctx.session.display_name or request.ctx.session.username,
+    session_path=admin_prefix ~ "/user-session",
+    logout_path=admin_prefix ~ "/sign-out",
+    subtitle=_("Admin")
+  ) }}
+{% endmacro %}
+
+{{ dashboard_topbar(
+  user_notification_urls=admin_user_notification_urls,
+  language_switcher=admin_language_switcher,
+  account_controls=admin_account_controls
+) }}

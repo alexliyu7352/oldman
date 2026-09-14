@@ -1,0 +1,639 @@
+{
+  "version": 1,
+  "sources": [
+    "frontend/apps/admin/src",
+    "frontend/packages/oldman-web/src"
+  ],
+  "messages": [
+    {
+      "id": "Cancel",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/color-picker.ts",
+          "line": 55
+        }
+      ]
+    },
+    {
+      "id": "Choose color",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/color-picker.ts",
+          "line": 53
+        }
+      ]
+    },
+    {
+      "id": "Delete selected",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
+          "line": 363
+        }
+      ]
+    },
+    {
+      "id": "File is too large",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/upload.ts",
+          "line": 159
+        }
+      ]
+    },
+    {
+      "id": "Form validation failed",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/form.ts",
+          "line": 274
+        }
+      ]
+    },
+    {
+      "id": "Just now",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/topbar.ts",
+          "line": 192
+        }
+      ]
+    },
+    {
+      "id": "Load more",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/autocomplete.ts",
+          "line": 392
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 590
+        }
+      ]
+    },
+    {
+      "id": "Loading...",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/app/index.ts",
+          "line": 168
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/app/index.ts",
+          "line": 259
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
+          "line": 79
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
+          "line": 138
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
+          "line": 249
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/autocomplete.ts",
+          "line": 553
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/feedback.ts",
+          "line": 125
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/modal.ts",
+          "line": 279
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/modal.ts",
+          "line": 305
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 645
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/table-filter-form.ts",
+          "line": 46
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 174
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 226
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 29
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/core/services/preloader.ts",
+          "line": 46
+        }
+      ]
+    },
+    {
+      "id": "No chart data",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
+          "line": 133
+        }
+      ]
+    },
+    {
+      "id": "No choices available",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 647
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 31
+        }
+      ]
+    },
+    {
+      "id": "No matching records",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 316
+        }
+      ]
+    },
+    {
+      "id": "No notifications",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/apps/admin/src/main.ts",
+          "line": 24
+        }
+      ]
+    },
+    {
+      "id": "No results found",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/autocomplete.ts",
+          "line": 564
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 646
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 30
+        }
+      ]
+    },
+    {
+      "id": "Notification",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/topbar.ts",
+          "line": 190
+        }
+      ]
+    },
+    {
+      "id": "Only unique values can be added",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 649
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "id": "Only values matching specific conditions can be added",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 650
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 34
+        }
+      ]
+    },
+    {
+      "id": "Open",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
+          "line": 281
+        }
+      ]
+    },
+    {
+      "id": "Press Enter to add \"{value}\"",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 651
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 35
+        }
+      ]
+    },
+    {
+      "id": "Press to select",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 648
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "id": "Request failed",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
+          "line": 274
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/modal.ts",
+          "line": 783
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/table-filter-form.ts",
+          "line": 54
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 836
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/core/actions/response-actions.ts",
+          "line": 295
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/index.ts",
+          "line": 166
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
+          "line": 404
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
+          "line": 405
+        }
+      ]
+    },
+    {
+      "id": "Retry",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/autocomplete.ts",
+          "line": 392
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 590
+        }
+      ]
+    },
+    {
+      "id": "Save",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/color-picker.ts",
+          "line": 54
+        }
+      ]
+    },
+    {
+      "id": "Saving...",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/form.ts",
+          "line": 72
+        }
+      ]
+    },
+    {
+      "id": "Select notification",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/topbar.ts",
+          "line": 208
+        }
+      ]
+    },
+    {
+      "id": "Selected notifications will be deleted.",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
+          "line": 362
+        }
+      ]
+    },
+    {
+      "id": "Showing",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 1032
+        }
+      ]
+    },
+    {
+      "id": "This is a placeholder set in the config",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 671
+        }
+      ]
+    },
+    {
+      "id": "entries",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 1032
+        }
+      ]
+    },
+    {
+      "id": "of",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 1032
+        }
+      ]
+    },
+    {
+      "id": "to",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/table.ts",
+          "line": 1032
+        }
+      ]
+    },
+    {
+      "id": "{count} value can be added",
+      "context": null,
+      "plural": "{count} values can be added",
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/select.ts",
+          "line": 652
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
+          "line": 36
+        }
+      ]
+    },
+    {
+      "id": "Blockquote",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 111
+        }
+      ]
+    },
+    {
+      "id": "Bold",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 105
+        }
+      ]
+    },
+    {
+      "id": "Bullet list",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 110
+        }
+      ]
+    },
+    {
+      "id": "Clear formatting",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 114
+        }
+      ]
+    },
+    {
+      "id": "Code block",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 112
+        }
+      ]
+    },
+    {
+      "id": "Heading 1",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 90
+        }
+      ]
+    },
+    {
+      "id": "Heading 2",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 91
+        }
+      ]
+    },
+    {
+      "id": "Heading 3",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 92
+        }
+      ]
+    },
+    {
+      "id": "Italic",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 106
+        }
+      ]
+    },
+    {
+      "id": "Link",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 113
+        }
+      ]
+    },
+    {
+      "id": "Normal",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 89
+        }
+      ]
+    },
+    {
+      "id": "Ordered list",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 109
+        }
+      ]
+    },
+    {
+      "id": "Strikethrough",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "id": "Text style",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 100
+        }
+      ]
+    },
+    {
+      "id": "Underline",
+      "context": "Rich text editor toolbar",
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/components/rich-text-editor.ts",
+          "line": 107
+        }
+      ]
+    }
+  ]
+}

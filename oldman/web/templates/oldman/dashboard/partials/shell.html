@@ -1,0 +1,34 @@
+{% macro dashboard_sidebar(home_href, menu_title, brand_subtitle=none, scroll_container_id=none, two_column_menu=false, declarative_menu=false) %}
+  <turbo-frame id="oldman-sidebar-nav" target="oldman-main">
+    <aside class="app-menu oldman-sidebar" data-om-sidebar data-om-component="sidebar-menu" aria-label="{{ _('Primary navigation') }}">
+      <div class="logo-box oldman-sidebar-brand">
+        <a href="{{ home_href }}" class="flex min-w-0 items-center gap-2.5">
+          <span class="oldman-brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <span class="min-w-0">
+            <span class="block truncate text-2xl font-bold leading-none text-default-900">Oldman</span>
+            {% if brand_subtitle %}
+              <span class="mt-1 block text-xs font-medium text-default-500">{{ brand_subtitle }}</span>
+            {% endif %}
+          </span>
+        </a>
+      </div>
+
+      <nav class="oldman-sidebar-scroll"{% if scroll_container_id %} id="{{ scroll_container_id }}"{% endif %}{% if declarative_menu %} data-om-menu{% endif %}>
+        {% if two_column_menu %}<div id="two-column-menu" hidden></div>{% endif %}
+        <ul class="side-nav oldman-menu-list" id="navbar-nav">
+          <li class="menu-title oldman-menu-title">{{ menu_title }}</li>
+          {{ caller() }}
+        </ul>
+      </nav>
+    </aside>
+    <button class="oldman-sidebar-backdrop hidden" type="button" data-om-sidebar-backdrop hidden aria-label="{{ _('Close navigation') }}"></button>
+  </turbo-frame>
+{% endmacro %}
+
+{% macro dashboard_main_frame() %}
+  <turbo-frame id="oldman-main" data-turbo-action="advance" data-om-page="{{ page_entry | default('backend') }}">
+    {{ caller() }}
+  </turbo-frame>
+{% endmacro %}

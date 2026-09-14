@@ -1,0 +1,62 @@
+{% macro modal(
+  id,
+  title,
+  component="modal",
+  close_label="Close",
+  dialog_scrollable=false,
+  remote_content=false,
+  inline_hidden_style=false,
+  managed=true,
+  root_tag="div",
+  root_class=none,
+  title_tag="h5",
+  title_id=none,
+  close_button_class="om-close-button",
+  close_button_id=none,
+  close_icon_class=none,
+  body_class=none,
+  footer=none,
+  footer_class=none,
+  footer_close_label=none,
+  dialog_class=none,
+  hidden=true
+) %}
+  {% set resolved_root_tag = "section" if root_tag == "section" else "div" %}
+  {% set resolved_title_tag = "h2" if title_tag == "h2" else "h5" %}
+  {% set resolved_title_id = title_id | default(id ~ "-title", true) %}
+  <{{ resolved_root_tag }}
+    class="om-modal{% if root_class is not none %} {{ root_class }}{% endif %}"
+    id="{{ id }}"
+    data-om-component="{{ component }}"
+    {% if managed %}data-om-modal-managed="true"{% endif %}
+    tabindex="-1"
+    role="dialog"
+    aria-hidden="true"
+    aria-labelledby="{{ resolved_title_id }}"
+    {% if hidden %}hidden{% endif %}
+    {% if inline_hidden_style %}style="display: none;"{% endif %}
+  >
+    <div class="om-modal-dialog{% if dialog_scrollable %} om-modal-dialog-scrollable{% endif %}{% if dialog_class is not none %} {{ dialog_class }}{% endif %}">
+      <div class="om-modal-surface">
+        <div class="om-modal-header">
+          <{{ resolved_title_tag }} id="{{ resolved_title_id }}" class="om-modal-title"{% if remote_content %} data-om-modal-title{% endif %}>{{ title }}</{{ resolved_title_tag }}>
+          <button type="button" class="{{ close_button_class }}" data-om-modal-close aria-label="{{ close_label }}"{% if close_button_id is not none %} id="{{ close_button_id }}"{% endif %}>{% if close_icon_class is not none %}
+            <i class="{{ close_icon_class }}"></i>
+          {% endif %}</button>
+        </div>
+        <div class="om-modal-body{% if body_class is not none %} {{ body_class }}{% endif %}"{% if remote_content %} data-om-modal-content{% endif %}>
+          {{ caller() }}
+        </div>
+        {% if footer is not none or footer_close_label is not none %}
+          <div class="om-modal-footer{% if footer_class is not none %} {{ footer_class }}{% endif %}"{% if remote_content %} data-om-modal-footer{% endif %}>
+            {% if footer is not none %}
+              {{ footer() }}
+            {% else %}
+              <button type="button" class="om-button om-button-light" data-om-modal-close>{{ footer_close_label }}</button>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </{{ resolved_root_tag }}>
+{% endmacro %}

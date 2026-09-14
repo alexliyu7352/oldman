@@ -1,0 +1,10 @@
+{% extends "oldman/dashboard/errors/_base.html" %}
+
+{% block title %}{{ _("Page not found") }} · Oldman{% endblock %}
+
+{% block content %}
+  <div class="error-status error-status--primary" aria-hidden="true">404</div>
+  <h1 class="error-title">{{ _("Page not found") }}</h1>
+  <p class="error-description">{{ _("The page you requested does not exist or may have moved.") }}</p>
+  <a class="error-action" href="/">{{ _("Return to dashboard") }}</a>
+{% endblock %}

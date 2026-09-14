@@ -1,0 +1,39 @@
+{
+  "name": "oldman",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexliyu7352/oldman.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alexliyu7352/oldman/issues"
+  },
+  "homepage": "https://github.com/alexliyu7352/oldman#readme",
+  "packageManager": "pnpm@9.12.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "version:sync": "uv run python3 scripts/sync-release-version.py --write",
+    "verify:version": "uv run python3 scripts/sync-release-version.py",
+    "build": "pnpm verify:version && pnpm --filter oldman-web build && pnpm --filter oldman-admin build",
+    "dev": "pnpm --parallel --filter oldman-web --filter oldman-admin dev",
+    "lint": "uv run ruff check oldman tests scripts",
+    "test": "pnpm --filter oldman-web test && pnpm --filter oldman-admin test && uv run --index-strategy unsafe-best-match python3 -m unittest discover tests",
+    "typecheck": "uv run pyright && pnpm --filter oldman-web typecheck && pnpm --filter oldman-admin typecheck",
+    "build:python": "pnpm verify:version && pnpm --filter oldman-admin build && SOURCE_DATE_EPOCH=1580601600 uv build --package oldman",
+    "pack:web": "pnpm verify:version && pnpm -C frontend/packages/oldman-web pack",
+    "verify": "pnpm verify:static && pnpm verify:python && pnpm verify:frontend && pnpm verify:web-boundaries && pnpm verify:packages && pnpm verify:scaffold-matrix",
+    "verify:static": "pnpm lint && uv run pyright",
+    "verify:python": "uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .",
+    "verify:frontend": "pnpm --filter oldman-web test && pnpm --filter oldman-web typecheck && pnpm --filter oldman-admin test && pnpm --filter oldman-admin typecheck",
+    "verify:packages": "pnpm verify:web-package && pnpm verify:python-package",
+    "verify:web-boundaries": "uv run python3 scripts/verify-oldman-web-boundary-inventory.py",
+    "verify:web-package": "uv run python3 scripts/verify-current-release-oldman-web-package.py",
+    "verify:python-package": "uv run python3 scripts/verify-current-release-python-package.py",
+    "verify:scaffold-matrix": "uv run python3 scripts/verify-current-release-scaffold-matrix.py"
+  }
+}

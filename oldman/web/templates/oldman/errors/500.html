@@ -1,0 +1,10 @@
+{% extends "oldman/errors/_base.html" %}
+
+{% block title %}{{ _("Server error") }} · Oldman{% endblock %}
+
+{% block content %}
+  <div class="status" aria-hidden="true">500</div>
+  <h1>{{ _("Server error") }}</h1>
+  <p>{{ _("The server could not complete this request. Please try again later.") }}</p>
+  <a class="action" href="/">{{ _("Return home") }}</a>
+{% endblock %}

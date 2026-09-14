@@ -1,0 +1,28 @@
+{% macro user_account_controls(display_name, session_path, logout_path, subtitle, avatar_url=none) %}
+  <div class="om-dropdown" data-om-component="dropdown">
+    <button type="button" class="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-default-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40" id="page-header-user-dropdown" data-om-dropdown-toggle aria-haspopup="true" aria-expanded="false">
+      {% if avatar_url %}
+        <img class="size-10 rounded-full object-cover ring-4 ring-pink-100" src="{{ avatar_url }}" alt="{{ _('User avatar') }}">
+      {% else %}
+        <span class="grid size-10 place-items-center rounded-full bg-primary-50 text-xl text-primary-600 ring-4 ring-primary-100" aria-hidden="true">
+          <i class="mdi mdi-account-circle"></i>
+        </span>
+      {% endif %}
+      <span class="hidden min-w-0 text-left xl:block">
+        <span class="block max-w-48 truncate text-sm font-medium leading-5 text-default-900">{{ display_name }}</span>
+        <span class="block text-xs leading-4 text-default-500">{{ subtitle }}</span>
+      </span>
+    </button>
+    <div class="om-dropdown-menu hidden" data-om-dropdown-menu hidden aria-labelledby="page-header-user-dropdown">
+      <p class="border-b border-default-100 px-3 py-2 text-xs font-semibold text-default-500">{{ _('Welcome') }}</p>
+      <a class="om-dropdown-item" href="{{ session_path }}">
+        <i class="ri-account-circle-line text-base text-default-400"></i>
+        <span>{{ _('Session') }}</span>
+      </a>
+      <a class="om-dropdown-item" href="{{ logout_path }}">
+        <i class="ri-logout-box-r-line text-base text-default-400"></i>
+        <span>{{ _('Logout') }}</span>
+      </a>
+    </div>
+  </div>
+{% endmacro %}

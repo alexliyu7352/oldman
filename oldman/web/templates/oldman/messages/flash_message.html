@@ -1,0 +1,13 @@
+{% if messages is defined and messages %}
+  <div class="om-flash-messages" data-om-flash-messages>
+    {% for message in messages %}
+      <div class="om-flash-message om-alert-{{ message.level }}" data-om-flash-message data-om-message-level="{{ message.level }}" role="alert">
+        {% if message.format == "html" %}
+          {{ message.content | safe }}
+        {% else %}
+          {{ message.content }}
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

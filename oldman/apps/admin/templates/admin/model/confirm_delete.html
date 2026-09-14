@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ model_admin.get_delete_label() }} · Oldman Admin{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    <div class="om-page-header">
+      <h1 class="om-page-title">{{ model_admin.get_delete_label() }}</h1>
+    </div>
+    <form method="post" action="{{ model_admin.get_object_url(object, admin_prefix=admin_prefix, action='delete') }}" class="om-card max-w-xl">
+      {% csrf_token %}
+      <div class="om-card-body">
+        <p class="text-sm text-default-600">{{ _("This action cannot be undone.") }}</p>
+        <p class="mt-2 font-medium text-default-800">{{ model_admin.object_pk(object) }}</p>
+      </div>
+      <div class="om-card-footer flex justify-end gap-2">
+        <a
+          class="om-button om-button-light"
+          href="{{ admin_prefix }}/{{ model_admin.model_path }}"
+          data-om-history-back
+          data-om-history-fallback="{{ admin_prefix }}/{{ model_admin.model_path }}"
+        >{{ _("Cancel") }}</a>
+        <button class="om-button om-button-danger" type="submit">{{ model_admin.get_delete_label() }}</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

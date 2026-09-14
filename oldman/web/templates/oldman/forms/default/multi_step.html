@@ -1,0 +1,22 @@
+<div data-om-component="multi-step-form">
+  <ol class="om-stepper mb-5" aria-label="{{ form_steps_label }}">
+    {% for step in steps %}
+    <li class="om-step" data-om-step-indicator="{{ step.index }}">
+      <span class="om-step-marker" aria-hidden="true">{{ step.index + 1 }}</span>
+      <span class="om-step-label">{{ step.title }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% for step in steps %}
+  <section data-om-step-panel="{{ step.index }}" role="group" aria-label="{{ step.title }}">
+    {% if step.description %}<p class="mb-4 text-default-500">{{ step.description }}</p>{% endif %}
+    <div{% if field_grid_class %} class="{{ field_grid_class }}"{% endif %}>{{ step.fields_html }}</div>
+  </section>
+  {% endfor %}
+
+  <div{{ navigation_attrs|html_attrs }}>
+    <button{{ previous_attrs|html_attrs }}>{{ previous_label }}</button>
+    <button{{ next_attrs|html_attrs }}>{{ next_label }}</button>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+[data-om-sortable-handle] {
+  cursor: grab;
+  touch-action: none;
+}
+
+[data-om-sortable-pending] [data-om-sortable-handle] {
+  cursor: wait;
+}
+
+.om-sortable-chosen [data-om-sortable-handle] {
+  cursor: grabbing;
+}
+
+.om-sortable-ghost {
+  opacity: 0.45;
+}

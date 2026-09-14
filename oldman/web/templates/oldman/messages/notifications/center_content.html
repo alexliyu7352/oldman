@@ -1,0 +1,99 @@
+<section
+  data-om-user-notification-center
+  data-om-read-url="{{ view.read_url }}"
+  data-om-delete-url="{{ view.delete_url }}"
+  data-om-center-url="{{ view.center_url }}"
+  data-om-current-url="{{ view.current_url }}"
+  class="om-card"
+>
+  <div class="flex flex-col gap-3 border-b border-default-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <nav class="flex gap-2" data-om-user-notification-filters aria-label="{{ _('Notification filters') }}">
+      <a
+        class="om-page-button"
+        href="{{ view.center_url }}?state=all&page=1"
+        {% if view.state.value == 'all' %}aria-current="page"{% endif %}
+      >{{ _('All') }}</a>
+      <a
+        class="om-page-button"
+        href="{{ view.center_url }}?state=unread&page=1"
+        {% if view.state.value == 'unread' %}aria-current="page"{% endif %}
+      >{{ _('Unread') }}</a>
+      <a
+        class="om-page-button"
+        href="{{ view.center_url }}?state=read&page=1"
+        {% if view.state.value == 'read' %}aria-current="page"{% endif %}
+      >{{ _('Read') }}</a>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <button class="om-button om-button-light om-button-sm" type="button" data-om-user-notification-mark-all-read>
+        {{ _('Mark all as read') }}
+      </button>
+      <button class="om-button om-button-soft-primary om-button-sm" type="button" data-om-user-notification-refresh-center hidden>
+        {{ _('New notifications available') }}
+      </button>
+    </div>
+  </div>
+
+  <div data-om-user-notification-list>
+    {% for item in view.items %}
+      <article
+        data-om-user-notification-center-item
+        data-om-user-notification-id="{{ item.id }}"
+        data-om-notification-level="{{ item.level.value }}"
+        data-om-notification-tone="{{ item.tone }}"
+        data-om-notification-read="{{ 'true' if item.read else 'false' }}"
+        class="flex items-start gap-3 border-b border-default-100 px-4 py-4 transition-colors hover:bg-default-50"
+      >
+        <input
+          class="mt-1 h-5 w-5 shrink-0 rounded border-default-200 text-primary-600 focus-visible:ring-2 focus-visible:ring-primary-500/40"
+          type="checkbox"
+          value="{{ item.id }}"
+          aria-label="{{ _('Select notification') }}"
+          data-om-user-notification-select
+        >
+        <a
+          href="{{ view.center_url }}/{{ item.id }}/open"
+          data-om-user-notification-open
+          class="flex min-w-0 flex-1 items-start gap-3 rounded focus-visible:ring-2 focus-visible:ring-primary-500/40"
+        >
+          <span class="om-notification-icon om-notification-icon-{{ item.tone }}">
+            <i class="{{ item.icon or 'ri-notification-3-line' }}" aria-hidden="true"></i>
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="flex items-center gap-2">
+              <span class="truncate font-semibold text-default-900">{{ item.title }}</span>
+              {% if not item.read %}<span class="shrink-0 text-xs text-primary-600"><span aria-hidden="true">●</span><span class="sr-only">{{ _('Unread') }}</span></span>{% endif %}
+            </span>
+            {% if item.body %}<span class="mt-1 line-clamp-2 text-sm text-default-700">{{ item.body }}</span>{% endif %}
+            <time class="mt-1 block text-xs text-default-500" datetime="{{ item.created_at.isoformat() }}">{{ item.created_at }}</time>
+          </span>
+        </a>
+      </article>
+    {% else %}
+      <p class="px-4 py-10 text-center text-sm text-default-500" data-om-user-notification-empty>{{ _('No notifications') }}</p>
+    {% endfor %}
+  </div>
+
+  <div class="flex flex-col gap-3 border-t border-default-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <span class="om-badge om-badge-secondary" data-om-user-notification-selection-count>0</span>
+    <div class="flex items-center gap-2">
+      <button class="om-button om-button-light om-button-sm" type="button" data-om-user-notification-mark-selected-read disabled>
+        {{ _('Mark selected as read') }}
+      </button>
+      <button class="om-button om-button-soft-danger om-button-sm" type="button" data-om-user-notification-delete-selected disabled>
+        {{ _('Delete selected') }}
+      </button>
+    </div>
+  </div>
+
+  <nav class="flex items-center justify-center gap-2 border-t border-default-200 px-4 py-3" data-om-user-notification-pagination aria-label="{{ _('Notification pages') }}">
+    {% if view.page > 1 %}
+      <a class="om-page-button" href="{{ view.center_url }}?state={{ view.state.value }}&page={{ view.page - 1 }}">{{ _('Previous') }}</a>
+    {% endif %}
+    <span class="text-sm text-default-500">{{ view.page }} / {{ view.total_pages }}</span>
+    {% if view.page < view.total_pages %}
+      <a class="om-page-button" href="{{ view.center_url }}?state={{ view.state.value }}&page={{ view.page + 1 }}">{{ _('Next') }}</a>
+    {% endif %}
+  </nav>
+</section>

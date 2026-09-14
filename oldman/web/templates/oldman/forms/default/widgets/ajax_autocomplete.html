@@ -1,0 +1,7 @@
+<div{{ root_attrs|html_attrs }}>
+  <input type="hidden" name="{{ field.name }}" value="{{ value }}" data-om-autocomplete-value-control>
+  <input{{ input_attrs|html_attrs }}>
+  <div class="om-autocomplete-list" data-om-autocomplete-list hidden></div>
+  <div data-om-autocomplete-loading hidden></div>
+  <div data-om-autocomplete-empty hidden></div>
+</div>

@@ -1,0 +1,17 @@
+.om-color-picker {
+  align-items: center;
+  display: flex;
+  min-height: 2.375rem;
+}
+
+.om-color-picker-native {
+  min-height: 2.375rem;
+  padding: 0.25rem;
+}
+
+.om-color-picker-trigger {
+  border: 1px solid var(--om-color-border, rgb(203 213 225));
+  border-radius: 0.5rem;
+  min-height: 2.375rem;
+  min-width: 4rem;
+}

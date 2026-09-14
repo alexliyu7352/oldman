@@ -1,0 +1,6 @@
+<tr data-om-table-row data-om-table-row-id="{{ row_id }}">
+  {% if selectable %}
+  <td data-om-column-selection data-om-column-label="{{ _('Select') }}"><input type="checkbox" class="om-check" data-om-table-select-row value="{{ row_id }}" aria-label="{{ _('Select row') }}"></td>
+  {% endif %}
+  {% for cell in cells %}{{ cell }}{% endfor %}
+</tr>

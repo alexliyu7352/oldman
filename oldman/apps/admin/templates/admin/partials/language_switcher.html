@@ -1,0 +1,5 @@
+{% if admin_i18n.languages | length > 1 %}
+  {% set language_items = admin_i18n.languages %}
+  {% set language_current_code = admin_i18n.currentLanguage %}
+  {% include "oldman/dashboard/partials/language_switcher.html" %}
+{% endif %}

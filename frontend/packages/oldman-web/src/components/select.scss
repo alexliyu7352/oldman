@@ -1,0 +1,13 @@
+@import "choices.js/public/assets/styles/choices.css" layer(oldman-vendor);
+@import "../styles/plugin-context";
+@import "../styles/plugins/choices";
+
+.om-select-load-more {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0.75rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+}

@@ -1,0 +1,33 @@
+<style data-om-critical="preloader">
+  #preloader {
+    position: fixed;
+    inset: 0;
+    display: block;
+    background: #f3f6f9;
+    z-index: 9999;
+  }
+
+  #preloader[hidden],
+  [data-preloader="disable"] #preloader {
+    display: none !important;
+  }
+
+  #preloader [data-om-preloader-status] {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid #d7dde5;
+    border-top-color: #405189;
+    border-radius: 50%;
+    animation: oldman-preloader-spin 0.75s linear infinite;
+  }
+
+  @keyframes oldman-preloader-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>

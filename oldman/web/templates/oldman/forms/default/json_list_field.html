@@ -1,0 +1,42 @@
+<div
+  class="space-y-3"
+  data-om-component="form-repeater"
+  data-om-repeater-name="{{ field.name }}"
+  data-om-repeater-id="{{ field.id }}"
+  data-om-repeater-min="{{ field.min_entries }}"
+  {% if field.max_entries is not none %}data-om-repeater-max="{{ field.max_entries }}"{% endif %}
+>
+  <div{{ label_attrs|html_attrs }}>{{ label_text }}</div>
+  <div class="space-y-3" data-om-repeater-rows>
+    {% for row in rows %}
+    <div class="rounded-lg border border-default-200 p-3" data-om-repeater-row data-om-repeater-index="{{ row.index }}">
+      <label{{ row.label_attrs|html_attrs }}>{{ row.label_text }}</label>
+      <div class="om-form-control-stack">
+        {{ row.control_html }}
+        {{ row.errors_html }}
+      </div>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <button type="button" class="om-button om-button-light" data-om-repeater-up aria-controls="{{ row.field.id }}"{% if row.up_disabled %} disabled{% endif %}>{{ row.up_label }}</button>
+        <button type="button" class="om-button om-button-light" data-om-repeater-down aria-controls="{{ row.field.id }}"{% if row.down_disabled %} disabled{% endif %}>{{ row.down_label }}</button>
+        <button type="button" class="om-button om-button-light" data-om-repeater-remove aria-controls="{{ row.field.id }}"{% if row.remove_disabled %} disabled{% endif %}>{{ row.remove_label }}</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {{ help_html }}
+  <button type="button" class="om-button om-button-light" data-om-repeater-add{% if add_disabled %} disabled{% endif %}>{{ add_label }}</button>
+  <template data-om-repeater-template>
+    <div class="rounded-lg border border-default-200 p-3" data-om-repeater-row data-om-repeater-index="{{ template_row.index }}">
+      <label{{ template_row.label_attrs|html_attrs }}>{{ template_row.label_text }}</label>
+      <div class="om-form-control-stack">
+        {{ template_row.control_html }}
+        {{ template_row.errors_html }}
+      </div>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <button type="button" class="om-button om-button-light" data-om-repeater-up aria-controls="{{ template_row.field.id }}">{{ template_row.up_label }}</button>
+        <button type="button" class="om-button om-button-light" data-om-repeater-down aria-controls="{{ template_row.field.id }}">{{ template_row.down_label }}</button>
+        <button type="button" class="om-button om-button-light" data-om-repeater-remove aria-controls="{{ template_row.field.id }}">{{ template_row.remove_label }}</button>
+      </div>
+    </div>
+  </template>
+</div>
