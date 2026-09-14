@@ -7,4 +7,4 @@
 
 __author__ = "alex"
 
-__VERSION__ = "0.1.1-rc.1"
+__VERSION__ = "0.1.1"
