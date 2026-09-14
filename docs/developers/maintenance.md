@@ -58,18 +58,23 @@ pnpm --filter oldman-admin build
 
 翻译修改的真实流程是提取 POT → 更新 PO → 翻译 → 编译 MO/前端 JSON，不是直接改某个已生成字典。应用侧参考[资源文档](assets.md)，框架 CLI 维护入口见 [locales README](../../oldman/cli/locales/README.md)。
 
-## 版本与构建产物
+## 版本与发布
 
-版本权威是根 `pyproject.toml` 的 `project.version`。需要发布新版本时，先修改它，再使用现有同步命令：
+版本权威是根 `pyproject.toml` 的 `project.version`，它必须同时是合法的 SemVer 和合法的 PEP 440 版本：正式版写 `0.1.1`，预发布写 `0.1.1-rc.1`。Python 产物的文件名与元数据使用 PEP 440 规范形式（`0.1.1rc1`），npm 使用原样字符串；维护脚本一律通过 `scripts/release_artifacts.py` 的 `python_distribution_version()` 换算，不手工拼接。
 
-```sh
-pnpm version:sync
-pnpm verify:version
-```
+发布由 GitHub Actions 完成，本地只做三件事：
 
-同步会更新 Python/npm 中的版本副本，必须审阅产生的差异。不要逐个随手修改版本而遗漏另一个包。
+1. 修改 `project.version`，运行 `pnpm version:sync`，审阅并提交它改写的 Python/npm 版本副本（`package.json`、两个前端包、`oldman/version.py`、`OLDMAN_WEB_VERSION`）。不要逐个随手修改版本而遗漏另一个包。
+2. 在公开 `main` 对应的提交上打注释标签 `v<版本>`（例如 `v0.1.1`、`v0.1.1-rc.1`），推送标签。
+3. 在 Actions 中查看 Release 运行结果，并核对 PyPI、npm 与 GitHub Release。
 
-构建发布候选：
+`.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12 与 3.13）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建附带三个产物和 `SHA256SUMS` 的 GitHub Release。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
+
+预发布版本（版本号含 `-`）：PyPI 视为 pre-release，`pip install oldman` 默认不会选中它，需要 `--pre` 或精确版本；npm 发布到 `next` dist-tag，`latest` 不变；GitHub Release 标记为 prerelease。用预发布版本演练发布链路不会影响正式用户。
+
+`.github/workflows/ci.yml` 在每次推送和 PR 上运行静态检查、Python 与前端测试；Redis 集成测试要求 `redis-server` 可执行文件存在，每个测试类自行启动独立的 Redis 进程。
+
+本地复核发布产物时使用同一套命令：
 
 ```sh
 pnpm build:python
@@ -105,7 +110,7 @@ pnpm verify:scaffold-matrix
 - frontend：两个前端包的测试与类型检查。
 - web-boundaries：已有前端边界检查。
 - web-package：当前版本 npm 产物及真实消费者验证。
-- python-package：当前版本 wheel/sdist 内容、Python 3.12/3.13 安装及内置 Admin Chrome 验证。
+- python-package：当前版本 wheel/sdist 内容、Python 3.12/3.13 安装及内置 Admin Chrome 验证（Release 工作流运行其中不依赖浏览器的部分）。
 - scaffold-matrix：使用实际发行产物创建项目并验证生成服务，包含需要的浏览器环节。
 
 包和脚手架阶段会建立隔离环境、下载依赖并构建，明显比普通单元测试消耗更多磁盘和内存。先检查可用空间、内存及已运行的服务，Chrome 一次只运行一个任务。不能给所有机器保证固定空间上限；环境和下载缓存会改变实际占用。

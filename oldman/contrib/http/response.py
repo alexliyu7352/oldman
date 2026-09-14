@@ -6,7 +6,8 @@ import codecs
 import copy
 import json as jsonlib
 import zlib
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
+from contextlib import AbstractAsyncContextManager, aclosing, nullcontext
 from email.message import Message
 from http.cookiejar import CookieJar
 from typing import Any, Protocol, cast
@@ -61,36 +62,45 @@ def _validate_chunk_size(chunk_size: int | None) -> None:
         raise ValueError("chunk_size 必须为正整数或 None")
 
 
-async def _rechunk(source: AsyncIterator[bytes], chunk_size: int | None) -> AsyncIterator[bytes]:
+def _closing(iterator: AsyncIterator[bytes]) -> AbstractAsyncContextManager[AsyncIterator[bytes]]:
+    """Close a nested async iterator when its consumer stops early, so nothing is left to the GC finalizer."""
+
+    if hasattr(iterator, "aclose"):
+        return aclosing(cast(Any, iterator))
+    return nullcontext(iterator)
+
+
+async def _rechunk(source: AsyncIterator[bytes], chunk_size: int | None) -> AsyncGenerator[bytes, None]:
     """Apply a stable chunk-size contract over backend-specific iterators."""
 
     _validate_chunk_size(chunk_size)
-    if chunk_size is None:
-        async for chunk in source:
-            if chunk:
-                yield bytes(chunk)
-        return
+    async with _closing(source) as chunks:
+        if chunk_size is None:
+            async for chunk in chunks:
+                if chunk:
+                    yield bytes(chunk)
+            return
 
-    pending = bytearray()
-    try:
-        async for chunk in source:
-            if not chunk:
-                continue
-            pending.extend(chunk)
-            offset = 0
-            while len(pending) - offset >= chunk_size:
-                yield bytes(memoryview(pending)[offset : offset + chunk_size])
-                offset += chunk_size
-            if offset:
-                # 每个 backend chunk 最多移动一次余数，避免小 chunk_size 时反复删除头部。
-                pending = pending[offset:]
-    except Exception:
-        # backend 已读取的正文必须先交付，续传偏移才能与实际输出保持一致。
+        pending = bytearray()
+        try:
+            async for chunk in chunks:
+                if not chunk:
+                    continue
+                pending.extend(chunk)
+                offset = 0
+                while len(pending) - offset >= chunk_size:
+                    yield bytes(memoryview(pending)[offset : offset + chunk_size])
+                    offset += chunk_size
+                if offset:
+                    # 每个 backend chunk 最多移动一次余数，避免小 chunk_size 时反复删除头部。
+                    pending = pending[offset:]
+        except Exception:
+            # backend 已读取的正文必须先交付，续传偏移才能与实际输出保持一致。
+            if pending:
+                yield bytes(pending)
+            raise
         if pending:
             yield bytes(pending)
-        raise
-    if pending:
-        yield bytes(pending)
 
 
 class HttpHeaders(Mapping[str, str]):
@@ -367,10 +377,11 @@ async def _iter_decoded(
 
     decoder = _content_decoder(headers, decode_content)
     try:
-        async for chunk in source:
-            decoded = decoder.decode(chunk)
-            if decoded:
-                yield decoded
+        async with _closing(source) as chunks:
+            async for chunk in chunks:
+                decoded = decoder.decode(chunk)
+                if decoded:
+                    yield decoded
         tail = decoder.flush()
         if tail:
             yield tail
@@ -596,9 +607,10 @@ class HttpStreamResponse:
         if self._closed:
             raise HttpStreamConsumedError("响应流已经关闭，无法读取正文")
         self._stream_started = True
-        async for chunk in self._iter_raw():
-            if chunk:
-                yield bytes(chunk)
+        async with _closing(self._iter_raw()) as chunks:
+            async for chunk in chunks:
+                if chunk:
+                    yield bytes(chunk)
 
     async def _raw_source(self) -> AsyncIterator[bytes]:
         """Replay cached raw bytes or claim the backend stream."""
@@ -607,8 +619,9 @@ class HttpStreamResponse:
             if self._raw_content:
                 yield self._raw_content
             return
-        async for chunk in self._claim_raw_source():
-            yield chunk
+        async with _closing(self._claim_raw_source()) as chunks:
+            async for chunk in chunks:
+                yield chunk
 
     async def _decoded_source(self) -> AsyncIterator[bytes]:
         """Replay cached decoded bytes or decode the raw source incrementally."""
@@ -622,20 +635,21 @@ class HttpStreamResponse:
             if self._content:
                 yield self._content
             return
-        async for chunk in _iter_decoded(self._claim_raw_source(), self.headers, self._should_decode_content):
-            yield chunk
+        async with _closing(_iter_decoded(self._claim_raw_source(), self.headers, self._should_decode_content)) as chunks:
+            async for chunk in chunks:
+                yield chunk
 
-    def aiter_raw(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
+    def aiter_raw(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
         """Iterate wire-level bytes with stable optional rechunking."""
 
         return _rechunk(self._raw_source(), chunk_size)
 
-    def aiter_bytes(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
+    def aiter_bytes(self, chunk_size: int | None = None) -> AsyncGenerator[bytes, None]:
         """Iterate decoded-content bytes with stable optional rechunking."""
 
         return _rechunk(self._decoded_source(), chunk_size)
 
-    async def aiter_text(self, chunk_size: int | None = None) -> AsyncIterator[str]:
+    async def aiter_text(self, chunk_size: int | None = None) -> AsyncGenerator[str, None]:
         """Incrementally decode text without splitting multibyte characters."""
 
         encoding = _resolve_encoding(self.encoding, self.headers)
@@ -644,33 +658,35 @@ class HttpStreamResponse:
         except LookupError:
             decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
-        async for chunk in self.aiter_bytes(chunk_size):
-            text = decoder.decode(chunk)
-            if text:
-                yield text
+        async with _closing(self.aiter_bytes(chunk_size)) as chunks:
+            async for chunk in chunks:
+                text = decoder.decode(chunk)
+                if text:
+                    yield text
         tail = decoder.decode(b"", final=True)
         if tail:
             yield tail
 
-    async def aiter_lines(self, chunk_size: int | None = None) -> AsyncIterator[str]:
+    async def aiter_lines(self, chunk_size: int | None = None) -> AsyncGenerator[str, None]:
         """Iterate decoded lines across arbitrary backend chunk boundaries."""
 
         pending = ""
-        async for text in self.aiter_text(chunk_size):
-            pending += text
-            while pending:
-                cr = pending.find("\r")
-                lf = pending.find("\n")
-                positions = [position for position in (cr, lf) if position >= 0]
-                if not positions:
-                    break
+        async with aclosing(self.aiter_text(chunk_size)) as texts:
+            async for text in texts:
+                pending += text
+                while pending:
+                    cr = pending.find("\r")
+                    lf = pending.find("\n")
+                    positions = [position for position in (cr, lf) if position >= 0]
+                    if not positions:
+                        break
 
-                boundary = min(positions)
-                if pending[boundary] == "\r" and boundary == len(pending) - 1:
-                    break
-                separator_length = 2 if pending[boundary : boundary + 2] == "\r\n" else 1
-                yield pending[:boundary]
-                pending = pending[boundary + separator_length :]
+                    boundary = min(positions)
+                    if pending[boundary] == "\r" and boundary == len(pending) - 1:
+                        break
+                    separator_length = 2 if pending[boundary : boundary + 2] == "\r\n" else 1
+                    yield pending[:boundary]
+                    pending = pending[boundary + separator_length :]
 
         if pending.endswith("\r"):
             yield pending[:-1]

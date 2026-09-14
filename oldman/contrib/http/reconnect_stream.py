@@ -8,7 +8,7 @@ __author__ = "alex"
 import asyncio
 import re
 from collections.abc import AsyncIterator
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, aclosing
 from typing import Any, Protocol
 
 from oldman.contrib.http.contants import StreamReadError
@@ -319,20 +319,22 @@ class ReconnectStreamResponse:
             delivered_from_response = False
             try:
                 response_error: HttpRangeError | None = None
-                async for chunk in response.aiter_raw(chunk_size):
-                    expected = self._expected_response_bytes
-                    if expected is not None and self._received_response_bytes + len(chunk) > expected:
-                        response_error = HttpRangeError(
-                            f"206 正文超过 Content-Range 声明长度，期望 {expected} 字节: {self.url}"
-                        )
-                        break
-                    self._received_response_bytes += len(chunk)
-                    self.transmitted_bytes += len(chunk)
-                    if not delivered_from_response:
-                        # 取得新实体字节才代表本次恢复成功，后续再次断线获得完整预算。
-                        delivered_from_response = True
-                        self._reset_recovery_budget()
-                    yield chunk
+                # 提前 break 时显式关闭正文迭代器，不把挂起的生成器留给 GC 终结钩子。
+                async with aclosing(response.aiter_raw(chunk_size)) as body:
+                    async for chunk in body:
+                        expected = self._expected_response_bytes
+                        if expected is not None and self._received_response_bytes + len(chunk) > expected:
+                            response_error = HttpRangeError(
+                                f"206 正文超过 Content-Range 声明长度，期望 {expected} 字节: {self.url}"
+                            )
+                            break
+                        self._received_response_bytes += len(chunk)
+                        self.transmitted_bytes += len(chunk)
+                        if not delivered_from_response:
+                            # 取得新实体字节才代表本次恢复成功，后续再次断线获得完整预算。
+                            delivered_from_response = True
+                            self._reset_recovery_budget()
+                        yield chunk
                 if response_error is not None:
                     last_exception = response_error
                     break

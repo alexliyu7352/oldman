@@ -236,8 +236,8 @@ class OldmanWebPackBoundaryTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            artifact = artifact_dir / "oldman-web-0.1.0.tgz"
             payloads, inventory, package, static_errors, tailwind = self.verifier.rebuild_pack_snapshot(evidence)
+            artifact = artifact_dir / f"oldman-web-{package['version']}.tgz"
             errors = static_errors + self.verifier.verify_pack_artifact(
                 artifact,
                 expected_payloads=payloads,
