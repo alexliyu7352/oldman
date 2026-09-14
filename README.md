@@ -24,7 +24,14 @@ Python 负责配置、应用生命周期、权限、数据和 HTML；浏览器�
 
 ## 最短的项目入口
 
-使用与你要开发的版本对应的 `oldman` 包。在发行包可用的环境中安装后执行：
+先准备两样工具：[uv](https://docs.astral.sh/uv/) 负责 Python 环境与依赖，`oldman` 命令行由它安装。`--python 3.13` 把命令行固定在框架支持的版本上；不写的话 uv 会用它能找到的最新解释器，不检查包声明的版本范围。
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install --python 3.13 oldman
+```
+
+然后在准备存放项目的父目录执行：
 
 ```sh
 oldman startproject my_site
@@ -54,7 +61,7 @@ uv sync
 
 普通 API 不要求安装前端包。需要共享 Dashboard UI 时再安装 `oldman-web` 及其声明的依赖；内置 Admin 的默认浏览器资源随 Python 包提供。
 
-当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.14`。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
+当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
 
 ## 完整示例
 

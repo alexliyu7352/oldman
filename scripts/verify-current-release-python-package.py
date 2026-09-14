@@ -39,7 +39,7 @@ WHEEL_CONTENTS_VERIFIER = ROOT / "scripts" / "verify-wheel-contents.py"
 SDIST_CONTENTS_VERIFIER = ROOT / "scripts" / "verify-sdist-contents.py"
 INSTALL_VERIFIER = ROOT / "scripts" / "verify-python-package-install.py"
 ADMIN_BROWSER_VERIFIER = ROOT / "scripts" / "verify-installed-wheel-admin-browser.py"
-SUPPORTED_PYTHON_MINORS = ("3.12", "3.13")
+SUPPORTED_PYTHON_MINORS = ("3.12", "3.13", "3.14")
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

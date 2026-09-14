@@ -23,7 +23,7 @@ uv sync --group dev
 pnpm install --frozen-lockfile
 ```
 
-当前元数据要求 Python 3.12/3.13、Node 20 及以上，packageManager 指定 pnpm 9.12.3。前端依赖版本以仓库的 `pnpm-lock.yaml` 为准；Python 依赖只受 `pyproject.toml` 的约束，`uv.lock` 是本机解析结果，不提交仓库。不通过随意升级来绕过失败。依赖变化本身应是独立、可审阅的任务。
+当前元数据要求 Python 3.12 到 3.14、Node 20 及以上，packageManager 指定 pnpm 9.12.3。前端依赖版本以仓库的 `pnpm-lock.yaml` 为准；Python 依赖只受 `pyproject.toml` 的约束，`uv.lock` 是本机解析结果，不提交仓库。不通过随意升级来绕过失败。依赖变化本身应是独立、可审阅的任务。
 
 编辑前检查 Git 状态、现有风格与全部相关调用方；一个明确任务一个提交。发布校验不是要求提交用户的未完成修改。需要干净已提交源码时先分清归属，不用 reset 或 add . 清场。
 
@@ -68,7 +68,7 @@ pnpm --filter oldman-admin build
 2. 在公开 `main` 对应的提交上打注释标签 `v<版本>`（例如 `v0.1.1`、`v0.1.1-rc.1`），推送标签。
 3. 在 Actions 中查看 Release 运行结果，并核对 PyPI、npm 与 GitHub Release。
 
-`.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12 与 3.13）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建附带三个产物和 `SHA256SUMS` 的 GitHub Release。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
+`.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12、3.13 与 3.14）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建附带三个产物和 `SHA256SUMS` 的 GitHub Release。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
 
 预发布版本（版本号含 `-`）：PyPI 视为 pre-release，`pip install oldman` 默认不会选中它，需要 `--pre` 或精确版本；npm 发布到 `next` dist-tag，`latest` 不变；GitHub Release 标记为 prerelease。用预发布版本演练发布链路不会影响正式用户。
 
@@ -110,7 +110,7 @@ pnpm verify:scaffold-matrix
 - frontend：两个前端包的测试与类型检查。
 - web-boundaries：已有前端边界检查。
 - web-package：当前版本 npm 产物及真实消费者验证。
-- python-package：当前版本 wheel/sdist 内容、Python 3.12/3.13 安装及内置 Admin Chrome 验证（Release 工作流运行其中不依赖浏览器的部分）。
+- python-package：当前版本 wheel/sdist 内容、Python 3.12 到 3.14 安装及内置 Admin Chrome 验证（Release 工作流运行其中不依赖浏览器的部分）。
 - scaffold-matrix：使用实际发行产物创建项目并验证生成服务，包含需要的浏览器环节。
 
 包和脚手架阶段会建立隔离环境、下载依赖并构建，明显比普通单元测试消耗更多磁盘和内存。先检查可用空间、内存及已运行的服务，Chrome 一次只运行一个任务。不能给所有机器保证固定空间上限；环境和下载缓存会改变实际占用。

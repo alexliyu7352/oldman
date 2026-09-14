@@ -6,7 +6,15 @@
 
 ## 运行环境与安装
 
-使用 Linux、Python 3.12 或 3.13、uv、Node.js 20 及以上和 pnpm。还需要可访问的 Redis；默认示例启用 Taskiq 和 Core 通信，因此也需要启用 JetStream 的 NATS，准备方式见[通信教程](service-communication.md#1-准备并启动-demo)。具体依赖来自 Demo 的 [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) 和 [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json)，不在文档维护第二份安装版本表。
+使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh          # uv：Python 与依赖管理
+# Node.js 20 及以上按你的发行版或 nvm 安装，然后启用随 Node 附带的 corepack：
+corepack enable                                          # 提供 pnpm，版本由仓库 package.json 的 packageManager 指定
+```
+
+还需要可访问的 Redis；默认示例启用 Taskiq 和 Core 通信，因此也需要启用 JetStream 的 NATS，准备方式见[通信教程](service-communication.md#1-准备并启动-demo)。具体依赖来自 Demo 的 [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) 和 [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json)，不在文档维护第二份安装版本表。
 
 尚未取得 Demo 时，在准备存放项目的目录克隆：
 

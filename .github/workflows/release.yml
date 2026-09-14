@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install both supported interpreters for the install smoke
-        run: uv python install 3.12 3.13
+        run: uv python install 3.12 3.13 3.14
 
       - name: Install dependencies
         run: |
@@ -76,7 +76,7 @@ jobs:
           uv run python scripts/verify-sdist-contents.py "$sdist"
           uv run python scripts/verify-python-package-install.py \
             --wheel "$wheel" --sdist "$sdist" \
-            --python "$(uv python find 3.12)" --python "$(uv python find 3.13)"
+            --python "$(uv python find 3.12)" --python "$(uv python find 3.13)" --python "$(uv python find 3.14)"
           uv run python scripts/verify-oldman-web-package.py \
             --wheel "$wheel" --npm-tarball "$tgz" --evidence-dir "$RUNNER_TEMP/web-evidence"
           mkdir -p release/python release/npm

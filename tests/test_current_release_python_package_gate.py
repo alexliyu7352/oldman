@@ -99,17 +99,17 @@ class CurrentReleasePythonPackageGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "pyproject.toml").write_text(
-                '[project]\nname = "oldman"\nversion = "1.0.0"\nrequires-python = ">=3.12, <3.14"\n',
+                '[project]\nname = "oldman"\nversion = "1.0.0"\nrequires-python = ">=3.12, <3.15"\n',
                 encoding="utf-8",
             )
 
-            self.assertEqual(("3.12", "3.13"), self.gate.declared_supported_python_minors(root))
+            self.assertEqual(("3.12", "3.13", "3.14"), self.gate.declared_supported_python_minors(root))
 
     def test_runtime_matrix_rejects_an_unverified_declared_python(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "pyproject.toml").write_text(
-                '[project]\nname = "oldman"\nversion = "1.0.0"\nrequires-python = ">=3.12, <3.15"\n',
+                '[project]\nname = "oldman"\nversion = "1.0.0"\nrequires-python = ">=3.12, <3.16"\n',
                 encoding="utf-8",
             )
 

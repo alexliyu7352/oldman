@@ -13,7 +13,7 @@ from typing import Annotated, Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 from pydantic.fields import FieldInfo
-from pydantic_core.core_schema import FieldValidationInfo, ValidationInfo
+from pydantic_core.core_schema import ValidationInfo
 from uuid6 import uuid7
 
 from oldman.utils.http import sanitize_path
@@ -131,7 +131,7 @@ class UTCDatetimeMixin(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, str_strip_whitespace=True)
 
     @classmethod
-    def ensure_utc(cls, value: Any, _info: FieldValidationInfo) -> Any:
+    def ensure_utc(cls, value: Any, _info: ValidationInfo) -> Any:
         """确保所有时间字段都是UTC时间"""
         if isinstance(value, datetime):
             if value.tzinfo is None:
@@ -140,7 +140,7 @@ class UTCDatetimeMixin(BaseModel):
         return value
 
     @classmethod
-    def validate_none_strings(cls, value: Any, _info: FieldValidationInfo) -> Any:
+    def validate_none_strings(cls, value: Any, _info: ValidationInfo) -> Any:
         """将'null'、'none'等字符串转换为None"""
         if isinstance(value, str) and value.lower() in ("null", "none", ""):
             return None

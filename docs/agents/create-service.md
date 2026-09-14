@@ -23,7 +23,14 @@ EPG Demo 有 services/web.py 的 WebService，services/task_worker.py、services
 
 ## 新项目的命令流程
 
-这部分是框架脚手架操作，不是声称 EPG Demo 中已经存在 api 服务。使用与当前文档对应的 Oldman 安装；在发行包可用时可用 uv tool install oldman，源码开发可用 uv tool install --editable 指向框架目录。项目仍需自己的依赖环境。
+这部分是框架脚手架操作，不是声称 EPG Demo 中已经存在 api 服务。先安装 uv，再用它安装与当前文档对应的 `oldman` 命令行；`--python 3.13` 固定到框架支持的版本，因为 `uv tool install` 不检查包声明的 `requires-python`：
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv tool install --python 3.13 oldman
+```
+
+源码开发可用 `uv tool install --python 3.13 --editable /框架源码目录` 代替发行包。项目仍需自己的依赖环境，下面的 `uv sync` 由同一个 uv 提供。
 
 在准备存放项目的父目录执行：
 

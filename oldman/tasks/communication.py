@@ -6,7 +6,7 @@
 
 __author__ = "alex"
 
-import asyncio
+import inspect
 import multiprocessing as mp
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -74,7 +74,7 @@ class CommunicationManager:
                     handler = self.message_handlers[message.type]
                     try:
                         # 直接判断是否为异步函数
-                        if asyncio.iscoroutinefunction(handler):
+                        if inspect.iscoroutinefunction(handler):
                             await handler(message)
                         else:
                             handler(message)
