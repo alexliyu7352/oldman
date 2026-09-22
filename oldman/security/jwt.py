@@ -1,10 +1,11 @@
 import base64
 import hashlib
 import hmac
-import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, NoReturn
+
+import orjson
 
 
 class JWTError(ValueError):
@@ -95,7 +96,9 @@ def _split_token(token: str) -> tuple[str, str, str]:
 
 
 def _b64encode_json(value: Mapping[str, Any]) -> str:
-    data = json.dumps(value, default=_json_default, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    # OPT_PASSTHROUGH_DATETIME 不能少：orjson 原生把 datetime 写成 ISO 字符串，而 JWT 的
+    # exp/iat 必须是数字。没有它，_json_default 根本不会被调用，claims 会变成不合规的形状。
+    data = orjson.dumps(value, default=_json_default, option=orjson.OPT_SORT_KEYS | orjson.OPT_PASSTHROUGH_DATETIME)
     return _b64encode(data)
 
 
@@ -113,8 +116,8 @@ def _b64decode(data: str) -> bytes:
 
 def _decode_json_segment(segment: str) -> dict[str, Any]:
     try:
-        value = json.loads(_b64decode(segment))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        value = orjson.loads(_b64decode(segment))
+    except (UnicodeDecodeError, orjson.JSONDecodeError) as exc:
         raise InvalidTokenError("Invalid JWT JSON") from exc
     if not isinstance(value, dict):
         raise InvalidTokenError("Invalid JWT JSON object")

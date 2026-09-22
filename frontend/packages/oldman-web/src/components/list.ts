@@ -204,6 +204,10 @@ export class List extends Component {
       item.className = "om-list-page-item";
       const link = document.createElement("a");
       link.className = `om-page-button${page === this.currentPage ? " is-active" : ""}`;
+      // 这个 href 是占位符，不是地址：上面 `on("click", LIST_PAGE_SELECTOR)` 的委托处理器
+      // 先 preventDefault，所以它从不执行；`<a>` 需要 href 才能被键盘聚焦，所以不能去掉。
+      // `table.ts` 的 paginationButton() 用的是 <button>，那是更正确的形状；这里改过去会动到
+      // 宿主针对 `.om-list-page-item a` 写的 CSS/JS，属于一次独立的、有意为之的 DOM 变更。
       link.href = "javascript:void(0);";
       link.dataset.omListPage = String(page);
       link.textContent = String(page);

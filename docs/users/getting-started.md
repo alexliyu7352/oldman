@@ -6,7 +6,7 @@
 
 ## 运行环境与安装
 
-使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
+使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。需要打开 `web.debug` 时避开 CPython 3.13.15、3.14.7 及更新的补丁版：uvloop 0.22.1 在 asyncio 调试模式下会崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复），已验证 3.13.11 与 3.14.2 正常，3.12 不受影响。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # uv：Python 与依赖管理
@@ -98,15 +98,15 @@ pnpm --dir frontend build
 
 前端 build 的前置步骤已经包含图标收集和浏览器翻译生成；static collect 收集框架及已安装 App 的静态资源。产品模式的 Web 服务读取构建 manifest，不连接 Vite。
 
-打开 [http://127.0.0.1:17998/](http://127.0.0.1:17998/)。未登录会进入登录页，使用刚创建的账号登录。然后打开：
+打开 [http://127.0.0.1:17997/](http://127.0.0.1:17997/)。未登录会进入登录页，使用刚创建的账号登录。然后打开：
 
-- [/examples/tables/static](http://127.0.0.1:17998/examples/tables/static)：数据库数据由后端直接渲染。
-- [/examples/tables/html](http://127.0.0.1:17998/examples/tables/html)：服务端 HTML 动态表格。
-- [/examples/tables/json](http://127.0.0.1:17998/examples/tables/json)：同一查询的 JSON 动态表格。
+- [/examples/tables/static](http://127.0.0.1:17997/examples/tables/static)：数据库数据由后端直接渲染。
+- [/examples/tables/html](http://127.0.0.1:17997/examples/tables/html)：服务端 HTML 动态表格。
+- [/examples/tables/json](http://127.0.0.1:17997/examples/tables/json)：同一查询的 JSON 动态表格。
 
 正常的示例数据应出现；只有“页面能打开”但列表为空，并不等于完成了初始化。下一章解释如何查数据来自哪里。
 
-`web start` 在前台运行。在该终端按 Ctrl+C 停止；不要为释放端口终止不属于自己的服务。17998 已被使用时，先确定是否就是现有 Demo；需要独立实例时使用独立目录、数据库和配置，并相应调整地址。
+`web start` 在前台运行。在该终端按 Ctrl+C 停止；不要为释放端口终止不属于自己的服务。17997 已被使用时，先确定是否就是现有 Demo；需要独立实例时使用独立目录、数据库和配置，并相应调整地址。
 
 ## 4. 本地调试
 
@@ -116,7 +116,7 @@ pnpm --dir frontend build
 python3 scripts/dev.py
 ```
 
-这个 Demo 脚本管理 Vite 和 Web 服务；浏览器仍访问后端 17998，而不是把前端模板预览当成真实业务页面。使用同级框架源码时，修改 Python/TypeScript 可以直接调试，不要求先重新打 wheel。
+这个 Demo 脚本管理 Vite 和 Web 服务；浏览器仍访问后端 17997，而不是把前端模板预览当成真实业务页面。使用同级框架源码时，修改 Python/TypeScript 可以直接调试，不要求先重新打 wheel。
 
 `run.sh` 的职责不同。它只切换到项目根目录，把参数原样交给 `.venv/bin/oldman`。例如 `./run.sh web start` 与使用这个环境执行 `oldman web start` 等价；运行 `./run.sh` 不会自动迁移、导入数据或启动多个服务。
 

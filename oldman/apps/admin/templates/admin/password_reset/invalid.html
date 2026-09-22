@@ -1,0 +1,7 @@
+{% extends "admin/password_reset/base.html" %}
+
+{% block title %}{{ _("This link is no longer valid") }} · Oldman Admin{% endblock %}
+
+{% block auth_card %}
+  {% include "oldman/auth/password_reset/invalid.html" %}
+{% endblock %}

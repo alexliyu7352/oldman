@@ -93,11 +93,11 @@ SQLAlchemyTableView 在一个只读 Session 内查询和渲染，顺序为：
 2. `apply_base_filters(query, table_request)`，然后计算基础 total。
 3. `filter_<name>(query, value, table_request)` 及搜索，计算 filtered_total。
 4. 排序和数据库 limit/offset。
-5. 每行 `preload_record_data(row)`，再渲染各列。
+5. `build_row_contexts(rows)` 为整页行准备渲染上下文（默认逐行调用 `preload_record_data(row)`；要一次查询补齐整页数据就重写它，页面和导出共用同一个钩子），再渲染各列。
 
 使用 `self.require_db_session()` 取得该请求的 Session；不能把它放成跨请求全局变量。需要关联显示时用 `loader_options`，例如 SQLAlchemy selectinload，避免在每个单元格里惰性加载关系或重复查询。
 
-也可以像上面的 Demo 一样在 get_queryset 中显式 `.options(...)`。ExampleProjectTable.filter_status 的完整方法如下；PROJECT_STATUSES 是原文件的状态白名单，TableValidationError 来自 `oldman.web.components.tables.views`：
+也可以像上面的 Demo 一样在 get_queryset 中显式 `.options(...)`。ExampleProjectTable.filter_status 的完整方法如下；PROJECT_STATUSES 是原文件的状态白名单，TableValidationError 来自 `oldman.web.components.tables`（`TableInvalidRequest` 同样从包入口导入）：
 
 ```python
     async def filter_status(self, query, value: object, table_request):
@@ -142,6 +142,19 @@ ExampleProjectTable 中的名称列正好展示了这个边界。Markup、escape
 
 关系排序尤其需要区分：若 `team` 是单列 many-to-one 关系且没设置更具体的 field_path，按其本地外键列（如 team_id）排序；只有 `field_path="team.name"` 才 join 后按团队名称排序。多列或集合关系需要显式标量路径，不能猜一个值替用户排序。
 
+搜索或排序用到 `team.name` 这种跨关系路径时，`resolve_sql_field()` 自动补的是 LEFT OUTER JOIN：JOIN 只为读那一列，没有关联记录的行仍然留在列表里（它匹配不到这一列，排序时排在一端）。想让 JOIN 顺带过滤掉这些行，在自己的 `apply_search`/`apply_ordering` 里调用 `resolve_sql_field(query, path, isouter=False)`；不需要为了外连接重写整段搜索。
+
+## 单元格原语与筛选解析
+
+列回调返回 `(display, raw)`；display 半边用 `oldman.web.components.tables` 里的原语拼，不在每个项目里重写 HTML：
+
+- `badge(label, tone="secondary")`：`om-badge`，tone 取 primary/secondary/success/info/warning/danger，其它值回退为中性色。
+- `link(url, label)`：行内主链接；`muted(text)`：次要文字；`truncated(text, max_width=)`：截断的次要文字。
+- `date_cell(value, date_format=, empty=)`：返回 `(可读文本, ISO 原值)`，空值显示 `empty`（如 "Never"）并给空 raw；字符串原样透传。
+- `row_actions([RowAction(label, href=… | modal_target=…, modal_url=…, icon=…, danger=…)], label=)`：行操作下拉，链接项和打开 modal 的按钮项共用一套标记。
+
+筛选值解析同样共享：`parse_boolean_filter(value)`、`parse_filter_datetime(value)`（带时区的输入先转成 naive UTC 再比较）、`parse_int_filter(value, label=, minimum=, maximum=)`，非法输入统一抛 `TableValidationError`，进入表格的 422 校验错误。内置 Admin 的用户表与 Demo 的业务表格都用这些函数。
+
 ## 稳定行与列 DOM
 
 HTML 和 JSON Table 模式都输出 `tr[data-om-table-row][data-om-table-row-id]`，单元格使用 `data-om-column`、`data-om-column-label` 和 `data-raw-value`。动态项目表格的 ID 来自 ExampleProject 的主键，列名来自前面的 Column.name；不要另造与后端记录无关的 DOM 编号。
@@ -166,6 +179,31 @@ Demo `/examples/tables/realtime` 是手写 HTML table 配合页面私有 Realtim
 
 这里用 server.id 而不是 metric.id，是因为一行代表一台服务器，连续采样只更改这一行的数值。初值和 SSE 批次来自数据库，连接只回放已有批次，不因每次打开浏览器持续增加记录。完整后端、前端接线见[实时界面示例](../agents/realtime.md)。
 
+## 工具条
+
+表格外壳在数据区上方输出一条工具条（`om-table-toolbar`），放在 `om-table-card` 里时贴在卡片头下面。左侧依次是搜索框（`render_shell(show_search=True)` 时）、"已选 N 项"计数（`selectable=True` 时）和批量动作槽；右侧是工具按钮。工具由表格类的 `toolbar` 声明，默认 `("columns", "density", "export")`：
+
+| 工具 | 作用 | 备注 |
+| --- | --- | --- |
+| `columns` | 下拉菜单勾选显示哪些列 | `Column(hideable=False)` 的列和名为 `action` 的行操作列不进菜单 |
+| `density` | 舒适（44px 行）/ 紧凑（36px 行）切换 | 写在组件根的 `data-om-density` 上，刷新片段不丢 |
+| `export` | 按当前搜索、筛选和排序导出全部匹配行 | 只有声明了 `export_formats` 才出现；内置 `csv` |
+
+列显隐和密度按表格的 `html_id` 记在浏览器本地（`oldman:table:<id>`），同一张表下次打开保持。`toolbar = ()` 且没有搜索、选择和批量动作时不输出工具条。ModelAdmin 通过同名的 `table_toolbar` 和 `export_formats` 透传。
+
+导出走同一个数据接口：`export_formats = ("csv",)` 后，前端把当前请求参数去掉分页、加上 `export=csv` 发起下载，后端 `query_export()` 跑同一套筛选、搜索、排序但不分页，行数上限 `max_export_rows`（默认 10000），只写 `Column(exportable=True)` 的列：数字和布尔写 raw value（布尔为 `true`/`false`），其余列写用户看到的文本（去掉标签，块级标签之间补空格；回调以 `(markup, raw)` 形式给出 raw 文本的列直接写 raw），显示为空时才回退到 raw value；以 `=`、`+`、`-`、`@`、Tab 或回车开头的文本前面会加一个单引号，防止 Excel 把用户输入当公式执行（负数等纯数字不受影响）。文件名由 `export_filename(format)` 决定（默认路由名加日期），UTF-8 带 BOM，Excel 直接打开不乱码。权限与数据范围沿用 `check_auth()` 和 `get_queryset()`/`apply_base_filters()`；ModelAdmin 默认开启 CSV，不需要的模型设 `export_formats = ()`。
+
+表内空状态有两种：没有任何记录时显示 `empty_message`（可加 `empty_description`），有记录但被搜索或筛选全部挡掉时显示 `empty_filtered_message` 和 `empty_filtered_description`，并带一个“重置筛选”按钮，它清掉表格自己的搜索和初始筛选，再触发同一页面里 `data-om-table-target` 指向本表的筛选表单的重置（没有筛选表单时直接重新加载）。JSON 模式的两种空状态随外壳以 `<template>` 输出，浏览器端按 `filtered_total < total` 选用。
+
+批量动作由页面自己提供：`render_shell(bulk_actions_html=...)` 接收一段 HTML，放进 `data-om-table-bulk-actions` 容器，只在有选中行时显示。前端 Table 实例提供 `selectedIds()` 和 `clearSelection()`，并在选中集合变化时派发 `om:table:selection` 事件（`detail.ids`）。框架不内置批量删除，动作提交仍要走项目自己的接口和权限检查。
+
+```jinja
+{% set bulk_actions %}
+  <button type="button" class="om-button om-button-secondary om-button-sm" data-archive-selected>{{ _("Archive") }}</button>
+{% endset %}
+{{ table.render_shell(html_id="projects-table", show_search=False, bulk_actions_html=bulk_actions) }}
+```
+
 ## JSON 数据格式
 
 成功返回值顶层是 columns、rows、pagination、sort，不套 DefaultApiResponse。在已登录的浏览器里查看 `/examples/tables/projects/table?response_mode=json&page=1&page_size=10&sort=team`，或打开 JSON 页的 Network 面板，即可看到当前真实数据库结果；不是文档编造的固定一条记录。
@@ -185,6 +223,6 @@ cells 是经显示渲染器编码的 HTML；raw_values 不应从显示内容反�
 
 创建/编辑由普通 Form 和 Modal 处理，Demo 成功后依次反馈、关闭 Modal、`ReloadTableAction(target="#example-projects-table")`。两种 Table 共享相同 ID，因此不需要让保存接口猜页面使用哪种模式；同页放两张 Table 时应使用不同 ID，并明确动作目标。Table 格式为 HTML 不表示 Modal 中的 Form 也用 HTML 响应，本 Demo 两页的 CRUD Form 都用 JSON。
 
-`selectable=True` 只增加选择控件，不自动实现批量删除，也不授权任意 ID 操作。分页、搜索、排序不能代替后端访问范围。Demo 的 `/examples/tables/advanced` 只是明确缺口的展示页，不能当作已实现导出、固定列、列显隐或批量动作。
+`selectable=True` 只增加选择控件和工具条上的选中计数，不自动实现批量删除，也不授权任意 ID 操作；批量动作见[工具条](#工具条)。分页、搜索、排序不能代替后端访问范围。Demo 的 `/examples/tables/advanced` 是明确缺口的展示页，不能当作已实现固定列或批量动作。
 
 HTML 和 JSON 两种模式都应实际验证搜索、正反排序、分页、编辑后刷新、空数据和请求失败；只检查 initial shell 或 rows 数组不够。完整可运行接线在[项目 Table 教程](../users/tutorial-dashboard.md)。这些是开发者复核步骤，不代表本次文档修改重新运行了浏览器验收。

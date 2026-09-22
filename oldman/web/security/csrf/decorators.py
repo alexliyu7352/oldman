@@ -6,6 +6,21 @@ from oldman.web.exceptions import Forbidden
 from oldman.web.request import Request
 
 
+def enforce_csrf(csrf_manager, request: Request) -> None:
+    """Validate one state-changing request, raising Forbidden when it fails.
+
+    A plain function taking the manager, rather than a method on it, so that the
+    decorator and the global middleware share one implementation without widening the
+    manager interface that test doubles and downstream code implement.
+    """
+    token = csrf_manager.get_token_from_request(request)
+    if not token:
+        raise Forbidden("CSRF token missing")
+    is_valid, error_msg = csrf_manager.validate_token(request, token)
+    if not is_valid:
+        raise Forbidden(f"CSRF validation failed: {error_msg}")
+
+
 def _csrf_protect():
     """
     CSRF 保护装饰器
@@ -18,13 +33,7 @@ def _csrf_protect():
         async def wrapper(view, request: Request, *args, **kwargs):
             csrf_manager = request.app.ctx.csrf
 
-            token = csrf_manager.get_token_from_request(request)
-            if not token:
-                raise Forbidden("CSRF token missing")
-
-            is_valid, error_msg = csrf_manager.validate_token(request, token)
-            if not is_valid:
-                raise Forbidden(f"CSRF validation failed: {error_msg}")
+            enforce_csrf(csrf_manager, request)
             if view is None:
                 return await func(request, *args, **kwargs)
             return await func(view, request, *args, **kwargs)
@@ -76,6 +85,10 @@ def _add_csrf_token():
 def csrf_exempt(func):
     """
     CSRF 豁免装饰器
+
+    只有在 `web.security.csrf.enforce` 打开、全局中间件生效时才有意义：中间件会跳过被它标记的
+    handler。开关关闭时保护是逐路由声明的（`@csrf_protect`），不加保护即等于豁免，这个装饰器
+    不产生任何效果。
 
     使用方式:
         @app.post("/webhook")

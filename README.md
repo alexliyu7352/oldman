@@ -61,7 +61,7 @@ uv sync
 
 普通 API 不要求安装前端包。需要共享 Dashboard UI 时再安装 `oldman-web` 及其声明的依赖；内置 Admin 的默认浏览器资源随 Python 包提供。
 
-当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
+当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：uvloop 0.22.1 在 asyncio 调试模式下会在 CPython 3.13.15、3.14.7 及更新的补丁版上崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复），打开 `web.debug` 时请使用已验证的 3.13.11 或 3.14.2，3.12 不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
 
 ## 完整示例
 

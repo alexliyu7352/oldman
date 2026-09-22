@@ -24,7 +24,7 @@ import billiard
 import billiard.spawn
 import pyprctl
 
-from oldman.logging import ChildLoggingContext, get_active_runtime, logger
+from oldman.logging import ChildLoggingContext, logger, resolve_child_logging_context
 
 
 class ProcessTimeoutError(Exception):
@@ -274,12 +274,7 @@ class AsyncProcessManager:
 
     def _resolve_logging_context(self) -> ChildLoggingContext | None:
         """Resolve the active application context immediately before Process.start()."""
-        if self._logging_context is not None:
-            return self._logging_context
-        runtime = get_active_runtime()
-        if runtime is None or runtime.closed:
-            return None
-        return runtime.child_context
+        return resolve_child_logging_context(self._logging_context)
 
     @staticmethod
     async def _start_process(process: Any) -> None:

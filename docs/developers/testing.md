@@ -40,3 +40,43 @@
 一个小模块完成后只运行当前无法安全继续所需的检查。剩余全量发布检查集中、串行执行；不要为了绿灯建立重复状态、永久截图缓存或复杂测试专用生产分支。
 
 测试预期过时先核对当前契约和真实行为，再决定修正或删除测试。不能为满足旧断言恢复已不存在的接口，也不能把内部历史文档的字句作为生产正确性门槛。
+
+## 浏览器与进程门禁工具
+
+真实浏览器验证、进程树清理和 PNG 证据检查是 `oldman.testing`（只用标准库，导入它不会读配置也不会起服务）：
+
+| 入口 | 用途 |
+| --- | --- |
+| `ChromePage` / `CDPClient` / `navigate` / `configure_viewport` / `save_screenshot` | 用本机 Chrome 的 DevTools 协议打开页面、截图、`client.evaluate(...)` 断言 |
+| `BrowserResult` | 收集 console 错误、page 错误和坏响应，和业务断言分开 |
+| `find_free_port` | 给临时服务找一个空闲端口 |
+| `tracked_popen` / `ProcessTreeTracker` | 起子进程并在结束时确认整棵进程树都已退出 |
+| `require_png` | 确认截图确实是一张够大的 PNG，而不是 0 字节文件 |
+
+需要一套完全自有的临时环境（不碰开发机上正在跑的服务和数据）时用 `oldman.testing.gates`：
+
+| 入口 | 用途 |
+| --- | --- |
+| `minimal_environment()` | 只保留启动本机工具需要的环境变量，固定 `TZ=UTC` 与 `PYTHONHASHSEED=0` |
+| `owned_redis_server(state_root, environment=...)` | 起一个不落盘的 Redis，退出时确认进程组和端口都释放了 |
+| `gate_settings(example, state_root, service_port=, redis_url=, namespace=, customize=)` | 把项目的 example 配置改写成只指向临时目录的一份；`namespace` 隔离 session 前缀和 Cookie |
+| `migrate_gate_database(...)` / `ensure_gate_admin(...)` | 按“首次使用”应用迁移，并用公开 API 建出门禁要的管理员 |
+| `owned_service(config_file, ...)` + `wait_for_service(...)` | 前台起服务、等它监听，结束时确认整个进程组回收 |
+| `run_browser_child(command, ...)` | 跑真实浏览器子进程，要求 console/page/响应错误都是空的 |
+
+项目不要把这些脚本复制进自己的 `scripts/`：升级框架时复制品不会跟着变。演示项目的 `scripts/verify-*.py` 只保留页面自己的断言和自己的配置差异，其余从 `oldman.testing` 导入。
+
+## 防止复制粘贴变成第二份实现
+
+`oldman.testing.duplication` 把“这段代码别处已经有了”变成一条测试，不靠人记：
+
+| 入口 | 找什么 |
+| --- | --- |
+| `duplicate_functions(left, right, min_lines=6)` | 两棵源码树里同名且函数体结构相同的函数（复制粘贴通常保留函数名，所以误报很少） |
+| `identical_files(left, right, suffixes=...)` | 内容逐字节相同的文件：抄过去的脚本、模板、类型声明 |
+| `forbidden_imports(root, modules=..., allowed_names=...)` | 绕过公开 API 的 import，例如从 `oldman.apps.admin` 里取与 Admin 业务无关的东西 |
+| `forbidden_attributes(root, attributes=("app.ext.environment",))` | 绕过公开入口的属性访问 |
+
+框架自己跑 Admin↔`oldman.web`/`oldman.auth`，项目跑自己的代码↔框架包。检查只读源码，不导入被检查的模块。
+
+发现重复时的顺序是：**先判断这段能力属于谁**。属于框架就上提到框架（并写文档和测试），项目只留调用；确属项目自己的业务才留下。为了让测试变绿而把两份实现改得“看起来不一样”，是这条守卫要防的反面。

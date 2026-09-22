@@ -9,7 +9,7 @@ import time
 import unittest
 from pathlib import Path
 
-from scripts.linux_process_tree import ProcessTreeError, linux_process_table, tracked_popen
+from oldman.testing.process_tree import ProcessTreeError, linux_process_table, tracked_popen
 
 
 @unittest.skipUnless(sys.platform == "linux", "release process-tree scope is Linux-only")

@@ -29,7 +29,7 @@ class TaskiqConfigTest(unittest.TestCase):
         self.assertFalse(default.taskiq.enabled)
         self.assertIsNone(default.taskiq.namespace)
         self.assertEqual("nats://localhost:4222", default.nats["DEFAULT"].nats_url)
-        self.assertEqual("unix:///var/run/redis/redis.sock?db=3", default.redis["DEFAULT"].redis_url)
+        self.assertEqual("redis://localhost:6379/3", default.redis["DEFAULT"].redis_url)
         self.assertEqual("EPG-dev_1", settings.taskiq.namespace)
         self.assertEqual(["DEFAULT", "jobs"], list(settings.nats))
         self.assertEqual(2, len(settings.nats))

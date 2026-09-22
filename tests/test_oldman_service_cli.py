@@ -501,6 +501,29 @@ class ServiceCliTest(unittest.TestCase):
             self.assertIn("context", completed.stdout + completed.stderr)
             self.assertFalse(marker.exists())
 
+    def test_mail_sendtest_uses_the_configured_backend_without_service_import(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            project = Path(temporary_directory)
+            marker = _create_project(project)
+
+            completed = _run_cli(
+                project,
+                marker,
+                "worker",
+                "mail",
+                "sendtest",
+                "one@example.com",
+                "two@example.com",
+            )
+
+            output = completed.stdout + completed.stderr
+            self.assertEqual(0, completed.returncode, output)
+            # The default console backend prints the message itself, then the command reports the count.
+            self.assertIn("Subject: Test email from", output)
+            self.assertIn("To: one@example.com, two@example.com", output)
+            self.assertIn("Sent 1 test message(s) through oldman.mail.backends.console.ConsoleEmailBackend.", output)
+            self.assertFalse(marker.exists())
+
     def test_web_static_collect_uses_installed_apps_without_service_import(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = Path(temporary_directory)

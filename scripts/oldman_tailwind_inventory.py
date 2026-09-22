@@ -185,6 +185,16 @@ def inventory_block(css: str) -> str | None:
     return css[start : end + len(INVENTORY_END)]
 
 
+def declared_inline_utilities(css: str) -> tuple[str, ...]:
+    """Return every utility the stylesheet safelists, generated block and hand-written alike.
+
+    A consumer's Tailwind build only emits a utility it can see. For the framework's own markup
+    that visibility comes from `@source inline(...)` directives, so this set is exactly what a
+    clean consumer can be expected to produce without writing the class itself.
+    """
+    return tuple(sorted(set(_INLINE_SOURCE.findall(css))))
+
+
 def inventory_utilities(css: str) -> tuple[str, ...]:
     """Return exact utility directives recorded inside the generated block."""
     block = inventory_block(css)
@@ -225,6 +235,7 @@ def main() -> int:
             print(f"missing: {utility}")
         for utility in sorted(actual_set - expected_set):
             print(f"unexpected: {utility}")
+        print(f"Run `python {Path(__file__).relative_to(root)} --write` to synchronize the inventory.")
         return 1
     print("Oldman framework Tailwind utility inventory verified")
     return 0

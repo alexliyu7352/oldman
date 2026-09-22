@@ -7,9 +7,9 @@
             <span></span>
           </span>
           <span class="min-w-0">
-            <span class="block truncate text-2xl font-bold leading-none text-default-900">Oldman</span>
+            <span class="oldman-brand-name">Oldman</span>
             {% if brand_subtitle %}
-              <span class="mt-1 block text-xs font-medium text-default-500">{{ brand_subtitle }}</span>
+              <span class="oldman-brand-subtitle">{{ brand_subtitle }}</span>
             {% endif %}
           </span>
         </a>
@@ -31,4 +31,38 @@
   <turbo-frame id="oldman-main" data-turbo-action="advance" data-om-page="{{ page_entry | default('backend') }}">
     {{ caller() }}
   </turbo-frame>
+{% endmacro %}
+
+{% macro sidebar_menu_link(href, label, icon, active=false, tooltip=true) %}
+  {# 侧边栏的单层菜单项。收起成窄栏时由 tooltip 显示文字。 #}
+  <li class="menu-item oldman-menu-item nav-item{% if active %} active{% endif %}" data-om-menu-item{% if tooltip %} data-om-component="tooltip" data-om-placement="right"{% endif %}>
+    <a class="nav-link menu-link oldman-menu-link{% if active %} active{% endif %}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}{% if tooltip %} data-om-tooltip-trigger{% endif %}>
+      <i class="{{ icon }} menu-icon oldman-menu-icon" aria-hidden="true"></i>
+      <span class="menu-text">{{ label }}</span>
+    </a>
+    {% if tooltip %}<span class="om-tooltip-content oldman-menu-tooltip" data-om-tooltip-content hidden>{{ label }}</span>{% endif %}
+  </li>
+{% endmacro %}
+
+{% macro sidebar_menu_group(panel_id, label, icon, active=false) %}
+  {# 可展开的分组。收起成窄栏时侧边栏脚本用 flyout 打开 caller 里的子项，所以这里不加 tooltip。 #}
+  <li class="menu-item oldman-menu-item nav-item{% if active %} active open{% endif %}" data-om-menu-item>
+    <button class="menu-link oldman-menu-link{% if active %} active{% endif %}" type="button" data-om-menu-toggle aria-expanded="{{ 'true' if active else 'false' }}" aria-controls="{{ panel_id }}">
+      <i class="menu-icon oldman-menu-icon {{ icon }}" aria-hidden="true"></i>
+      <span class="menu-text">{{ label }}</span>
+      <i class="menu-arrow oldman-menu-chevron ri-arrow-right-s-line" aria-hidden="true"></i>
+    </button>
+    <ul class="sub-menu oldman-submenu menu-om-dropdown {{ 'show' if active else 'hidden' }}" id="{{ panel_id }}" data-om-menu-panel{% if not active %} hidden{% endif %}>
+      {{ caller() }}
+    </ul>
+  </li>
+{% endmacro %}
+
+{% macro sidebar_menu_item(href, label, active=false) %}
+  {# 分组内的子项。 #}
+  <li class="menu-item">
+    <a class="menu-link oldman-submenu-link nav-link{% if active %} active{% endif %}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}>
+      <span class="menu-text">{{ label }}</span>
+    </a>
+  </li>
 {% endmacro %}

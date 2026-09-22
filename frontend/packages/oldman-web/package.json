@@ -224,7 +224,7 @@
     "build": "pnpm clean && tsc -p tsconfig.build.json && node scripts/copy-css.mjs",
     "clean": "rm -rf dist *.tgz",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "generate:icons": "node ./bin/oldman-web-icons.mjs --output src/styles/icons.css --source src/app --source src/components --source src/core --source src/dashboard --source ../../../oldman/web/templates",
+    "generate:icons": "node ./bin/oldman-web-icons.mjs --output src/styles/icons.css --source src/app --source src/components --source src/core --source src/dashboard --source ../../../oldman --exclude ../../../oldman/apps --exclude ../../../oldman/scaffolds",
     "generate:i18n-messages": "node ./scripts/generate-i18n-messages.mjs",
     "check:i18n-messages": "node ./scripts/generate-i18n-messages.mjs --check",
     "build:i18n-cli": "node ./scripts/build-i18n-cli.mjs",

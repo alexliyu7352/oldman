@@ -20,9 +20,21 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 try:
-    from scripts.oldman_tailwind_inventory import css_class_selector, framework_tailwind_utilities, inventory_block, inventory_utilities
+    from scripts.oldman_tailwind_inventory import (
+        css_class_selector,
+        declared_inline_utilities,
+        framework_tailwind_utilities,
+        inventory_block,
+        inventory_utilities,
+    )
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
-    from oldman_tailwind_inventory import css_class_selector, framework_tailwind_utilities, inventory_block, inventory_utilities
+    from oldman_tailwind_inventory import (
+        css_class_selector,
+        declared_inline_utilities,
+        framework_tailwind_utilities,
+        inventory_block,
+        inventory_utilities,
+    )
 
 try:
     from scripts.release_artifacts import python_distribution_version
@@ -956,26 +968,42 @@ def verify_clean_consumer_build(
                 return errors
 
         built_css = "\n".join(path.read_text(encoding="utf-8") for path in (root / "dist" / "assets").glob("*.css"))
+        published_stylesheet = root / "node_modules" / "oldman-web" / "dist" / "styles" / "tailwind.css"
+        published_inline_utilities = (
+            declared_inline_utilities(published_stylesheet.read_text(encoding="utf-8"))
+            if published_stylesheet.is_file()
+            else ()
+        )
         built_font_names = {path.name for path in (root / "dist" / "assets").glob("*.woff2")}
-        required_selectors = (
+        # 样式表自己定义的选择器：它们不依赖扫描，缺了就是打包漏了组件样式或 base 层。
+        required_component_selectors = (
             ".oldman-sidebar{",
             ".om-modal{",
             ".om-table{",
             ".choices{",
-            ".bg-red-600{",
-            ".border-red-300{",
-            ".line-clamp-2{",
-            ".min-h-9{",
-            ".min-w-5{",
-            ".rounded-lg{",
-            ".text-end{",
             "[hidden]{display:none!important}",
         )
+        # utility 金丝雀：证明"消费者的 Tailwind 构建确实看得见框架标记里的类"这条链路还活着。
+        # 动态检查（下面的 framework_tailwind_utilities）在扫描本身出 bug 返回空集时会空过，
+        # 这几条固定值是那种情况下唯一的哨兵。
+        required_utility_canaries = ("border-danger", "line-clamp-2", "min-w-0", "rounded-lg", "text-end")
         errors = [
             f"Clean Dashboard consumer CSS is missing published runtime selector: {selector}"
-            for selector in required_selectors
+            for selector in required_component_selectors
             if selector not in built_css
         ]
+        errors.extend(
+            f"Clean Dashboard consumer CSS is missing published runtime selector: {css_class_selector(utility)}{{"
+            for utility in required_utility_canaries
+            if f"{css_class_selector(utility)}{{" not in built_css
+        )
+        # 金丝雀自检：类从标记里删掉之后，上面那条断言会以"CSS 少了一个选择器"的面目失败，
+        # 而真正的原因是这份清单过期了。`.bg-red-600` 和 `.min-w-5` 就是这么红了很久的。
+        errors.extend(
+            f"Clean Dashboard consumer utility canary is stale: {utility} is no longer safelisted by the published stylesheet"
+            for utility in required_utility_canaries
+            if utility not in set(published_inline_utilities)
+        )
         errors.extend(
             f"Clean Dashboard consumer CSS is missing framework-emitted utility selector: {utility}"
             for utility in (

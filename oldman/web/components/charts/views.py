@@ -7,19 +7,18 @@ from typing import Any
 from markupsafe import Markup
 
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
+from oldman.web.components.data_endpoint import DataEndpointMixin
 from oldman.web.http import OldmanHTTPMethodView
+from oldman.web.request import get_arg, iter_args
 from oldman.web.response import json_response
 
+from .exceptions import ChartInvalidRequest
 from .renderers import ChartRenderer
-from .request import ChartRequest, get_arg, iter_args
+from .request import ChartRequest
 from .results import ChartResult
 
 
-class ChartInvalidRequest(Exception):
-    """图表请求参数非法。"""
-
-
-class BaseChartView(OldmanHTTPMethodView):
+class BaseChartView(DataEndpointMixin, OldmanHTTPMethodView):
     """支持独立 endpoint 的无主题 Chart 基类。"""
 
     require_authenticated = True
@@ -113,15 +112,6 @@ class BaseChartView(OldmanHTTPMethodView):
     async def render_shell(self, *, html_id: str | None = None, **route_kwargs: object) -> Markup:
         """异步渲染图表外壳和前端挂载属性。"""
         return await self.get_renderer().render_shell(route_kwargs=route_kwargs, html_id=html_id)
-
-    def build_data_url(self, route_kwargs: dict[str, object]) -> str:
-        """通过 Sanic url_for 生成图表 data endpoint 地址。"""
-        if self.request is not None and getattr(self.request, "app", None) is not None and self.route_name:
-            try:
-                return self.request.app.url_for(self.route_name, **route_kwargs)
-            except Exception:
-                return self.request.app.url_for(f"{self.request.app.name}.{self.route_name}", **route_kwargs)
-        return self.route_path
 
     async def get_result(self, chart_request: ChartRequest) -> ChartResult:
         """返回当前图表结果，业务子类应重写。"""

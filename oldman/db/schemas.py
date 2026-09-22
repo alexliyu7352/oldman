@@ -11,12 +11,12 @@ from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Annotated, Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from pydantic.fields import FieldInfo
 from pydantic_core.core_schema import ValidationInfo
 from uuid6 import uuid7
 
-from oldman.utils.http import sanitize_path
+from oldman.utils.date import naive_utcnow
 from oldman.utils.timezone import TimezoneManager
 
 T = TypeVar("T")
@@ -73,7 +73,7 @@ class UUIDSchema(BaseModel):
 
 
 class TimestampSchema(BaseModel):
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=naive_utcnow)
     updated_at: datetime | None = Field(default=None)
 
     @field_serializer("created_at")
@@ -106,7 +106,16 @@ class PersistentDeletion(BaseModel):
 class TimezoneModel(BaseModel):
     """处理时区转换的基础模型"""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, json_encoders={datetime: lambda v: v.strftime("%Y-%m-%dT%H:%M:%S%z")})
+    # json_encoders 在 Pydantic 2.0 就已弃用、V3 会移除；field_serializer 是它的替代，
+    # 而且同一个文件里已经在用这个写法。
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @field_serializer("*", when_used="json")
+    def _serialize_datetime(self, value: Any) -> Any:
+        """Render datetime fields the way json_encoders used to, and leave the rest alone."""
+        if isinstance(value, datetime):
+            return value.strftime("%Y-%m-%dT%H:%M:%S%z")
+        return value
 
     @classmethod
     def convert_datetime(cls, value: Any, info: ValidationInfo) -> Any:
@@ -183,54 +192,4 @@ class TokenBlacklistCreate(TokenBlacklistBase):
 
 
 class TokenBlacklistUpdate(TokenBlacklistBase):
-    pass
-
-
-class RateLimitBase(BaseModel):
-    path: Annotated[str, Field(examples=["users"])]
-    limit: Annotated[int, Field(examples=[5])]
-    period: Annotated[int, Field(examples=[60])]
-
-    @field_validator("path")
-    def validate_and_sanitize_path(cls, v: str) -> str:
-        return sanitize_path(v)
-
-
-class RateLimit(TimestampSchema, RateLimitBase):
-    tier_id: int
-    name: Annotated[str | None, Field(default=None, examples=["users:5:60"])]
-
-
-class RateLimitRead(RateLimitBase):
-    id: int
-    tier_id: int
-    name: str
-
-
-class RateLimitCreate(RateLimitBase):
-    model_config = ConfigDict(extra="forbid")
-
-    name: Annotated[str | None, Field(default=None, examples=["api_v1_users:5:60"])]
-
-
-class RateLimitCreateInternal(RateLimitCreate):
-    tier_id: int
-
-
-class RateLimitUpdate(BaseModel):
-    path: str | None = Field(default=None)
-    limit: int | None = None
-    period: int | None = None
-    name: str | None = None
-
-    @field_validator("path")
-    def validate_and_sanitize_path(cls, v: str) -> str:
-        return sanitize_path(v) if v is not None else ""
-
-
-class RateLimitUpdateInternal(RateLimitUpdate):
-    updated_at: datetime
-
-
-class RateLimitDelete(BaseModel):
     pass

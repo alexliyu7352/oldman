@@ -1,32 +1,38 @@
 {% extends "admin/base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
 {% block title %}Oldman Admin{% endblock %}
 
 {% block content %}
   <div class="om-page-section">
-    <div class="om-page-header">
-      <div>
-        <h1 class="om-page-title">{{ _("Administration") }}</h1>
-        <p class="mt-1 text-sm text-default-500">{{ _("Manage registered models.") }}</p>
-      </div>
-    </div>
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {% for item in menu_items %}
-        <a href="{{ item.url }}" class="om-card block transition hover:border-primary-100 hover:shadow-sm">
-          <div class="om-card-body">
-            <div class="flex items-start gap-3">
-              <i class="{{ item.icon }} mt-0.5 text-xl text-primary" aria-hidden="true"></i>
-              <div>
-                <p class="text-base font-semibold text-default-950">{{ item.label }}</p>
+    {{ page_head(_("Administration"), description=_("Manage registered models.")) }}
+    {% if menu_items %}
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {% for item in menu_items %}
+          <a href="{{ item.url }}" class="om-card om-card-animate block">
+            <div class="om-card-body flex items-start gap-4">
+              <span class="grid size-9 shrink-0 place-items-center rounded-control bg-primary-soft text-lg leading-none text-primary-soft-text" aria-hidden="true">
+                <i class="{{ item.icon }}"></i>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="om-card-title block truncate">{{ item.label }}</span>
                 {% if item.app_display_name %}
-                  <p class="mt-0.5 text-xs text-default-500">{{ item.app_display_name }}</p>
+                  <span class="mt-0.5 block text-xs text-content-muted">{{ item.app_display_name }}</span>
                 {% endif %}
-              </div>
+                <span class="mt-2 block text-sm text-content-muted">{{ _("Open model records.") }}</span>
+              </span>
             </div>
-            <p class="mt-2 text-sm text-default-500">{{ _("Open model records.") }}</p>
-          </div>
-        </a>
-      {% endfor %}
-    </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="om-card">
+        <div class="om-empty">
+          <span class="om-empty-icon" aria-hidden="true"><i class="ri-database-2-line"></i></span>
+          <p class="om-empty-title">{{ _("No models registered") }}</p>
+          <p class="om-empty-description">{{ _("Register a ModelAdmin to manage records here.") }}</p>
+        </div>
+      </div>
+    {% endif %}
   </div>
 {% endblock %}

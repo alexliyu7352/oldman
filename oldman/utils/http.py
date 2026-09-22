@@ -111,3 +111,67 @@ def get_server_timestamp_from_header(response_headers: Any) -> float:
     except (ValueError, AttributeError):
         # 解析失败时返回当前时间
         return datetime.now(UTC).timestamp()
+
+
+# 只拒绝"点一下就执行代码"的伪协议。允许 http/https/mailto 和相对路径,因为跳转到
+# 外部系统(支付页、工单、对象存储)是正常业务需求,框架不该替使用者禁掉它。
+DANGEROUS_SCHEMES = frozenset({"javascript", "data", "vbscript", "file", "blob"})
+
+
+def is_safe_link(value: object) -> bool:
+    """Return whether a link is safe to render into an anchor or hand to a browser navigation.
+
+    Escaping protects the attribute — it stops the value breaking out of the quotes — but says
+    nothing about the scheme: `javascript:` in an href is a script, not a link.
+
+    So this refuses schemes that execute, and nothing else. An external `https://` link is a
+    normal thing to point at, and a framework that required every link to be local would just
+    push its users into working around it.
+
+    Also refuses control characters and backslashes, which are how a scheme gets smuggled past a
+    naive parser (`java\tscript:`), and values that are not valid UTF-8.
+
+    This lives in `oldman.utils.http` rather than beside its first caller because it is the one
+    rule for every link the framework emits: message hrefs, table cells, response actions. A
+    module under `oldman.web.messages` could not be imported by `oldman.web.api` without a cycle.
+    """
+    if not isinstance(value, str):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    if any(character == "\\" or ord(character) < 0x20 or ord(character) == 0x7F for character in value):
+        return False
+    try:
+        scheme = urllib.parse.urlparse(value).scheme
+    except ValueError:
+        return False
+    return scheme.lower() not in DANGEROUS_SCHEMES
+
+
+def is_same_site_path(value: object) -> bool:
+    """Return whether a value is safe to use as a server-side redirect target.
+
+    Stricter than `is_safe_link`, and deliberately so: these are two different uses with two
+    different threat models.
+
+    A link that is *rendered* may point anywhere a business needs, because the user sees where
+    they are going and clicks it themselves. A destination the server *redirects* to is an open
+    redirect: a link on your own domain that silently lands the visitor on someone else's, which
+    is what makes it useful for phishing. Stored notifications are opened through a route that
+    issues a 303, so their href has to stay local.
+
+    Requires a plain local absolute path: no scheme, no authority, no protocol-relative
+    `//host`, no backslash or control character, and valid UTF-8.
+    """
+    if not is_safe_link(value):
+        return False
+    text = str(value)
+    if not text.startswith("/") or text.startswith("//"):
+        return False
+    try:
+        parsed = urllib.parse.urlparse(text)
+    except ValueError:
+        return False
+    return not parsed.scheme and not parsed.netloc

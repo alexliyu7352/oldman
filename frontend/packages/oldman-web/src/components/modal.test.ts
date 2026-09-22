@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Page } from "../core/page/page";
 import { Modal } from "./modal";
 
 class ModalTestPage extends Page {}
 
 describe("Modal", () => {
+  // 失败的用例不会走到自己末尾的 restore，mock 会漏给下一个用例（含对照组）。
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("opens and closes the modal root", async () => {
     document.body.innerHTML = `<section class="hidden" hidden></section>`;
     const root = document.querySelector<HTMLElement>("section")!;
@@ -623,6 +628,43 @@ describe("Modal", () => {
 
     expect(destroyed).toHaveBeenCalledWith(expect.objectContaining({ detail: { component: modal } }));
     expect(modal.state).toBe("unmounted");
+    expect(root.dataset.omState).toBe("closed");
+  });
+
+  it("destroy() finishes a close that is still waiting on its transition", async () => {
+    // close() 读到 CSS 过渡时长就只是"安排"关闭；紧接着的 stop() 触发清理，
+    // 而清理把那个定时器取消掉，于是 finishClose 永远不执行：
+    // 面板留在屏幕上、状态卡在 closing、aria-modal 还宣称自己是打开的对话框。
+    document.body.innerHTML = `<section id="m" hidden><div data-om-modal-content></div></section>`;
+    const root = document.querySelector<HTMLElement>("#m")!;
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      transitionDuration: "0.3s",
+      transitionDelay: "0s",
+      animationDuration: "0s",
+      animationDelay: "0s"
+    } as unknown as CSSStyleDeclaration);
+
+    const modal = new Modal(root);
+    await modal.start();
+    modal.open();
+    await modal.destroy();
+
+    expect(root.hidden).toBe(true);
+    expect(root.dataset.omState).toBe("closed");
+    expect(root.getAttribute("aria-modal")).toBeNull();
+    expect(root.getAttribute("aria-hidden")).toBe("true");
+    expect(document.querySelectorAll("[data-om-modal-backdrop]")).toHaveLength(0);
+  });
+
+  it("control - with no transition destroy() already closed correctly", async () => {
+    document.body.innerHTML = `<section id="m" hidden><div data-om-modal-content></div></section>`;
+    const root = document.querySelector<HTMLElement>("#m")!;
+    const modal = new Modal(root);
+    await modal.start();
+    modal.open();
+    await modal.destroy();
+
+    expect(root.hidden).toBe(true);
     expect(root.dataset.omState).toBe("closed");
   });
 });

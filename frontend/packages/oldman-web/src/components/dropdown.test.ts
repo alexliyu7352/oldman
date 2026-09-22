@@ -29,6 +29,57 @@ describe("Dropdown", () => {
     }
   });
 
+  it("opens with the arrow keys and moves focus with arrows, Home and End", async () => {
+    document.body.innerHTML = `
+      <div>
+        <button data-om-dropdown-toggle aria-expanded="false">Columns</button>
+        <div data-om-dropdown-menu class="hidden" hidden>
+          <label><input type="checkbox" id="first"> First</label>
+          <button type="button" id="second">Second</button>
+          <button type="button" id="hidden-item" hidden>Hidden</button>
+          <a href="#" id="third">Third</a>
+        </div>
+      </div>
+    `;
+    const root = document.querySelector<HTMLElement>("div")!;
+    const dropdown = new Dropdown(root);
+    const press = (element: Element, key: string) => element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+
+    await dropdown.start();
+    try {
+      const toggle = root.querySelector<HTMLButtonElement>("[data-om-dropdown-toggle]")!;
+      toggle.focus();
+
+      press(toggle, "ArrowDown");
+
+      expect(root.querySelector<HTMLElement>("[data-om-dropdown-menu]")!.hidden).toBe(false);
+      expect(document.activeElement?.id).toBe("first");
+
+      press(document.activeElement!, "ArrowDown");
+      expect(document.activeElement?.id).toBe("second");
+
+      // The hidden item is skipped, and focus stops at the last item instead of wrapping.
+      press(document.activeElement!, "ArrowDown");
+      expect(document.activeElement?.id).toBe("third");
+      press(document.activeElement!, "ArrowDown");
+      expect(document.activeElement?.id).toBe("third");
+
+      press(document.activeElement!, "Home");
+      expect(document.activeElement?.id).toBe("first");
+      press(document.activeElement!, "End");
+      expect(document.activeElement?.id).toBe("third");
+      press(document.activeElement!, "ArrowUp");
+      expect(document.activeElement?.id).toBe("second");
+
+      document.body.click();
+      toggle.focus();
+      press(toggle, "ArrowUp");
+      expect(document.activeElement?.id).toBe("third");
+    } finally {
+      await dropdown.stop();
+    }
+  });
+
   it("supports Oldman dropdown menu class markers", async () => {
     document.body.innerHTML = `
       <div class="om-dropdown">

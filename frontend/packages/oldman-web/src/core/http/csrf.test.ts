@@ -34,4 +34,17 @@ describe("csrf", () => {
     expect(isStateChangingMethod("post")).toBe(true);
     expect(isStateChangingMethod("GET")).toBe(false);
   });
+
+  it("可以把查找范围限定到一个表单，供 check_url 打开时自取 token", () => {
+    // 默认取文档里第一个;`check_url` 打开后 token 绑路径,同页两个指向不同路径的表单
+    // 会有两个不同 token,那时调用方需要自己按表单取。
+    document.body.innerHTML = `
+      <form id="first"><input type="hidden" name="csrfmiddlewaretoken" value="token-first"></form>
+      <form id="second"><input type="hidden" name="csrfmiddlewaretoken" value="token-second"></form>
+    `;
+    const second = document.querySelector<HTMLFormElement>("#second")!;
+
+    expect(getCsrfToken()).toBe("token-first");
+    expect(getCsrfToken(undefined, second)).toBe("token-second");
+  });
 });

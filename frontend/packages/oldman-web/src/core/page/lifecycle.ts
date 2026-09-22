@@ -1,4 +1,5 @@
 import { getOldmanContext } from "../runtime/context";
+import type { PageConstructor } from "./page";
 import type { PageLoader, PageRegistry } from "./registry";
 import { ScopedPreloader } from "../services/preloader";
 import { querySelfOrDescendant } from "../dom/helpers";
@@ -18,13 +19,18 @@ export interface StartPageLifecycleOptions {
   registry?: PageRegistry;
   document?: Document;
   loadPage?: PageLoader;
+  fallbackPage?: PageConstructor;
 }
 
 export async function startPageLifecycle(options: StartPageLifecycleOptions = {}): Promise<StopPageLifecycle> {
   const context = getOldmanContext();
   const registry = options.registry ?? context.pageRegistry;
   const ownerDocument = options.document ?? context.document;
-  const mountOptions = options.loadPage ? { loadPage: options.loadPage } : {};
+  const mountOptions = {
+    ...(options.loadPage ? { loadPage: options.loadPage } : {}),
+    ...(options.fallbackPage ? { fallbackPage: options.fallbackPage } : {}),
+    logger: context.logger
+  };
   let stopped = false;
   let skipNextAdvanceBeforeRender = false;
   let frameAdvanceDocumentEventsPending = false;

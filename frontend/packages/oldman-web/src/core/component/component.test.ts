@@ -233,7 +233,7 @@ describe("ComponentManager", () => {
     expect(calls).toEqual(["mount:fresh"]);
   });
 
-  it("rolls back components mounted during the same mount call when a child fails", async () => {
+  it("isolates a failing child instead of rolling back the siblings around it", async () => {
     const calls: string[] = [];
 
     class ParentComponent extends Component {
@@ -286,9 +286,11 @@ describe("ComponentManager", () => {
     registry.register(FailingComponent);
     const manager = new ComponentManager({ registry });
 
-    await expect(manager.mount(document)).rejects.toThrow("child failed");
+    await manager.mount(document);
 
-    expect(calls).toEqual(["mount:parent", "mount:child", "mount:failing", "unmount:child", "unmount:parent"]);
+    // The parent and the healthy sibling stay mounted; only the failing one is marked.
+    expect(calls).toEqual(["mount:parent", "mount:child", "mount:failing"]);
+    expect(document.querySelector<HTMLElement>('[data-om-component="failing"]')!.dataset.omComponentState).toBe("failed");
   });
 
   it("unmounts detached mounted descendants when unmounting a parent root", async () => {

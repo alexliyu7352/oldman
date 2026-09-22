@@ -1,3 +1,4 @@
+import { integerAttribute } from "../core/dom/helpers";
 import "./slider.scss";
 import noUiSlider, { type API as NoUiSliderApi, type Options as NoUiSliderOptions } from "nouislider";
 import wNumb from "wnumb";
@@ -97,7 +98,7 @@ export class Slider extends Component {
     }
 
     const options = JSON.parse(raw) as NoUiSliderOptions;
-    const decimals = this.integerAttribute("data-om-slider-format-decimals");
+    const decimals = integerAttribute(this.root, "data-om-slider-format-decimals");
     if (decimals !== undefined) {
       options.format = wNumb({ decimals });
     }
@@ -108,14 +109,6 @@ export class Slider extends Component {
   /**
    * 读取整数属性。
    */
-  private integerAttribute(name: string): number | undefined {
-    const value = this.root.getAttribute(name);
-    if (!value) return undefined;
-
-    const parsed = Number(value);
-    return Number.isInteger(parsed) ? parsed : undefined;
-  }
-
   /**
    * 将 noUiSlider 事件转为 Oldman 自定义事件，便于页面和测试监听。
    */
@@ -165,6 +158,11 @@ export class Slider extends Component {
    * 根据 name 或 CSS selector 找到绑定表单控件。
    */
   private resolveInput(nameOrSelector: string): HTMLInputElement | null {
+    // 没有 form 时退回整个文档是刻意的：`data-om-slider-min-input` 是显式配置，
+    // 表示"把值写到这个字段"，而滑块放在表单之外正是这条配置存在的理由。
+    // 代价是同一页两个同名字段时会命中文档里的第一个；那是模板自己的歧义，
+    // 框架收窄到 form 反而会挡掉无表单的用法。与 upload 的默认选择器不同——
+    // 那里的全局兜底是意外的，这里是配置出来的。
     const form = this.resolveForm();
     const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(nameOrSelector) : nameOrSelector.replace(/"/g, '\\"');
     const byName = form?.querySelector<HTMLInputElement>(`[name="${escaped}"]`) ?? document.querySelector<HTMLInputElement>(`[name="${escaped}"]`);

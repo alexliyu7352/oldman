@@ -93,6 +93,8 @@ class AdminNotificationInstallerTest(TestCase):
             admin_settings=register_routes.call_args.kwargs["admin_settings"],
             notifications_enabled=True,
             sse_enabled=True,
+            password_reset_rate_limiter=None,
+            login_rate_limit=None,
         )
         self.assertIs(app.ctx.oldman_admin_notification_routes, routes)
         self.assertEqual(app.ctx.oldman_admin_user_events_url, "/control/user-events")

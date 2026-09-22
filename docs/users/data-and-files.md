@@ -4,10 +4,10 @@
 
 先完成数据库迁移、账户、Redis、静态构建和 Web 启动。打开：
 
-- [/examples/storage/upload](http://127.0.0.1:17998/examples/storage/upload)：上传记录。
-- [/examples/storage/lifecycle](http://127.0.0.1:17998/examples/storage/lifecycle)：检查、替换、清空和删除文件。
-- [/examples/storage/api](http://127.0.0.1:17998/examples/storage/api)：调用公开 Storage API。
-- [/examples/forms/upload](http://127.0.0.1:17998/examples/forms/upload)：同一上传能力在 Forms 分类下的入口，不是第二套实现。
+- [/examples/storage/upload](http://127.0.0.1:17997/examples/storage/upload)：上传记录。
+- [/examples/storage/lifecycle](http://127.0.0.1:17997/examples/storage/lifecycle)：检查、替换、清空和删除文件。
+- [/examples/storage/api](http://127.0.0.1:17997/examples/storage/api)：调用公开 Storage API。
+- [/examples/forms/upload](http://127.0.0.1:17997/examples/forms/upload)：同一上传能力在 Forms 分类下的入口，不是第二套实现。
 
 这些操作会创建或删除实际文件，只在自己的 Demo 数据和存储目录中测试。
 

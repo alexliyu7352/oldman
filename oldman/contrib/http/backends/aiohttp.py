@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from email.utils import formatdate
 from http.cookiejar import Cookie, CookieJar
 from http.cookies import Morsel
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlparse
 
 import aiohttp
@@ -184,27 +184,16 @@ class AioHttpClient(BaseHttpClient):
         self.session: aiohttp.ClientSession | None = None
         self._native_cookie_jar: aiohttp.CookieJar | None = None
 
+    session_attribute: ClassVar[str] = "session"
+    backend_label: ClassVar[str] = "aiohttp"
+
     async def init_client(self) -> None:
         """初始化aiohttp客户端"""
         logger.info(f"初始化aiohttp客户端, 最大连接数: {self.parent.max_connections}")
 
-    async def reset_client(self) -> bool:
-        """重置aiohttp会话"""
-        if self.session:
-            await self.session.close()
-            self.session = None
-        logger.info("aiohttp客户端已重置")
-        return True
-
-    async def close_client(self) -> None:
-        """关闭aiohttp会话"""
-        if self.session:
-            try:
-                await self.session.close()
-                self.session = None
-            except Exception as e:
-                logger.error(f"关闭aiohttp客户端时出错: {type(e).__name__}")
-        logger.info("aiohttp资源清理完成")
+    async def close_session(self, session: Any) -> None:
+        """关闭 aiohttp 会话。"""
+        await session.close()
 
     async def get_client(self) -> aiohttp.ClientSession:
         """获取或创建aiohttp会话"""

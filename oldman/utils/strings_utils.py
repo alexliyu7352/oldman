@@ -5,8 +5,8 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 from xml.sax.saxutils import escape
 
+import orjson
 from slugify import slugify
-from ujson import dumps
 
 
 def filter_bytes(byte_string: bytes) -> str:
@@ -53,7 +53,9 @@ def json_dumps(data: dict, **kwargs: Any) -> str:
     :param kwargs:
     :return:
     """
-    return dumps(data, **kwargs)
+    if kwargs:
+        raise TypeError("json_dumps does not forward options; call orjson.dumps directly for them")
+    return orjson.dumps(data).decode("utf-8")
 
 
 def get_ext_from_filename(filename: str) -> str:

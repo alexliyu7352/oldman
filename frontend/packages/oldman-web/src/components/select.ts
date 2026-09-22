@@ -1,11 +1,20 @@
+import { cssEscape } from "../core/dom/helpers";
+import { relativeUrl } from "../core/http/urls";
+import {
+  REMOTE_SEARCH_DELAY_MS,
+  dependentValues,
+  deduplicateOptions,
+  isProviderResponse,
+  providerErrorMessage
+} from "./select-provider";
 import "./select.scss";
 import { Component } from "../core/component/component";
+import type { I18nRuntime } from "../core/i18n";
 import Choices from "choices.js";
 
 const SELECT_CONTROL_SELECTOR = "[data-om-select-control]";
 const SELECT_LOAD_MORE_SELECTOR = "[data-om-select-load-more]";
 const SELECT_SEARCH_SELECTOR = "[data-om-select-search]";
-const REMOTE_SEARCH_DELAY_MS = 150;
 
 type ChoicesElement = HTMLInputElement | HTMLSelectElement;
 type ChoicesOptions = ConstructorParameters<typeof Choices>[1];
@@ -67,9 +76,9 @@ export class SelectProviderResponseError extends Error {
 /**
  * 将字符串数组或标准选项数组归一化为 SelectOption。
  */
-export function normalizeSelectOptions(input: unknown): SelectOption[] {
+export function normalizeSelectOptions(input: unknown, i18n?: I18nRuntime): SelectOption[] {
   if (isApiErrorResponse(input)) {
-    throw new SelectProviderResponseError(responseMessage(input), input);
+    throw new SelectProviderResponseError(responseMessage(input, i18n), input);
   }
   if (isRecord(input) && ("results" in input || "more" in input) && !isProviderResponse(input)) {
     throw new SelectProviderResponseError("Invalid select provider response", input);
@@ -179,7 +188,7 @@ export class Select extends Component {
       const response = await this.http.getJson<unknown>(requestUrl, { signal: controller.signal });
       if (controller.signal.aborted || sequence !== this.requestSequence) return [];
       const hasMore = isProviderResponse(response) ? response.more : false;
-      const normalizedOptions = normalizeSelectOptions(response);
+      const normalizedOptions = normalizeSelectOptions(response, this.i18n);
       const loadedOptions = this.applyInitialSelection(normalizedOptions, initialValues);
       const renderedOptions = options.append
         ? deduplicateOptions([...currentOptions, ...loadedOptions])
@@ -203,7 +212,7 @@ export class Select extends Component {
       this.emit<SelectErrorDetail>("om:select:error", {
         component: this,
         error,
-        message: errorMessage(error),
+        message: providerErrorMessage(error, this.i18n),
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: requestUrl
       });
@@ -392,10 +401,10 @@ export class Select extends Component {
     this.appendInitialValues(endpoint, values);
     if (query.trim()) endpoint.searchParams.set("q", query.trim());
 
-    for (const [name, value] of this.dependentValues(dependentFields)) {
+    for (const [name, value] of dependentValues(this.root, dependentFields)) {
       endpoint.searchParams.set(`depends[${name}]`, value);
     }
-    return this.relativeUrl(endpoint);
+    return relativeUrl(endpoint);
   }
 
   /**
@@ -441,44 +450,8 @@ export class Select extends Component {
   }
 
   /**
-   * 读取白名单依赖字段的当前值，空值不提交。
-   */
-  private dependentValues(fields: string | null): Array<[string, string]> {
-    if (!fields) return [];
-    const container = this.root.closest("form") ?? this.root;
-    return fields
-      .split(",")
-      .map((field) => field.trim())
-      .filter(Boolean)
-      .flatMap((field): Array<[string, string]> => {
-        const control = container.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${cssEscape(field)}"]`);
-        if (!control) return [];
-        const value = this.controlValue(control);
-        return value === "" ? [] : [[field, value]];
-      });
-  }
-
-  /**
-   * 读取依赖控件的字符串值。
-   */
-  private controlValue(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): string {
-    if (control instanceof HTMLSelectElement && control.multiple) {
-      return Array.from(control.selectedOptions)
-        .map((option) => option.value)
-        .filter(Boolean)
-        .join(",");
-    }
-    return control.value;
-  }
-
-  /**
    * 将同源 URL 压缩为相对地址，避免测试和模板输出受域名影响。
    */
-  private relativeUrl(url: URL): string {
-    if (url.origin !== window.location.origin) return url.toString();
-    return `${url.pathname}${url.search}${url.hash}`;
-  }
-
   /**
    * 读取声明在组件根节点或控件上的本地 JSON 选项。
    */
@@ -487,7 +460,7 @@ export class Select extends Component {
     if (!rawValue) return [];
 
     try {
-      return normalizeSelectOptions(JSON.parse(rawValue));
+      return normalizeSelectOptions(JSON.parse(rawValue), this.i18n);
     } catch {
       return [];
     }
@@ -652,6 +625,10 @@ export class Select extends Component {
       maxItemText: (count) => this.i18n.tn("{count} value can be added", "{count} values can be added", count, { count })
     };
 
+    // 候选标签走 innerHTML 是**显式 opt-in**:服务端 `label_mode` 默认 "text"
+    // (`forms/widgets.py:176`),只有模板写了 data-om-select-label-mode="html" 才装这个
+    // 模板回调,docs/developers/forms.md 也写明了"普通 html 字符串会被转义,不是直接执行"。
+    // 框架不在这里清洗:带图标、带头像的候选项是正常需求,清洗等于替使用者定业务规则。
     if (this.attribute("data-om-select-label-mode") === "html") {
       const defaultChoice = Choices.defaults.templates.choice;
       options.callbackOnCreateTemplates = () => ({
@@ -736,12 +713,6 @@ function isOptionLike(item: unknown): item is { data?: unknown; disabled?: unkno
   return "value" in item || "label" in item || "id" in item || "text" in item;
 }
 
-/**
- * 判断响应是否符合后端 Select provider 协议。
- */
-function isProviderResponse(input: unknown): input is { more: boolean; results: unknown[] } {
-  return isRecord(input) && Array.isArray(input.results) && typeof input.more === "boolean";
-}
 
 /**
  * 判断未知响应是否为 DefaultApiFormResponse 风格的业务错误。
@@ -760,34 +731,14 @@ function isRecord(input: unknown): input is Record<string, unknown> {
 /**
  * 从 provider 错误响应中提取可展示消息。
  */
-function responseMessage(input: { message?: unknown }): string {
-  return typeof input.message === "string" && input.message.trim().length > 0
-    ? input.message
-    : "Select provider request failed";
+function responseMessage(input: { message?: unknown }, i18n?: I18nRuntime): string {
+  if (typeof input.message === "string" && input.message.trim().length > 0) return input.message;
+  // 服务端自己给了 message 就用它（那一侧已经翻译过）；没有时才落到本地文案。
+  return i18n ? i18n.t("Request failed") : "Request failed";
 }
 
-/**
- * 统一把异常转成事件消息，供页面或业务组件显示。
- */
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Select provider request failed";
-}
 
-/**
- * 按 value 合并分页结果，并保留已经选中的状态。
- */
-function deduplicateOptions(options: SelectOption[]): SelectOption[] {
-  const unique = new Map<string, SelectOption>();
-  for (const option of options) {
-    const current = unique.get(option.value);
-    unique.set(option.value, current ? { ...current, selected: Boolean(current.selected || option.selected) } : option);
-  }
-  return [...unique.values()];
-}
 
 /**
  * 转义属性选择器中的字段名，兼容没有 CSS.escape 的测试环境。
  */
-function cssEscape(value: string): string {
-  return globalThis.CSS?.escape ? globalThis.CSS.escape(value) : value.replace(/["\\]/g, "\\$&");
-}

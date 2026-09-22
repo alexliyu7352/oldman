@@ -8,6 +8,8 @@ startup code.
 from __future__ import annotations
 
 import json
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
@@ -76,6 +78,14 @@ class StaticBundleRegistry:
         asset = self.load_manifest(bundle_name).get(entry)
         if not asset or not asset.get("file"):
             raise RuntimeError(f"Vite manifest for bundle {bundle_name} does not contain entry {entry}. Run pnpm build before web start.")
+
+    def asset_root(self, bundle_name: str) -> Path:
+        """Return the directory `oldman <service> static collect` published this bundle into.
+
+        The manifest sits in `<root>/<dist>/.vite/`, so its grandparent is what the browser
+        addresses as the asset base. Meaningless in dev mode, where Vite serves the sources.
+        """
+        return self.get(bundle_name).manifest_path.parent.parent
 
     def asset_base_url(self, bundle_name: str) -> str:
         """Return the base URL used by frontend runtime asset loading."""
@@ -166,6 +176,18 @@ class StaticBundleRegistry:
             return Markup("")
 
         return Markup(module_script(f"{bundle.normalized_static_url()}/{str(asset['file']).lstrip('/')}"))
+
+    def install_template_globals(self, environment: Any) -> None:
+        """Expose the tag helpers to templates as the `bundle_*` globals every shell base uses."""
+        environment.globals.update(
+            bundle_asset_base_url=self.asset_base_url,
+            bundle_asset_url=self.asset_url,
+            bundle_client=self.client_tags,
+            bundle_entry=self.entry_tags,
+            bundle_modulepreload=self.modulepreload_tags,
+            bundle_script=self.script_tags,
+            bundle_styles=self.styles_tags,
+        )
 
     def entry_tags(self, bundle_name: str, entry_path: str | None = None, include_dev_client: bool = False) -> Markup:
         """Render client, modulepreload, CSS and script tags for an entry."""
@@ -259,3 +281,58 @@ def stylesheet_link(href: str) -> str:
 def modulepreload_link(href: str) -> str:
     """Render a modulepreload link tag."""
     return f"<link{tag_attributes({'rel': 'modulepreload', 'href': href})}>"
+
+
+DEV_MODE_ENV = "OLDMAN_DEV"
+
+
+def dev_mode_requested(environ: Mapping[str, str] | None = None) -> bool:
+    """Whether this process serves frontend assets from the Vite dev server (`OLDMAN_DEV=1/true/yes/on`)."""
+    source = os.environ if environ is None else environ
+    return str(source.get(DEV_MODE_ENV, "") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def app_bundle_registry(app: Any) -> StaticBundleRegistry:
+    """The registry shared by everything installed on one app, created on first use at `app.ctx.static_bundle_registry`."""
+    registry = getattr(app.ctx, "static_bundle_registry", None)
+    if registry is None:
+        registry = StaticBundleRegistry()
+        app.ctx.static_bundle_registry = registry
+    return registry
+
+
+def register_project_bundle(
+    registry: StaticBundleRegistry,
+    *,
+    name: str,
+    entry_path: str,
+    static_root: str | Path | None,
+    static_url: str,
+    dev_mode: bool,
+    dev_server_url: str = "",
+    dist_dir: str = "dist",
+    passthrough_prefixes: tuple[str, ...] = (),
+) -> StaticBundle:
+    """Register a project's Vite bundle.
+
+    Production reads `<static_root>/<dist_dir>/.vite/manifest.json` (what `oldman <service> static collect`
+    produced) and serves from `<static_url>/<dist_dir>`; dev mode serves everything from `dev_server_url`.
+    """
+    root = str(static_root or "").strip()
+    url = str(static_url or "").strip()
+    if not dev_mode and (not root or not url):
+        raise RuntimeError(
+            f"Production assets for bundle {name!r} require settings.web.static.root and settings.web.static.url; "
+            "configure them and run `oldman <service> static collect` before startup"
+        )
+    bundle = StaticBundle(
+        name=name,
+        entry_path=entry_path,
+        manifest_path=(Path(root) if root else Path()) / dist_dir / ".vite" / "manifest.json",
+        static_url=f"{url.rstrip('/')}/{dist_dir}" if url else "",
+        dev_server_url=dev_server_url.strip(),
+        dev_mode=dev_mode,
+        passthrough_prefixes=passthrough_prefixes,
+    )
+    registry.register(bundle)
+    return bundle

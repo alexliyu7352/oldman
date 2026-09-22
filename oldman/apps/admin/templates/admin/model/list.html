@@ -1,30 +1,32 @@
 {% extends "admin/base.html" %}
 {% from "oldman/dashboard/components/modal.html" import modal %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
 {% block title %}{{ model_admin.verbose_name_plural }} · Oldman Admin{% endblock %}
 
 {% block content %}
   <div class="om-page-section">
-    <div class="om-page-header">
-      <h1 class="om-page-title">{{ model_admin.verbose_name_plural }}</h1>
-    </div>
-    <div class="om-card">
+    {% if model_admin.has_add_permission(request) %}
+      {% call page_head(model_admin.verbose_name_plural) %}
+        <a class="om-button om-button-primary" href="{{ admin_prefix }}/{{ model_admin.model_path }}/new">
+          <i class="{{ model_admin.add_button_icon }}" aria-hidden="true"></i>
+          <span>{{ model_admin.get_add_button_label() }}</span>
+        </a>
+      {% endcall %}
+    {% else %}
+      {{ page_head(model_admin.verbose_name_plural) }}
+    {% endif %}
+    {% if filter_form_html %}
+      {{ filter_form_html }}
+    {% endif %}
+    {% if admin_user_management %}
+      <div id="admin-{{ model_admin.model_path }}-feedback" data-om-component="feedback"></div>
+    {% endif %}
+    <div class="om-card om-table-card">
       <div class="om-card-header">
         <h2 class="om-card-title">{{ model_admin.get_list_card_title() }}</h2>
-        {% if model_admin.has_add_permission(request) %}
-          <a class="om-button om-button-primary om-button-sm" href="{{ admin_prefix }}/{{ model_admin.model_path }}/new">
-            <i class="{{ model_admin.add_button_icon }} align-bottom mr-1" aria-hidden="true"></i>
-            <span>{{ model_admin.get_add_button_label() }}</span>
-          </a>
-        {% endif %}
       </div>
       <div class="om-card-body">
-        {% if filter_form_html %}
-          {{ filter_form_html }}
-        {% endif %}
-        {% if admin_user_management %}
-          <div id="admin-{{ model_admin.model_path }}-feedback" data-om-component="feedback"></div>
-        {% endif %}
         {{ table_html }}
       </div>
     </div>

@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import Column, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from wtforms import BooleanField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, ValidationError
-from wtforms.validators import DataRequired, InputRequired
+from wtforms.validators import DataRequired, InputRequired, Optional
 
 from oldman.web.api.enums import ApiErrorCode
 from oldman.web.api.responses import DefaultApiFormResponse
@@ -19,8 +19,12 @@ from oldman.web.components.forms import (
     AjaxAutocompleteWidget,
     AjaxSelectMultipleField,
     AjaxSelectWidget,
+    CheckboxWidget,
     ColorPickerField,
     DateTimePickerWidget,
+    EmailField,
+    FieldGroup,
+    FieldLayout,
     FormLayout,
     FormStep,
     InputSpinnerWidget,
@@ -31,6 +35,7 @@ from oldman.web.components.forms import (
     Row,
     SanicFormData,
     SlugField,
+    SwitchWidget,
     TagsField,
     TagsSelectWidget,
     TailwindForm,
@@ -121,7 +126,7 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertEqual(html.count(' id="id_name" name="name"'), 1)
         self.assertEqual(html.count(' id="id_age" name="age"'), 1)
         self.assertIn("Who are you?", html)
-        self.assertIn('data-om-form-actions', html)
+        self.assertIn("data-om-form-actions", html)
         self.assertIn('data-om-component="form-validator"', html)
 
     def test_form_constructor_and_prefix_binding_state(self) -> None:
@@ -156,6 +161,87 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertTrue(asyncio.run(form.validate()))
         self.assertEqual(form.cleaned_data, {"name": "Alex"})
         self.assertEqual(set(form.files), {"avatar"})
+
+    def test_boolean_fields_render_switch_cards_by_default_and_honour_widgets(self) -> None:
+        """Tailwind 渲染器默认给布尔字段开关卡片；widget 可以改成复选框行或行内开关。"""
+
+        class PermissionForm(TailwindForm):
+            active = BooleanField("Active", description="Can sign in")
+            staff = BooleanField("Staff", widget=CheckboxWidget())
+            superuser = BooleanField("Superuser", widget=SwitchWidget(), description="Has every permission")
+
+        form = PermissionForm()
+        card = str(asyncio.run(form.render_field("active")))
+        checkbox = str(asyncio.run(form.render_field("staff")))
+        switch = str(asyncio.run(form.render_field("superuser")))
+
+        self.assertIn('class="om-switch-card"', card)
+        self.assertIn('role="switch"', card)
+        self.assertIn('class="om-switch"', card)
+        self.assertIn("Can sign in", card)
+        self.assertIn('class="om-boolean-label"', card)
+
+        self.assertIn('class="om-boolean-row"', checkbox)
+        self.assertIn('data-om-boolean="checkbox"', checkbox)
+        self.assertIn('class="om-check"', checkbox)
+        self.assertNotIn("om-switch", checkbox)
+
+        self.assertIn('data-om-boolean="switch"', switch)
+        self.assertIn('class="om-switch"', switch)
+        self.assertIn('role="switch"', switch)
+        self.assertIn("Has every permission", switch)
+        self.assertNotIn("om-switch-card", switch)
+
+    def test_field_group_renders_a_titled_fieldset_and_keeps_the_flat_layout(self) -> None:
+        """FieldGroup 输出带标题与说明的 fieldset，散字段与分组可以混排。"""
+
+        class GroupedForm(TailwindForm):
+            name = StringField("Name")
+            email = StringField("Email")
+            active = BooleanField("Active")
+            staff = BooleanField("Staff")
+
+            layout = FormLayout(
+                Row("name", "email", width="md:col-span-6"),
+                FieldGroup("Permissions", Row("active", "staff", width="md:col-span-6"), description="Who can do what"),
+            )
+
+        form = GroupedForm()
+        html = str(asyncio.run(form.render(action="/grouped")))
+
+        self.assertIn('<fieldset class="om-form-group md:col-span-12">', html)
+        self.assertIn('<legend class="om-form-group-title">Permissions</legend>', html)
+        self.assertIn('<p class="om-form-group-description">Who can do what</p>', html)
+        self.assertLess(html.index('data-om-form-field-name="email"'), html.index("<fieldset"))
+        self.assertGreater(html.index('data-om-form-field-name="staff"'), html.index("<fieldset"))
+        self.assertEqual(["name", "email", "active", "staff"], [layout.name for layout in form.iter_layout()])
+        segments = list(form.iter_layout_segments())
+        self.assertEqual([None, "Permissions"], [None if group is None else group.title for group, _ in segments])
+
+    def test_model_form_reads_label_and_help_text_from_column_info(self) -> None:
+        """列的 info 提供模型级默认标签与帮助文字，Meta 仍能覆盖。"""
+
+        class InfoBase(DeclarativeBase):
+            pass
+
+        class InfoRecord(InfoBase):
+            __tablename__ = "task1_form_info_record"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            full_name: Mapped[str] = mapped_column(info={"label": "Full name", "help_text": "Shown on the profile"})
+            notes: Mapped[str] = mapped_column(info={"label": "Notes", "help_text": "Column help"})
+
+        class InfoForm(TailwindModelForm):
+            class Meta(TailwindModelForm.Meta):
+                model = InfoRecord
+                fields = ("full_name", "notes")
+                help_texts = {"notes": "Meta wins"}
+
+        form = InfoForm()
+        self.assertEqual("Full name", form["full_name"].label.text)
+        self.assertEqual("Shown on the profile", form["full_name"].description)
+        self.assertEqual("Notes", form["notes"].label.text)
+        self.assertEqual("Meta wins", form["notes"].description)
 
     def test_get_request_with_empty_files_keeps_object_values_unbound(self) -> None:
         """GET 请求的空 files 映射不能覆盖对象提供的初始字段值。"""
@@ -392,6 +478,27 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertEqual([instance], active_session.added)
         self.assertEqual(1, active_session.flush_calls)
 
+    def test_before_save_sees_the_populated_instance_before_the_flush(self) -> None:
+        """before_save 在实例装好值之后、add/flush 之前跑，子类不必重写 save()。"""
+        seen: list[tuple[str, int]] = []
+
+        class DerivedProfileForm(ProfileModelForm):
+            async def before_save(self, instance: Any) -> None:
+                """记录调用顺序并改写派生列。"""
+                seen.append((instance.name, session.flush_calls))
+                instance.name = instance.name.lower()
+
+        session = RecordingSession()
+        form = DerivedProfileForm(data={"name": "Alice"}, session=session)
+        self.assertTrue(asyncio.run(form.validate()))
+
+        instance = asyncio.run(form.save(commit=True))
+
+        self.assertEqual([("Alice", 0)], seen)
+        self.assertEqual("alice", instance.name)
+        self.assertEqual([instance], session.added)
+        self.assertEqual(1, session.flush_calls)
+
     def test_render_outputs_tailwind_form_protocol_attributes(self) -> None:
         """TailwindForm 渲染必须输出前端 form 组件协议。"""
         html = str(
@@ -426,7 +533,7 @@ class BackendFormComponentTest(unittest.TestCase):
 
         html = str(asyncio.run(ChoiceForm().render()))
 
-        self.assertIn('<fieldset data-om-radio-group', html)
+        self.assertIn("<fieldset data-om-radio-group", html)
         self.assertEqual(2, html.count('class="om-radio"'))
         self.assertIn('class="om-select om-select-multiple"', html)
 
@@ -463,6 +570,64 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertIn('data-om-table-target="#records-table"', html)
         self.assertIn('name="status"', html)
         self.assertIn('id="id_status"', html)
+
+    def test_inline_table_filter_renders_prefixed_controls_range_and_more_filters(self) -> None:
+        """默认 inline 筛选条：搜索框、前缀标签控件、范围控件、"更多筛选"面板和重置。"""
+
+        class UserFilterForm(TailwindTableFilterForm):
+            q = StringField("Search", render_kw={"type": "search", "placeholder": "Search users"})
+            is_active = SelectField("Active", choices=[("", "All"), ("true", "Yes")])
+            created_from = StringField("Created from")
+            created_to = StringField("Created to")
+            role = SelectField("Role", choices=[("", "All"), ("admin", "Admin")])
+
+            layout = FormLayout(
+                "q",
+                "is_active",
+                Row("created_from", "created_to", as_range=True, label="Created"),
+                FieldLayout("role", advanced=True),
+            )
+
+        html = str(asyncio.run(UserFilterForm().render(table_target="#users")))
+
+        self.assertIn('data-om-layout="inline"', html)
+        self.assertIn('class="om-filter-prefix">Created</span>', html)
+        self.assertIn('aria-label="Created from"', html)
+        self.assertIn('class="om-filter-search"', html)
+        self.assertIn('class="om-filter-prefix">Active</span>', html)
+        self.assertIn('class="om-filter-control om-filter-range"', html)
+        self.assertIn('aria-label="Created to"', html)
+        self.assertIn("data-om-popover-trigger", html)
+        self.assertIn("More filters", html)
+        self.assertIn("data-om-filter-reset", html)
+        self.assertIn('data-om-form-field-name="role"', html)
+        self.assertLess(html.index("data-om-popover-content"), html.index('name="role"'))
+        self.assertNotIn("om-form-grid\n", html.split("data-om-popover-content")[0])
+
+    def test_grid_table_filter_keeps_the_labelled_grid_and_a_range_field(self) -> None:
+        """layout_style="grid" 保留标签在上的栅格，范围行渲染为一个字段。"""
+
+        class GridFilterForm(TailwindTableFilterForm):
+            layout_style = "grid"
+            q = StringField("Search")
+            created_from = StringField("Created from")
+            created_to = StringField("Created to")
+
+            layout = FormLayout("q", Row("created_from", "created_to", width="md:col-span-6", as_range=True))
+
+        html = str(asyncio.run(GridFilterForm().render(table_target="#records")))
+
+        self.assertIn('data-om-layout="grid"', html)
+        self.assertIn('class="om-form-grid"', html)
+        self.assertIn('class="om-field-range"', html)
+        self.assertIn('data-om-form-field-name="created_from"', html)
+        self.assertNotIn('data-om-form-field-name="created_to"', html)
+        self.assertNotIn("om-filter-prefix", html)
+
+    def test_range_rows_need_exactly_two_fields(self) -> None:
+        """Row(as_range=True) 只接受起止两个字段。"""
+        with self.assertRaises(ValueError):
+            Row("only_one", as_range=True)
 
     def test_layout_actions_override_render_actions(self) -> None:
         """声明式 FormLayout actions 应覆盖 render 参数。"""
@@ -676,6 +841,28 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertIn('max="5"', html)
         self.assertIn('step="2"', html)
 
+    def test_email_field_normalizes_the_address_and_checks_its_shape(self) -> None:
+        """EmailField 写库前只保留一种写法：去空白、转小写；格式和长度在字段里校验。"""
+
+        class ContactForm(TailwindForm):
+            email = EmailField("Email", validators=[Optional()])
+
+        form = ContactForm(data={"email": "  Ada@Example.COM "})
+        self.assertTrue(asyncio.run(form.validate()))
+        self.assertEqual("ada@example.com", form.cleaned_data["email"])
+
+        self.assertTrue(asyncio.run(ContactForm(data={"email": "   "}).validate()))
+        for bad in ("not-an-email", "two@@example.com", "a@b", f"{'x' * 250}@example.com"):
+            with self.subTest(bad=bad):
+                invalid = ContactForm(data={"email": bad})
+                self.assertFalse(asyncio.run(invalid.validate()))
+                self.assertEqual(["Enter a valid email address"], invalid.errors["email"])
+
+        html = str(asyncio.run(ContactForm().render()))
+        self.assertIn('type="email"', html)
+        self.assertIn('maxlength="254"', html)
+        self.assertIn('autocomplete="email"', html)
+
     def test_color_picker_field_validates_and_keeps_native_fallback(self) -> None:
         """ColorPickerField 接受 RGB/RGBA HEX，并保留无脚本可提交的 color input。"""
 
@@ -691,7 +878,7 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertIn('type="color"', html)
         self.assertIn('name="accent"', html)
         self.assertIn('value="#0ea5e9"', html)
-        self.assertIn('data-om-color-picker-value', html)
+        self.assertIn("data-om-color-picker-value", html)
 
         invalid = ColorForm(data={"accent": "red"})
         self.assertFalse(asyncio.run(invalid.validate()))
@@ -712,11 +899,77 @@ class BackendFormComponentTest(unittest.TestCase):
 
         html = str(asyncio.run(ArticleForm(data={"body": "<p>Hello</p>"}).render()))
         self.assertIn('data-om-component="rich-text-editor"', html)
-        self.assertIn('data-om-rich-text-value', html)
+        self.assertIn("data-om-rich-text-value", html)
         self.assertIn('name="body"', html)
-        self.assertIn('&lt;p&gt;Hello&lt;/p&gt;', html)
-        self.assertIn('data-om-rich-text-editor', html)
+        self.assertIn("&lt;p&gt;Hello&lt;/p&gt;", html)
+        self.assertIn("data-om-rich-text-editor", html)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FormLifecycleContractTest(unittest.TestCase):
+    """Two form-lifecycle rules that were only discoverable by reading the loop.
+
+    Neither had a victim: no production form declared a HiddenField, and the one clean()
+    override that returns a dict spreads self.cleaned_data first. They were interfaces
+    with the blade facing outward - correct only as long as everyone knew the trick.
+    """
+
+    @staticmethod
+    def _request() -> Any:
+        return SimpleNamespace(
+            ctx=SimpleNamespace(session={}),
+            app=None,
+            args={},
+            form={},
+            json=None,
+            headers={},
+            host="example.test",
+        )
+
+    def test_a_hidden_field_value_reaches_cleaned_data(self) -> None:
+        """A HiddenField carries data; skipping it made the field unusable."""
+        from wtforms.fields import HiddenField, StringField
+
+        class RecordForm(OldmanForm):
+            record_id = HiddenField("id")
+            title = StringField("title")
+
+        form = RecordForm(formdata=SanicFormData({"record_id": ["42"], "title": ["hi"]}), request=self._request())
+        asyncio.run(form.validate())
+
+        self.assertEqual("42", form.cleaned_data["record_id"])
+        self.assertEqual("hi", form.cleaned_data["title"])
+
+    def test_clean_returning_a_dict_merges_instead_of_replacing(self) -> None:
+        """Replacing meant `return {"extra": 1}` silently discarded every field."""
+        from wtforms.fields import StringField
+
+        class AddingForm(OldmanForm):
+            title = StringField("title")
+
+            async def clean(self) -> dict[str, Any] | None:
+                return {"extra": 1}
+
+        form = AddingForm(formdata=SanicFormData({"title": ["keep-me"]}), request=self._request())
+        asyncio.run(form.validate())
+
+        self.assertEqual("keep-me", form.cleaned_data["title"], "the field data was discarded")
+        self.assertEqual(1, form.cleaned_data["extra"])
+
+    def test_clean_can_still_override_a_key(self) -> None:
+        """Merging must not take away the ability to replace a value."""
+        from wtforms.fields import StringField
+
+        class OverridingForm(OldmanForm):
+            title = StringField("title")
+
+            async def clean(self) -> dict[str, Any] | None:
+                return {"title": "overridden"}
+
+        form = OverridingForm(formdata=SanicFormData({"title": ["orig"]}), request=self._request())
+        asyncio.run(form.validate())
+
+        self.assertEqual("overridden", form.cleaned_data["title"])

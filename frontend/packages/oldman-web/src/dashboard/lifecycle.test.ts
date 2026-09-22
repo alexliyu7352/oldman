@@ -59,6 +59,8 @@ beforeEach(() => {
   // A new document root isolates document-lifetime state, not just body contents.
   document.replaceChild(document.createElement("html"), document.documentElement);
   document.documentElement.append(document.createElement("head"), document.createElement("body"));
+  // The theme toggle now persists through localStorage; one test must not leak its choice into the next.
+  window.localStorage.clear();
   document.body.dataset.omPage = "dashboard-review";
   document.body.innerHTML = '<button class="light-dark-mode">Theme</button><turbo-frame id="oldman-main"></turbo-frame>';
   document.head.innerHTML = '<meta name="oldman-user-events-url" content="/user-events">';

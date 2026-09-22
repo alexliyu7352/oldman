@@ -1,4 +1,7 @@
-import { Component, type ComponentOptions } from "../core/index";
+import { Component, type ComponentOptions, escapeHtml } from "../core/index";
+import type { PreferenceStore } from "../core/services/preferences";
+import { SIDEBAR_ACTIVE_CHANGE_EVENT } from "./sidebar";
+import { isDashboardTheme, storeDashboardTheme } from "./theme";
 
 export interface DashboardTopbarNotificationDetail {
   description?: string;
@@ -12,6 +15,8 @@ export interface DashboardTopbarNotificationDetail {
 export interface DashboardTopbarOptions extends ComponentOptions {
   defaultNotificationHref?: string;
   emptyNotificationTemplate?: () => string;
+  /** Store that remembers the theme toggle across page loads; omit to keep the choice in-document only. */
+  preferences?: PreferenceStore;
   topbarSelector?: string;
 }
 
@@ -27,17 +32,30 @@ const ACTIVITY_EMPTY_SELECTOR = "[data-om-activity-notification-empty], .empty-n
 const ACTIVITY_VIEW_ALL_SELECTOR = "[data-om-activity-view-all]";
 const DEFAULT_NOTIFICATION_DROPDOWN_SELECTOR = "#notificationDropdown";
 const DEFAULT_TOPBAR_SELECTOR = "#page-topbar";
+const MAIN_FRAME_SELECTOR = "turbo-frame#oldman-main";
+const BREADCRUMB_SOURCE_SELECTOR = "template[data-om-breadcrumb]";
+const BREADCRUMB_SLOT_SELECTOR = "[data-om-topbar-breadcrumb]";
+const BREADCRUMB_SEPARATOR_SELECTOR = "[data-om-topbar-breadcrumb-separator]";
+const SIDEBAR_SELECTOR = "[data-om-sidebar]";
+const PAGE_TITLE_SELECTOR = ".om-page-title";
+
+interface BreadcrumbEntry {
+  href?: string;
+  label: string;
+}
 
 /** Manage local Dashboard activity without touching persistent user notifications. */
 export class DashboardTopbar extends Component {
   private readonly customEmptyNotificationTemplate: (() => string) | null;
   private readonly defaultNotificationHref: string;
+  private readonly preferences: PreferenceStore | null;
   private readonly topbarSelector: string;
 
   constructor(root: HTMLElement, options: DashboardTopbarOptions = {}) {
     super(root, options);
     this.customEmptyNotificationTemplate = options.emptyNotificationTemplate ?? null;
     this.defaultNotificationHref = options.defaultNotificationHref ?? "/";
+    this.preferences = options.preferences ?? null;
     this.topbarSelector = options.topbarSelector ?? DEFAULT_TOPBAR_SELECTOR;
   }
 
@@ -45,6 +63,7 @@ export class DashboardTopbar extends Component {
     this.bindTopbarShadow();
     this.bindFullscreen();
     this.bindThemeModeToggle();
+    this.bindBreadcrumb();
     this.bindActivitySelection();
     this.bindActivityEvents();
     this.refreshActivityState();
@@ -86,8 +105,75 @@ export class DashboardTopbar extends Component {
       const html = document.documentElement;
       const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
       html.setAttribute("data-theme", next);
+      if (this.preferences && isDashboardTheme(next)) storeDashboardTheme(this.preferences, next);
       window.dispatchEvent(new Event("resize"));
     });
+  }
+
+  /**
+   * The topbar lives outside the main Turbo frame. A page may publish an explicit breadcrumb in a
+   * <template data-om-breadcrumb>; otherwise the topbar derives one from the shell (sidebar group,
+   * active menu item, page title) after every frame swap and sidebar activation.
+   */
+  private bindBreadcrumb(): void {
+    this.listen(document, "turbo:frame-render", (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.matches(MAIN_FRAME_SELECTOR)) this.syncBreadcrumb();
+    });
+    this.listen(document, SIDEBAR_ACTIVE_CHANGE_EVENT, () => this.syncBreadcrumb());
+    this.syncBreadcrumb();
+  }
+
+  private syncBreadcrumb(): void {
+    const header = this.root.querySelector<HTMLElement>(this.topbarSelector);
+    const slot = header?.querySelector<HTMLElement>(BREADCRUMB_SLOT_SELECTOR);
+    if (!slot) return;
+    const source = this.root.querySelector<HTMLTemplateElement>(`${MAIN_FRAME_SELECTOR} ${BREADCRUMB_SOURCE_SELECTOR}`)
+      ?? this.root.querySelector<HTMLTemplateElement>(BREADCRUMB_SOURCE_SELECTOR);
+    const crumbs = source ? source.content.cloneNode(true) : this.buildBreadcrumbFromShell();
+    slot.replaceChildren(...(crumbs ? [crumbs] : []));
+    const separator = header?.querySelector<HTMLElement>(BREADCRUMB_SEPARATOR_SELECTOR);
+    if (separator) separator.hidden = !crumbs;
+  }
+
+  /** Sidebar group › active menu item › page title; entries collapse when labels repeat. */
+  private buildBreadcrumbFromShell(): HTMLOListElement | null {
+    const entries: BreadcrumbEntry[] = [];
+    const activeLink = this.root.querySelector<HTMLAnchorElement>(`${SIDEBAR_SELECTOR} a.active`);
+    if (activeLink) {
+      const rootItem = activeLink.closest<HTMLElement>("[data-om-menu-item]");
+      const groupLabel = textOf(rootItem?.querySelector<HTMLElement>(":scope > [data-om-menu-toggle] .menu-text"));
+      if (groupLabel) entries.push({ label: groupLabel });
+      const itemLabel = textOf(activeLink.querySelector<HTMLElement>(".menu-text")) || textOf(activeLink);
+      const href = activeLink.getAttribute("href");
+      if (itemLabel) entries.push(href ? { href, label: itemLabel } : { label: itemLabel });
+    }
+    const title = textOf(
+      this.root.querySelector<HTMLElement>(`${MAIN_FRAME_SELECTOR} ${PAGE_TITLE_SELECTOR}`)
+        ?? this.root.querySelector<HTMLElement>(PAGE_TITLE_SELECTOR)
+    );
+    if (title && !entries.some((entry) => entry.label === title)) entries.push({ label: title });
+    if (entries.length === 0) return null;
+
+    const list = document.createElement("ol");
+    list.className = "oldman-breadcrumb";
+    entries.forEach((entry, index) => {
+      const item = document.createElement("li");
+      const last = index === entries.length - 1;
+      if (!last && entry.href) {
+        const link = document.createElement("a");
+        link.href = entry.href;
+        link.textContent = entry.label;
+        item.append(link);
+      } else {
+        const text = document.createElement("span");
+        if (last) text.setAttribute("aria-current", "page");
+        text.textContent = entry.label;
+        item.append(text);
+      }
+      list.append(item);
+    });
+    return list;
   }
 
   private bindActivitySelection(): void {
@@ -186,28 +272,26 @@ export class DashboardTopbar extends Component {
   protected notificationTemplate(detail: DashboardTopbarNotificationDetail): string {
     const tone = this.safeToken(detail.tone || "primary", "primary");
     const icon = this.safeIcon(detail.icon || "ri-user-settings-line");
-    const href = this.escapeHtml(detail.href || this.defaultNotificationHref);
-    const title = this.escapeHtml(detail.title || this.i18n.t("Notification"));
-    const description = this.escapeHtml(detail.description || "");
-    const time = this.escapeHtml(detail.time || this.i18n.t("Just now"));
+    const href = escapeHtml(detail.href || this.defaultNotificationHref);
+    const title = escapeHtml(detail.title || this.i18n.t("Notification"));
+    const description = escapeHtml(detail.description || "");
+    const time = escapeHtml(detail.time || this.i18n.t("Just now"));
     const id = `runtime-notification-${Date.now()}-${Math.round(Math.random() * 100000)}`;
 
     return `
-      <div data-om-activity-notification-item class="notification-item group relative rounded-lg px-2 py-2 transition-colors hover:bg-default-50">
-        <div class="flex gap-3">
-          <span class="om-notification-icon om-notification-icon-${tone}">
-            <i class="${icon}"></i>
-          </span>
-          <div class="min-w-0 flex-1">
-            <a href="${href}" class="block truncate text-sm font-medium text-default-900">${title}</a>
-            <p class="mt-0.5 line-clamp-2 text-xs leading-5 text-default-500">${description}</p>
-            <p class="mt-1 text-[0.6875rem] font-medium text-default-400">${time}</p>
-          </div>
-          <label class="notification-check flex shrink-0 items-start pt-1">
-            <input data-om-activity-notification-select class="om-check notification-check-input" type="checkbox" value="" id="${id}">
-            <span class="sr-only">${this.i18n.t("Select notification")}</span>
-          </label>
+      <div data-om-activity-notification-item class="notification-item om-notification-item group">
+        <span class="om-notification-icon om-notification-icon-${tone}">
+          <i class="${icon}"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <a href="${href}" class="om-notification-title">${title}</a>
+          <p class="om-notification-body">${description}</p>
+          <p class="om-notification-time">${time}</p>
         </div>
+        <label class="notification-check flex shrink-0 items-start pt-1">
+          <input data-om-activity-notification-select class="om-check notification-check-input" type="checkbox" value="" id="${id}">
+          <span class="sr-only">${this.i18n.t("Select notification")}</span>
+        </label>
       </div>
     `;
   }
@@ -227,7 +311,8 @@ export class DashboardTopbar extends Component {
       .join(" ") || "ri-user-settings-line";
   }
 
-  protected escapeHtml(value: string): string {
-    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
+}
+
+function textOf(element: Element | null | undefined): string {
+  return (element?.textContent ?? "").trim();
 }

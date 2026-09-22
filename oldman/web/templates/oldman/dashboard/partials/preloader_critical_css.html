@@ -3,8 +3,12 @@
     position: fixed;
     inset: 0;
     display: block;
-    background: #f3f6f9;
+    background: #f8fafc;
     z-index: 9999;
+  }
+
+  [data-theme="dark"] #preloader {
+    background: #020617;
   }
 
   #preloader[hidden],
@@ -16,13 +20,18 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 40px;
-    height: 40px;
-    margin: -20px 0 0 -20px;
-    border: 3px solid #d7dde5;
-    border-top-color: #405189;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #0f172a;
     border-radius: 50%;
     animation: oldman-preloader-spin 0.75s linear infinite;
+  }
+
+  [data-theme="dark"] #preloader [data-om-preloader-status] {
+    border-color: #1e293b;
+    border-top-color: #f8fafc;
   }
 
   @keyframes oldman-preloader-spin {

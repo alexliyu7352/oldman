@@ -2,7 +2,8 @@ import type { Page } from "../page/page";
 import { queryAllSelfOrDescendants } from "../dom/helpers";
 import type { Component, ComponentOptions } from "./component";
 import { getOldmanContext } from "../runtime/context";
-import { abortError } from "../services/abort";
+import { abortError, isCanceledError } from "../services/abort";
+import { consoleLogger, type Logger } from "../services/logger";
 import {
   ComponentRegistry,
   type ComponentConstructor,
@@ -10,6 +11,8 @@ import {
 } from "./registry";
 
 export interface ComponentManagerOptions {
+  /** Where a component's own mount failure is reported; defaults to the Page's logger. */
+  logger?: Logger;
   page?: Page | null;
   registry?: ComponentRegistry;
 }
@@ -21,10 +24,12 @@ export class ComponentManager {
   private readonly parentRoot = new WeakMap<HTMLElement, HTMLElement>();
   private readonly page: Page | null;
   private readonly registry: ComponentRegistry;
+  private readonly logger: Logger;
 
   constructor(options: ComponentManagerOptions = {}) {
     this.page = options.page ?? null;
     this.registry = options.registry ?? getOldmanContext().componentRegistry;
+    this.logger = options.logger ?? this.page?.logger ?? consoleLogger;
   }
 
   /**
@@ -103,6 +108,19 @@ export class ComponentManager {
     if (errors.length > 1) throw new AggregateError(errors, "Component manager descendant unmount failed");
   }
 
+  /**
+   * Mount one level of component roots, isolating a failure to the component that caused it.
+   *
+   * Components validate their own markup and throw out of `mount()` when it is wrong — that is
+   * correct, and eleven of them do it. What was wrong is what happened next: the throw escaped
+   * to `mount()`, which rolled back every sibling already mounted and left the Page `failed`,
+   * so one mistyped countdown timestamp disabled the table, modals and forms beside it.
+   *
+   * A component that fails is now marked `failed` by its own `start()`, reported once, and
+   * skipped along with its subtree; its siblings mount normally. Cancellation is not a failure
+   * and still propagates: swallowing it would let a superseded navigation keep mounting into a
+   * page that is already going away.
+   */
   private async mountChildren(
     root: ParentNode,
     parent: HTMLElement | null,
@@ -112,7 +130,20 @@ export class ComponentManager {
     this.page?.signal.throwIfAborted();
     for (const element of immediateComponentRoots(root, parent === null)) {
       this.page?.signal.throwIfAborted();
-      const component = await this.mountOne(element, mountedInCall);
+
+      let component: Component;
+      try {
+        component = await this.mountOne(element, mountedInCall);
+      } catch (error) {
+        if (this.isCancellation(error)) throw error;
+        // `Component.start()` marks its own root when the component itself refused to mount, but
+        // a name that resolves to nothing never gets that far — mark it here so both kinds of
+        // failure leave the same visible signal in the DOM.
+        element.dataset.omComponentState = "failed";
+        this.logger.error(`Oldman component failed to mount: ${element.dataset.omComponent ?? "(unnamed)"}`, error);
+        continue;
+      }
+
       this.page?.signal.throwIfAborted();
       component.signal.throwIfAborted();
       if (this.components.get(element) !== component) throw abortError();
@@ -122,6 +153,11 @@ export class ComponentManager {
 
       await this.mountChildren(element, element, mounted, mountedInCall);
     }
+  }
+
+  /** Cancellation is control flow, not a component defect, and must never be isolated away. */
+  private isCancellation(error: unknown): boolean {
+    return Boolean(this.page?.signal.aborted) || isCanceledError(error);
   }
 
   /**

@@ -307,3 +307,18 @@ describe("createI18n", () => {
     expect(i18n.t("Save")).toBe("儲存");
   });
 });
+
+describe("translateDocument owns a namespaced attribute", () => {
+  it("translates [data-om-i18n-key] and leaves business [data-key] alone", () => {
+    // 框架有 296 个 data-om-* 属性,translateDocument 原先用的是裸 data-key ——
+    // 而它会覆写 textContent,所以一张用 data-key 存行主键的表格会在切语言时被写成主键本身。
+    document.body.innerHTML = `
+      <p data-om-i18n-key="Loading...">Loading...</p>
+      <table><tbody><tr><td data-key="row-42">Alice</td></tr></tbody></table>
+    `;
+    createI18n({ locale: "fr", messages: { "Loading...": "Chargement..." } }).translateDocument(document);
+
+    expect(document.querySelector("[data-om-i18n-key]")?.textContent).toBe("Chargement...");
+    expect(document.querySelector("[data-key]")?.textContent).toBe("Alice");
+  });
+});

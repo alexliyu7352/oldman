@@ -5,7 +5,7 @@
         {{ head_html }}
         <tbody data-om-table-body>
           {% if loading|default(false) %}
-            <tr data-om-table-initial-loading><td colspan="{{ columns|length + (1 if selectable else 0) }}" class="px-4 py-10 text-center text-default-500">
+            <tr data-om-table-initial-loading><td colspan="{{ columns|length + (1 if selectable else 0) }}" class="om-table-loading-cell">
               <span class="inline-flex items-center justify-center gap-2">
                 <span data-om-scoped-preloader-spinner aria-hidden="true"></span>
                 <span>{{ loading_message }}</span>
@@ -14,18 +14,18 @@
           {% elif rows %}
             {% for row in rows %}{{ row }}{% endfor %}
           {% else %}
-            <tr><td colspan="{{ columns|length + (1 if selectable else 0) }}" class="px-4 py-8 text-center text-default-500">{{ empty_message }}</td></tr>
+            <tr><td colspan="{{ columns|length + (1 if selectable else 0) }}" class="om-table-empty-cell">{{ empty_html }}</td></tr>
           {% endif %}
         </tbody>
       </table>
     </div>
   </div>
   {% if show_footer|default(true) %}
-  <div class="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-      <label class="inline-flex items-center gap-2 text-sm text-default-500">
+  <div class="om-table-footer">
+    <div class="om-table-footer-meta">
+      <label class="om-table-page-size">
         <span>{{ _("Rows per page") }}</span>
-        <select class="om-select w-20 min-w-20" data-om-table-page-size-control aria-label="{{ _('Rows per page') }}">
+        <select class="om-select om-select-sm w-20 min-w-20" data-om-table-page-size-control aria-label="{{ _('Rows per page') }}">
           {% for option in page_size_options %}
           <option value="{{ option }}"{% if option == current_page_size %} selected{% endif %}>{{ option }}</option>
           {% endfor %}

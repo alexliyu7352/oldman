@@ -10,6 +10,7 @@
 | [Web 请求与模板](web.md) | 路由、模板加载、Session、权限、CSRF 和错误页 |
 | [表单与字段](forms.md) | WTForms 分工、绑定/校验、ModelForm、布局、远程选项 |
 | [Table](tables.md) | HTML/JSON 数据、数据库查询、列路径、排序和稳定 DOM |
+| [Chart](charts.md) | data endpoint、外壳、请求白名单、时间窗口和结果对象 |
 | [响应协议](responses.md) | JSON/Form/HTML 边界、有序 actions、目标和错误处理 |
 | [浏览器生命周期](frontend.md) | Page、组件、Modal、动态挂载、HTTP 和导航清理 |
 | [资源与样式](assets.md) | Vite、bundle、字体、图标、视觉变量和统一翻译 |
@@ -17,6 +18,7 @@
 | [数据库迁移](migrations.md) | 项目范围、App 分支、改名、外部表、降级和状态恢复 |
 | [JSON fixtures](fixtures.md) | 服务级导入导出、字段类型、外键顺序和失败边界 |
 | [文件存储](storage.md) | alias、异步读写、文件字段、替换/删除与私有下载 |
+| [邮件](mail.md) | 消息对象、后端、模板邮件、locmem 测试与 `mail sendtest` |
 | [缓存](cache.md) | 内存/Redis/两级缓存、TTL、响应缓存、Django 互操作和图片缓存 |
 | [Redis/NATS provider](providers.md) | 命名连接、锁、受管 bus、强类型事件/RPC、寻址与完整启停责任 |
 | [后端 HTTP 客户端](http-client.md) | 三种 backend、统一响应、重试、流、Cookie 与 TLS |

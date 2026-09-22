@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
 
 import oldman.conf as conf
-from oldman.apps.admin.forms import AdminLoginForm
 from oldman.apps.admin.model_admin import AdminUserModelAdmin, ModelAdmin, encode_admin_path_segment
 from oldman.apps.admin.runtime import install_admin as _install_admin
 from oldman.apps.admin.settings import AdminSettings
@@ -39,7 +38,9 @@ from oldman.conf.schemas import (
 )
 from oldman.db import db_manager as default_db_manager
 from oldman.db.models import DatabaseModel
-from oldman.web.session import SessionData
+from oldman.web.auth.forms import LoginForm
+from oldman.web.auth.login import LoginRateLimit
+from oldman.web.session import Session, SessionData
 from oldman.web.staticfiles import StaticBundleRegistry
 
 
@@ -185,18 +186,40 @@ DEFAULT_AUTH_SETTINGS = AuthSettings()
 DEFAULT_ADMIN_SETTINGS = AdminSettings()
 
 
+class MemoryWindowCounter:
+    """In-memory stand-in for the Redis fixed window, so route tests need no server."""
+
+    def __init__(self) -> None:
+        self.windows: dict[tuple[str, str], int] = {}
+
+    async def count(self, subject: int | str, path: str, period: int) -> int:
+        """Return what the window holds; a unit test never needs it to expire."""
+        del period
+        return self.windows.get((str(subject), path), 0)
+
+    async def record(self, subject: int | str, path: str, period: int) -> int:
+        """Count one event and return the window's new total."""
+        del period
+        key = (str(subject), path)
+        self.windows[key] = self.windows.get(key, 0) + 1
+        return self.windows[key]
+
+
 def install_admin(
     app: Any,
     *,
     auth_settings: AuthSettings | None = None,
     admin_settings: AdminSettings | None = None,
+    login_rate_limit: LoginRateLimit | None = None,
     **kwargs: Any,
 ) -> AdminSite:
     """Install Admin with explicit App settings for isolated unit tests."""
+    resolved_auth_settings = auth_settings or DEFAULT_AUTH_SETTINGS
     return _install_admin(
         app,
-        auth_settings=auth_settings or DEFAULT_AUTH_SETTINGS,
+        auth_settings=resolved_auth_settings,
         admin_settings=admin_settings or DEFAULT_ADMIN_SETTINGS,
+        login_rate_limit=login_rate_limit or LoginRateLimit(auth_settings=resolved_auth_settings, counter=MemoryWindowCounter()),
         **kwargs,
     )
 
@@ -259,7 +282,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             "admin_bundle_name": "oldman:admin",
             "admin_is_authenticated": False,
             "admin_extension_bundle_name": None,
-            "admin_csrf_token": "test-token",
             "admin_i18n": {},
             "dashboard_body_classes": " oldman-auth-page",
             "page_entry": "admin",
@@ -277,7 +299,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             **common_context,
             login_error="",
             next_url="/control",
-            login_form=AdminLoginForm(request=template_request),
+            login_form=LoginForm(request=template_request),
         )
         self.assertIn('name="csrfmiddlewaretoken" value="test-token"', login_html)
         self.assertTrue(any(path == "/control" for path, _methods in app.routes))
@@ -294,9 +316,10 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         """普通项目安装 Admin 时不需要重复声明默认数据库 manager。"""
         app = FakeApp()
         site = AdminSite("runtime_default_manager_admin")
+        sign_in_limit = LoginRateLimit(auth_settings=DEFAULT_AUTH_SETTINGS, counter=MemoryWindowCounter())
 
         with patch.object(site, "register_routes") as register_routes:
-            installed = install_admin(app, admin_site=site, prefix="/control")
+            installed = install_admin(app, admin_site=site, prefix="/control", login_rate_limit=sign_in_limit)
 
         self.assertIs(site, installed)
         register_routes.assert_called_once_with(
@@ -307,6 +330,8 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             admin_settings=DEFAULT_ADMIN_SETTINGS,
             notifications_enabled=False,
             sse_enabled=False,
+            password_reset_rate_limiter=None,
+            login_rate_limit=sign_in_limit,
         )
 
     def test_edit_routes_use_an_explicit_suffix_for_natural_keys(self) -> None:
@@ -333,6 +358,41 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             with self.subTest(slug=slug):
                 action = str(admin.table_action_html(RuntimeNaturalKeyRecord(slug=slug), admin_prefix="/control"))
                 self.assertIn(f"{model_prefix}/{slug}/edit", action)
+
+    def test_admin_prefix_with_trailing_slash_redirects_to_the_index(self) -> None:
+        """Strict-slash apps must not answer 404 for the prefix typed with a trailing slash."""
+        app = Sanic("runtime_admin_prefix_trailing_slash", strict_slashes=True)
+        site = AdminSite("runtime_trailing_slash_admin")
+        site.register_routes(
+            app,
+            prefix="/control/",
+            db_manager=cast(Any, object()),
+            auth_settings=DEFAULT_AUTH_SETTINGS,
+            admin_settings=DEFAULT_ADMIN_SETTINGS,
+        )
+
+        _request, response = asyncio.run(app.asgi_client.get("/control/?page=2"))
+        self.assertEqual(301, response.status)
+        self.assertEqual("/control?page=2", response.headers["location"])
+
+        _request, response = asyncio.run(app.asgi_client.get("/control/"))
+        self.assertEqual("/control", response.headers["location"])
+
+    def test_lenient_slash_apps_do_not_register_a_second_index_route(self) -> None:
+        """Without strict slashes Sanic already serves both spellings from one route."""
+        app = Sanic("runtime_admin_prefix_lenient_slash")
+        site = AdminSite("runtime_lenient_slash_admin")
+        site.register_routes(
+            app,
+            prefix="/control",
+            db_manager=cast(Any, object()),
+            auth_settings=DEFAULT_AUTH_SETTINGS,
+            admin_settings=DEFAULT_ADMIN_SETTINGS,
+        )
+
+        names = {route.name for route in app.router.routes}
+        self.assertIn("runtime_lenient_slash_admin_index", {name.rsplit(".", 1)[-1] for name in names})
+        self.assertNotIn("runtime_lenient_slash_admin_index_trailing_slash", {name.rsplit(".", 1)[-1] for name in names})
 
     def test_safe_next_url_rejects_browser_normalized_cross_origin_paths(self) -> None:
         """Protocol-relative paths must remain blocked after browser slash normalization."""
@@ -440,7 +500,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
 
         with (
             patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=user)),
-            patch("oldman.apps.admin.site.touch_last_login", AsyncMock()) as touch_last_login_mock,
+            patch("oldman.web.auth.login.touch_last_login", AsyncMock()) as touch_last_login_mock,
         ):
             response = asyncio.run(handler(request))  # type: ignore[operator]
 
@@ -459,6 +519,55 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             "new-session-id",
             session_data,
         )
+
+    def test_failed_sign_ins_are_refused_before_the_password_is_checked(self) -> None:
+        """超过失败次数后必须直接 429，而且不能再去算一次 PBKDF2。"""
+        app = FakeApp()
+        auth_settings = AuthSettings()
+        auth_settings.login.username_limit = 2
+        site = AdminSite("runtime_login_rate_limit_admin")
+        install_admin(
+            app,
+            db_manager=object(),  # type: ignore[arg-type]
+            admin_site=site,
+            prefix="/control",
+            auth_settings=auth_settings,
+            login_rate_limit=LoginRateLimit(auth_settings=auth_settings, counter=MemoryWindowCounter()),
+        )
+        handler = app.route_handlers[("/control/login", ("POST",))]
+
+        def attempt() -> Any:
+            """One wrong-password POST from the same address for the same username."""
+            request = make_post_request(
+                app,
+                path="/control/login",
+                session=FakeSession(),
+                accept="text/html",
+                form={"username": "alice", "password": "WrongPass!2026", "next": "/control"},
+            )
+            request.ip = "203.0.113.10"
+            request.client_ip = "203.0.113.10"
+            return asyncio.run(handler(request))  # type: ignore[operator]
+
+        with (
+            patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=None)) as authenticate,
+            # The refusal renders the login page again; this unit test is about the decision, not the template.
+            patch("oldman.apps.admin.site.render_admin_template", AsyncMock(side_effect=lambda *_a, **_k: sanic_html("login"))),
+        ):
+            first = attempt()
+            second = attempt()
+            spent = authenticate.await_count
+            refused = attempt()
+            after_refusal = authenticate.await_count
+
+        self.assertEqual(303, first.status)
+        self.assertEqual(303, second.status)
+        self.assertEqual(429, refused.status)
+        # The wait is whatever is left of the current window, so it is a range, not a constant.
+        self.assertIn(int(refused.headers["Retry-After"]), range(1, auth_settings.login.username_window + 1))
+        self.assertEqual(2, spent)
+        # The point of checking the window first: the refused attempt costs no password hash.
+        self.assertEqual(2, after_refusal)
 
     def test_installer_uses_the_configured_collected_static_root(self) -> None:
         """Typed static settings govern Admin manifest and entry URLs."""
@@ -484,6 +593,48 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             "/assets/oldman/admin/assets/",
             str(registry.entry_tags("oldman:admin")),
         )
+
+    def test_login_remember_me_uses_the_long_session_lifetime(self) -> None:
+        """Ticking "Remember me" swaps the ordinary lifetime for web.session.remember_expiry."""
+        self.settings.web.session.expiry = 3600
+        self.settings.web.session.remember_expiry = 86400 * 14
+        app = FakeApp()
+        site = AdminSite("runtime_login_remember_admin")
+        install_admin(
+            app,
+            db_manager=object(),  # type: ignore[arg-type]
+            admin_site=site,
+            prefix="/control",
+            auth_settings=AuthSettings(),
+            admin_settings=AdminSettings(),
+        )
+        session_manager = SimpleNamespace(
+            exclusive_login=AsyncMock(return_value="new-session-id"),
+            update_session_id_to_cookie=MagicMock(),
+        )
+        app.ctx.session = session_manager
+        user = make_admin_user()
+        handler = app.route_handlers[("/control/login", ("POST",))]
+
+        for remember, expected in (("y", 86400 * 14), ("", 3600), ("off", 3600)):
+            with self.subTest(remember=remember):
+                request = make_post_request(
+                    app,
+                    path="/control/login",
+                    session=FakeSession(),
+                    accept="text/html",
+                    form={"username": user.username, "password": "OldPass!2026", "next": "/control", "remember_me": remember},
+                )
+                request.ip = "127.0.0.1"
+                request.client_ip = None
+                with (
+                    patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=user)),
+                    patch("oldman.web.auth.login.touch_last_login", AsyncMock()),
+                ):
+                    response = asyncio.run(handler(request))  # type: ignore[operator]
+                self.assertEqual(302, response.status)
+                session_data = session_manager.exclusive_login.await_args.args[0]
+                self.assertEqual(expected, session_data.expiry)
 
     def test_authenticated_permission_denial_returns_403_without_login_redirect(self) -> None:
         """已登录 staff 的页面和 Table 权限不足时必须 403，不能形成登录循环。"""
@@ -551,6 +702,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         request.headers = {
             "X-CSRFToken": app.ctx.csrf.generate_token(request),
             "content-type": "application/json",
+            "Origin": "http://example.test",
         }
         handler = app.route_handlers[("/control/preferences/language", ("POST",))]
 
@@ -576,6 +728,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         alias_request.headers = {
             "X-CSRFToken": app.ctx.csrf.generate_token(alias_request),
             "content-type": "application/json",
+            "Origin": "http://example.test",
         }
         alias_handler = app.route_handlers[("/control/user-session/language", ("POST",))]
 
@@ -644,9 +797,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             session=session,
         )
         modal_request.headers = {"accept": "application/json"}
-        modal_handler = app.route_handlers[
-            ("/control/user-session/password-modal", ("GET",))
-        ]
+        modal_handler = app.route_handlers[("/control/user-session/password-modal", ("GET",))]
         modal_response = asyncio.run(modal_handler(modal_request))  # type: ignore[operator]
         modal_payload = json.loads(modal_response.body)
 
@@ -655,29 +806,37 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn("alice@example.test", modal_payload["html"])
         self.assertNotIn("om-badge", modal_payload["html"])
 
+        self.assertIn('data-om-form-field-name="current_password"', modal_payload["html"])
+
+        # Changing your own password ends every session you had, this browser's included.
+        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=()), _logout_request=AsyncMock())
+        session_manager = Session()
+        session_manager.interface = cast(Any, session_interface)
+        app.ctx.session = session_manager
         password_request = make_post_request(
             app,
             path="/control/user-session/password",
             session=session,
             accept="application/json",
             form={
+                "current_password": "OldPass!2026",
                 "password": "CurrentPass!2026",
                 "confirm_password": "CurrentPass!2026",
             },
         )
-        password_handler = app.route_handlers[
-            ("/control/user-session/password", ("POST",))
-        ]
+        password_handler = app.route_handlers[("/control/user-session/password", ("POST",))]
         password_response = asyncio.run(password_handler(password_request))  # type: ignore[operator]
         password_payload = json.loads(password_response.body)
 
         self.assertEqual(200, password_response.status)
         self.assertEqual(
-            ["feedback", "dashboard_activity", "close_modal"],
+            ["feedback", "close_modal", "redirect"],
             [action["action"] for action in password_payload["actions"]],
         )
         self.assertEqual("Session password changed", password_payload["actions"][0]["title"])
+        self.assertEqual("/control/login", password_payload["actions"][-1]["url"])
         self.assertTrue(user.check_password("CurrentPass!2026"))
+        session_interface.force_logout_user.assert_awaited_once_with(12)
 
     def test_admin_language_urls_remove_stale_query_language(self) -> None:
         """Cookie-mode language links preserve user query state without a stale lang override."""
@@ -771,6 +930,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
                     request.headers = {"accept": accept}
                     if methods == ("POST",):
                         request.method = "POST"
+                        request.headers["Origin"] = "http://example.test"
                         request.form = {"csrfmiddlewaretoken": app.ctx.csrf.generate_token(request)}
 
                     response = asyncio.run(handler(request, **kwargs))  # type: ignore[operator]
@@ -821,6 +981,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         ):
             request = make_request(app, path=request_path, session=session)
             request.method = "POST"
+            request.headers = {"Origin": "http://example.test"}
             request.form = {"csrfmiddlewaretoken": app.ctx.csrf.generate_token(request)}
             handler = app.route_handlers[(route_path, ("POST",))]
             with self.assertRaises(NotFound):
@@ -935,7 +1096,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(b"<title>Users \xc2\xb7 Oldman Admin</title>", response.body)
         self.assertIn(b'<h1 class="om-page-title">Users</h1>', response.body)
         self.assertIn(b'<h2 class="om-card-title">Users List</h2>', response.body)
-        self.assertIn(b'class="ri-user-add-line align-bottom mr-1"', response.body)
+        self.assertIn(b'class="ri-user-add-line" aria-hidden="true"', response.body)
         self.assertIn(b"<span>New User</span>", response.body)
         self.assertNotIn(b"Admin User", response.body)
 
@@ -959,9 +1120,8 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(b'action="/control/oldman_user/new"', response.body)
         self.assertIn(b"<title>User \xc2\xb7 Oldman Admin</title>", response.body)
         self.assertIn(b'<h1 class="om-page-title">New User</h1>', response.body)
-        self.assertIn(b'<i class="ri-arrow-left-line align-bottom mr-1"', response.body)
-        self.assertIn(b'aria-hidden="true"></i>Users', response.body)
-        self.assertIn(b'href="/control/oldman_user" class="om-button om-button-soft-secondary om-button-sm"', response.body)
+        self.assertIn(b'<i class="ri-arrow-left-line" aria-hidden="true"></i>Users', response.body)
+        self.assertIn(b'href="/control/oldman_user" class="om-button om-button-secondary"', response.body)
         self.assertIn(b'<button type="submit" class="om-button om-button-primary">Save</button>', response.body)
         self.assertNotIn(b'class="om-card-header"', response.body)
         self.assertNotIn(b'<div class="om-card max-w-3xl">', response.body)
@@ -1046,7 +1206,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(b'action="/control/oldman_user/12/edit"', response.body)
         self.assertIn(b"<title>User \xc2\xb7 Oldman Admin</title>", response.body)
         self.assertIn(b'<h1 class="om-page-title">Edit User</h1>', response.body)
-        self.assertIn(b'<i class="ri-arrow-left-line align-bottom mr-1"', response.body)
+        self.assertIn(b'<i class="ri-arrow-left-line" aria-hidden="true"></i>Users', response.body)
         self.assertIn(b'<button type="submit" class="om-button om-button-primary">Save</button>', response.body)
         self.assertNotIn(b'class="om-card-header"', response.body)
         self.assertNotIn(b'<div class="om-card max-w-3xl">', response.body)
@@ -1155,6 +1315,10 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         post_handler = app.route_handlers[(route_pattern, ("POST",))]
         self.assertNotIn((route_pattern, ("GET",)), app.route_handlers)
         session = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
+        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock())
+        session_manager = Session()
+        session_manager.interface = cast(Any, session_interface)
+        app.ctx.session = session_manager
 
         json_request = make_request(app, path=f"/control/{model_path}/12/password-modal", session=session)
         json_request.headers = {"accept": "application/json"}
@@ -1206,6 +1370,38 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertEqual("Password changed", payload["actions"][0]["title"])
         self.assertEqual(f"#admin-{model_path}-table", payload["actions"][3]["target"])
         self.assertTrue(user.check_password("NewPass!2026"))
+        # The target's sessions end with the password they were opened under, exactly as they
+        # would if the user had changed it themselves or followed a reset link.
+        session_interface.force_logout_user.assert_awaited_once_with(12)
+        session_interface._logout_request.assert_not_awaited()
+
+    def test_an_operator_changing_their_own_row_is_sent_back_to_the_login_page(self) -> None:
+        """Ending the target's sessions ends the operator's own when the target is the operator."""
+        user = make_admin_user()
+        app, model_path = install_user_admin(user)
+        post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/password", ("POST",))]
+        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock())
+        session_manager = Session()
+        session_manager.interface = cast(Any, session_interface)
+        app.ctx.session = session_manager
+        own_session = FakeSession(user_id=12, is_active=True, is_staff=True, is_superuser=True)
+
+        request = make_post_request(
+            app,
+            path=f"/control/{model_path}/12/password",
+            session=own_session,
+            accept="application/json",
+            form={"password": "NewPass!2026", "confirm_password": "NewPass!2026"},
+        )
+        response = asyncio.run(post_handler(request, object_id="12"))  # type: ignore[operator]
+        payload = json.loads(response.body)
+
+        self.assertEqual(0, payload["error_code"])
+        # No table to reload and no modal to close: the browser is leaving for the login page.
+        self.assertEqual(["feedback", "redirect"], [action["action"] for action in payload["actions"]])
+        self.assertEqual("/control/login", payload["actions"][1]["url"])
+        session_interface.force_logout_user.assert_awaited_once_with(12)
+        session_interface._logout_request.assert_awaited_once_with(request)
 
     def test_user_status_routes_use_source_modal_and_post_contract(self) -> None:
         """Status exposes exactly the source ``-modal`` GET and submit POST."""
@@ -1266,7 +1462,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertFalse(user.is_active)
 
 
-
 def make_admin_user() -> User:
     """Build a persisted-looking user for password and status route tests."""
     user = User(
@@ -1288,9 +1483,7 @@ def install_user_admin(user: Any) -> tuple[FakeApp, str]:
     app = FakeApp()
     site = AdminSite("runtime_user_modal_admin")
     user_model = type(user)
-    auth_settings = AuthSettings(
-        user_model=f"{user_model.__module__}.{user_model.__name__}"
-    )
+    auth_settings = AuthSettings(user_model=f"{user_model.__module__}.{user_model.__name__}")
     site.register(user_model, AdminUserModelAdmin)
     manager = ExistingObjectDatabaseManager(user)
     app.ctx.test_admin_db_manager = manager
@@ -1315,7 +1508,10 @@ def make_post_request(
     """Build a CSRF-valid form request with the requested response mode."""
     request = make_request(app, path=path, session=session)
     request.method = "POST"
-    request.headers = {"accept": accept}
+    # A real browser sends Origin on every unsafe-method request; the CSRF same-origin
+    # check now requires it, so a same-site value matching the request host stands in for
+    # what the browser would send. Host is "example.test" (see make_request).
+    request.headers = {"accept": accept, "Origin": "http://example.test"}
     request.form = dict(form)
     request.form["csrfmiddlewaretoken"] = app.ctx.csrf.generate_token(request)
     return request

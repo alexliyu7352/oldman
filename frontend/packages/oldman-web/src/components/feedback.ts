@@ -103,7 +103,7 @@ export class Feedback extends Component {
       callback: () => this.activeToasts.delete(toast),
       className: `om-toast om-toast-${toastTone(options.icon)}`,
       close: options.close ?? true,
-      duration: options.duration ?? 3000,
+      duration: options.duration ?? 4000,
       gravity: "top",
       node: toastContent(options),
       position: "right",
@@ -168,7 +168,13 @@ export class Feedback extends Component {
   }
 }
 
-/** Build one compact toast body while preserving the caller's explicit HTML boundary. */
+/**
+ * 组装 toast 正文。
+ *
+ * `options.html` 走 `innerHTML`、`options.text` 走 `textContent`——**两个字段名本身就是契约**:
+ * 默认是 `text`,要富文本才显式写 `html`,并由调用方负责那段标记。框架不在这里清洗:
+ * 替使用者决定什么标记算安全,会挡住"提示里带一个链接"这种正常需求。
+ */
 function toastContent(options: FeedbackToastOptions): HTMLElement {
   const content = document.createElement("div");
   content.className = "om-toast-content";

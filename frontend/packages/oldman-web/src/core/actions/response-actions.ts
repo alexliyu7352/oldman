@@ -135,6 +135,14 @@ export class ResponseActionRunner {
     throw new Error("Response action requires a mounted Feedback");
   }
 
+  /**
+   * 把服务端返回的片段换进 DOM。
+   *
+   * **`action.html` 按未转义的 HTML 处理，这是设计,不是遗漏。** 框架的模型是服务端用 Jinja
+   * 渲染好整段片段(模板默认自动转义)再整块换入;和 Python 侧 `modal_response` 的 docstring
+   * 声明的是同一个契约。框架在这里再清洗一遍,等于替使用者决定什么标记算安全——
+   * 而使用者要输出一段富文本时就只能绕过框架。产生这段 HTML 的那一侧负责转义。
+   */
   private async replaceHtml(action: ReplaceHtmlAction, context: ResponseActionContext): Promise<void> {
     const selector = action.target || context.source.dataset.omTarget;
     const target = selector ? this.target(selector) : context.source;

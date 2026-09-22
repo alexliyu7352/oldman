@@ -20,9 +20,9 @@ from oldman.web.messages.notifications.rendering import (
     render_topbar_fragment,
 )
 from oldman.web.messages.notifications.service import (
-    _is_same_site_path,
     notifications,
 )
+from oldman.web.messages.paths import is_same_site_path
 from oldman.web.request import Request
 from oldman.web.response import (
     Response,
@@ -52,12 +52,7 @@ def _normalize_prefix(value: str) -> str:
         raise TypeError("url_prefix must be a string")
     if value in {"", "/"}:
         return ""
-    if (
-        not value.startswith("/")
-        or "//" in value
-        or "\\" in value
-        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
-    ):
+    if not value.startswith("/") or "//" in value or "\\" in value or any(ord(character) < 0x20 or ord(character) == 0x7F for character in value):
         raise ValueError("url_prefix must be a safe absolute path")
     parsed = urlsplit(value)
     if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
@@ -75,22 +70,16 @@ def _validate_dependencies(app: Sanic) -> None:
     """Fail before route registration when the host runtime is incomplete."""
     registry = getattr(app.ctx, "oldman_app_registry", None)
     if registry is None:
-        raise RuntimeError(
-            "Notification Web routes require app.ctx.oldman_app_registry"
-        )
+        raise RuntimeError("Notification Web routes require app.ctx.oldman_app_registry")
     try:
         registry.get_by_package(_NOTIFICATIONS_PACKAGE)
     except (AppNotInstalledError, LookupError) as exc:
-        raise RuntimeError(
-            "Notification Web routes require the notifications App to be installed"
-        ) from exc
+        raise RuntimeError("Notification Web routes require the notifications App to be installed") from exc
     if not conf.settings.web.session.enabled:
         raise RuntimeError("Notification Web routes require Web Session to be enabled")
     environment = getattr(getattr(app, "ext", None), "environment", None)
     if environment is None:
-        raise RuntimeError(
-            "Notification Web routes require the Sanic-Ext template environment"
-        )
+        raise RuntimeError("Notification Web routes require the Sanic-Ext template environment")
     if getattr(app.ctx, "csrf", None) is None:
         raise RuntimeError("Notification Web routes require an installed CSRF manager")
 
@@ -170,11 +159,7 @@ def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
             operation, notification_ids = _read_operation(request.json)
         except (BadRequest, TypeError, ValueError) as exc:
             return _invalid_request(str(exc))
-        changed = (
-            await notifications.mark_all_read(user_id)
-            if operation == "all"
-            else await notifications.mark_read(user_id, notification_ids)
-        )
+        changed = await notifications.mark_all_read(user_id) if operation == "all" else await notifications.mark_read(user_id, notification_ids)
         return api_response(DefaultApiResponse(data={"changed": changed}))
 
     @api_login_required(user_keyword="user_id")
@@ -202,7 +187,7 @@ def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
         if notification is None:
             raise NotFound("Notification was not found")
         payload = NotificationPayload.from_msgpack(notification.payload)
-        if payload.href is not None and not _is_same_site_path(payload.href):
+        if payload.href is not None and not is_same_site_path(payload.href):
             raise NotFound("Notification target was not found")
         await notifications.mark_read(user_id, (notification_id,))
         return redirect_response(payload.href or routes.center_url, status=303)

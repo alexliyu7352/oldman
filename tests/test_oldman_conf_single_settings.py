@@ -126,6 +126,7 @@ class ConfSingleSettingsTest(unittest.TestCase):
                 "cache",
                 "http_client",
                 "storages",
+                "mail",
                 "proxy",
             ):
                 self.assertIn(section, raw)
@@ -194,5 +195,109 @@ class ConfSingleSettingsTest(unittest.TestCase):
 
             self.assertEqual(before, settings_file.read_bytes())
 
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class CacheAliasValidationTest(unittest.TestCase):
+    """cache.client must resolve before the service runs, like the other aliases.
+
+    Session and SSE aliases are checked while settings load. The cache alias was not, and
+    four different call sites read it lazily, so a typo survived startup and surfaced much
+    later as a connection error from whichever feature touched the cache first.
+    """
+
+    def test_an_undefined_cache_alias_is_rejected_while_settings_load(self) -> None:
+        with self.assertRaises(ValidationError) as caught:
+            DefaultSettings.model_validate({"cache": {"client": "CHACE"}})
+        self.assertIn("cache.client does not identify a configured Redis connection", str(caught.exception))
+
+    def test_the_builtin_and_custom_aliases_both_resolve(self) -> None:
+        self.assertEqual("CACHE", DefaultSettings.model_validate({"cache": {"client": "CACHE"}}).cache.client)
+
+        custom = DefaultSettings.model_validate(
+            {
+                "redis": {"MYCACHE": {"redis_url": "redis://127.0.0.1:6379/9"}},
+                "cache": {"client": "MYCACHE"},
+            }
+        )
+        self.assertEqual("MYCACHE", custom.cache.client)
+
+
+class SecretFieldReprTest(unittest.TestCase):
+    """No configured secret may appear in a settings repr.
+
+    Only nats_url carried repr=False; the root key every Web secret derives from, the
+    fingerprint AES key shared with browsers, the SMTP password, the trusted-proxy
+    secret, and the Redis and database URLs - both of which routinely carry credentials -
+    were all printed in full. A repr reaches logs, crash reports and debuggers.
+    """
+
+    SECRETS = {
+        "root key": "SENTINEL-ROOT-" + "x" * 32,
+        "forwarded secret": "SENTINEL-FWD",
+        "database url": "postgresql+asyncpg://user:SENTINEL-DB@host/db",
+        "redis url": "redis://user:SENTINEL-REDIS@127.0.0.1:6379/0",
+        "smtp password": "SENTINEL-SMTP",
+    }
+
+    def _settings(self) -> DefaultSettings:
+        import base64
+
+        self.aes_key = base64.b64encode(b"SENTINEL-AES" + b"\0" * 20).decode()
+        return DefaultSettings.model_validate(
+            {
+                "web": {
+                    "security": {
+                        "secret_key": self.SECRETS["root key"],
+                        "fingerprint": {"aes_secret_key": self.aes_key},
+                    },
+                    "forwarded_secret": self.SECRETS["forwarded secret"],
+                },
+                "database": {"url": self.SECRETS["database url"]},
+                "redis": {"DEFAULT": {"redis_url": self.SECRETS["redis url"]}},
+                "mail": {"smtp": {"password": self.SECRETS["smtp password"]}},
+            }
+        )
+
+    def test_no_secret_reaches_the_repr(self) -> None:
+        settings = self._settings()
+        rendered = repr(settings)
+        for label, value in self.SECRETS.items():
+            self.assertNotIn(value, rendered, f"{label} is printed in the settings repr")
+        self.assertNotIn(self.aes_key, rendered, "fingerprint AES key is printed in the settings repr")
+
+    def test_the_values_are_still_readable(self) -> None:
+        """Hiding them from repr must not turn them into SecretStr-style wrappers."""
+        settings = self._settings()
+        self.assertEqual(self.SECRETS["smtp password"], settings.mail.smtp.password)
+        self.assertEqual(self.SECRETS["database url"], settings.database.url)
+        self.assertEqual(self.SECRETS["redis url"], settings.redis["DEFAULT"].redis_url)
+
+    def test_secret_bearing_fields_are_declared_with_the_secret_type(self) -> None:
+        """The declaration says "secret", so a new one cannot forget repr=False."""
+        from oldman.conf.schemas import (
+            DatabaseConfig,
+            FingerprintSecurityConfig,
+            NATSConnectionConfig,
+            RedisConnectionConfig,
+            SMTPMailConfig,
+            WebConfig,
+            WebSecurityConfig,
+        )
+
+        expected = (
+            (FingerprintSecurityConfig, "aes_secret_key"),
+            (WebSecurityConfig, "secret_key"),
+            (DatabaseConfig, "url"),
+            (RedisConnectionConfig, "redis_url"),
+            (NATSConnectionConfig, "nats_url"),
+            (SMTPMailConfig, "password"),
+            (WebConfig, "forwarded_secret"),
+        )
+        for model, name in expected:
+            self.assertFalse(
+                model.model_fields[name].repr,
+                f"{model.__name__}.{name} would be printed in a repr",
+            )

@@ -202,6 +202,34 @@ class OldmanModelAdminTest(unittest.TestCase):
         self.assertIn("id", oracle_form_class()._fields)
         self.assertEqual(["InputRequired"], [type(validator).__name__ for validator in oracle_form_class().id.validators])
 
+    def test_boolean_and_date_cells_render_badges_and_iso_raw_values(self) -> None:
+        """Generic list cells must not print Python's True/False or repr timestamps."""
+        import datetime as dt
+
+        admin = ModelAdmin(AdminTestArticle)
+        instance = SimpleNamespace(
+            is_public=True,
+            archived=False,
+            published_at=dt.datetime(2026, 1, 5, 9, 1, 30),
+            due_on=dt.date(2026, 2, 1),
+            title="Plain",
+        )
+
+        self.assertEqual(
+            '<span class="om-badge om-badge-success">Yes</span>',
+            str(admin.table_cell_value(instance, "is_public", admin_prefix="/admin")),
+        )
+        self.assertEqual(
+            '<span class="om-badge om-badge-default">No</span>',
+            str(admin.table_cell_value(instance, "archived", admin_prefix="/admin")),
+        )
+        self.assertEqual(
+            ("2026-01-05 09:01", "2026-01-05T09:01:30"),
+            admin.table_cell_value(instance, "published_at", admin_prefix="/admin"),
+        )
+        self.assertEqual(("2026-02-01", "2026-02-01"), admin.table_cell_value(instance, "due_on", admin_prefix="/admin"))
+        self.assertEqual("Plain", admin.table_cell_value(instance, "title", admin_prefix="/admin"))
+
     def test_model_admin_has_no_parallel_crud_api(self) -> None:
         """Admin 不得在共享 Table/ModelForm 之外保留第二套 CRUD。"""
 

@@ -1,26 +1,27 @@
 {% extends "admin/base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
 {% block title %}{{ form_title|default(model_admin.get_form_document_title(object)) }} · Oldman Admin{% endblock %}
 
 {% block content %}
   {% set card_classes = "max-w-3xl" if form_title is defined else model_admin.form_card_classes %}
   <div class="om-page-section">
-    <div class="om-page-header">
-      <h1 class="om-page-title">{{ form_title|default(model_admin.get_form_page_title(object)) }}</h1>
-      {% if form_title is not defined and model_admin.form_back_label %}
-        <div class="page-title-right">
-          <a href="{{ admin_prefix }}/{{ model_admin.model_path }}" class="om-button om-button-soft-secondary om-button-sm">
-            <i class="ri-arrow-left-line align-bottom mr-1" aria-hidden="true"></i>{{ model_admin.form_back_label }}
-          </a>
-        </div>
-      {% endif %}
-    </div>
-    <div class="om-card{% if card_classes %} {{ card_classes }}{% endif %}">
+    {% set page_title = form_title|default(model_admin.get_form_page_title(object)) %}
+    {% if form_title is not defined and model_admin.form_back_label %}
+      {% call page_head(page_title) %}
+        <a href="{{ admin_prefix }}/{{ model_admin.model_path }}" class="om-button om-button-secondary">
+          <i class="ri-arrow-left-line" aria-hidden="true"></i>{{ model_admin.form_back_label }}
+        </a>
+      {% endcall %}
+    {% else %}
+      {{ page_head(page_title) }}
+    {% endif %}
+    <div class="om-card om-form-card{% if card_classes %} {{ card_classes }}{% endif %}">
       {% if form_title is defined or model_admin.show_form_card_header %}
         <div class="om-card-header">
           <h2 class="om-card-title">{{ form_title|default(model_admin.get_form_card_title(object)) }}</h2>
           {% if object and show_delete_action|default(true) and model_admin.has_delete_permission(request) %}
-            <a class="om-button om-button-danger om-button-sm" href="{{ model_admin.get_object_url(object, admin_prefix=admin_prefix, action='delete') }}">{{ _("Delete") }}</a>
+            <a class="om-button om-button-outline-danger om-button-sm" href="{{ model_admin.get_object_url(object, admin_prefix=admin_prefix, action='delete') }}">{{ _("Delete") }}</a>
           {% endif %}
         </div>
       {% endif %}

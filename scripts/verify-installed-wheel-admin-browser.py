@@ -23,10 +23,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 
-try:
-    from scripts.linux_process_tree import ProcessTreeError, ProcessTreeTracker, tracked_popen
-except ModuleNotFoundError:  # pragma: no cover - direct script execution
-    from linux_process_tree import ProcessTreeError, ProcessTreeTracker, tracked_popen
+from oldman.testing import ProcessTreeError, ProcessTreeTracker, tracked_popen
 
 ADMIN_USERNAME = "installed_wheel_admin"
 ADMIN_PASSWORD = "InstalledWheelAdmin123"
@@ -605,7 +602,7 @@ def verify_with_chrome(
     static_root: Path,
 ) -> None:
     """Exercise login and the async model list in a real isolated Chrome profile."""
-    from browser_cdp import BrowserResult, ChromePage, configure_viewport, navigate
+    from oldman.testing import BrowserResult, ChromePage, configure_viewport, navigate
 
     browser_result = BrowserResult()
     with ChromePage(browser_result) as client:
@@ -799,7 +796,7 @@ def report_server_shutdown(process: subprocess.Popen[str], stdout: str, stderr: 
 
 def install_and_verify(wheel: Path) -> None:
     """Install exactly one wheel, start Admin from it, then run Chrome."""
-    from browser_cdp import find_free_port
+    from oldman.testing import find_free_port
 
     with tempfile.TemporaryDirectory(prefix="oldman-installed-admin-browser-") as temporary_directory:
         root = Path(temporary_directory)

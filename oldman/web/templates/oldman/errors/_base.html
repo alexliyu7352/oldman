@@ -6,18 +6,41 @@
     <link rel="icon" href="data:,">
     <title>{% block title %}Oldman{% endblock %}</title>
     <style>
-      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #172033; background: #f6f8fb; }
+      :root {
+        color-scheme: light dark;
+        --om-error-canvas: #fafafa;
+        --om-error-text-strong: #09090b;
+        --om-error-text: #3f3f46;
+        --om-error-primary: #2563eb;
+        --om-error-primary-hover: #1d4ed8;
+        --om-error-primary-focus: rgba(59, 130, 246, .35);
+        --om-error-brand-secondary: #16a34a;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--om-error-text-strong);
+        background: var(--om-error-canvas);
+      }
+      :root:lang(zh-Hant) { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans CJK TC", "Source Han Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --om-error-canvas: #09090b;
+          --om-error-text-strong: #f4f4f5;
+          --om-error-text: #a1a1aa;
+          --om-error-primary: #3b82f6;
+          --om-error-primary-hover: #60a5fa;
+        }
+      }
       * { box-sizing: border-box; }
       body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 2rem; }
       main { width: min(100%, 40rem); }
       .brand { display: inline-flex; align-items: center; gap: .7rem; color: inherit; font-size: 1.25rem; font-weight: 700; text-decoration: none; }
-      .brand-mark { position: relative; width: 1.45rem; height: 1.45rem; transform: rotate(45deg); border-radius: .35rem; background: #155eef; }
-      .brand-mark::after { content: ""; position: absolute; inset: .42rem -.28rem -.28rem .42rem; border-radius: .3rem; background: #079455; }
-      .status { margin: 5rem 0 0; color: #155eef; font-size: clamp(4rem, 16vw, 6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+      .brand-mark { position: relative; width: 1.45rem; height: 1.45rem; transform: rotate(45deg); border-radius: .35rem; background: var(--om-error-primary); }
+      .brand-mark::after { content: ""; position: absolute; inset: .42rem -.28rem -.28rem .42rem; border-radius: .3rem; background: var(--om-error-brand-secondary); }
+      .status { margin: 5rem 0 0; color: var(--om-error-primary); font-size: clamp(4rem, 16vw, 6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; }
       h1 { margin: 1.25rem 0 0; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 1.15; text-wrap: balance; }
-      p { max-width: 38rem; margin: 1rem 0 0; color: #475467; font-size: 1rem; line-height: 1.7; text-wrap: pretty; }
-      .action { display: inline-flex; margin-top: 2rem; padding: .7rem 1rem; border-radius: .5rem; background: #155eef; color: #fff; font-weight: 600; text-decoration: none; }
-      .action:focus-visible { outline: .2rem solid #84adff; outline-offset: .2rem; }
+      p { max-width: 38rem; margin: 1rem 0 0; color: var(--om-error-text); font-size: 1rem; line-height: 1.7; text-wrap: pretty; }
+      .action { display: inline-flex; margin-top: 2rem; padding: .7rem 1rem; border-radius: .5rem; background: var(--om-error-primary); color: #fff; font-weight: 600; text-decoration: none; }
+      .action:hover { background: var(--om-error-primary-hover); }
+      .action:focus-visible { outline: .2rem solid var(--om-error-primary-focus); outline-offset: .2rem; }
     </style>
   </head>
   <body>

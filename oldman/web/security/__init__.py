@@ -8,6 +8,7 @@ from oldman.web.security.fingerprint import (
     log_fake_fingerprint_attempt,
     validate_payload,
 )
+from oldman.web.security.guard import FINGERPRINT_HEADER, fingerprint_required
 from oldman.web.security.keys import (
     WebSecurityPurpose,
     configured_web_security_key,
@@ -15,11 +16,13 @@ from oldman.web.security.keys import (
 )
 
 __all__ = [
+    "FINGERPRINT_HEADER",
     "AESGcmDecrypt",
     "FakeLog",
     "WebSecurityPurpose",
     "configured_web_security_key",
     "derive_web_security_key",
+    "fingerprint_required",
     "get_fingerprint_from_front",
     "get_stats",
     "log_fake_fingerprint_attempt",

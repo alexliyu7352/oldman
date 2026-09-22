@@ -19,7 +19,7 @@ EPG Demo 已提供 `background-stats`，不需要新增 collector 服务。完�
 
 命令注册并启动一个 BackgroundTaskManager 协程，每秒从数据库读取一次项目总数，拿到两次样本就停止。它不启动 Web、不写数据库，也不从浏览器连接启动采集器。若 YAML 启用 NATS/Taskiq，App 命令生命周期仍会先连接这些设施；只试本项时可在本机 YAML 关闭 `nats_bus.enabled`、`taskiq.enabled`，不需要 Worker/Scheduler。
 
-输出包含 `samples`、`running`、`stopped` 和 `cleanup_completed`。预设数据未改时全表样本是 `[120, 120]`，团队 1 为 `[15, 15]`；以自己的数据库为准，不应硬编码这些数量。`running.is_alive=true` 表明协程确实还在运行；显式停止后 `stopped.is_alive=false`，`cleanup_completed=true` 表明协程 finally 已执行。最后停止监控、移除登记，再关闭数据库。
+输出包含 `samples`、`running`、`stopped` 和 `cleanup_completed`。预设数据未改时全表样本是 `[120, 120]`，团队 1 为 `[15, 15]`；以自己的数据库为准，不应硬编码这些数量。`running.is_alive=true` 表明协程确实还在运行；显式停止后 `stopped.is_alive=false`，`cleanup_completed=true` 表明协程 finally 已执行。最后停止任务、移除登记，再关闭数据库。
 
 `--team-id 0` 是参数错误，退出码 2；合法但不存在的 ID 是协程中的真实查询失败，退出码 1，也会清理资源。存在但没有项目的团队返回 `[0, 0]`，不是错误。只等待本次两次采样，最多 10 秒；超时同样结束并清理，不输出假结果。
 

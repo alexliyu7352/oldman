@@ -118,8 +118,48 @@ function parsePluralRule(header) {
   const match = /plural\s*=\s*([^;]+)/.exec(header ?? "");
   return match?.[1]?.trim();
 }
+const PO_ESCAPES = {
+  a: "\x07",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "	",
+  v: "\v",
+  "\\": "\\",
+  '"': '"',
+  "'": "'",
+  "?": "?"
+};
 function readPoString(input) {
-  return JSON.parse(input);
+  const body = input.slice(1, -1);
+  let result = "";
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index];
+    if (character !== "\\") {
+      result += character;
+      continue;
+    }
+    const next = body[index + 1];
+    if (next === void 0) break;
+    if (next === "x" || next === "X") {
+      const hex = /^[0-9a-fA-F]{1,2}/.exec(body.slice(index + 2))?.[0];
+      if (hex) {
+        result += String.fromCharCode(Number.parseInt(hex, 16));
+        index += 1 + hex.length;
+        continue;
+      }
+    }
+    const octal = /^[0-7]{1,3}/.exec(body.slice(index + 1))?.[0];
+    if (octal) {
+      result += String.fromCharCode(Number.parseInt(octal, 8));
+      index += octal.length;
+      continue;
+    }
+    result += PO_ESCAPES[next] ?? next;
+    index += 1;
+  }
+  return result;
 }
 const sourceExtensions = /* @__PURE__ */ new Set([".js", ".jsx", ".ts", ".tsx"]);
 const ignoredDirectoryNames = /* @__PURE__ */ new Set([

@@ -614,6 +614,9 @@ def _write_manifest(
         "version": _MANIFEST_VERSION,
         "files": dict(sorted(files.items())),
     }
+    # 这里刻意用 stdlib：没有 ensure_ascii=False，非 ASCII 会被转义成 \uXXXX，
+    # 而 orjson 永远输出原样 UTF-8 且没有这个选项。清单是发布产物并受打包门禁比对，
+    # 换了会改变文件内容。
     serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     _atomic_write(path, serialized.encode("utf-8"))
 

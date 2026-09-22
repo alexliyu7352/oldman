@@ -13,19 +13,13 @@ from sqlalchemy.dialects import mysql, oracle, postgresql, sqlite
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
 
-from oldman.apps.admin.crud import explicit_primary_key_column
-from oldman.apps.admin.forms import AdminUserFilterForm, admin_user_create_form_class
 from oldman.apps.admin.model_admin import AdminUserModelAdmin, ModelAdmin
 from oldman.apps.admin.table import AdminModelTable, _AdminUserModelTable
-from oldman.apps.admin.users import (
-    AdminUserManagementError,
-    change_admin_user_password,
-    set_admin_user_active,
-    validate_admin_user_delete,
-)
-from oldman.auth import UserModelContractError
+from oldman.auth import UserManagementError, UserModelContractError, set_user_active, validate_user_delete
 from oldman.auth.models import User
+from oldman.db import explicit_primary_key_column
 from oldman.db.models import DatabaseModel
+from oldman.web.auth.forms import UserFilterForm, user_create_form_class
 from oldman.web.session import SessionData
 
 
@@ -165,19 +159,19 @@ class OldmanAdminUserManagementTest(unittest.TestCase):
         user.set_password("OldPass!2026")
         old_hash = user.password_hash
 
-        change_admin_user_password(user, "NewPass!2026")
+        user.set_password("NewPass!2026")
         self.assertNotEqual(old_hash, user.password_hash)
         self.assertFalse(user.check_password("OldPass!2026"))
         self.assertTrue(user.check_password("NewPass!2026"))
 
-        with self.assertRaisesRegex(AdminUserManagementError, "cannot disable current user"):
-            set_admin_user_active(user, False, current_user_id=9)
-        with self.assertRaisesRegex(AdminUserManagementError, "cannot delete current user"):
-            validate_admin_user_delete(user, current_user_id=9)
+        with self.assertRaisesRegex(UserManagementError, "cannot disable current user"):
+            set_user_active(user, False, current_user_id=9)
+        with self.assertRaisesRegex(UserManagementError, "cannot delete current user"):
+            validate_user_delete(user, current_user_id=9)
 
         superuser = User(id=10, username="root", password_hash="", is_active=True, is_staff=True, is_superuser=True)
-        with self.assertRaisesRegex(AdminUserManagementError, "cannot delete superuser"):
-            validate_admin_user_delete(superuser, current_user_id=9)
+        with self.assertRaisesRegex(UserManagementError, "cannot delete superuser"):
+            validate_user_delete(superuser, current_user_id=9)
 
     def test_user_filter_and_table_restore_source_contract(self) -> None:
         """User list keeps filters, ten-row pages, statuses and row-level actions."""
@@ -189,7 +183,7 @@ class OldmanAdminUserManagementTest(unittest.TestCase):
             db_manager=SimpleNamespace(),  # type: ignore[arg-type]
             admin_prefix="/admin",
         )
-        filter_form = AdminUserFilterForm.from_query(request)
+        filter_form = UserFilterForm.from_query(request)
         filter_html = str(asyncio.run(filter_form.render(table_target="#admin-oldman_user-table")))  # type: ignore[call-arg]
 
         self.assertEqual(10, table.page_size)
@@ -313,7 +307,7 @@ class OldmanAdminUserManagementTest(unittest.TestCase):
         self.assertIsNone(explicit_primary_key_column(mapper(identity_table.c.id), dialect=oracle.dialect()))
         self.assertIsNone(explicit_primary_key_column(mapper(sequence_table.c.id), dialect=oracle.dialect()))
         self.assertIs(manual_table.c.id, explicit_primary_key_column(mapper(manual_table.c.id), dialect=postgresql.dialect()))
-        oracle_form = admin_user_create_form_class(User, dialect=oracle.dialect())()
+        oracle_form = user_create_form_class(User, dialect=oracle.dialect())()
         self.assertIn("id", oracle_form._fields)
         self.assertIn("InputRequired", [type(validator).__name__ for validator in oracle_form._fields["id"].validators])
 

@@ -13,7 +13,11 @@ from oldman.conf.schemas import (
     FingerprintSecurityConfig,
 )
 from oldman.providers.redis.client import RedisClientRegistry
-from oldman.web.security.rate_limiter import FingerprintIPRateLimiter, RedisFixedWindowRateLimiter
+from oldman.web.security.rate_limiter import (
+    FingerprintIPRateLimiter,
+    RedisFixedWindowRateLimiter,
+    window_retry_after,
+)
 from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
 
@@ -75,6 +79,43 @@ class RedisRateLimiterIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual("2", await self.connection.get(key))
         self.assertGreater(await self.connection.ttl(key), 0)
+
+    async def test_reading_a_window_does_not_charge_it_but_recording_does(self) -> None:
+        """A caller must be able to check the budget before deciding to spend any of it."""
+        now = 1_700_000_000
+        period = 60
+        namespace = f"oldman-test:fixed:{uuid.uuid4().hex}"
+        key = f"{namespace}:subject:sessions:{now - (now % period)}"
+        self.keys.add(key)
+        limiter = RedisFixedWindowRateLimiter(self.client, namespace=namespace)
+
+        with patch("oldman.web.security.rate_limiter.fixed_window.time.time", return_value=now):
+            empty = await limiter.count("subject", "/sessions", period)
+            reread = await limiter.count("subject", "/sessions", period)
+            first = await limiter.record("subject", "/sessions", period)
+            second = await limiter.record("subject", "/sessions", period)
+            after_recording = await limiter.count("subject", "/sessions", period)
+
+        self.assertEqual(0, empty)
+        self.assertEqual(0, reread)
+        self.assertEqual(1, first)
+        self.assertEqual(2, second)
+        self.assertEqual(2, after_recording)
+        self.assertGreater(await self.connection.ttl(key), 0)
+
+    async def test_retry_after_is_the_time_left_in_the_current_window(self) -> None:
+        """The wait a turned-away caller is told to observe is when the count actually resets."""
+        period = 900
+
+        with patch("oldman.web.security.rate_limiter.fixed_window.time.time", return_value=1_700_000_100):
+            at_window_start = window_retry_after(period)
+        with patch("oldman.web.security.rate_limiter.fixed_window.time.time", return_value=1_700_000_101):
+            one_second_in = window_retry_after(period)
+
+        self.assertEqual(period, at_window_start)
+        self.assertEqual(period - 1, one_second_in)
+        with self.assertRaisesRegex(ValueError, "period must be greater than zero"):
+            window_retry_after(0)
 
     async def test_fingerprint_limits_blacklist_and_relationship_anomalies(self) -> None:
         """The migrated Lua policy should enforce limits and relationship signals."""

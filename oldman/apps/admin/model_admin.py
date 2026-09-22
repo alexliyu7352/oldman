@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import datetime as dt
 from collections.abc import Sequence
 from typing import Any, cast
 from urllib.parse import quote, unquote
@@ -17,13 +18,15 @@ from sqlalchemy.sql.sqltypes import String, Text
 from wtforms import BooleanField
 from wtforms.validators import InputRequired
 
-from oldman.apps.admin.crud import coerce_value, explicit_primary_key_column, session_dialect
+from oldman.apps.admin.crud import coerce_value
 from oldman.apps.admin.permissions import has_admin_permission
 from oldman.auth import validate_user_model
-from oldman.db import ModelMetadata, resolve_model_display_names
+from oldman.db import ModelMetadata, explicit_primary_key_column, resolve_model_display_names, session_dialect
 from oldman.i18n import gettext, gettext_lazy
+from oldman.web.auth.tables import user_cell_value, user_row_actions
 from oldman.web.components.forms.models import model_field_for_column
 from oldman.web.components.tables import Column as WebTableColumn
+from oldman.web.components.tables import badge, date_cell
 from oldman.web.components.tables.views import normalize_display_value
 from oldman.web.session import SessionData
 
@@ -44,6 +47,9 @@ class ModelAdmin:
     exclude: Sequence[str] = ()
     page_size = 20
     table_selectable = False
+    # Table toolbar tools (columns / density / export); export needs export_formats.
+    table_toolbar: Sequence[str] = ("columns", "density", "export")
+    export_formats: Sequence[str] = ("csv",)
     empty_message = cast(str, gettext_lazy("No records found."))
     require_superuser = False
     # Consumer-defined icons and utilities are supplied by the app-owned Admin
@@ -229,8 +235,19 @@ class ModelAdmin:
         return normalize_display_value(getattr(instance, field_name, None))
 
     def table_cell_value(self, instance: Any, field_name: str, *, admin_prefix: str) -> Any:
-        """Return a field display value for the shared Admin Table."""
+        """Return a field display value for the shared Admin Table.
+
+        Booleans render as a Yes/No badge and dates as a readable timestamp whose
+        raw cell value stays ISO 8601; everything else keeps the normalised value.
+        """
         del admin_prefix
+        value = getattr(instance, field_name, None)
+        if isinstance(value, bool):
+            return badge(gettext("Yes") if value else gettext("No"), "success" if value else "secondary")
+        if isinstance(value, dt.datetime):
+            return date_cell(value)
+        if isinstance(value, dt.date):
+            return date_cell(value, date_format="%Y-%m-%d")
         return self.row_value(instance, field_name)
 
     def table_action_html(self, instance: Any, *, admin_prefix: str) -> Markup:
@@ -369,18 +386,15 @@ class AdminUserModelAdmin(ModelAdmin):
 
     def build_filter_form(self, request: Any) -> Any | None:
         """Bind the shared Admin user filter form to the list query."""
-        from oldman.apps.admin.forms import AdminUserFilterForm
+        from oldman.web.auth.forms import UserFilterForm
 
-        return AdminUserFilterForm.from_query(request)
+        return UserFilterForm.from_query(request)
 
     def build_form(self, request: Any, *, instance: Any | None = None, session: Any = None):
         """Use dedicated create/edit forms without exposing password hashes."""
-        from oldman.apps.admin.forms import (
-            admin_user_create_form_class,
-            admin_user_edit_form_class,
-        )
+        from oldman.web.auth.forms import user_create_form_class, user_edit_form_class
 
-        form_class = admin_user_create_form_class(self.model, session=session) if instance is None else admin_user_edit_form_class(self.model)
+        form_class = user_create_form_class(self.model, session=session) if instance is None else user_edit_form_class(self.model)
         form = form_class.from_request(request, instance=instance, session=session)
         form.current_user_id = request_user_id(request)
         return form
@@ -413,84 +427,42 @@ class AdminUserModelAdmin(ModelAdmin):
 
     def table_cell_value(self, instance: Any, field_name: str, *, admin_prefix: str) -> Any:
         """Render source-compatible identity links, status badges and login state."""
-        value = getattr(instance, field_name, None)
-        if field_name == "username":
-            url = self.get_object_url(instance, admin_prefix=admin_prefix, action="edit")
-            return Markup('<a class="link-primary font-medium" href="{}">{}</a>').format(escape(url), escape(value or ""))
-        if field_name == "is_active":
-            return admin_badge(gettext("Active") if value else gettext("Disabled"), "success" if value else "danger")
-        if field_name == "is_staff":
-            return admin_badge(gettext("Staff") if value else gettext("No Staff"), "info" if value else "secondary")
-        if field_name == "is_superuser":
-            return admin_badge(gettext("Superuser") if value else gettext("User"), "warning" if value else "secondary")
-        if field_name == "last_login_at":
-            if not value:
-                return Markup('<span class="text-default-500">{}</span>').format(escape(gettext("Never"))), ""
-            return value.strftime("%Y-%m-%d %H:%M"), value.isoformat()
+        value = user_cell_value(instance, field_name, edit_url=self.get_object_url(instance, admin_prefix=admin_prefix, action="edit"))
+        if value is not None:
+            return value
         return super().table_cell_value(instance, field_name, admin_prefix=admin_prefix)
 
     def table_action_html(self, instance: Any, *, admin_prefix: str) -> Markup:
         """Expose edit, password, status and delete through the shared Dropdown."""
-        edit_url = self.get_object_url(instance, admin_prefix=admin_prefix, action="edit")
-        password_modal_url = self.get_object_url(instance, admin_prefix=admin_prefix, action="password-modal")
-        status_modal_url = self.get_object_url(instance, admin_prefix=admin_prefix, action="status-modal")
-        delete_modal_url = self.get_object_url(instance, admin_prefix=admin_prefix, action="delete-modal")
-        status_label = gettext("Disable") if bool(getattr(instance, "is_active", False)) else gettext("Enable")
-        return Markup(
-            '<div class="om-dropdown">'
-            '<button class="om-button om-button-soft-secondary om-button-sm" type="button" data-om-dropdown-toggle aria-expanded="false">'
-            '<i class="ri-more-fill align-middle" aria-hidden="true"></i><span class="sr-only">{}</span>'
-            "</button>"
-            '<ul class="om-dropdown-menu om-dropdown-menu-end">'
-            '<li><a class="om-dropdown-item" href="{}"><i class="ri-pencil-fill align-bottom mr-2 text-default-500"></i>{}</a></li>'
-            '<li><button class="om-dropdown-item" type="button" data-om-modal-target="#user-password-modal" data-om-modal-url="{}"><i class="ri-lock-password-line align-bottom mr-2 text-default-500"></i>{}</button></li>'
-            '<li><button class="om-dropdown-item" type="button" data-om-modal-target="#user-status-modal" data-om-modal-url="{}"><i class="ri-toggle-line align-bottom mr-2 text-default-500"></i>{}</button></li>'
-            '<li><button class="om-dropdown-item text-red-700" type="button" data-om-modal-target="#user-delete-modal" data-om-modal-url="{}"><i class="ri-delete-bin-line align-bottom mr-2"></i>{}</button></li>'
-            "</ul>"
-            "</div>"
-        ).format(
-            escape(gettext("User actions")),
-            escape(edit_url),
-            escape(gettext("Edit")),
-            escape(password_modal_url),
-            escape(gettext("Change Password")),
-            escape(status_modal_url),
-            escape(status_label),
-            escape(delete_modal_url),
-            escape(gettext("Delete")),
+        return user_row_actions(
+            instance,
+            edit_url=self.get_object_url(instance, admin_prefix=admin_prefix, action="edit"),
+            password_modal_url=self.get_object_url(instance, admin_prefix=admin_prefix, action="password-modal"),
+            status_modal_url=self.get_object_url(instance, admin_prefix=admin_prefix, action="status-modal"),
+            delete_modal_url=self.get_object_url(instance, admin_prefix=admin_prefix, action="delete-modal"),
         )
 
     def change_password(self, instance: Any, raw_password: str) -> None:
         """Replace a password through the configured user model protocol."""
-        from oldman.apps.admin.users import change_admin_user_password
-
-        change_admin_user_password(instance, raw_password)
+        instance.set_password(raw_password)
 
     def set_active(self, instance: Any, is_active: bool, *, current_user_id: int | None) -> None:
         """Apply the source self-disable protection."""
-        from oldman.apps.admin.users import set_admin_user_active
+        from oldman.auth import set_user_active
 
-        set_admin_user_active(instance, is_active, current_user_id=current_user_id)
+        set_user_active(instance, is_active, current_user_id=current_user_id)
 
     def validate_delete(self, instance: Any, *, current_user_id: int | None) -> None:
         """Protect the current user and every superuser from deletion."""
-        from oldman.apps.admin.users import validate_admin_user_delete
+        from oldman.auth import validate_user_delete
 
-        validate_admin_user_delete(instance, current_user_id=current_user_id)
+        validate_user_delete(instance, current_user_id=current_user_id)
 
 
 def request_user_id(request: Any) -> int | None:
     """Return the integer user identity stored in the current SessionData."""
     session = getattr(getattr(request, "ctx", None), "session", None)
     return session.user_id if isinstance(session, SessionData) else None
-
-
-def admin_badge(label: str, tone: str) -> Markup:
-    """Render a shared badge primitive without introducing a second component."""
-    allowed_tones = {"danger", "info", "primary", "secondary", "success", "warning"}
-    safe_tone = tone if tone in allowed_tones else "secondary"
-    tone_class = "default" if safe_tone == "secondary" else safe_tone
-    return Markup('<span class="om-badge om-badge-{}">{}</span>').format(escape(tone_class), escape(label))
 
 
 def is_text_column(column: Column[Any]) -> bool:

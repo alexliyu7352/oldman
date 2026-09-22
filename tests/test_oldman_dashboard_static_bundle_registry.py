@@ -7,8 +7,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
-from oldman.web.staticfiles import StaticBundle, StaticBundleRegistry
+from oldman.web.staticfiles import StaticBundle, StaticBundleRegistry, app_bundle_registry, dev_mode_requested, register_project_bundle
 
 
 class StaticBundleRegistryTest(unittest.TestCase):
@@ -169,38 +170,63 @@ class StaticBundleRegistryTest(unittest.TestCase):
         self,
     ) -> None:
         """Dashboard scaffold validates and uses the collected public root."""
-        consumer_paths = (
-            (
-                Path(
-                    "oldman/scaffolds/project/dashboard/services/"
-                    "{{ service_name }}.py.tpl"
-                ),
-                'manifest_path=Path(static_root) / "dist" / ".vite" / "manifest.json"',
-                "Dashboard production assets require web.static.root",
-            ),
-        )
+        source = Path("oldman/scaffolds/project/dashboard/services/{{ service_name }}.py.tpl").read_text(encoding="utf-8")
 
-        for consumer_path, manifest_expression, error_message in consumer_paths:
-            with self.subTest(consumer_path=consumer_path):
-                source = consumer_path.read_text(encoding="utf-8")
-                self.assertIn(
-                    "static_root = str(settings.web.static.root).strip()",
-                    source,
-                )
-                self.assertIn(
-                    "static_url = str(settings.web.static.url).strip()",
-                    source,
-                )
-                self.assertIn(
-                    "if not dev_mode and (not static_root or not static_url):",
-                    source,
-                )
-                self.assertIn(error_message, source)
-                self.assertIn(manifest_expression, source)
-                self.assertNotIn(
-                    'settings.web.static.dir / "dist" / ".vite" / "manifest.json"',
-                    source,
-                )
+        # The scaffold registers through the framework helper instead of assembling the bundle itself.
+        self.assertIn("register_project_bundle(", source)
+        self.assertIn("static_root=settings.web.static.root,", source)
+        self.assertIn("static_url=settings.web.static.url,", source)
+        self.assertIn("dev_mode=dev_mode_requested(),", source)
+        self.assertIn("registry.install_template_globals(environment)", source)
+        # 启动前两道检查：前端产物在，配置里的语言也都编译过。
+        self.assertIn("registry.ensure_build_available(APP_MAIN_BUNDLE)", source)
+        self.assertIn("ensure_frontend_catalogs(registry, APP_MAIN_BUNDLE, source_dir=", source)
+        self.assertNotIn("StaticBundle(", source)
+        self.assertNotIn('settings.web.static.dir / "dist" / ".vite" / "manifest.json"', source)
+
+    def test_project_bundle_helper_reads_the_collected_root_and_fails_without_it(self) -> None:
+        """register_project_bundle 读取收集后的 static root，产品模式缺配置立即失败。"""
+        registry = StaticBundleRegistry()
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = register_project_bundle(
+                registry,
+                name="app:main",
+                entry_path="src/main.ts",
+                static_root=directory,
+                static_url="/static/",
+                dev_mode=False,
+                passthrough_prefixes=("theme/",),
+            )
+        self.assertIs(bundle, registry.get("app:main"))
+        self.assertEqual(Path(directory) / "dist" / ".vite" / "manifest.json", bundle.manifest_path)
+        self.assertEqual("/static/dist", bundle.static_url)
+        self.assertEqual(("theme/",), bundle.passthrough_prefixes)
+
+        development = register_project_bundle(registry, name="app:dev", entry_path="src/main.ts", static_root="", static_url="", dev_mode=True, dev_server_url="http://localhost:5173/")
+        self.assertEqual(("http://localhost:5173", True), (development.normalized_dev_server_url(), development.dev_mode))
+        with self.assertRaisesRegex(RuntimeError, "settings.web.static.root and settings.web.static.url"):
+            register_project_bundle(registry, name="app:broken", entry_path="src/main.ts", static_root="", static_url="/static", dev_mode=False)
+
+    def test_dev_mode_flag_and_per_app_registry(self) -> None:
+        """OLDMAN_DEV 决定开发模式；同一个 app 只有一个 registry，模板 globals 从它注册。"""
+        for value, expected in (("1", True), ("true", True), ("YES", True), ("on", True), ("0", False), ("", False)):
+            self.assertIs(expected, dev_mode_requested({"OLDMAN_DEV": value}))
+        self.assertFalse(dev_mode_requested({}))
+        # 只认 OLDMAN_DEV：把部署环境名当开关的话，生产进程会去连一个不存在的 Vite dev server。
+        self.assertFalse(dev_mode_requested({"OLDMAN_ENV": "development"}))
+        self.assertFalse(dev_mode_requested({"OLDMAN_ENV": "development", "OLDMAN_DEV": "0"}))
+
+        app = SimpleNamespace(ctx=SimpleNamespace())
+        registry = app_bundle_registry(app)
+        self.assertIs(registry, app_bundle_registry(app))
+        self.assertIs(registry, app.ctx.static_bundle_registry)
+
+        environment = SimpleNamespace(globals={})
+        registry.install_template_globals(environment)
+        self.assertEqual(
+            {"bundle_asset_base_url", "bundle_asset_url", "bundle_client", "bundle_entry", "bundle_modulepreload", "bundle_script", "bundle_styles"},
+            set(environment.globals),
+        )
 
 
 if __name__ == "__main__":

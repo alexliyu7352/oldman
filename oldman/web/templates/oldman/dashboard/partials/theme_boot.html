@@ -1,0 +1,15 @@
+<script data-om-critical="theme">
+  (function () {
+    var key = "oldman:dashboard.theme";
+    var theme = null;
+    try {
+      theme = window.localStorage.getItem(key);
+    } catch (error) {
+      theme = null;
+    }
+    if (theme !== "light" && theme !== "dark") {
+      theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : null;
+    }
+    if (theme) document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>

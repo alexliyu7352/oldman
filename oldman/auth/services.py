@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as dt
 from typing import Any
 
 from sqlalchemy.exc import StatementError
@@ -11,9 +10,11 @@ from sqlmodel import select
 from oldman.auth.base import AbstractUser
 from oldman.auth.contracts import UserModelContractError
 from oldman.auth.registry import get_user_model
+from oldman.auth.security import run_dummy_verification
 from oldman.auth.settings import AuthSettings
 from oldman.db.session import DatabaseManager
 from oldman.db.session import db_manager as default_db_manager
+from oldman.utils.date import naive_utcnow
 
 
 class UserIdentityError(ValueError):
@@ -98,6 +99,10 @@ async def authenticate_user(
         db_manager=db_manager,
     )
     if user is None or not bool(user.is_active):
+        # Hash anyway, so that "no such account" takes as long to answer as "wrong
+        # password". Skipping it would let a caller read the existence of a username off
+        # the response time, which is what the single shared error message denies it.
+        run_dummy_verification(password)
         return None
     if not bool(user.check_password(password)):
         return None
@@ -166,7 +171,7 @@ async def touch_last_login(
         if user is not None:
             # SQLAlchemy's portable DateTime column is timezone-naive here, so
             # store a naive value whose clock is explicitly UTC.
-            user.last_login_at = dt.datetime.now(dt.UTC).replace(tzinfo=None)
+            user.last_login_at = naive_utcnow()
 
 
 def has_staff_access(user: Any | None, *, require_superuser: bool = False) -> bool:
@@ -174,6 +179,44 @@ def has_staff_access(user: Any | None, *, require_superuser: bool = False) -> bo
     if user is None or not bool(user.is_active) or not bool(user.is_staff):
         return False
     return not require_superuser or bool(user.is_superuser)
+
+
+class UserManagementError(ValueError):
+    """A rejected user-management operation (self-disable, deleting a superuser, ...)."""
+
+
+def user_identity_matches(user: Any, user_id: int | None) -> bool:
+    """Compare one mapped User with the current integer Session identity."""
+    if type(user_id) is not int:
+        return False
+    try:
+        identity = user_identity(user)
+    except UserIdentityError:
+        return False
+    return identity == user_id
+
+
+def set_user_active(user: Any, is_active: bool, *, current_user_id: int | None) -> None:
+    """Change the active state without letting the current User disable itself."""
+    if not is_active and user_identity_matches(user, current_user_id):
+        raise UserManagementError("cannot disable current user")
+    user.is_active = bool(is_active)
+
+
+def validate_user_delete(user: Any, *, current_user_id: int | None) -> None:
+    """Reject deleting the current User or any superuser."""
+    if user_identity_matches(user, current_user_id):
+        raise UserManagementError("cannot delete current user")
+    if bool(user.is_superuser):
+        raise UserManagementError("cannot delete superuser")
+
+
+def normalize_email(value: str | None) -> str | None:
+    """One spelling per address: stripped and lowercased; blank becomes None. Every writer of User.email uses it."""
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
 
 
 async def ensure_superuser(
@@ -200,7 +243,7 @@ async def ensure_superuser(
             session.add(user)
 
         if email:
-            user.email = email
+            user.email = normalize_email(email)
         if created:
             user.display_name = normalized_username
         user.is_active = True
@@ -216,6 +259,11 @@ __all__ = [
     "authenticate_user",
     "change_user_password",
     "ensure_superuser",
+    "UserManagementError",
+    "normalize_email",
+    "set_user_active",
+    "user_identity_matches",
+    "validate_user_delete",
     "get_user_by_id",
     "get_user_by_username",
     "has_staff_access",

@@ -1,0 +1,16 @@
+{# Card body for the "forgot password" page: form (email), CSRF token, back link. #}
+<h1 class="oldman-auth-title">{{ _("Reset your password") }}</h1>
+<p class="oldman-auth-description">{{ _("Enter the email address of your account and we will send you a link to choose a new password.") }}</p>
+
+{% if rate_limited %}
+  <div class="om-alert-danger mt-5">{{ _("Too many requests. Please wait a while before trying again.") }}</div>
+{% endif %}
+
+<form action="{{ action }}" method="post" data-turbo="false" data-om-component="form" class="mt-6 space-y-4">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  <div>
+    {{ form.render_field("email") }}
+  </div>
+  <button class="om-button om-button-primary om-button-lg mt-2 w-full" type="submit">{{ _("Send reset link") }}</button>
+</form>
+<p class="oldman-auth-links"><a class="om-link" href="{{ login_url }}">{{ _("Back to sign in") }}</a></p>

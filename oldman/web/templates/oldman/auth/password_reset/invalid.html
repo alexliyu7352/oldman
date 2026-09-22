@@ -1,0 +1,4 @@
+{# Card body when the link's id or token does not hold (expired, used, tampered). #}
+<h1 class="oldman-auth-title">{{ _("This link is no longer valid") }}</h1>
+<p class="oldman-auth-description">{{ _("The password reset link has expired or was already used. Request a new one to continue.") }}</p>
+<p class="oldman-auth-links"><a class="om-button om-button-secondary" href="{{ request_url }}">{{ _("Request a new link") }}</a></p>

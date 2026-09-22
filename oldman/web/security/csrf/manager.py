@@ -2,6 +2,7 @@ import base64
 import hashlib
 import time
 from collections.abc import Mapping
+from typing import Any
 from urllib.parse import urlparse
 
 from cryptography.fernet import Fernet
@@ -40,12 +41,15 @@ class StatelessCSRFManager:
         session_name: str = "session",
         check_referer: bool | None = None,
         check_url: bool | None = None,
+        enforce: bool | None = None,
     ):
         self.ttl = 3600 if ttl is None else ttl
         self.anonymous_id = anonymous_id
         self.session_name = session_name
         self.check_referer = True if check_referer is None else check_referer
         self.check_url = False if check_url is None else check_url
+        self.enforce = False if enforce is None else enforce
+        self._enforce_overridden = enforce is not None
         self._ttl_overridden = ttl is not None
         self._check_referer_overridden = check_referer is not None
         self._check_url_overridden = check_url is not None
@@ -66,12 +70,11 @@ class StatelessCSRFManager:
                 self.check_referer = csrf_config.check_referer
             if not self._check_url_overridden:
                 self.check_url = csrf_config.check_url
+            if not self._enforce_overridden:
+                self.enforce = csrf_config.enforce
             root_secret = security_config.secret_key
             if root_secret is None:
-                raise RuntimeError(
-                    "settings.web.security.secret_key is empty; "
-                    "run `oldman <service> settings sync`"
-                )
+                raise RuntimeError("settings.web.security.secret_key is empty; run `oldman <service> settings sync`")
             secret = derive_web_security_key(
                 root_secret,
                 WebSecurityPurpose.CSRF,
@@ -83,6 +86,9 @@ class StatelessCSRFManager:
 
         # 挂载到 app.ctx
         app.ctx.csrf = self
+
+        if self.enforce:
+            self.register_enforcement(app)
 
         # 注册中间件
         async def inject_csrf_token(request: Request):
@@ -97,6 +103,7 @@ class StatelessCSRFManager:
         """配置 Jinja2 环境，添加 i18n 扩展"""
         jinja_env = app.ext.environment
         jinja_env.add_extension(CsrfExtension)
+        jinja_env.globals.setdefault("csrf_token_for", csrf_token_for)
 
     def _get_session_id(self, request: Request) -> str:
         """
@@ -151,32 +158,48 @@ class StatelessCSRFManager:
         except Exception:
             return None
 
-    def _validate_referer(self, request: Request) -> bool:
-        """验证 Referer"""
+    @staticmethod
+    def _url_host(value: str | None) -> str | None:
+        """Host of an Origin or Referer value; None for empty, "null", or unparseable.
+
+        `null` is a real Origin value browsers send for opaque/cross-site navigations
+        (a page with `referrer-policy: no-referrer` downgrades a cross-site POST's Origin
+        to exactly this), so it must resolve to "no host", never to a match.
+        """
+        if not value or value == "null":
+            return None
+        host = urlparse(value).hostname
+        return host.lower() if host else None
+
+    def _validate_same_origin(self, request: Request) -> bool:
+        """Reject a cross-origin state-changing request using Origin, then Referer.
+
+        Origin is the primary check: browsers send it on every unsafe-method request and
+        `referrer-policy` cannot suppress it (only the Referer), so it is present exactly
+        when the Referer is not. It is compared for an exact host match against the request
+        host — a foreign host, a `null` value, or a missing host is a cross-site request.
+
+        Referer is the fallback for the rare request that carries no Origin. When neither
+        is present the request is rejected: a browser issuing a real form POST always sends
+        at least Origin, so "both absent" is not a shape a same-site form produces.
+        """
         if not self.check_referer:
             return True
 
-        referer = request.headers.get("Referer") or request.headers.get("referer")
-        if not referer:
-            return True  # 宽松模式，允许无 Referer
-
-        # 这里可以添加更多的同源判断逻辑，比如允许子域名等
-        # 允许子域名的简单实现
-        parsed = urlparse(referer)
-        referer_host = parsed.hostname or parsed.netloc.split(":")[0]
-        # request.host 可能包含端口，将端口去掉
-        request_host = request.host.split(":")[0] if request.host else None
-        # 允许完全相同或 referer 为 request 的子域名（例如 referer=app.example.com, request=example.com）
-        if not referer_host or not request_host:
+        request_host = request.host.split(":")[0].lower() if request.host else None
+        if not request_host:
             return False
-        referer_host = referer_host.lower()
-        request_host = request_host.lower()
-        if referer_host == request_host:
-            return True
-        if referer_host.endswith("." + request_host):
-            return True
+
+        headers = request.headers or {}
+        origin = headers.get("Origin") or headers.get("origin")
+        if origin is not None:
+            return self._url_host(origin) == request_host
+
+        referer = headers.get("Referer") or headers.get("referer")
+        if referer:
+            return self._url_host(referer) == request_host
+
         return False
-        return referer_host == request_host
 
     def get_token_from_request(self, request: Request) -> str | None:
         """从请求中提取 CSRF token"""
@@ -202,11 +225,42 @@ class StatelessCSRFManager:
 
         return None
 
+    SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
+
+    def register_enforcement(self, app: WebApp) -> None:
+        """Validate every unsafe-method request, except handlers marked csrf_exempt.
+
+        Without this, protection is opt-in per route: a handler that simply forgets
+        `@csrf_protect` is unprotected and nothing says so, and `csrf_exempt` had nothing
+        to exempt it from — it set an attribute no code ever read. Enabling enforcement
+        inverts that, so forgetting is safe and exempting is deliberate.
+
+        Off by default: turning it on covers routes that are unprotected today, including
+        API and webhook endpoints that authenticate by token rather than by session, so a
+        deployment has to mark those `csrf_exempt` first.
+        """
+        from sanic.middleware import MiddlewareLocation
+
+        from oldman.web.security.csrf.decorators import enforce_csrf
+
+        async def validate_unsafe_request(request: Request) -> None:
+            """Reject a state-changing request that carries no valid CSRF token."""
+            if request.method.upper() in self.SAFE_METHODS:
+                return
+            handler = getattr(getattr(request, "route", None), "handler", None)
+            if getattr(handler, "_csrf_exempt", False):
+                return
+            enforce_csrf(self, request)
+
+        # Registered after the session middleware, because validation binds the token to
+        # the session this request carries.
+        app.register_middleware(validate_unsafe_request, MiddlewareLocation.REQUEST.name)
+
     def validate_token(self, request: Request, token: str) -> tuple[bool, str]:
         """验证 CSRF token"""
-        # 1. 验证 Referer
-        if not self._validate_referer(request):
-            return False, "Invalid Referer header"
+        # 1. 同源检查：Origin 优先，Referer 回退（no-referrer 关不掉 Origin）
+        if not self._validate_same_origin(request):
+            return False, "Cross-origin request blocked"
 
         # 2. 解密
         payload = self._decrypt_token(token)
@@ -241,3 +295,10 @@ class StatelessCSRFManager:
 
     async def before_server_start(self, app):
         await self._setup_jinja2(app)
+
+
+def csrf_token_for(request: Any) -> str:
+    """A page-level token for the installed manager, e.g. the `csrf-token` meta tag; empty without a manager."""
+    manager = getattr(getattr(getattr(request, "app", None), "ctx", None), "csrf", None)
+    generate = getattr(manager, "generate_token", None)
+    return str(generate(request)) if callable(generate) else ""

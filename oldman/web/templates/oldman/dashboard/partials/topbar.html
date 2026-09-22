@@ -1,4 +1,5 @@
 {% from "oldman/dashboard/components/modal.html" import modal with context %}
+{% from "oldman/dashboard/partials/confirm.html" import confirm_body with context %}
 
 {% macro notification_modal_footer() %}
   <button type="button" class="om-button om-button-light" data-om-modal-close>{{ _("Close") }}</button>
@@ -8,17 +9,15 @@
 {% macro dashboard_topbar(activity_notifications=(), activity_href=none, user_notification_urls=none, language_switcher=none, account_controls=none) %}
 <header id="page-topbar" class="topbar oldman-topbar">
   <div class="flex w-full items-center justify-between gap-3">
-    <div class="flex min-w-0 items-center gap-4">
-      <button type="button" class="oldman-icon-button bg-default-100" id="topnav-hamburger-icon" data-om-sidebar-toggle aria-label="{{ _('Toggle navigation') }}">
-        <span class="hamburger-icon grid gap-1.5">
-          <span class="block h-0.5 w-5 rounded bg-current"></span>
-          <span class="block h-0.5 w-5 rounded bg-current"></span>
-          <span class="block h-0.5 w-5 rounded bg-current"></span>
-        </span>
+    <div class="flex min-w-0 items-center gap-2">
+      <button type="button" class="oldman-icon-button" id="topnav-hamburger-icon" data-om-sidebar-toggle aria-label="{{ _('Toggle navigation') }}">
+        <span class="hamburger-icon inline-flex" aria-hidden="true"><i class="ri-menu-line text-lg leading-none"></i></span>
       </button>
+      <span class="oldman-topbar-separator" data-om-topbar-breadcrumb-separator aria-hidden="true" hidden></span>
+      <nav class="min-w-0" data-om-topbar-breadcrumb aria-label="{{ _('Breadcrumb') }}"></nav>
     </div>
 
-    <div class="flex shrink-0 items-center gap-2">
+    <div class="flex shrink-0 items-center gap-1">
       {% if language_switcher %}{{ language_switcher() }}{% endif %}
 
       <button type="button" class="oldman-icon-button hidden sm:inline-flex" data-toggle="fullscreen" aria-label="{{ _('Fullscreen') }}">
@@ -33,12 +32,12 @@
         <button type="button" class="oldman-icon-button relative" id="page-header-notifications-dropdown" data-om-dropdown-toggle aria-haspopup="true" aria-expanded="false" aria-label="{{ _('Notifications') }}">
           <i class="ri-notification-3-line text-lg"></i>
           {% if user_notification_urls %}
-            <span data-om-user-notification-count class="topbar-badge absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[0.625rem] font-semibold leading-5 text-white" hidden>0</span>
+            <span data-om-user-notification-count class="topbar-badge oldman-topbar-dot" hidden>0</span>
           {% endif %}
         </button>
-        <div class="om-dropdown-menu om-notification-menu hidden" data-om-dropdown-menu hidden aria-labelledby="page-header-notifications-dropdown">
-          <div class="border-b border-default-200 bg-primary-600 px-4 py-3 text-white">
-            <h2 class="text-sm font-semibold">{{ _("Notifications") }}</h2>
+        <div class="om-dropdown-menu om-dropdown-menu-end om-notification-menu hidden" data-om-dropdown-menu hidden aria-labelledby="page-header-notifications-dropdown">
+          <div class="om-notification-menu-header">
+            <h2 class="om-notification-menu-title">{{ _("Notifications") }}</h2>
           </div>
 
           {% if user_notification_urls %}
@@ -46,15 +45,15 @@
               data-om-user-notification-topbar
               data-om-topbar-url="{{ user_notification_urls.topbar }}"
               data-om-center-url="{{ user_notification_urls.center }}"
-              class="border-b border-default-200"
+              class="border-b border-border-soft"
             >
-              <div class="flex items-center justify-between gap-3 px-4 py-2">
-                <h3 class="text-xs font-semibold uppercase tracking-wide text-default-500">{{ _("User notifications") }}</h3>
-                <span data-om-user-notification-count class="om-badge bg-red-50 text-red-700" hidden>0</span>
+              <div class="om-notification-section-header">
+                <h3 class="om-notification-section-title">{{ _("User notifications") }}</h3>
+                <span data-om-user-notification-count class="om-badge om-badge-danger" hidden>0</span>
               </div>
-              <div data-om-user-notification-slot class="px-2 py-1"></div>
-              <div class="border-t border-default-100 px-2 py-3 text-center">
-                <a href="{{ user_notification_urls.center }}" class="om-button om-button-soft-success om-button-sm">
+              <div data-om-user-notification-slot class="om-notification-list"></div>
+              <div class="om-notification-footer">
+                <a href="{{ user_notification_urls.center }}" class="om-button om-button-link om-button-sm">
                   {{ _("View all notifications") }} <i class="ri-arrow-right-line"></i>
                 </a>
               </div>
@@ -62,41 +61,39 @@
           {% endif %}
 
           <section data-om-activity-notifications>
-            <div class="flex items-center justify-between gap-3 px-4 py-2">
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-default-500">{{ _("Current activity") }}</h3>
-              <span data-om-activity-notification-count class="om-badge bg-default-100 text-default-700">{{ activity_notifications | length }}</span>
+            <div class="om-notification-section-header">
+              <h3 class="om-notification-section-title">{{ _("Current activity") }}</h3>
+              <span data-om-activity-notification-count class="om-badge om-badge-default">{{ activity_notifications | length }}</span>
             </div>
-            <div data-om-activity-notification-list class="px-2 py-2">
+            <div data-om-activity-notification-list class="om-notification-list">
               {% for item in activity_notifications %}
-                <div data-om-activity-notification-item class="notification-item group relative rounded-lg px-2 py-2 transition-colors hover:bg-default-50">
-                  <div class="flex gap-3">
-                    <span class="om-notification-icon om-notification-icon-{{ item.tone }}">
-                      <i class="{{ item.icon }}"></i>
-                    </span>
-                    <div class="min-w-0 flex-1">
-                      <a href="{{ item.href }}" class="block truncate text-sm font-medium text-default-900">{{ item.title }}</a>
-                      <p class="mt-0.5 line-clamp-2 text-xs leading-5 text-default-500">{{ item.description }}</p>
-                      <p class="mt-1 text-[0.6875rem] font-medium text-default-400">{{ item.time or "-" }}</p>
-                    </div>
-                    <label class="notification-check flex shrink-0 items-start pt-1">
-                      <input data-om-activity-notification-select class="om-check notification-check-input" type="checkbox" value="" id="dashboard-activity-notification-check{{ loop.index }}">
-                      <span class="sr-only">{{ _("Select notification") }}</span>
-                    </label>
+                <div data-om-activity-notification-item class="notification-item om-notification-item group">
+                  <span class="om-notification-icon om-notification-icon-{{ item.tone }}">
+                    <i class="{{ item.icon }}"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <a href="{{ item.href }}" class="om-notification-title">{{ item.title }}</a>
+                    <p class="om-notification-body">{{ item.description }}</p>
+                    <p class="om-notification-time">{{ item.time or "-" }}</p>
                   </div>
+                  <label class="notification-check flex shrink-0 items-start pt-1">
+                    <input data-om-activity-notification-select class="om-check notification-check-input" type="checkbox" value="" id="dashboard-activity-notification-check{{ loop.index }}">
+                    <span class="sr-only">{{ _("Select notification") }}</span>
+                  </label>
                 </div>
               {% endfor %}
               {% if activity_href %}
-                <div data-om-activity-view-all class="view-all border-t border-default-100 px-2 py-3 text-center"{% if not activity_notifications %} hidden{% endif %}>
-                  <a href="{{ activity_href }}" class="om-button om-button-soft-success om-button-sm">
+                <div data-om-activity-view-all class="view-all om-notification-footer -mx-1 mt-1"{% if not activity_notifications %} hidden{% endif %}>
+                  <a href="{{ activity_href }}" class="om-button om-button-link om-button-sm">
                     {{ _("View all notifications") }} <i class="ri-arrow-right-line"></i>
                   </a>
                 </div>
               {% endif %}
             </div>
 
-            <div data-om-activity-notification-actions class="border-t border-default-200 px-4 py-3 text-center text-xs text-default-500" hidden>
-              {{ _("Select") }} <span data-om-activity-notification-selection-count class="font-semibold text-default-900">0</span> {{ _("Result") }}
-              <button type="button" class="om-button om-button-link ml-3 text-red-600" data-om-modal-target="#removeNotificationModal">{{ _("Remove") }}</button>
+            <div data-om-activity-notification-actions class="flex items-center justify-between gap-3 border-t border-border-soft px-3 py-2 text-xs text-content-muted" hidden>
+              <span>{{ _("Select") }} <span data-om-activity-notification-selection-count class="font-medium text-content-strong">0</span> {{ _("Result") }}</span>
+              <button type="button" class="om-button om-button-ghost-danger om-button-sm" data-om-modal-target="#removeNotificationModal">{{ _("Remove") }}</button>
             </div>
           </section>
         </div>
@@ -115,17 +112,12 @@
   root_tag="section",
   title_tag="h2",
   title_id="removeNotificationModal-title",
-  close_button_class="oldman-icon-button",
+  close_button_class="om-close-button",
   close_button_id="NotificationModalbtn-close",
   close_icon_class="ri-close-line text-lg",
-  body_class="text-center",
-  footer=notification_modal_footer,
-  footer_class="justify-center"
+  dialog_class="om-modal-dialog-sm",
+  footer=notification_modal_footer
 ) %}
-  <div class="mx-auto grid size-12 place-items-center rounded-full bg-amber-50 text-amber-700">
-    <i class="ri-error-warning-line text-2xl"></i>
-  </div>
-  <h3 class="mt-4 text-base font-semibold text-default-950">{{ _("Are you sure?") }}</h3>
-  <p class="mx-auto mt-2 max-w-sm text-sm text-default-500">{{ _("Selected notifications will be removed from this dropdown.") }}</p>
+  {{ confirm_body(_("Are you sure?"), _("Selected notifications will be removed from this dropdown."), tone="warning", title_tag="h3") }}
 {% endcall %}
 {% endmacro %}

@@ -1,0 +1,8 @@
+<label class="om-switch-card" for="{{ field.id }}" data-om-boolean="switch-card">
+  <span class="om-boolean-text">
+    <span class="om-boolean-label">{{ label_text }}{% if field.flags.required %}<span class="om-form-required" aria-hidden="true">*</span>{% endif %}</span>
+    {{ help_html }}
+  </span>
+  {{ control_html }}
+</label>
+<div class="om-form-control-stack">{{ errors_html }}</div>

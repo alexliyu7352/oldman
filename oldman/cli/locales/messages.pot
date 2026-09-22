@@ -583,3 +583,31 @@ msgstr ""
 #: oldman/runtime/base.py:63
 msgid "Restart service."
 msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Check outgoing mail settings."
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Recipient addresses."
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Send a test message to the given addresses."
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Sending the test message failed: %(error)s"
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Sent %(count)s test message(s) through %(backend)s."
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Test email from %(host)s on %(time)s"
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "If you're reading this, the mail settings of this service work."
+msgstr ""

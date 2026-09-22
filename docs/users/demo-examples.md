@@ -1,6 +1,6 @@
 # Demo 页面与源码对照
 
-本页以 [EPG Dashboard Demo](https://github.com/alexliyu7352/oldman-epg-dashboard) 的实际页面为索引。先按[运行教程](getting-started.md)迁移、导入数据、创建账户、构建并启动；下列路径相对于 `http://127.0.0.1:17998`。端口改变时使用自己的地址。
+本页以 [EPG Dashboard Demo](https://github.com/alexliyu7352/oldman-epg-dashboard) 的实际页面为索引。先按[运行教程](getting-started.md)迁移、导入数据、创建账户、构建并启动；下列路径相对于 `http://127.0.0.1:17997`。端口改变时使用自己的地址。
 
 下面的路径是阅读和操作入口，不是“所有场景已通过验收”的声明。页面有说明文字不等于已有功能：明确列为缺口的高级 Table 不作为可复制的完成示例。
 

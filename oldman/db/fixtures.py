@@ -267,6 +267,8 @@ def _column_value(column: Column[Any], value: Any, *, location: str) -> Any:
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{location} is not a valid {enum_class.__name__} value.") from exc
         if isinstance(column_type, JSON):
+            # 同 forms/fields.py：这一句的目的就是让 NaN/Infinity 抛错，
+            # orjson 会把它们变成 null，所以这里不能换。
             json.dumps(value, allow_nan=False)
             return value
         if isinstance(column_type, DateTime):

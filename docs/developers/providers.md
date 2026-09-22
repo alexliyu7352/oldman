@@ -38,9 +38,11 @@ async_get_conn 按 decode_responses 配置返回字符串或 bytes；async_get_b
 
 | alias | 默认 redis_url |
 | --- | --- |
-| DEFAULT | unix:///var/run/redis/redis.sock?db=3 |
+| DEFAULT | redis://localhost:6379/3 |
 | CACHE | redis://localhost:6379/2 |
 | SESSION | redis://localhost:6379/5 |
+
+三个默认值都走 TCP：Redis 默认不开 unix socket，socket 路径又随发行版和版本变化，所以默认值不能依赖它。已经开启 unix socket 的环境把 `redis_url` 写成 `unix:///path/to/redis.sock?db=3` 即可，TLS 用 `rediss://`。
 
 `redis_client.async_get_conn()` 等不指定 alias 的便捷方法使用 DEFAULT；业务最好明确 using。自定义 alias 必须提供 URL；内置 alias 可只覆盖部分选项。
 
@@ -76,7 +78,7 @@ async def ping_redis(url: str) -> bool:
 alias 对象提供三种已有锁入口，不混用其所有权规则：
 
 - get_db_lock(key, expire_timeout=60) 使用 SET NX EX 返回 bool；is_db_lock 只检查占位，不提供 token 所有权或安全续期。
-- acquire_lock(lock_name, acquire_timeout=10, retry_interval=0.001) 返回 token 或 False。当前 acquire_timeout 同时控制等待时长和租约时长；release_lock(name, token) 用原子比较删除，失败返回 False，也可能代表释放时连接失败。不要用它保护会超过租约的无界任务。
+- acquire_lock(lock_name, acquire_timeout=10, retry_interval=0.001, expire_timeout=None) 返回 token 或 False。`acquire_timeout` 是等多久，`expire_timeout` 是拿到之后持有多久；不传 `expire_timeout` 时沿用 `acquire_timeout`，保持旧行为。临界区可能超过租约时显式给 `expire_timeout`，不要靠把等待时间调长来延长租约。release_lock(name, token) 用原子比较删除，失败返回 False，也可能代表释放时连接失败。
 - `await get_locker(key, blocking_timeout=10, expire_timeout=60, sleep=0.01)` 返回 redis-py Lock 对象，尚未获取锁；可使用其异步上下文及原生锁接口。
 
 普通 Pub/Sub 直接通过二进制连接的 pubsub()/publish() 操作，并显式管理 PubSub 的关闭。它不持久保存消息、没有离线补发；**不同 Redis DB 编号不会隔离 Pub/Sub channel**，应用/环境必须通过 channel 名隔离。[Redis Pub/Sub 投递与隔离规则](https://redis.io/docs/latest/develop/pubsub/)

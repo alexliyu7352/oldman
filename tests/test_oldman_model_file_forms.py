@@ -16,7 +16,7 @@ from wtforms.validators import DataRequired
 from oldman.storage import InMemoryStorage, InvalidStorageName, StorageBackendError, file_column, storages
 from oldman.storage.base import StorageContent
 from oldman.storage.models import _CREATED_FILES_KEY, _get_model_file_config
-from oldman.web.components.forms import FileExtension, FileSize, OldmanForm, OldmanModelForm, UploadField
+from oldman.web.components.forms import FileExtension, FileSize, OldmanForm, OldmanModelForm, SanicFormData, UploadField
 
 
 def upload_to_owner(instance: Any, filename: str) -> str:
@@ -247,7 +247,9 @@ class ModelFileFormTest(unittest.IsolatedAsyncioTestCase):
         edit = AssetForm(data={"owner": "new"}, instance=existing)
         self.assertTrue(await edit.validate())
 
-    async def test_explicit_upload_field_wins_without_injected_required_validator(self) -> None:
+    async def test_explicit_upload_field_keeps_its_own_validators_and_the_not_null_rule(self) -> None:
+        """显式声明只接管字段本身，不会取消“非空列新建必传、编辑可沿用”。"""
+
         class ExplicitAssetForm(OldmanModelForm):
             avatar = UploadField("Custom avatar")
 
@@ -255,10 +257,19 @@ class ModelFileFormTest(unittest.IsolatedAsyncioTestCase):
                 model = ModelFileAsset
                 fields = ("owner", "avatar")
 
-        form = ExplicitAssetForm(data={"owner": "alice"})
+        create_form = ExplicitAssetForm(formdata=SanicFormData({"owner": ["alice"]}))
 
-        self.assertEqual("Custom avatar", form.avatar.label.text)
-        self.assertTrue(await form.validate())
+        self.assertEqual("Custom avatar", create_form.avatar.label.text)
+        self.assertEqual((), tuple(create_form.avatar.validators))
+        self.assertFalse(await create_form.validate())
+        self.assertEqual(["This field is required."], create_form.errors["avatar"])
+
+        edit_form = ExplicitAssetForm(
+            formdata=SanicFormData({"owner": ["alice"]}),
+            instance=ModelFileAsset(owner="alice", avatar="owners/alice/avatar.png"),
+        )
+
+        self.assertTrue(await edit_form.validate())
 
     async def test_save_uses_new_normal_fields_safe_basename_and_storage_result(self) -> None:
         image_storage = RecordingStorage("images", returned_name="owners/alice/avatar_renamed.JPG")

@@ -1,5 +1,14 @@
+import { cssEscape } from "../core/dom/helpers";
+import { relativeUrl } from "../core/http/urls";
 import { Component } from "../core/component/component";
 import { SelectProviderResponseError, normalizeSelectOptions, type SelectOption } from "./select";
+import {
+  REMOTE_SEARCH_DELAY_MS,
+  dependentValues,
+  deduplicateOptions,
+  isProviderResponse,
+  providerErrorMessage
+} from "./select-provider";
 
 const AUTOCOMPLETE_EMPTY_SELECTOR = "[data-om-autocomplete-empty]";
 const AUTOCOMPLETE_INPUT_SELECTOR = "[data-om-autocomplete-input]";
@@ -7,7 +16,6 @@ const AUTOCOMPLETE_ITEM_SELECTOR = "[data-om-autocomplete-item]";
 const AUTOCOMPLETE_LIST_SELECTOR = "[data-om-autocomplete-list]";
 const AUTOCOMPLETE_LOAD_MORE_SELECTOR = "[data-om-autocomplete-load-more]";
 const AUTOCOMPLETE_LOADING_SELECTOR = "[data-om-autocomplete-loading]";
-const REMOTE_SEARCH_DELAY_MS = 150;
 
 export interface AutocompleteSelectDetail<TComponent extends Autocomplete = Autocomplete> {
   component: TComponent;
@@ -120,7 +128,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: errorMessage(error),
+        message: providerErrorMessage(error, this.i18n),
         query,
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         ...(source ? { url: source } : {})
@@ -164,7 +172,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: errorMessage(error),
+        message: providerErrorMessage(error, this.i18n),
         query: state.query,
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: state.source
@@ -225,7 +233,7 @@ export class Autocomplete extends Component {
     if (bind || page > 1) endpoint.searchParams.set("page", String(page));
     if (this.attribute("data-om-select-page-size")) endpoint.searchParams.set("page_size", this.attribute("data-om-select-page-size")!);
     if (!query.trim() && options.initialValue) endpoint.searchParams.set("value", options.initialValue);
-    for (const [name, value] of this.dependentValues(this.attribute("data-om-select-dependent-fields"))) {
+    for (const [name, value] of dependentValues(this.root, this.attribute("data-om-select-dependent-fields"))) {
       endpoint.searchParams.set(`depends[${name}]`, value);
     }
     this.requestController?.abort();
@@ -234,9 +242,9 @@ export class Autocomplete extends Component {
     const sequence = ++this.requestSequence;
     this.setLoading(true);
     try {
-      const response = await this.http.getJson<unknown>(this.relativeUrl(endpoint), { signal: controller.signal });
+      const response = await this.http.getJson<unknown>(relativeUrl(endpoint), { signal: controller.signal });
       if (controller.signal.aborted || sequence !== this.requestSequence) return null;
-      const loadedOptions = normalizeSelectOptions(response);
+      const loadedOptions = normalizeSelectOptions(response, this.i18n);
       this.providerState = {
         hasMore: isProviderResponse(response) ? response.more : false,
         ...(options.initialValue ? { initialValue: options.initialValue } : {}),
@@ -279,7 +287,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: errorMessage(error),
+        message: providerErrorMessage(error, this.i18n),
         query: "",
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: source
@@ -430,33 +438,8 @@ export class Autocomplete extends Component {
   }
 
   /**
-   * 读取白名单依赖字段的当前值，空值不提交。
-   */
-  private dependentValues(fields: string | null): Array<[string, string]> {
-    if (!fields) return [];
-    const container = this.root.closest("form") ?? this.root;
-    return fields
-      .split(",")
-      .map((field) => field.trim())
-      .filter(Boolean)
-      .flatMap((field): Array<[string, string]> => {
-        const control = container.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${cssEscape(field)}"]`);
-        if (!control) return [];
-        const value = control instanceof HTMLSelectElement && control.multiple
-          ? Array.from(control.selectedOptions).map((option) => option.value).filter(Boolean).join(",")
-          : control.value;
-        return value === "" ? [] : [[field, value]];
-      });
-  }
-
-  /**
    * 将同源 URL 压缩为相对地址，避免测试和模板输出受域名影响。
    */
-  private relativeUrl(url: URL): string {
-    if (url.origin !== window.location.origin) return url.toString();
-    return `${url.pathname}${url.search}${url.hash}`;
-  }
-
   /**
    * 读取声明在组件根节点或输入框上的本地 JSON 候选项。
    */
@@ -465,7 +448,7 @@ export class Autocomplete extends Component {
     if (!rawValue) return;
 
     try {
-      this.setOptions(normalizeSelectOptions(JSON.parse(rawValue)));
+      this.setOptions(normalizeSelectOptions(JSON.parse(rawValue), this.i18n));
     } catch {
       this.setOptions([]);
     }
@@ -575,34 +558,5 @@ export class Autocomplete extends Component {
 /**
  * 转义属性选择器中的字段名，兼容没有 CSS.escape 的测试环境。
  */
-function cssEscape(value: string): string {
-  return globalThis.CSS?.escape ? globalThis.CSS.escape(value) : value.replace(/["\\]/g, "\\$&");
-}
 
-/**
- * 判断响应是否符合后端 provider 分页协议。
- */
-function isProviderResponse(input: unknown): input is { more: boolean; results: unknown[] } {
-  return typeof input === "object"
-    && input !== null
-    && Array.isArray((input as { results?: unknown }).results)
-    && typeof (input as { more?: unknown }).more === "boolean";
-}
 
-/**
- * 统一把异常转成 autocomplete 错误事件消息。
- */
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Autocomplete provider request failed";
-}
-
-/**
- * 按 value 合并分页候选，避免滚动加载重复项。
- */
-function deduplicateOptions(options: SelectOption[]): SelectOption[] {
-  const unique = new Map<string, SelectOption>();
-  for (const option of options) {
-    if (!unique.has(option.value)) unique.set(option.value, option);
-  }
-  return [...unique.values()];
-}

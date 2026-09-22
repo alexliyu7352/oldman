@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescape
@@ -96,16 +98,49 @@ def sync_template_environment() -> Environment:
     return environment
 
 
+def current_year() -> int:
+    """Return the calendar year for footers; evaluated per render so long-running processes stay right."""
+    return datetime.now().year
+
+
 def register_component_filters(environment: Environment) -> None:
     """Register globals and filters required by component templates."""
     environment.filters.setdefault("html_attrs", html_attrs)
     environment.globals.setdefault("_", gettext)
+    environment.globals.setdefault("current_year", current_year)
+    # Shell partials read the language and CSRF state through these; imported lazily (they import settings).
+    from oldman.web.i18n.translation import current_language, language_menu_items
+    from oldman.web.security.csrf.csrf_extension import CsrfExtension
+    from oldman.web.security.csrf.manager import csrf_token_for
+
+    environment.globals.setdefault("current_language", current_language)
+    environment.globals.setdefault("language_menu_items", language_menu_items)
+    environment.globals.setdefault("csrf_token_for", csrf_token_for)
+    # 框架自带的表单片段用 `{% csrf_token %}`（web.md 里记的那个写法），所以这个标签必须跟着组件
+    # 环境一起到位，而不是只在装了 CSRF manager 的 app 上可用。标签本身只读 request.ctx，没有别的依赖。
+    environment.add_extension(CsrfExtension)
 
 
 async def render_component_template(owner: Any, template_name: str, context: dict[str, Any]) -> Markup:
     """Render component template asynchronously when supported."""
     template = get_template_environment(owner).get_template(template_name)
     if getattr(template.environment, "is_async", False):
+        return Markup(await template.render_async(**context))
+    return Markup(template.render(**context))
+
+
+async def render_fragment(request: Any, template_name: str, **context: Any) -> Markup:
+    """Render one HTML fragment (a modal body, a result panel) through the app's installed environment.
+
+    `request` joins the context so partials can read the session, locale or CSRF token; the caller
+    decides what to do with the markup (a JSON modal payload, a ReplaceHtml action, a 422 fragment).
+    """
+    context.setdefault("request", request)
+    # 和兄弟函数走同一条路：装上框架自己的模板目录并注册组件 filter/global，
+    # 否则只有已经装过 loader 的 app 能渲染框架自带的片段。
+    environment = get_template_environment(SimpleNamespace(request=request))
+    template = environment.get_template(template_name)
+    if getattr(environment, "is_async", False):
         return Markup(await template.render_async(**context))
     return Markup(template.render(**context))
 
@@ -139,5 +174,6 @@ __all__ = [
     "render_template",
     "render_component_template",
     "render_component_template_sync",
+    "render_fragment",
     "sync_template_environment",
 ]

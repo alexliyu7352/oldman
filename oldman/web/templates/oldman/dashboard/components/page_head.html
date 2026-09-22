@@ -1,0 +1,33 @@
+{#
+  Page head: title 22/600, optional 14px muted description, actions on the right.
+  `breadcrumbs` is a list of {"label": ..., "href": ...}; the last entry is the current page.
+  It is rendered into a <template> so the shell topbar can mirror it after a Turbo frame swap.
+#}
+{% macro page_head(title, description=none, breadcrumbs=(), title_tag="h1") %}
+  {% if breadcrumbs %}
+    <template data-om-breadcrumb>
+      <ol class="oldman-breadcrumb">
+        {% for crumb in breadcrumbs %}
+          <li>
+            {% if crumb.href and not loop.last %}
+              <a href="{{ crumb.href }}">{{ crumb.label }}</a>
+            {% else %}
+              <span aria-current="page">{{ crumb.label }}</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    </template>
+  {% endif %}
+  <div class="om-page-header">
+    <div class="om-page-heading-text">
+      <{{ title_tag }} class="om-page-title">{{ title }}</{{ title_tag }}>
+      {% if description %}
+        <p class="om-page-description">{{ description }}</p>
+      {% endif %}
+    </div>
+    {% if caller %}
+      <div class="om-page-actions">{{ caller() }}</div>
+    {% endif %}
+  </div>
+{% endmacro %}

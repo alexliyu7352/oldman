@@ -6,6 +6,7 @@ import asyncio
 import datetime as dt
 import unittest
 from typing import Any, cast
+from unittest import mock
 
 from sqlalchemy import Integer
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,6 +28,7 @@ from oldman.auth.services import (
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import DatabaseModel
 from oldman.db.session import DatabaseManager
+from oldman.utils.crypto import pbkdf2_sha256
 
 
 class IndependentUser(DatabaseModel):
@@ -303,3 +305,48 @@ async def assert_non_integer_identity_rejected(
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FailedSignInCostTest(unittest.TestCase):
+    """Every way a sign-in can fail must cost the same amount of work."""
+
+    def test_unknown_and_inactive_accounts_hash_like_a_wrong_password(self) -> None:
+        """Returning early without hashing would answer "does this username exist?" in the response time."""
+        rounds = asyncio.run(count_password_rounds_per_failed_sign_in())
+
+        self.assertEqual({"unknown_username": 1, "inactive_account": 1, "wrong_password": 1}, rounds)
+
+
+async def count_password_rounds_per_failed_sign_in() -> dict[str, int]:
+    """Count the PBKDF2 rounds each kind of failure spends, against real SQLite."""
+    manager = DatabaseManager(DatabaseConfig(url="sqlite+aiosqlite:///:memory:"))
+    config = AuthSettings()
+    try:
+        await manager.initialize()
+        async with manager.engine.begin() as connection:
+            await connection.run_sync(cast(Table, User.__table__).create)
+
+        async with manager.get_session() as session:
+            active = User(username="active", password_hash="", is_active=True, is_staff=False, is_superuser=False)
+            active.set_password("ActivePass123")
+            disabled = User(username="disabled", password_hash="", is_active=False, is_staff=False, is_superuser=False)
+            disabled.set_password("DisabledPass123")
+            session.add_all((active, disabled))
+            await session.flush()
+
+        rounds: dict[str, int] = {}
+        attempts = (
+            ("unknown_username", "nobody", "AnyPassword123"),
+            ("inactive_account", "disabled", "DisabledPass123"),
+            ("wrong_password", "active", "WrongPassword123"),
+        )
+        for label, username, password in attempts:
+            # Counting the algorithm itself, not the policy around it: the side effect keeps
+            # the real derivation, so the wrong-password attempt still fails for the right reason.
+            with mock.patch("oldman.auth.security.pbkdf2_sha256", side_effect=pbkdf2_sha256) as hasher:
+                rejected = await authenticate_user(username, password, auth_settings=config, db_manager=manager)
+            assert rejected is None
+            rounds[label] = hasher.call_count
+        return rounds
+    finally:
+        await manager.close()

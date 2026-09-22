@@ -1,15 +1,7 @@
 <div{{ attrs|html_attrs }}>
-  {% if show_search %}
-  <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <label class="inline-flex items-center gap-2 text-sm text-default-500">
-      <span>{{ _("Search:") }}</span>
-      <input type="search" class="om-field w-64 max-w-full" data-om-table-filter data-om-table-param="q" aria-label="{{ _('Search') }}" value="{{ initial_query }}">
-    </label>
-    <span class="text-xs text-default-500" data-om-table-loading hidden>{{ _("Loading...") }}</span>
-  </div>
-  {% else %}
+  {{ toolbar_html }}
   <span class="text-xs text-default-500" data-om-table-loading hidden>{{ _("Loading...") }}</span>
-  {% endif %}
   <div class="om-alert-danger mb-3" data-om-table-error hidden></div>
+  {{ empty_templates_html }}
   {{ initial_fragment_html }}
 </div>

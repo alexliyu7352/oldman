@@ -121,4 +121,38 @@ describe("DateTimePicker", () => {
     expect(flatpickrState.destroyCalls).toHaveLength(1);
     expect(flatpickrState.destroyCalls[0]).toHaveBeenCalledTimes(1);
   });
+
+  it("认得拼写正确的 data-default-date（旧的拼错写法也继续认）", async () => {
+    // 实现里写的是 data-deafult-date（deafult），两处;而**仓库里没有任何地方用过正确拼写**。
+    // 更要紧的是这个文件原有的用例用的也是错拼写,所以它一直是绿的,等于把这个拼写变成了契约。
+    document.body.innerHTML = `
+      <div data-om-component="date-time-picker">
+        <input data-provider="flatpickr" data-date-format="Y-m-d" data-default-date="2026-09-21">
+      </div>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component]")!;
+    const input = root.querySelector<HTMLInputElement>("input")!;
+    const component = new DateTimePicker(root);
+    await component.start();
+
+    expect(flatpickrMock).toHaveBeenCalledWith(input, expect.objectContaining({ defaultDate: "2026-09-21" }));
+
+    await component.stop();
+  });
+
+  it("旧的拼错写法 data-deafult-date 继续有效", async () => {
+    document.body.innerHTML = `
+      <div data-om-component="date-time-picker">
+        <input data-provider="flatpickr" data-date-format="Y-m-d" data-deafult-date="2026-01-02">
+      </div>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component]")!;
+    const input = root.querySelector<HTMLInputElement>("input")!;
+    const component = new DateTimePicker(root);
+    await component.start();
+
+    expect(flatpickrMock).toHaveBeenCalledWith(input, expect.objectContaining({ defaultDate: "2026-01-02" }));
+
+    await component.stop();
+  });
 });

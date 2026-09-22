@@ -4,20 +4,45 @@ import { abortable } from "../services/abort";
 
 const defaultRegistry = new Map<string, PageConstructor>();
 
+/** 使用者的卸载钩子挡住帧渲染的上限；超过就照常放行并报错。 */
+const DEFAULT_UNMOUNT_TIMEOUT_MS = 5000;
+
 /**
  * 注册表挂载后端渲染页面根节点前，按需加载对应页面入口。
  */
 export type PageLoader = (pageName: string, root: HTMLElement) => void | Promise<void>;
 
+export interface PageRegistryOptions {
+  /**
+   * 等待一个 Page 卸载完成的上限，默认 5000ms；`0` 或负数表示不设上限。
+   *
+   * `beforeUnmount()` / `unmount()` 是使用者写的钩子，而 Turbo 的帧渲染被 `preventDefault()`
+   * 接管之后，要等这里 resolve 才会 `resume()`。钩子不 settle 就等于帧永远停在 `rendering`，
+   * 没有报错、没有降级，而且下一次挂载也会卡在 `pendingUnmount` 上。
+   *
+   * 超时不是"打断清理"：钩子继续跑，框架只是不再替它挡着渲染，并记一条指名道姓的错误。
+   * 把静默卡死换成可见的降级。
+   */
+  unmountTimeoutMs?: number;
+}
+
 export interface PageRegistryMountOptions {
   loadPage?: PageLoader;
+  /** Used when the entry name is still unknown after `loadPage`; a warning names the missing entry. */
+  fallbackPage?: PageConstructor;
+  logger?: { warn(message: string, ...args: unknown[]): void };
 }
 
 export class PageRegistry {
   private readonly pages = new Map<string, PageConstructor>();
+  private readonly unmountTimeoutMs: number;
   private currentPage: Page | null = null;
   private pendingMount: AbortController | null = null;
   private pendingUnmount: Promise<void> | null = null;
+
+  constructor(options: PageRegistryOptions = {}) {
+    this.unmountTimeoutMs = options.unmountTimeoutMs ?? DEFAULT_UNMOUNT_TIMEOUT_MS;
+  }
 
   get current(): Page | null {
     return this.currentPage;
@@ -54,6 +79,11 @@ export class PageRegistry {
         await abortable(Promise.resolve(options.loadPage(pageName, root)), signal);
         signal.throwIfAborted();
         PageClass = this.pages.get(pageName) ?? defaultRegistry.get(pageName);
+      }
+      if (!PageClass && options.fallbackPage) {
+        // A typo in a template must not black out the page: the base page still mounts the shell.
+        (options.logger ?? console).warn(`No page registered for ${pageName}; falling back to ${options.fallbackPage.name || "the fallback page"}`);
+        PageClass = options.fallbackPage;
       }
       if (!PageClass) throw new Error(`No page registered for ${pageName}`);
 
@@ -102,11 +132,54 @@ export class PageRegistry {
     const page = this.currentPage;
     this.currentPage = null;
     page.setState("unmounting");
-    const pending = this.unmountPage(page).finally(() => {
+    const pending = this.unmountPageBeforeDeadline(page).finally(() => {
       if (this.pendingUnmount === pending) this.pendingUnmount = null;
     });
     this.pendingUnmount = pending;
     return pending;
+  }
+
+  /**
+   * Run this Page's unmount, but stop waiting on it after `unmountTimeoutMs`.
+   *
+   * The hooks keep running; what the deadline ends is the framework holding the frame render
+   * and the next mount hostage to them. A stalled Page is reported by name so the person whose
+   * hook it is can find it.
+   */
+  private async unmountPageBeforeDeadline(page: Page): Promise<void> {
+    if (this.unmountTimeoutMs <= 0) return this.unmountPage(page);
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unmounted = this.unmountPage(page);
+    // The losing promise still settles later; without this a post-deadline failure would
+    // surface as an unhandled rejection with no owner.
+    let settledWithError: unknown;
+    let settled = false;
+    const observed = unmounted.then(
+      () => {
+        settled = true;
+      },
+      (error: unknown) => {
+        settled = true;
+        settledWithError = error;
+      }
+    );
+
+    await Promise.race([
+      observed,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, this.unmountTimeoutMs);
+      })
+    ]);
+    if (timer !== undefined) clearTimeout(timer);
+
+    if (!settled) {
+      page.logger.error(
+        `Oldman stopped waiting for page "${page.root.dataset.omPage ?? page.constructor.name}" to unmount after ${this.unmountTimeoutMs}ms; its beforeUnmount/unmount hook has not settled`
+      );
+      return;
+    }
+    if (settledWithError !== undefined) throw settledWithError;
   }
 
   /** Finish only this Page's resources; later mounts wait for this cleanup. */

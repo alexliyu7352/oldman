@@ -161,6 +161,61 @@ function parsePluralRule(header: string | undefined): string | undefined {
   return match?.[1]?.trim();
 }
 
+const PO_ESCAPES: Record<string, string> = {
+  a: "\u0007",
+  b: "\b",
+  f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  v: "\u000b",
+  "\\": "\\",
+  '"': '"',
+  "'": "'",
+  "?": "?"
+};
+
+/**
+ * 读取一个 PO 字符串字面量（含外层引号）。
+ *
+ * 不能用 `JSON.parse`：PO 用的是 C 的转义集合，和 JSON 的不是一套。`\v`、`\a`、`\xNN`
+ * 在 PO 里合法，`JSON.parse` 一律抛 SyntaxError——而 `parseBlock` / `parsePo` /
+ * `compilePoCatalog` 一层都没有 try，所以一个条目里的 `\v` 会让**整份目录**加载失败，
+ * 不是跳过这一条。
+ *
+ * 未知的转义按 gettext 的宽容做法原样保留反斜杠后面的字符。
+ */
 function readPoString(input: string): string {
-  return JSON.parse(input) as string;
+  const body = input.slice(1, -1);
+  let result = "";
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index]!;
+    if (character !== "\\") {
+      result += character;
+      continue;
+    }
+
+    const next = body[index + 1];
+    if (next === undefined) break;
+
+    if (next === "x" || next === "X") {
+      const hex = /^[0-9a-fA-F]{1,2}/.exec(body.slice(index + 2))?.[0];
+      if (hex) {
+        result += String.fromCharCode(Number.parseInt(hex, 16));
+        index += 1 + hex.length;
+        continue;
+      }
+    }
+
+    const octal = /^[0-7]{1,3}/.exec(body.slice(index + 1))?.[0];
+    if (octal) {
+      result += String.fromCharCode(Number.parseInt(octal, 8));
+      index += octal.length;
+      continue;
+    }
+
+    result += PO_ESCAPES[next] ?? next;
+    index += 1;
+  }
+  return result;
 }

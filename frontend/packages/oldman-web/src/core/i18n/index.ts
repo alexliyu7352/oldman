@@ -20,5 +20,7 @@ export type {
   TranslationParams,
   TranslationValue
 } from "./i18n";
+export { createFetchCatalogLoader, readAssetBaseUrl } from "./catalog-loader";
+export type { CreateFetchCatalogLoaderOptions, ReadAssetBaseUrlOptions } from "./catalog-loader";
 export { compilePoCatalog, parsePo } from "./po";
 export type { ParsedPo, PoEntry } from "./po";

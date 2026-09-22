@@ -1,0 +1,12 @@
+{% macro confirm_body(title, description, icon="ri-error-warning-line", tone="danger", title_tag="p", wrapper_class="") %}
+  {# 确认类 modal / 卡片的正文：左边一个语义图标，右边一行标题加一行说明。 #}
+  <div class="flex items-start gap-4{% if wrapper_class %} {{ wrapper_class }}{% endif %}">
+    <span class="om-confirm-icon om-confirm-icon-{{ tone }}" aria-hidden="true">
+      <i class="{{ icon }}"></i>
+    </span>
+    <div class="min-w-0">
+      <{{ title_tag }} class="om-confirm-title">{{ title }}</{{ title_tag }}>
+      <p class="om-confirm-description">{{ description }}</p>
+    </div>
+  </div>
+{% endmacro %}

@@ -5,9 +5,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import json
 from dataclasses import asdict, dataclass
 from typing import Literal
+
+import orjson
 
 
 class SelectBindError(ValueError):
@@ -46,13 +47,13 @@ def verify_select_context(bind: str, *, secret_key: str) -> SelectContext:
         raise SelectBindError("Invalid select bind signature")
 
     try:
-        data = json.loads(_decode_base64(payload))
+        data = orjson.loads(_decode_base64(payload))
         data["dependent_fields"] = tuple(data.get("dependent_fields") or ())
         context = SelectContext(**data)
         if context.label_mode not in {"text", "html"}:
             raise ValueError("Invalid select label mode")
         return context
-    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+    except (TypeError, ValueError, orjson.JSONDecodeError) as exc:
         raise SelectBindError("Invalid select bind payload") from exc
 
 
@@ -65,7 +66,7 @@ def _context_payload(context: SelectContext) -> dict[str, object]:
 
 def _encode_json(payload: dict[str, object]) -> str:
     """以稳定格式编码 JSON 并做 URL-safe base64。"""
-    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    raw = orjson.dumps(payload, option=orjson.OPT_SORT_KEYS)
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 

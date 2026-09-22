@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-import ujson
+import orjson
 
 from oldman.logging import logger
 
@@ -21,11 +21,11 @@ async def check_file_mtime(filename: str, old_time: float) -> tuple[bool, float]
 def load_json_file(file_path: str) -> Any | None:
     try:
         with open(file_path, encoding="utf-8") as f:
-            return ujson.load(f)
+            return orjson.loads(f.read())
     except FileNotFoundError:
         logger.info(f"文件 {file_path} 未找到")
         return None
-    except ujson.JSONDecodeError:
+    except orjson.JSONDecodeError:
         logger.info(f"文件 {file_path} 解析失败")
         return None
 
@@ -33,6 +33,7 @@ def load_json_file(file_path: str) -> Any | None:
 def save_json_file(data: Any, file_path: str) -> None:
     try:
         with open(file_path, "w", encoding="utf-8") as f:
-            ujson.dump(data, f, ensure_ascii=False, indent=2)
+            # orjson 输出 UTF-8 且不转义非 ASCII，等价于 ensure_ascii=False。
+            f.write(orjson.dumps(data, option=orjson.OPT_INDENT_2).decode("utf-8"))
     except Exception as e:
         logger.info(f"保存文件 {file_path} 失败: {e}")

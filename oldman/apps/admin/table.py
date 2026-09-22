@@ -12,12 +12,10 @@ from sqlalchemy import select
 from oldman.apps.admin.model_admin import ModelAdmin
 from oldman.db import DatabaseManager
 from oldman.i18n import gettext
+from oldman.web.auth.tables import USER_FILTER_FIELDS, UserTableFilters
 from oldman.web.components.tables import Column, SQLAlchemyTableView, TailwindTableRenderer
-from oldman.web.components.tables.views import (
-    TableInvalidRequest,
-    TableValidationError,
-    normalize_raw_value,
-)
+from oldman.web.components.tables.cells import normalize_raw_value
+from oldman.web.components.tables.views import TableInvalidRequest
 
 
 class AdminModelTable(SQLAlchemyTableView):
@@ -57,13 +55,16 @@ class AdminModelTable(SQLAlchemyTableView):
         self.admin_prefix = admin_prefix.rstrip("/") or "/admin"
         self.route_path = f"{self.admin_prefix}/{model_admin.model_path}/table"
         self.columns = tuple(model_admin.get_table_columns()) + (
-            Column(name="action", label=gettext("Action"), field_path=None, callback="get_column_action_data"),
+            Column(name="action", label=gettext("Action"), field_path=None, callback="get_column_action_data", exportable=False, hideable=False),
         )
         self.search_fields = tuple(model_admin.get_search_fields())
         self.ordering = tuple(model_admin.get_ordering())
         self.unsortable_columns = ("action",)
         self.page_size = model_admin.page_size
         self.selectable = model_admin.table_selectable
+        # getattr: duck-typed ModelAdmin stand-ins may predate the toolbar options.
+        self.toolbar = tuple(getattr(model_admin, "table_toolbar", ModelAdmin.table_toolbar))
+        self.export_formats = tuple(getattr(model_admin, "export_formats", ModelAdmin.export_formats))
         # ModelAdmin owns this value: built-ins use gettext_lazy, while a
         # consumer-supplied plain string must stay literal.
         self.empty_message = str(model_admin.empty_message)
@@ -73,6 +74,10 @@ class AdminModelTable(SQLAlchemyTableView):
     async def check_auth(self, request: Any) -> bool:
         """Use the registered ModelAdmin permission contract for table requests."""
         return self.model_admin.has_view_permission(request)
+
+    def export_filename(self, export_format: str) -> str:
+        """Name downloads after the model path instead of the internal route name."""
+        return f"{self.model_admin.model_path}-{dt.date.today().isoformat()}.{export_format}"
 
     async def render_permission_denied_response(self, request: Any):
         """Preserve the Admin site's authentication and permission response."""
@@ -129,66 +134,10 @@ class AdminModelTable(SQLAlchemyTableView):
         return normalize_raw_value(self.model_admin.object_pk(row))
 
 
-class _AdminUserModelTable(AdminModelTable):
-    """User-only Table adapter preserving the source filter contract."""
+class _AdminUserModelTable(UserTableFilters, AdminModelTable):
+    """The user ModelAdmin table: the shared User filters on top of the generic adapter."""
 
-    _filter_fields = ("is_active", "is_staff", "is_superuser", "last_login_from", "last_login_to")
-
-    async def filter_is_active(self, query: Any, value: object, table_request: Any):
-        """Filter configured Admin users by active state."""
-        del table_request
-        model = cast(Any, self.model)
-        return query.where(model.is_active.is_(parse_boolean_filter(value)))
-
-    async def filter_is_staff(self, query: Any, value: object, table_request: Any):
-        """Filter configured Admin users by staff state."""
-        del table_request
-        model = cast(Any, self.model)
-        return query.where(model.is_staff.is_(parse_boolean_filter(value)))
-
-    async def filter_is_superuser(self, query: Any, value: object, table_request: Any):
-        """Filter configured Admin users by superuser state."""
-        del table_request
-        model = cast(Any, self.model)
-        return query.where(model.is_superuser.is_(parse_boolean_filter(value)))
-
-    async def filter_last_login_from(self, query: Any, value: object, table_request: Any):
-        """Filter configured Admin users by the start of last-login range."""
-        del table_request
-        parsed = parse_filter_datetime(value)
-        model = cast(Any, self.model)
-        return query.where(model.last_login_at >= parsed) if parsed else query
-
-    async def filter_last_login_to(self, query: Any, value: object, table_request: Any):
-        """Filter configured Admin users by the end of last-login range."""
-        del table_request
-        parsed = parse_filter_datetime(value)
-        model = cast(Any, self.model)
-        return query.where(model.last_login_at <= parsed) if parsed else query
-
-
-def parse_boolean_filter(value: object) -> bool:
-    """Parse source-compatible boolean filter values."""
-    normalized = str(value).strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    raise TableValidationError("Invalid boolean filter")
-
-
-def parse_filter_datetime(value: object) -> dt.datetime | None:
-    """Parse source-compatible date-time filter values."""
-    if value in {"", None}:
-        return None
-    if isinstance(value, dt.datetime):
-        return value
-    if isinstance(value, dt.date):
-        return dt.datetime.combine(value, dt.time.min)
-    try:
-        return dt.datetime.fromisoformat(str(value))
-    except ValueError:
-        raise TableValidationError("Invalid datetime filter") from None
+    _filter_fields = USER_FILTER_FIELDS
 
 
 __all__ = ["AdminModelTable"]

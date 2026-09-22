@@ -6,7 +6,10 @@ import time
 from typing import Any
 
 from oldman.auth import user_identity
-from oldman.web.session import SessionData
+from oldman.logging import get_logger
+from oldman.web.session import Session, SessionData
+
+logger = get_logger("default.web.auth.session")
 
 
 def session_data_for_user[TSessionData: SessionData](
@@ -37,4 +40,39 @@ def session_data_for_user[TSessionData: SessionData](
     )
 
 
-__all__ = ["session_data_for_user"]
+async def revoke_user_sessions(request: Any, user_id: int) -> bool:
+    """End every session one user holds; report whether the caller ended its own.
+
+    Every path that changes a password goes through this — the user changing their own, an
+    operator changing it for them, and the reset flow behind a mailed link — so that no
+    session outlives the password it was opened under, whichever route changed it.
+
+    A store that cannot be reached is logged rather than raised. The password has already
+    changed by the time this runs, and a session store that is down is not one that is
+    still authenticating anybody; failing here would only turn a working change into a 500.
+
+    The caller is told whether its own session was among them, because if it was, the
+    browser has to be sent to the login page — nothing else it renders will work.
+    """
+    if type(user_id) is not int:
+        raise TypeError("user_id must be an int")
+    identity = user_id
+    session_data = getattr(getattr(request, "ctx", None), "session", None)
+    ended_own = isinstance(session_data, SessionData) and session_data.user_id == identity
+    # A site with a password form and no session store is misconfigured; say so rather than
+    # quietly leaving every session alive after a password change.
+    manager = Session.get_session_manager(request)
+    try:
+        await manager.force_logout_user(identity)
+        if ended_own:
+            await Session.logout_session(request)
+    except Exception:
+        logger.warning(
+            "Password changed for user %s but its sessions could not be ended",
+            identity,
+            exc_info=True,
+        )
+    return ended_own
+
+
+__all__ = ["revoke_user_sessions", "session_data_for_user"]

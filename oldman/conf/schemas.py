@@ -9,7 +9,7 @@ import logging
 import re
 from collections.abc import Iterator, Mapping
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Annotated, Any, Literal, Self, cast
 from urllib.parse import urlsplit
 
 from pydantic import (
@@ -32,6 +32,13 @@ class OldmanBaseModel(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+# 含密字段用这两个别名声明，而不是逐个记得写 repr=False。把"这是机密"放进类型里，
+# 新增字段时不写它就不是机密；写了就自动不进 repr。五个含密字段曾经漏标，实测
+# 根密钥、SMTP 密码、Redis 连接串都会原样出现在 repr() 和异常里。
+Secret = Annotated[str, Field(repr=False)]
+OptionalSecret = Annotated[str | None, Field(repr=False)]
+
+
 class CoreConfig(OldmanBaseModel):
     """Core application config."""
 
@@ -46,6 +53,24 @@ class LoggingConfig(OldmanBaseModel):
     level: int = Field(default=logging.INFO, description="Logging level")
     dir: Path = Field(default=PROJECT_ROOT / "logs", description="Log file directory")
     color: Literal["auto", "always", "never"] = Field(default="auto", description="Console color policy")
+    rotate_when: Literal["S", "M", "H", "D", "W0", "W1", "W2", "W3", "W4", "W5", "W6", "midnight"] | None = Field(
+        default="D",
+        description="Time-based rollover unit; null disables time rotation so that max_bytes can be used instead",
+    )
+    rotate_interval: int = Field(default=1, gt=0, description="How many rotate_when units between rollovers")
+    max_bytes: int = Field(
+        default=0,
+        ge=0,
+        description="Size-based rollover threshold in bytes; only usable when rotate_when is null, 0 disables it",
+    )
+    backup_count: int = Field(default=3, ge=0, description="How many rotated files to keep")
+
+    @model_validator(mode="after")
+    def validate_rotation(self) -> LoggingConfig:
+        """Time and size rollover are mutually exclusive, the same rule the handler enforces."""
+        if self.rotate_when is not None and self.max_bytes:
+            raise ValueError("logging.max_bytes requires logging.rotate_when to be null; the two cannot both rotate")
+        return self
 
     @field_validator("level", mode="before")
     @classmethod
@@ -70,11 +95,15 @@ class CSRFConfig(OldmanBaseModel):
     ttl: int = Field(default=3600, gt=0, description="CSRF token lifetime in seconds")
     check_referer: bool = Field(
         default=True,
-        description="Validate the request Referer when present",
+        description="Enforce same-origin on unsafe requests via Origin (then Referer); reject when both are absent",
     )
     check_url: bool = Field(
         default=False,
         description="Bind each CSRF token to its request path",
+    )
+    enforce: bool = Field(
+        default=False,
+        description="Validate every unsafe-method request, exempting handlers marked csrf_exempt",
     )
 
 
@@ -107,9 +136,18 @@ def _default_fingerprint_rate_limits() -> dict[str, FingerprintRateLimitConfig]:
 
 
 class FingerprintSecurityConfig(OldmanBaseModel):
-    """Browser fingerprint encryption and anomaly policy."""
+    """Browser fingerprint encryption and anomaly policy.
 
-    aes_secret_key: str | None = Field(
+    Opt-in: nothing enforces a fingerprint until a route asks for it with
+    `@fingerprint_required()`. The key below is shared with the browser, so this raises
+    the cost of scripted abuse - it is not an authentication boundary.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable browser fingerprint checks; routes still opt in individually",
+    )
+    aes_secret_key: OptionalSecret = Field(
         default=None,
         description="Base64-encoded 32-byte key shared with the browser",
     )
@@ -178,7 +216,7 @@ class FingerprintSecurityConfig(OldmanBaseModel):
 class WebSecurityConfig(OldmanBaseModel):
     """Central Web signing, token, CSRF, and browser-fingerprint settings."""
 
-    secret_key: str | None = Field(
+    secret_key: OptionalSecret = Field(
         default=None,
         description="Server-only root key for purpose-separated Web secrets",
     )
@@ -217,7 +255,16 @@ class SessionConfig(OldmanBaseModel):
 
     enabled: bool = Field(default=False, description="Install Web session middleware")
     redis_alias: str = Field(default="SESSION", min_length=1, description="Named Redis connection used by sessions")
-    expiry: int = Field(default=60 * 60 * 24 * 30, gt=0, description="Default session lifetime in seconds")
+    expiry: int = Field(
+        default=60 * 60 * 12,
+        gt=0,
+        description="Session lifetime in seconds for an ordinary login (the user did not ask to be remembered)",
+    )
+    remember_expiry: int = Field(
+        default=60 * 60 * 24 * 30,
+        gt=0,
+        description="Session lifetime in seconds when the user ticks 'Remember me' at login",
+    )
     prefix: str = Field(default="session:", min_length=1, description="Redis session key prefix")
     user_prefix: str = Field(default="user_session:", min_length=1, description="Redis user-session index prefix")
     cookie_name: str = Field(default="session_id", min_length=1, description="Browser session cookie name")
@@ -363,7 +410,7 @@ class I18nConfig(OldmanBaseModel):
 class DatabaseConfig(OldmanBaseModel):
     """Database config."""
 
-    url: str | None = Field(default=None, description="SQLAlchemy async database URL")
+    url: OptionalSecret = Field(default=None, description="SQLAlchemy async database URL, which routinely carries a password")
     echo: bool | None = Field(default=None, description="Override SQLAlchemy engine echo; null follows web.debug")
     enable_sql_logging: bool = Field(default=False, description="Enable SQL query tracking and performance summaries")
 
@@ -371,9 +418,12 @@ class DatabaseConfig(OldmanBaseModel):
 class RedisConnectionConfig(OldmanBaseModel):
     """One named Redis connection and its redis-py pool options."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", hide_input_in_errors=True)
 
-    redis_url: str = Field(min_length=1, description="Redis connection URL")
+    redis_url: Secret = Field(
+        min_length=1,
+        description="Redis connection URL: redis://host:port/db over TCP (default), rediss://... for TLS, or unix:///path/to/redis.sock?db=N for a unix socket",
+    )
     decode_responses: bool = Field(default=True, description="Decode Redis responses to strings")
     max_connections: int = Field(default=1024, gt=0, description="Maximum Redis connection pool size")
     health_check_interval: int = Field(default=30, ge=0, description="Redis connection health-check interval")
@@ -426,8 +476,11 @@ class RedisConnectionConfig(OldmanBaseModel):
         return values
 
 
+# TCP by default: a unix socket is off in stock Redis and its path differs between distributions and
+# versions, so a socket default only works after someone edits both Redis and this file. The unix://
+# form stays supported for anyone who has enabled it.
 _BUILTIN_REDIS_CONNECTIONS: dict[str, dict[str, str]] = {
-    "DEFAULT": {"redis_url": "unix:///var/run/redis/redis.sock?db=3"},
+    "DEFAULT": {"redis_url": "redis://localhost:6379/3"},
     "CACHE": {"redis_url": "redis://localhost:6379/2"},
     "SESSION": {"redis_url": "redis://localhost:6379/5"},
 }
@@ -507,7 +560,7 @@ class NATSConnectionConfig(OldmanBaseModel):
 
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
-    nats_url: str = Field(min_length=1, repr=False, description="NATS URL, optionally containing encoded credentials")
+    nats_url: Secret = Field(min_length=1, description="NATS URL, optionally containing encoded credentials")
     connect_timeout: float = Field(default=2, gt=0, allow_inf_nan=False, description="NATS connection attempt timeout in seconds")
     reconnect_time_wait: float = Field(default=2, gt=0, allow_inf_nan=False, description="Delay between native NATS reconnect attempts")
     tls_ca_file: Path | None = Field(default=None, description="Trusted NATS server CA file; null uses system trust")
@@ -598,7 +651,9 @@ class NATSBusConfig(OldmanBaseModel):
     peer_id: str | None = Field(default=None, description="Explicit local identity for directed subscriptions and source headers")
     serializer_mode: Literal["msgpack", "msgspec_json"] = Field(default="msgpack", description="Bytes codec agreed by both ends")
     startup_timeout: float = Field(default=30, gt=0, allow_inf_nan=False, description="Total seconds allowed to establish the sending connection")
-    graceful_timeout: float = Field(default=10, gt=0, allow_inf_nan=False, description="Shared normal-completion wait for active handlers at shutdown")
+    graceful_timeout: float = Field(
+        default=10, gt=0, allow_inf_nan=False, description="Shared normal-completion wait for active handlers at shutdown"
+    )
 
     @field_validator("namespace", "peer_id")
     @classmethod
@@ -632,7 +687,9 @@ class TaskiqConfig(OldmanBaseModel):
     namespace: str | None = Field(default=None, description="Shared task namespace; required when enabled")
     nats_alias: str = Field(default="DEFAULT", min_length=1, description="Named NATS connection for task transport")
     redis_alias: str = Field(default="DEFAULT", min_length=1, description="Named Redis connection for results and schedules")
-    consume_queues: list[str] = Field(default_factory=lambda: ["default"], min_length=1, description="Queues sharing this service's execution processes")
+    consume_queues: list[str] = Field(
+        default_factory=lambda: ["default"], min_length=1, description="Queues sharing this service's execution processes"
+    )
     workers: int = Field(default=2, gt=0, description="Number of task execution processes")
     max_async_tasks: int = Field(default=100, gt=0, description="Concurrent tasks per process, shared by all queues")
     max_prefetch: int = Field(default=0, ge=0, description="Extra Receiver admission slots beyond max_async_tasks; zero adds none")
@@ -640,7 +697,9 @@ class TaskiqConfig(OldmanBaseModel):
     startup_attempts: int = Field(default=3, gt=0, description="Initial attempts per execution position, including the first")
     shutdown_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="Resource cleanup budget in seconds, after business work")
     stop_timeout: float = Field(default=60, gt=0, allow_inf_nan=False, description="Total service stop deadline before killing its process group")
-    ack_wait: float = Field(default=60, gt=0, allow_inf_nan=False, description="Consumer acknowledgement wait; renewal runs every third of this interval")
+    ack_wait: float = Field(
+        default=60, gt=0, allow_inf_nan=False, description="Consumer acknowledgement wait; renewal runs every third of this interval"
+    )
     publish_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="One publish confirmation or broadcast flush timeout")
     ack_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="One acknowledged completion timeout")
     duplicate_window: float = Field(default=120, gt=0, allow_inf_nan=False, description="Stream publish-deduplication window in seconds")
@@ -759,7 +818,49 @@ class ProxyConfig(OldmanBaseModel):
 
     connect_timeout: int = Field(default=5, description="Proxy connection timeout in seconds")
     read_timeout: int = Field(default=10, description="Proxy read timeout in seconds")
-    debug_proxy: str | None = Field(default="http://127.0.0.1:8118", description="Debug-only outbound proxy URL")
+
+
+class SMTPMailConfig(OldmanBaseModel):
+    """Transport settings for the SMTP mail backend."""
+
+    host: str = Field(default="localhost", min_length=1, description="SMTP server host name or address")
+    port: int = Field(default=25, ge=1, le=65535, description="SMTP server port")
+    username: str | None = Field(default=None, description="SMTP login user; None sends without authentication")
+    password: OptionalSecret = Field(default=None, description="SMTP login password")
+    use_tls: bool = Field(default=False, description="Upgrade the connection with STARTTLS after connecting (usually port 587)")
+    use_ssl: bool = Field(default=False, description="Open an implicit TLS connection (usually port 465)")
+    timeout: float = Field(default=10.0, gt=0, description="Connection and command timeout in seconds")
+    local_hostname: str | None = Field(default=None, description="Host name announced in EHLO; None uses the local host name")
+
+    @model_validator(mode="after")
+    def validate_tls_mode(self) -> Self:
+        """STARTTLS and implicit TLS are two different handshakes; pick one."""
+        if self.use_tls and self.use_ssl:
+            raise ValueError("mail.smtp.use_tls and mail.smtp.use_ssl are mutually exclusive")
+        return self
+
+
+class MailConfig(OldmanBaseModel):
+    """Outgoing mail settings shared by Web and task processes."""
+
+    backend: str = Field(
+        default="oldman.mail.backends.console.ConsoleEmailBackend",
+        description="Dotted import path of the mail backend (console prints, smtp sends, filebased writes .eml files, locmem collects for tests, dummy discards)",
+    )
+    default_from_email: str = Field(default="webmaster@localhost", min_length=1, description="Sender used when a message names none")
+    subject_prefix: str = Field(default="[Oldman] ", description="Prefix put in front of subjects sent through mail_admins()")
+    admins: list[str] = Field(default_factory=list, description="Recipients of mail_admins()")
+    file_path: str | None = Field(default=None, description="Directory the filebased backend writes .eml files into")
+    smtp: SMTPMailConfig = Field(default_factory=SMTPMailConfig, description="SMTP transport settings")
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend_path(cls, value: str) -> str:
+        """Backends are imported lazily, so at least the path shape is checked here."""
+        segments = value.split(".")
+        if len(segments) < 2 or not all(segment.isidentifier() for segment in segments):
+            raise ValueError("mail backend must be a dotted import path")
+        return value
 
 
 class FrontendConfig(OldmanBaseModel):
@@ -791,7 +892,7 @@ class WebConfig(OldmanBaseModel):
         default=None,
         description="Number of trusted proxies that append to X-Forwarded-For; unset ignores that header",
     )
-    forwarded_secret: str | None = Field(
+    forwarded_secret: OptionalSecret = Field(
         default=None,
         description="Secret a trusted proxy places in the RFC 7239 Forwarded header; unset ignores that header",
     )
@@ -836,6 +937,7 @@ class DefaultSettings(YamlBaseSettings):
     cache: RedisCacheConfig = Field(default_factory=RedisCacheConfig, description="Redis cache settings")
     http_client: HttpClientConfig = Field(default_factory=HttpClientConfig, description="HTTP client settings")
     storages: StoragesConfig = Field(default_factory=StoragesConfig, description="Named file storage settings")
+    mail: MailConfig = Field(default_factory=MailConfig, description="Outgoing mail settings")
     proxy: ProxyConfig = Field(default_factory=ProxyConfig, description="Media proxy settings")
 
     @model_validator(mode="after")
@@ -846,6 +948,19 @@ class DefaultSettings(YamlBaseSettings):
                 raise ValueError("taskiq.nats_alias does not identify a configured NATS connection")
             if self.taskiq.redis_alias not in self.redis:
                 raise ValueError("taskiq.redis_alias does not identify a configured Redis connection")
+        return self
+
+    @model_validator(mode="after")
+    def validate_cache_connection(self) -> DefaultSettings:
+        """Resolve the cache alias up front instead of at the first cache call.
+
+        The cache reads `cache.client` lazily, in four different places, so a misspelled
+        alias used to survive startup and surface much later as a connection error from
+        whichever feature happened to touch the cache first. Session and SSE aliases are
+        already checked before the service runs; this puts the cache on the same footing.
+        """
+        if self.cache.client not in self.redis:
+            raise ValueError("cache.client does not identify a configured Redis connection")
         return self
 
     @model_validator(mode="after")

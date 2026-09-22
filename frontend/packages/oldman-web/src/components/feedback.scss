@@ -1,17 +1,21 @@
 @import "toastify-js/src/toastify.css";
 
+/* Toast: top-right, 352 wide, 12px padding, 8 radius, surface + border + popover shadow, 3px tone bar. */
 .toastify.om-toast {
   z-index: var(--om-layer-feedback);
   display: flex;
-  min-width: min(22rem, calc(100vw - 2rem));
-  max-width: min(28rem, calc(100vw - 2rem));
+  width: min(22rem, calc(100vw - 2rem));
+  max-width: min(22rem, calc(100vw - 2rem));
   align-items: flex-start;
   gap: 0.75rem;
-  border-left: 0.25rem solid var(--om-toast-accent, var(--om-color-primary));
-  border-radius: var(--om-radius-surface);
+  padding: 0.75rem;
+  border: 1px solid var(--om-color-border);
+  border-left: 3px solid var(--om-toast-accent, var(--om-color-primary));
+  border-radius: var(--om-radius-control);
   background: var(--om-color-surface-raised);
   color: var(--om-color-text-strong);
   box-shadow: var(--om-shadow-dropdown);
+  font-family: inherit;
 }
 
 .toastify.om-toast-success {
@@ -26,6 +30,10 @@
   --om-toast-accent: var(--om-color-danger);
 }
 
+.toastify.om-toast-info {
+  --om-toast-accent: var(--om-color-info);
+}
+
 .om-toast-content {
   min-width: 0;
   flex: 1;
@@ -37,16 +45,34 @@
 }
 
 .om-toast-title {
-  font-weight: 600;
+  font-size: var(--om-font-size-body);
+  font-weight: var(--om-font-weight-medium);
+  line-height: var(--om-line-height-body);
 }
 
 .om-toast-body {
   margin-top: 0.125rem;
   color: var(--om-color-text-muted);
-  font-size: var(--om-font-size-body);
+  font-size: var(--om-font-size-meta);
+  line-height: var(--om-line-height-meta);
 }
 
 .toastify.om-toast .toast-close {
   flex: none;
-  color: currentColor;
+  display: inline-grid;
+  place-items: center;
+  width: var(--om-control-height-sm);
+  height: var(--om-control-height-sm);
+  margin: -0.375rem -0.375rem -0.375rem 0;
+  border-radius: var(--om-radius-control);
+  background: transparent;
+  color: var(--om-color-text-muted);
+  opacity: 1;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.toastify.om-toast .toast-close:hover {
+  background: var(--om-color-surface-muted);
+  color: var(--om-color-text-strong);
 }

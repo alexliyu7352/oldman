@@ -60,7 +60,9 @@
 
 顺序是准备异步字段 → WTForms 同步校验 → 无字段错误的 `clean_<name>()` → 整个 `clean()`。字段 cleaner 必须是异步方法，返回最终值；返回 None 就是最终值为 None。仅校验时也应返回原值，框架无法判断你是不是忘了 return。
 
-即使部分字段失败，表单 `clean()` 仍会执行。它看到的 `cleaned_data` 只包含已通过字段校验的值；返回 None 保留原数据，返回 dict 替换它。`cleaned_data` 属性返回副本，不能通过原地改这个副本指望修改内部状态。
+即使部分字段失败，表单 `clean()` 仍会执行。它看到的 `cleaned_data` 只包含已通过字段校验的值；返回 None 保留原数据，返回 dict 则把其中的键**合并**进去，同名键以返回值为准。所以 `return {"extra": 1}` 是补一个键，不会丢掉别的字段。`cleaned_data` 属性返回副本，不能通过原地改这个副本指望修改内部状态。
+
+隐藏字段的值**会**进入 `cleaned_data`，和 WTForms 的 `form.data` 一致——`HiddenField("record_id")` 声明出来就是为了读回来。渲染器按类型跳过它只是因为隐藏字段由 `hidden_fields()` 统一输出，那是渲染的事，不是数据的事。
 
 `ValidationError` 是正常校验失败：字段 cleaner 的异常写字段错误，表单 `clean()` 的异常写唯一 `error_message`。也可用 `add_error(field_name, message)` 添加真实字段错误，最终该字段从 cleaned_data 排除；Demo 的 StreamProfileForm.clean_name 使用这一方式。无效字段名和 `__all__` 会报错；TypeError、数据库异常等程序错误继续抛出，不掩盖为校验错误。
 
@@ -86,18 +88,19 @@ Python `form.errors` 保留完整错误列表；HTML 和 `to_api_response()` 每
 
 Demo 的 [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py) 在 `_form_card()` 中传递 mode，[page.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/forms/page.html) 调用 `form.render()`，POST 再使用相同 prefix 绑定。两张表单的 `html` / `json` prefix 不能在提交时丢掉，否则字段名对不上。
 
-该文件的错误响应函数原样如下。这里由 Form 发出的 Accept 决定实际响应；`mode` 用于重新渲染出的 Form 配置，不能只看 URL 就假定后端已经返回某种格式：
+该文件的错误响应函数原样如下。由 Form 发出的 Accept 决定实际响应：JSON 客户端得到 `form.to_api_response()`（HTTP 200，校验失败是业务结果），片段客户端得到重新渲染的 Form（422）；`mode` 用于重新渲染出的 Form 配置，不能只看 URL 就假定后端已经返回某种格式：
 
 ```python
 async def _form_error_response(request: Request, form: Any, *, action: str, mode: str):
     """Return the response contract selected by the mounted Form component."""
-    if _accepts_json(request):
-        return json_response(form.to_api_response().to_dict(), status=200)
-    html = await form.render(action=action, form_mode=mode, submit_label=_("Submit example"))
-    return html_response(str(html), status=422)
+    return await form_invalid_response(
+        request,
+        form,
+        fragment=lambda: form.render(action=action, form_mode=mode, submit_label=_("Submit example")),
+    )
 ```
 
-`_accepts_json()` 定义在同一文件；Request、Any、响应函数和翻译函数也在该文件导入。HTML 成功路径由 `_form_success_response()` 返回成功片段；JSON 成功路径返回 DefaultApiFormResponse 和 actions。普通字段示例不保存记录；`multi-step` 分支才在事务内调用 ModelForm.save。两条路径及前端事件顺序见[响应协议](responses.md)。
+`form_invalid_response` 来自 `oldman.web.api`（同包还有 `accepts_json_form_response`、`form_success_response` 等，见[响应协议](responses.md#后端类型)）；Request、Any 和翻译函数在该文件导入。整页表单再传 `page=` 回调，浏览器直接提交时得到状态为 422 的完整页面。HTML 成功路径由 `_form_success_response()` 返回成功片段；JSON 成功路径返回 DefaultApiFormResponse 和 actions。普通字段示例不保存记录；`multi-step` 分支才在事务内调用 ModelForm.save。两条路径及前端事件顺序见[响应协议](responses.md)。
 
 ## ModelForm 的保存边界
 
@@ -147,6 +150,16 @@ GET `example_project_create_modal()` 先用 `@add_csrf_token()` 取得 token，�
 
 `save()` 默认 commit=False，只准备模型实例；commit=True 使用提供的 Session 做 add/flush，**不自行 commit**。事务由外层管理。没通过校验就 save 会抛 ValueError。Demo 编辑入口先以 `_project_or_404()` 查询项目，再传 `instance=project`。当前 Demo 是 staff 共用数据；需要用户/租户隔离的业务还须在查询中限定范围，不能把 request 中的主键当可信的保存对象。
 
+模型自己的派生列（创建/更新时间、小写查找列、拼出来的 key）写在 `before_save(instance)` 里，不要重写 `save()`：这个钩子在表单值和上传文件名都装进实例之后、写库之前调用，session、add、flush 仍由框架处理。
+
+```python
+    async def before_save(self, channel: ChannelsEpg) -> None:
+        """维护旧库遗留的派生字段。"""
+        if channel.create_date is None:
+            channel.create_date = utcnow_naive()
+        channel.tvg_id_lookup = channel.tvg_id.lower() if channel.tvg_id else None
+```
+
 上传字段是例外：即使 commit=False，save 也可能把新文件写入 Storage。传入框架管理的 Session 才能关联已有文件生命周期处理；不要把 commit=False 理解为绝对没有外部副作用。
 
 file_column、多个文件字段、替换/回滚/删除及 Storage 初始化的完整接线见[文件存储](storage.md#模型声明与-form)。
@@ -167,7 +180,11 @@ class LayoutExampleForm(BasicFieldsForm):
     )
 ```
 
-`FieldLayout(name, width="md:col-span-12")` 控制单字段；Row 给同组字段同宽。MultiStepProjectForm 继承上面的 ExampleProjectForm，使用同文件内的 FormLayout/FormStep 分成 Identity、Planning、Details 三步，最后一个 Actions 提交整张表单。最终仍是一次后端校验和一次保存；不是每步提交数据库。服务端错误返回时仍需保留步骤与字段标记。动态模板必须经过 Page 的组件管理器挂载。
+`FieldLayout(name, width="md:col-span-12", advanced=False)` 控制单字段；Row 给同组字段同宽。`Row(start, end, as_range=True, label=...)` 把起止两个字段合成一个范围控件（`label` 是范围整体的标签，默认取起点字段的标签）（栅格里是一个标签下的两个输入，inline 筛选条里是一个前缀加两个输入）。`FieldGroup(title, *items, description="")` 把一组字段渲染成带标题（14/500）和一句说明的 `fieldset`，字段在其内部再排一张栅格；它可以和散字段混排，也可以放进 FormStep 里。MultiStepProjectForm 继承上面的 ExampleProjectForm，使用同文件内的 FormLayout/FormStep 分成 Identity、Planning、Details 三步，最后一个 Actions 提交整张表单。最终仍是一次后端校验和一次保存；不是每步提交数据库。服务端错误返回时仍需保留步骤与字段标记。动态模板必须经过 Page 的组件管理器挂载。
+
+ModelForm 从列生成字段时，标签与帮助文字按三层取值：显式声明的字段 > `Meta.labels` / `Meta.help_texts` > 列的 `info={"label": ..., "help_text": ...}` > 字段名转写。模型级默认写在列上，表单需要改口时在 Meta 里覆盖。
+
+筛选表单（`TailwindTableFilterForm`）默认 `layout_style = "inline"`：搜索框（`render_kw={"type": "search"}` 或字段名 `q`）占满剩余宽度，其余控件把标签作为左侧前缀段，`advanced=True` 的字段收进右端的"更多筛选"面板，右端固定是"重置"和"筛选"。字段特别多、都要一直可见的页面把 `layout_style` 改成 `"grid"`，就是标签在上的栅格。两种布局各自对应 `oldman/forms/default/` 下的模板，项目按同路径覆盖即可换样式。
 
 ## 扩展字段清单
 
@@ -177,12 +194,14 @@ class LayoutExampleForm(BasicFieldsForm):
 | --- | --- |
 | `SlugField` | 普通字符串；生成/编辑 URL slug，不是标签列表 |
 | `TagsField(delimiter=",")` | 分隔符字符串；前端可增删标签，适合 String/Text |
+| `SwitchCardWidget` / `SwitchWidget` / `CheckboxWidget` | BooleanField 的三种呈现：带边框的开关卡片（标签与帮助文字在左、开关在右，Tailwind 渲染器的默认）、行内开关、复选框行。都仍提交普通 checkbox 值；帮助文字来自字段的 `description`，也就是 Django 的 help_text |
 | `TagsInputWidget` | 为普通文本字段增加 tags-input DOM；需要规范化时使用 TagsField |
 | `TagsSelectWidget` | 用现有 Select 增强本地多选；提交选项列表，不变成分隔符字符串 |
 | `JSONListField` | Text 中的 JSON 数组 ↔ 一维标量字段列表；新增/删除由 form-repeater 处理 |
 | `InputSpinnerWidget` | Integer/Decimal 等字段的加减控件；底层仍是 number input |
 | `DateTimePickerWidget` | 配合原有日期/时间字段增加选择器，字段负责实际格式验证 |
 | `ColorPickerField` | 十六进制颜色；`allow_alpha` 控制透明度 |
+| `EmailField` | `type="email"` 输入；提交值去空白并转小写后再校验格式和 254 长度，写库前只保留一种写法，用户表单和找回密码都用它 |
 | `RichTextField` | HTML 字符串；渲染编辑器不等于可信 HTML，应在服务端按业务要求清理 |
 | `UploadField` | 普通 Form 中是 Sanic 上传文件对象；不是一个本地文件路径 |
 | `FileSize(max_bytes)`、`FileExtension(extensions)` | 上传大小与扩展名验证；扩展名不证明真实文件内容安全 |
@@ -271,7 +290,33 @@ def _select_form(request: Request, profile: ExampleStreamProfile | None, logo: E
     )
 ```
 
-LogoSelectForm 自己的 `__init__()` 把 initial_logo 的国家、已选 option 和 ID 写入字段，只在未绑定时执行。这样首次 HTML 有已选值，远程初值查询也能继续回显；不能用搜索第一页代替已选值查询。没有 profile 时返回 None，页面提示准备 fixture，不伪造一个已保存对象。
+LogoSelectForm 自己的 `__init__()` 把 initial_logo 的国家和已选值写入字段。已选值用字段自带的回显入口，不要手写 choices 和 data：
+
+```python
+        self.country_code.data = initial_logo.country_code
+        self.logo_id.initial_choice(initial_logo.id, f"{initial_logo.name} · {initial_logo.country_code}")
+```
+
+`AjaxSelectField.initial_choice(value, label)` 放入唯一一条 option 并选中它；`AjaxSelectMultipleField.initial_choices([(value, label), ...])` 按传入顺序回显多选；`AjaxAutocompleteField.initial_choice(value, label)` 把 ID 写进字段值、把标签写进输入框。三者都会跳过空值，以及表单带着提交数据处理过的情况（`raw_data is not None`），所以在 `__init__` 里无条件调用即可，不用自己判断 `is_bound`。判断的是有没有提交，而不是提交了什么：多选一个都不选时浏览器不提交这个 key，`raw_data` 是空列表，此时回显旧值等于把用户的清空吃掉。这样首次 HTML 有已选值，远程初值查询也能继续回显；不能用搜索第一页代替已选值查询。没有 profile 时返回 None，页面提示准备 fixture，不伪造一个已保存对象。
+
+远程字段**默认不校验提交值**：它们没有本地 choices，WTForms 无从比对，所以浏览器送什么整数都会被接受。要校验就给字段声明 `allowed_values`——一个 `async (request, values) -> 可迭代的允许值` 的可调用对象，返回本次请求允许提交的那些值，其余提交一律报 `Not a valid choice.`。
+
+```python
+async def my_logos(request, values):
+    async with db_manager.get_read_session() as session:
+        rows = await session.execute(
+            select(Logo.id).where(Logo.owner_id == request.ctx.session.user_id, Logo.id.in_(values))
+        )
+        return [str(value) for value in rows.scalars()]
+
+logo_id = AjaxSelectField("Logo", provider="example_logos", route_name="...", allowed_values=my_logos)
+```
+
+它**不是**复用 provider 的 `get_queryset`，这是有意的：“用户能看到什么”和“用户能提交什么”是两个集合。把记录改派给任意用户、而下拉只显示最近二十个，是很常见的表单，用显示集合当允许集合就会把它弄坏。允许集合由表单声明，显示集合由 provider 决定，两者互不牵连。
+
+解析器就是普通的异步函数，所以数据来源不限于数据库；结构化数据、缓存、远程服务都用同一个钩子。不声明时零开销：不会产生任何额外查询。`tags=True` 的多选本来就是为了让用户输入尚不存在的值，声明了也会跳过校验。
+
+可选的远程外键（`validators=[Optional()]`）被用户清空时提交空字符串，`AjaxSelectField` 把它存成 `None`，不需要给 `coerce` 再包一层“空值转 None”。多选清空时浏览器可能提交空字符串、也可能根本不提交这个 key，`AjaxSelectMultipleField` 两种都存成 `[]`，调用方不用分别处理。
 
 ### 提交仍需校验对象
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +12,7 @@ from unittest.mock import patch
 import oldman.conf as conf
 from oldman.conf.schemas import CSRFConfig, WebConfig, WebSecurityConfig
 from oldman.web.security import WebSecurityPurpose, derive_web_security_key
-from oldman.web.security.csrf import StatelessCSRFManager, add_csrf_token, csrf_protect
+from oldman.web.security.csrf import StatelessCSRFManager, add_csrf_token, csrf_exempt, csrf_protect
 from oldman.web.session import SessionData
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,10 +25,16 @@ class FakeApp:
         self.config = {"SECRET_KEY": "secret"}
         self.ctx = SimpleNamespace()
         self.listeners: list[tuple[object, str]] = []
+        self.middlewares: list[tuple[Any, str]] = []
 
     def register_listener(self, listener, event: str) -> None:
         """Record registered listener."""
         self.listeners.append((listener, event))
+
+    def register_middleware(self, middleware, location: str, **kwargs: object) -> None:
+        """Record registered middleware."""
+        del kwargs
+        self.middlewares.append((middleware, location))
 
 
 class OldmanWebCsrfDependencyTest(unittest.TestCase):
@@ -54,7 +61,9 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
         self.assertTrue(manager.check_url)
         request = SimpleNamespace(
             ctx=SimpleNamespace(session={"sid": "session-1"}),
-            path="/submit", headers={}, host="example.test",
+            path="/submit",
+            headers={},
+            host="example.test",
         )
         token = manager.generate_token(cast(Any, request))
         verifier = StatelessCSRFManager(
@@ -127,6 +136,54 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
         self.assertEqual("0", manager._get_session_id(cast(Any, request)))
         self.assertEqual((True, "Valid"), manager.validate_token(cast(Any, request), token))
 
+    def test_same_origin_check_uses_origin_first_and_rejects_cross_site(self) -> None:
+        """Origin is the primary check; null, foreign, and both-missing are all rejected."""
+        app = FakeApp()
+        manager = StatelessCSRFManager(cast(Any, app), secret_key="secret")  # check_referer defaults True
+        self.assertTrue(manager.check_referer)
+
+        def request_with(headers: dict[str, str]):
+            request = SimpleNamespace(
+                app=app,
+                ctx=SimpleNamespace(session={"sid": "s1"}),
+                path="/submit",
+                headers=headers,
+                host="example.test",
+                form={},
+                json=None,
+            )
+            token = manager.generate_token(cast(Any, request))
+            request.form = {"csrfmiddlewaretoken": token}
+            return cast(Any, request)
+
+        # A real page mints its own token and submits with a matching Origin.
+        same_origin = request_with({"Origin": "https://example.test"})
+        self.assertEqual((True, "Valid"), manager.validate_token(same_origin, same_origin.form["csrfmiddlewaretoken"]))
+
+        # no-referrer downgrades a cross-site POST's Origin to the literal "null".
+        null_origin = request_with({"Origin": "null"})
+        accepted, reason = manager.validate_token(null_origin, null_origin.form["csrfmiddlewaretoken"])
+        self.assertFalse(accepted)
+        self.assertEqual("Cross-origin request blocked", reason)
+
+        # A foreign Origin is rejected even with a valid token.
+        foreign = request_with({"Origin": "https://attacker.test"})
+        self.assertFalse(manager.validate_token(foreign, foreign.form["csrfmiddlewaretoken"])[0])
+
+        # Neither Origin nor Referer present: rejected (option A).
+        bare = request_with({})
+        self.assertFalse(manager.validate_token(bare, bare.form["csrfmiddlewaretoken"])[0])
+
+        # Referer is the fallback when Origin is absent.
+        referer_ok = request_with({"Referer": "https://example.test/page"})
+        self.assertTrue(manager.validate_token(referer_ok, referer_ok.form["csrfmiddlewaretoken"])[0])
+        referer_bad = request_with({"Referer": "https://attacker.test/page"})
+        self.assertFalse(manager.validate_token(referer_bad, referer_bad.form["csrfmiddlewaretoken"])[0])
+
+        # A subdomain is no longer blanket-trusted (W-7).
+        subdomain = request_with({"Origin": "https://evil.example.test"})
+        self.assertFalse(manager.validate_token(subdomain, subdomain.form["csrfmiddlewaretoken"])[0])
+
     def test_form_token_lookup_does_not_force_json_parsing(self) -> None:
         """缺少 token 的表单请求必须进入 403 分支，不能被 request.json 提前变成 400。"""
         app = FakeApp()
@@ -190,9 +247,7 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
 
     def test_csrf_source_does_not_import_legacy_package(self) -> None:
         """CSRF implementation must not depend on the legacy package."""
-        source = (
-            ROOT / "oldman" / "web" / "security" / "csrf" / "__init__.py"
-        ).read_text(encoding="utf-8")
+        source = (ROOT / "oldman" / "web" / "security" / "csrf" / "__init__.py").read_text(encoding="utf-8")
         legacy_prefix = "ac" + "_base"
 
         self.assertNotIn(legacy_prefix, source)
@@ -200,3 +255,99 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GlobalCsrfEnforcementTest(unittest.TestCase):
+    """csrf_exempt must exempt a route from something that actually runs.
+
+    It used to set `func._csrf_exempt = True` and nothing anywhere read that attribute.
+    There was no global middleware either, so protection was opt-in per route: a handler
+    that forgot @csrf_protect was unprotected and nothing said so, while a webhook marked
+    csrf_exempt was still blocked if it happened to carry @csrf_protect. A public API
+    that reads like a security control and is a no-op is worse than no API.
+
+    Enforcement is off by default, because switching it on covers routes that are
+    unprotected today - API and webhook endpoints that authenticate by token rather than
+    by session - so a deployment has to mark those exempt first.
+    """
+
+    @staticmethod
+    def _request(app: Any, method: str, handler: Any, *, token: str | None = None) -> Any:
+        return SimpleNamespace(
+            app=app,
+            ctx=SimpleNamespace(session={"sid": "session-1"}),
+            path="/submit",
+            headers={"Origin": "http://example.test"},
+            host="example.test",
+            form={"csrfmiddlewaretoken": token} if token else {},
+            json=None,
+            method=method,
+            route=SimpleNamespace(handler=handler),
+        )
+
+    def test_enforcement_is_off_unless_the_setting_asks_for_it(self) -> None:
+        app = FakeApp()
+        manager = StatelessCSRFManager(cast(Any, app), secret_key="secret")
+        self.assertFalse(manager.enforce)
+        self.assertEqual([], app.middlewares, "a default deployment must keep its current behaviour")
+
+    def test_an_unsafe_request_without_a_token_is_refused(self) -> None:
+        from oldman.web.exceptions import Forbidden
+
+        app = FakeApp()
+        StatelessCSRFManager(cast(Any, app), secret_key="secret", enforce=True)
+        middleware = app.middlewares[0][0]
+
+        async def handler(request: Any) -> str:
+            return "ok"
+
+        with self.assertRaises(Forbidden):
+            asyncio.run(middleware(self._request(app, "POST", handler)))
+
+    def test_a_safe_method_is_left_alone(self) -> None:
+        app = FakeApp()
+        StatelessCSRFManager(cast(Any, app), secret_key="secret", enforce=True)
+        middleware = app.middlewares[0][0]
+
+        async def handler(request: Any) -> str:
+            return "ok"
+
+        for method in ("GET", "HEAD", "OPTIONS", "TRACE"):
+            with self.subTest(method=method):
+                self.assertIsNone(asyncio.run(middleware(self._request(app, method, handler))))
+
+    def test_csrf_exempt_now_exempts(self) -> None:
+        app = FakeApp()
+        StatelessCSRFManager(cast(Any, app), secret_key="secret", enforce=True)
+        middleware = app.middlewares[0][0]
+
+        @csrf_exempt
+        async def webhook(request: Any) -> str:
+            return "ok"
+
+        self.assertIsNone(asyncio.run(middleware(self._request(app, "POST", webhook))))
+
+    def test_a_valid_token_passes_enforcement(self) -> None:
+        app = FakeApp()
+        manager = StatelessCSRFManager(cast(Any, app), secret_key="secret", enforce=True)
+        middleware = app.middlewares[0][0]
+
+        async def handler(request: Any) -> str:
+            return "ok"
+
+        request = self._request(app, "POST", handler)
+        request.form = {"csrfmiddlewaretoken": manager.generate_token(request)}
+        self.assertIsNone(asyncio.run(middleware(request)))
+
+    def test_the_decorator_and_the_middleware_share_one_implementation(self) -> None:
+        """Two copies of "what counts as valid" is how they drift apart."""
+        import inspect
+
+        from oldman.web.security.csrf import manager as manager_module
+        from oldman.web.security.csrf.decorators import enforce_csrf
+
+        # The decorator body calls the shared function rather than restating the checks.
+        decorator_source = inspect.getsource(manager_module.__dict__["StatelessCSRFManager"].register_enforcement)
+        self.assertIn("enforce_csrf", decorator_source)
+        self.assertEqual(1, inspect.getsource(enforce_csrf).count("CSRF token missing"))
+        self.assertNotIn("CSRF token missing", inspect.getsource(manager_module))

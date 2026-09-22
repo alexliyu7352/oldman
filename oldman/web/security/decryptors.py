@@ -1,62 +1,44 @@
-"""Decrypt payloads produced by the browser Web Crypto API.
+"""Read the payload the browser's Web Crypto API produces.
 
-@author:alex
-@date:2025/11/25
-@time:07:13
+Everything cryptographic lives in `oldman.utils.crypto`; what remains here is the wire
+format that browser code and this framework agreed on — Base64 around the IV-prefixed
+AES-GCM blob, JSON inside it — and the key material arriving Base64-encoded from settings.
 """
 
-__author__ = "alex"
+from __future__ import annotations
 
 import base64
 
-import ujson
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import orjson
+
+from oldman.utils.crypto import aes_gcm_decrypt
 
 
 class AESGcmDecrypt:
-    """解密前端Web Crypto API加密的数据"""
+    """解密前端 Web Crypto API 加密的数据。"""
 
     @staticmethod
     def decrypt(encrypted_b64: str, aes_secret_key: str) -> tuple[bool, str, dict]:
-        """
-        解密AES-GCM加密的数据
+        """Decode the browser envelope and return its JSON body.
 
-        前端格式: Base64(IV[12字节] + 密文 + Tag[16字节])
+        Wire format: Base64(IV[12] + ciphertext + tag[16]); the key arrives Base64 too.
 
-        返回: (是否成功, 错误信息, 解密数据)
+        Returns `(ok, reason, payload)`. Reasons are passed through from the primitive
+        unchanged except for the two this layer owns: a Base64 envelope that does not
+        decode, and a plaintext that is not JSON.
         """
         try:
-            # 1. Base64解码
             encrypted_bytes = base64.b64decode(encrypted_b64)
-
-            # 2. 分离IV和密文
-            # AES-GCM: IV是12字节，Tag在密文末尾16字节
-            if len(encrypted_bytes) < 28:  # 12 (IV) + 16 (Tag)
-                return False, "data_too_short", {}
-
-            iv = encrypted_bytes[:12]
-            ciphertext_with_tag = encrypted_bytes[12:]
-
-            # 3. 准备密钥
             secret_key = base64.b64decode(aes_secret_key)
+        except Exception as error:
+            return False, f"invalid_encoding:{error}", {}
 
-            # 4\. 使用 AESGCM 解密
-            aesgcm = AESGCM(secret_key)
-            plaintext = aesgcm.decrypt(iv, ciphertext_with_tag, None)
+        ok, reason, plaintext = aes_gcm_decrypt(encrypted_bytes, secret_key)
+        if not ok:
+            return False, reason, {}
 
-            # 5\. 解析 JSON
-            payload = ujson.loads(plaintext.decode("utf-8"))
-
-            return True, "success", payload
-
-        except ujson.JSONDecodeError:
+        try:
+            # orjson 直接接受 bytes；它也是这个仓库其余解析路径用的解析器。
+            return True, "success", orjson.loads(plaintext)
+        except orjson.JSONDecodeError:
             return False, "invalid_json", {}
-        except Exception as e:
-            # cryptography 在认证失败、格式错误等情况下都会抛 ValueError
-
-            msg = str(e)
-
-            if "tag" in msg or "authentication" in msg:
-                return False, f"authentication_failed:{msg}", {}
-
-            return False, f"decryption_error:{msg}", {}

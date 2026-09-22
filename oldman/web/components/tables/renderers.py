@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from decimal import Decimal
 from typing import Any, Literal, cast
 
 from markupsafe import Markup, escape
@@ -14,11 +13,14 @@ from oldman.web.template import (
     render_component_template_sync,
 )
 
+from .cells import render_display_value
 from .columns import Column
 from .request import TableRequest
 from .results import TableResult
 
 _LOADING_MESSAGE = cast(str, gettext_lazy("Loading..."))
+_TOOLBAR_TOOLS = ("columns", "density", "export")
+_EXPORT_FORMAT_LABELS = {"csv": "CSV"}
 
 
 class TableRenderer:
@@ -41,6 +43,7 @@ class TableRenderer:
         html_id: str | None = None,
         show_search: bool = True,
         data_format: Literal["html", "json"] = "html",
+        bulk_actions_html: Markup | str | None = None,
     ) -> Markup:
         """渲染表格外壳。"""
         if data_format not in {"html", "json"}:
@@ -51,11 +54,79 @@ class TableRenderer:
             self.template_name("shell.html"),
             {
                 "attrs": attrs,
-                "initial_query": self.table.initial_query or "",
+                "empty_templates_html": self.render_empty_templates() if data_format == "json" else Markup(""),
                 "initial_fragment_html": self.render_initial_fragment(data_format=data_format),
-                "show_search": show_search,
+                "toolbar_html": self.render_toolbar(show_search=show_search, bulk_actions_html=bulk_actions_html),
             },
         )
+
+    def render_empty_state(self, *, filtered: bool) -> Markup:
+        """Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything."""
+        return render_component_template_sync(
+            self.table,
+            self.template_name("empty.html"),
+            {
+                "description": (self.table.empty_filtered_description if filtered else self.table.empty_description) or "",
+                "filtered": filtered,
+                "title": self.table.empty_filtered_message if filtered else self.table.empty_message,
+            },
+        )
+
+    def render_empty_templates(self) -> Markup:
+        """Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser."""
+        return Markup("").join(
+            Markup('<template data-om-table-empty-template="{name}">{body}</template>').format(name=name, body=self.render_empty_state(filtered=filtered))
+            for name, filtered in (("all", False), ("filtered", True))
+        )
+
+    def render_toolbar(self, *, show_search: bool = True, bulk_actions_html: Markup | str | None = None) -> Markup:
+        """Render the table toolbar; empty output when nothing would appear in it."""
+        tools = self.toolbar_tools()
+        bulk_actions = Markup(bulk_actions_html) if bulk_actions_html else Markup("")
+        selectable = bool(self.table.selectable)
+        if not (show_search or tools or selectable or bulk_actions):
+            return Markup("")
+        export_formats = [
+            {"name": name, "label": _EXPORT_FORMAT_LABELS.get(name, name.upper())}
+            for name in self.export_formats()
+        ]
+        return render_component_template_sync(
+            self.table,
+            self.template_name("toolbar.html"),
+            {
+                "bulk_actions_html": bulk_actions,
+                "columns": [column for column in self.table.get_columns() if self.column_is_hideable(column)],
+                "export_formats": export_formats,
+                "initial_query": self.table.initial_query or "",
+                "selectable": selectable,
+                "show_search": show_search,
+                "tools": tools,
+            },
+        )
+
+    def toolbar_tools(self) -> list[str]:
+        """Return the enabled toolbar tools in declared order."""
+        tools: list[str] = []
+        for name in getattr(self.table, "toolbar", ()) or ():
+            tool = str(name)
+            if tool not in _TOOLBAR_TOOLS:
+                raise ValueError(f"Unknown table toolbar tool: {tool!r}")
+            if tool == "export" and not self.export_formats():
+                continue
+            if tool == "columns" and not any(self.column_is_hideable(column) for column in self.table.get_columns()):
+                continue
+            if tool not in tools:
+                tools.append(tool)
+        return tools
+
+    def export_formats(self) -> list[str]:
+        """Return the declared export formats as lowercase names."""
+        return [str(name).lower() for name in getattr(self.table, "export_formats", ()) or ()]
+
+    @staticmethod
+    def column_is_hideable(column: Column) -> bool:
+        """The row-action column is never hideable; other columns follow their own flag."""
+        return bool(column.hideable) and column.name != "action"
 
     def shell_attrs(
         self,
@@ -108,7 +179,7 @@ class TableRenderer:
             {
                 "columns": self.table.get_columns(),
                 "current_page_size": str(page_size),
-                "empty_message": self.table.empty_message,
+                "empty_html": self.render_empty_state(filtered=False),
                 "head_html": self.render_html_head(),
                 "loading": True,
                 "loading_message": _LOADING_MESSAGE,
@@ -136,7 +207,7 @@ class TableRenderer:
             self.template_name("fragment.html"),
             {
                 "columns": self.table.get_columns(),
-                "empty_message": self.table.empty_message,
+                "empty_html": self.render_empty_state(filtered=result.filtered_total < result.total),
                 "head_html": self.render_html_head(),
                 "pagination_html": self.render_html_pagination(result),
                 "current_page_size": str(result.page_size),
@@ -288,27 +359,9 @@ class TailwindTableRenderer(TableRenderer):
     template_namespace = "oldman/tables/default"
 
 
-def render_display_value(value: object) -> Markup:
-    """把显示值转换为安全 HTML。"""
-    if isinstance(value, Markup):
-        return value
-    if value is None:
-        return Markup("")
-    return Markup(escape(value))
-
-
-def normalize_raw_value(value: object) -> object:
-    """把字段值规范为 JSON 和 HTML data 属性可用的标量。"""
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, Decimal):
-        return str(value)
-    return str(value)
-
-
 def to_kebab_case(value: str) -> str:
     """把筛选字段名转换为 HTML data 属性后缀。"""
     return value.replace("_", "-").replace(".", "-")
 
 
-__all__ = ["TableRenderer", "TailwindTableRenderer", "normalize_raw_value", "render_display_value"]
+__all__ = ["TableRenderer", "TailwindTableRenderer"]

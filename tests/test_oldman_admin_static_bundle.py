@@ -111,8 +111,11 @@ class OldmanAdminStaticBundleTest(unittest.TestCase):
         self.assertIn('oldman-web/styles/tailwind.css', css_source)
         self.assertIn('oldman-web/styles/icons.css', css_source)
         self.assertIn("oldman/apps/admin/templates", css_source)
-        self.assertIn('@fontsource/dm-sans/latin-300.css', css_source)
-        self.assertIn('@fontsource/dm-sans/latin-700.css', css_source)
+        # 设计的字重只有 400/500/600（--om-font-weight-regular/medium/semibold），不发没人用的字体文件。
+        for weight in (400, 500, 600):
+            self.assertIn(f'@fontsource/dm-sans/latin-{weight}.css', css_source)
+        for weight in (300, 700):
+            self.assertNotIn(f'@fontsource/dm-sans/latin-{weight}.css', css_source)
         self.assertNotIn("/static/oldman-admin/", main_source)
 
     def test_built_admin_static_manifest_is_allowlisted(self) -> None:

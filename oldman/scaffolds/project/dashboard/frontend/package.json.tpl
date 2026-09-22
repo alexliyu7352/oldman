@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "generate:icons": "oldman-web-icons --output src/generated/icons.css --source src --source ../templates --source ../apps --exclude-shared",
-    "generate:i18n": "../.venv/bin/python ../scripts/build_frontend_i18n.py",
+    "generate:i18n": "../run.sh i18n compile-frontend --service {{ service_name }}",
     "prebuild": "pnpm generate:icons && pnpm generate:i18n",
     "predev": "pnpm generate:icons && pnpm generate:i18n",
     "pretypecheck": "pnpm generate:icons",

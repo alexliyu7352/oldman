@@ -20,7 +20,9 @@ class BaseWorker(ABC):
         self.comm_manager = CommunicationManager()
         self.running = False
 
-        # 内置任务管理器
+        # 内置任务管理器。注意 BackgroundTaskManager 是进程级单例（`@singleton_adv`）：
+        # Worker 今天跑在独立进程里，所以和 Web 进程的那个互不干扰；哪天有人在 Web 进程
+        # 内创建 Worker，两者就会共享同一个管理器，包括它的停机状态。
         self.task_manager = BackgroundTaskManager()
 
         # 任务创建器注册表 - 简化类型

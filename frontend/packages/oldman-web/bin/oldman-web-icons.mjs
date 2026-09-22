@@ -32,7 +32,7 @@ const SKIPPED_DIRECTORIES = new Set([
 const options = parseArguments(process.argv.slice(2));
 const excludedIconClasses = options.excludeShared ? collectSharedIconClasses() : new Set();
 const iconClasses = new Set(
-  [...collectIconClasses(options.sources)].filter((iconClass) => !excludedIconClasses.has(iconClass))
+  [...collectIconClasses(options.sources, options.excluded)].filter((iconClass) => !excludedIconClasses.has(iconClass))
 );
 const css = renderIconStyles(iconClasses);
 
@@ -52,6 +52,7 @@ function parseArguments(args) {
   let excludeShared = false;
   let output = null;
   const sources = [];
+  const excluded = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -63,11 +64,12 @@ function parseArguments(args) {
       excludeShared = true;
       continue;
     }
-    if (argument === "--output" || argument === "--source") {
+    if (argument === "--output" || argument === "--source" || argument === "--exclude") {
       const value = args[index + 1];
       if (!value || value.startsWith("--")) throw new Error(`${argument} requires a path`);
       index += 1;
       if (argument === "--output") output = resolve(value);
+      else if (argument === "--exclude") excluded.push(resolve(value));
       else sources.push(resolve(value));
       continue;
     }
@@ -82,12 +84,12 @@ function parseArguments(args) {
     printUsage();
     throw new Error("--output and at least one --source are required");
   }
-  return { check, excludeShared, output, sources };
+  return { check, excludeShared, excluded, output, sources };
 }
 
 function printUsage() {
   console.log(
-    "Usage: oldman-web-icons --output <file> --source <path> [--source <path> ...] [--exclude-shared] [--check]"
+    "Usage: oldman-web-icons --output <file> --source <path> [--source <path> ...] [--exclude <path> ...] [--exclude-shared] [--check]"
   );
 }
 
@@ -101,9 +103,9 @@ function collectSharedIconClasses() {
   return new Set([...source.matchAll(ICON_CLASS_PATTERN)].map((match) => match[0]));
 }
 
-function collectIconClasses(sourcePaths) {
+function collectIconClasses(sourcePaths, excludedPaths = []) {
   const sourceFiles = new Set();
-  for (const sourcePath of sourcePaths) collectSourceFiles(sourcePath, sourceFiles, true);
+  for (const sourcePath of sourcePaths) collectSourceFiles(sourcePath, sourceFiles, true, excludedPaths);
 
   const iconClasses = new Set();
   for (const filePath of [...sourceFiles].sort()) {
@@ -113,13 +115,15 @@ function collectIconClasses(sourcePaths) {
   return new Set([...iconClasses].sort());
 }
 
-function collectSourceFiles(filePath, files, explicitSource = false) {
+function collectSourceFiles(filePath, files, explicitSource = false, excludedPaths = []) {
   if (!existsSync(filePath)) throw new Error(`Icon source does not exist: ${filePath}`);
+  // 排除的是"另有自己图标表"的子树（可插拔的 App），不是为了少扫文件。
+  if (excludedPaths.some((excluded) => filePath === excluded || filePath.startsWith(`${excluded}/`))) return;
   const stats = statSync(filePath);
   if (stats.isDirectory()) {
     if (!explicitSource && SKIPPED_DIRECTORIES.has(filePath.split("/").at(-1))) return;
     for (const name of readdirSync(filePath).sort()) {
-      collectSourceFiles(resolve(filePath, name), files);
+      collectSourceFiles(resolve(filePath, name), files, false, excludedPaths);
     }
     return;
   }

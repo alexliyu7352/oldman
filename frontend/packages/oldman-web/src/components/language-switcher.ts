@@ -48,9 +48,10 @@ export class LanguageSwitcher extends Component {
       flag.alt = definition.name;
     }
 
+    // The trigger always shows the language name; a flag image, when present, is decoration.
     for (const name of this.$$<HTMLElement>("[data-om-language-current-name]")) {
       name.textContent = definition.name;
-      name.hidden = Boolean(flagUrl);
+      name.hidden = false;
     }
 
     for (const button of this.$$<HTMLElement>("[data-om-language-current]")) {

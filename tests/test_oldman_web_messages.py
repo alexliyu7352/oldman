@@ -9,6 +9,7 @@ import time
 import unittest
 import zlib
 from http.cookies import SimpleCookie
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import patch
@@ -59,9 +60,7 @@ def _sign_payload(
         signed.encode("ascii"),
         hashlib.sha256,
     ).digest()
-    encoded_signature = (
-        base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
-    )
+    encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
     return f"{signed}.{encoded_signature}"
 
 
@@ -199,9 +198,7 @@ class FlashCookieCodecTest(unittest.TestCase):
             self.codec(now=_FIXED_TIME + 3601).decode(value)
         future_value = cast(
             str,
-            self.codec(now=_FIXED_TIME + 61)
-            .encode_with_eviction((_message("future"),))
-            .value,
+            self.codec(now=_FIXED_TIME + 61).encode_with_eviction((_message("future"),)).value,
         )
         with self.assertRaisesRegex(_InvalidFlashCookie, "in the future"):
             self.codec().decode(future_value)
@@ -224,10 +221,7 @@ class FlashCookieCodecTest(unittest.TestCase):
             invalid_payload.encode("ascii"),
             hashlib.sha256,
         ).digest()
-        signed_invalid_payload = (
-            f"{invalid_payload}."
-            f"{base64.urlsafe_b64encode(signature).rstrip(b'=').decode('ascii')}"
-        )
+        signed_invalid_payload = f"{invalid_payload}.{base64.urlsafe_b64encode(signature).rstrip(b'=').decode('ascii')}"
         with self.assertRaisesRegex(_InvalidFlashCookie, "payload encoding"):
             self.codec().decode(signed_invalid_payload)
 
@@ -252,16 +246,12 @@ class FlashCookieCodecTest(unittest.TestCase):
                     ],
                 }
             ),
-            msgspec.msgpack.encode(
-                {"issued_at": _FIXED_TIME, "messages": []}
-            ),
+            msgspec.msgpack.encode({"issued_at": _FIXED_TIME, "messages": []}),
         )
 
         for payload in malformed_values:
             value = _sign_payload(_CODEC_KEY, zlib.compress(payload))
-            with self.subTest(payload=payload), self.assertRaises(
-                _InvalidFlashCookie
-            ):
+            with self.subTest(payload=payload), self.assertRaises(_InvalidFlashCookie):
                 self.codec().decode(value)
 
     def test_decompression_output_is_bounded(self) -> None:
@@ -282,21 +272,14 @@ class FlashCookieCodecTest(unittest.TestCase):
 
         self.assertEqual(
             value,
-            self.codec(value_limit=exact_size)
-            .encode_with_eviction((message,))
-            .value,
+            self.codec(value_limit=exact_size).encode_with_eviction((message,)).value,
         )
-        rejected = self.codec(value_limit=exact_size - 1).encode_with_eviction(
-            (message,)
-        )
+        rejected = self.codec(value_limit=exact_size - 1).encode_with_eviction((message,))
         self.assertIsNone(rejected.value)
         self.assertEqual(1, rejected.dropped)
 
     def test_actual_capacity_drops_oldest_and_rejects_one_oversized_message(self) -> None:
-        original = tuple(
-            _message(_incompressible_text(720, seed=f"message-{index}"))
-            for index in range(5)
-        )
+        original = tuple(_message(_incompressible_text(720, seed=f"message-{index}")) for index in range(5))
         codec = self.codec()
 
         encoded = codec.encode_with_eviction(original)
@@ -313,9 +296,7 @@ class FlashCookieCodecTest(unittest.TestCase):
             codec.decode(cast(str, encoded.value)),
         )
 
-        oversized = self.codec().encode_with_eviction(
-            (_message(_incompressible_text(5000, seed="oversized")),)
-        )
+        oversized = self.codec().encode_with_eviction((_message(_incompressible_text(5000, seed="oversized")),))
         self.assertIsNone(oversized.value)
         self.assertEqual(1, oversized.dropped)
         self.assertEqual((), oversized.messages)
@@ -397,16 +378,12 @@ class FlashSanicLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
         @self.app.get("/peek")
         async def peek(_request: Request) -> BaseHTTPResponse:
-            template = self.app.ext.environment.from_string(
-                "{% if messages %}{{ messages | length }}{% else %}0{% endif %}"
-            )
+            template = self.app.ext.environment.from_string("{% if messages %}{{ messages | length }}{% else %}0{% endif %}")
             return text(await template.render_async())
 
         @self.app.get("/consume-then-add")
         async def consume_then_add(request: Request) -> BaseHTTPResponse:
-            template = self.app.ext.environment.from_string(
-                "{% for message in messages %}{{ message.content }}|{% endfor %}"
-            )
+            template = self.app.ext.environment.from_string("{% for message in messages %}{{ message.content }}|{% endfor %}")
             rendered = await template.render_async()
             messages.info(request, "Added after rendering")
             return text(rendered)
@@ -552,10 +529,13 @@ class FlashSanicLifecycleTest(unittest.IsolatedAsyncioTestCase):
                 extensions=[],
                 built_in_extensions=False,
             )
-            with patch.dict(
-                conf.__dict__,
-                {"settings": self.settings},
-            ), self.assertRaisesRegex(RuntimeError, "Jinja environment"):
+            with (
+                patch.dict(
+                    conf.__dict__,
+                    {"settings": self.settings},
+                ),
+                self.assertRaisesRegex(RuntimeError, "Jinja environment"),
+            ):
                 messages.init_app(app)
         finally:
             Sanic.unregister_app(app)
@@ -563,3 +543,60 @@ class FlashSanicLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MessageLinkSchemeTest(unittest.TestCase):
+    """A message link may point anywhere except at a scheme that executes.
+
+    The Dashboard renders href into an anchor. Escaping protects the attribute but not
+    the scheme - javascript: in an href is a script, not a link. Requiring a same-site
+    path would also have blocked "open the invoice on the payment provider", which is an
+    ordinary thing for a notification to do, so the rule refuses executing schemes only.
+    """
+
+    EXECUTING = ("javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:text/html,<script>", "vbscript:x", "java\tscript:x")
+    ORDINARY = ("/admin/users", "https://payments.example/invoice/1", "http://intranet.local/a", "mailto:ops@example.test")
+
+    def test_a_transient_activity_refuses_an_executing_scheme(self) -> None:
+        from oldman.web.messages.actions import DashboardActivityAction
+
+        for href in self.EXECUTING:
+            with self.subTest(href=href), self.assertRaises(ValueError):
+                DashboardActivityAction(title="t", href=href)
+
+    def test_a_transient_activity_accepts_ordinary_links(self) -> None:
+        """An external link is a legitimate business need; the framework must not block it."""
+        from oldman.web.messages.actions import DashboardActivityAction
+
+        for href in self.ORDINARY:
+            with self.subTest(href=href):
+                self.assertEqual(href, DashboardActivityAction(title="t", href=href).href)
+        self.assertIsNone(DashboardActivityAction(title="t").href)
+
+    def test_a_redirect_target_is_held_to_the_stricter_rule(self) -> None:
+        """Rendering a link and redirecting to one are different threats.
+
+        A rendered link may point anywhere: the user sees the destination and clicks it.
+        A destination the server 303s to is an open redirect - a link on your own domain
+        that silently lands the visitor on someone else's. Stored notifications are
+        opened through exactly such a route, so their href stays local.
+        """
+        from oldman.web.messages.paths import is_safe_link, is_same_site_path
+
+        external = "https://payments.example/invoice/1"
+        self.assertTrue(is_safe_link(external), "an external link is fine to render")
+        self.assertFalse(is_same_site_path(external), "an external link must not be a redirect target")
+
+        self.assertTrue(is_same_site_path("/reports/7"))
+        self.assertFalse(is_same_site_path("//outside.example/path"))
+        for href in self.EXECUTING:
+            self.assertFalse(is_same_site_path(href), href)
+
+    def test_each_message_type_uses_the_rule_that_fits_it(self) -> None:
+        root = Path(__file__).resolve().parents[1] / "oldman" / "web" / "messages"
+        rendered = (root / "actions.py").read_text(encoding="utf-8")
+        self.assertIn("is_safe_link", rendered, "a rendered link should not be forced to be local")
+
+        for relative in ("notifications/service.py", "notifications/runtime.py"):
+            source = (root / relative).read_text(encoding="utf-8")
+            self.assertIn("is_same_site_path", source, f"{relative} would allow an open redirect")

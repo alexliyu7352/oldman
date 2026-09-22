@@ -47,12 +47,14 @@ class RedisAliasClient:
         lock_name: str,
         acquire_timeout: int = 10,
         retry_interval: float = 0.001,
+        expire_timeout: int | None = None,
     ) -> str | bool:
         """Delegate token-lock acquisition to this alias's normal client."""
         return await (await self._client()).acquire_lock(
             lock_name,
             acquire_timeout=acquire_timeout,
             retry_interval=retry_interval,
+            expire_timeout=expire_timeout,
         )
 
     async def release_lock(self, lock_name: str, identifier: str) -> bool:
@@ -105,9 +107,7 @@ class RedisClientRegistry:
             config[alias]
         except KeyError:
             available = ", ".join(config)
-            raise RedisAliasNotConfiguredError(
-                f"Redis connection alias {alias!r} is not configured; available aliases: {available}"
-            ) from None
+            raise RedisAliasNotConfiguredError(f"Redis connection alias {alias!r} is not configured; available aliases: {available}") from None
         bound = self._aliases.get(alias)
         if bound is None:
             bound = RedisAliasClient(self, alias)
@@ -149,12 +149,14 @@ class RedisClientRegistry:
         lock_name: str,
         acquire_timeout: int = 10,
         retry_interval: float = 0.001,
+        expire_timeout: int | None = None,
     ) -> str | bool:
         """Use the DEFAULT alias for token-lock acquisition."""
         return await self.using(self.default_alias).acquire_lock(
             lock_name,
             acquire_timeout=acquire_timeout,
             retry_interval=retry_interval,
+            expire_timeout=expire_timeout,
         )
 
     async def release_lock(self, lock_name: str, identifier: str) -> bool:

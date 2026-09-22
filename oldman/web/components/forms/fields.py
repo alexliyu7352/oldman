@@ -4,18 +4,55 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from pathlib import PurePosixPath
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from slugify import slugify
 from wtforms import FieldList, FileField, Form, FormField, SelectField, SelectMultipleField, StringField, TextAreaField, ValidationError
+from wtforms.fields import EmailField as HTML5EmailField
 from wtforms.utils import unset_value
 
 from oldman.i18n import LazyTranslation
 
 from .choices import ModelChoice
-from .widgets import AjaxSelectWidget, ColorPickerWidget, RichTextWidget, TagsInputWidget
+from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget, ColorPickerWidget, RichTextWidget, TagsInputWidget
+
+EMAIL_MAX_LENGTH = 254
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def normalize_email_text(value: object) -> str:
+    """One spelling per address: stripped and lowercased. Mail providers compare addresses this way in practice."""
+    return str(value or "").strip().lower()
+
+
+class EmailField(HTML5EmailField):
+    """An `<input type="email">` that stores the address normalized (stripped, lowercased) and checks its shape.
+
+    The User table's unique index is case-sensitive, so the form has to settle on one spelling before
+    the row is written; lookups such as the password reset can then match exactly.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        render_kw = dict(kwargs.pop("render_kw", None) or {})
+        render_kw.setdefault("maxlength", EMAIL_MAX_LENGTH)
+        render_kw.setdefault("autocomplete", "email")
+        super().__init__(*args, render_kw=render_kw, **kwargs)
+
+    def process_formdata(self, valuelist: list[Any]) -> None:
+        super().process_formdata(valuelist)
+        if self.data:
+            self.data = normalize_email_text(self.data)
+
+    def pre_validate(self, form: Form) -> None:
+        """Reject a malformed or oversized address; emptiness is left to DataRequired/Optional."""
+        super().pre_validate(form)
+        if not self.data:
+            return
+        value = str(self.data)
+        if len(value) > EMAIL_MAX_LENGTH or EMAIL_PATTERN.fullmatch(value) is None:
+            raise ValidationError(self.gettext("Enter a valid email address"))
 
 
 def _normalize_tags(value: object, delimiter: str) -> str:
@@ -177,6 +214,8 @@ class JSONListField(FieldList):
         """返回数据库 Text 使用的稳定紧凑 JSON。"""
         if any(not isinstance(item, (str, int, float, bool, type(None))) for item in value):
             raise TypeError("JSONListField values must be scalar")
+        # 这里刻意用 stdlib：allow_nan=False 的语义是"遇到 NaN/Infinity 就报错"，
+        # 而 orjson 会把它们静默写成 null——把一次显式校验换成静默的数据损坏。
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
     def _decode_model_value(self, value: Any) -> list[Any]:
@@ -277,6 +316,7 @@ class ModelChoiceField(SelectField):
 
     def __init__(self, *args: Any, model_choice: ModelChoice, coerce: Any = int, **kwargs: Any) -> None:
         """保存 ModelChoice 配置并初始化 SelectField。"""
+
         def coerce_choice(value: Any) -> Any:
             return None if value is None or value == "" else coerce(value)
 
@@ -308,7 +348,87 @@ class ModelChoiceField(SelectField):
             raise ValidationError(self.gettext("Not a valid choice."))
 
 
-class AjaxSelectField(SelectField):
+AllowedValuesResolver = Callable[[Any, list[str]], Awaitable[Iterable[Any]]]
+
+
+class RemoteChoiceValidationMixin:
+    """Validate a submitted remote-select value against a source the form declares.
+
+    A remote select renders no local choices, so WTForms has nothing to validate against
+    and these fields disable choice validation outright. That leaves the submitted value
+    unchecked: any integer the browser sends is accepted.
+
+    The fix is not to reuse what the provider *displays*. What a user may see and what a
+    user may submit are different sets, and conflating them breaks ordinary cases — a
+    form that reassigns a record to any user while the dropdown shows only the twenty
+    most recent, for instance. The reference implementations keep them apart too: the
+    permission hook scopes the search endpoint, while the submitted value is validated
+    against a source declared on the form field.
+
+    So `allowed_values` is that source, and it is optional. Left unset, nothing is
+    validated and nothing is queried — the behavior this field has always had. Set, it
+    is awaited with `(request, submitted_values)` and returns the values this request may
+    use; anything else fails validation.
+
+    Works for any backing store, not only a database: the resolver is an ordinary async
+    callable, so structured data, a cache or a remote service answer it the same way.
+    """
+
+    if TYPE_CHECKING:
+        name: str
+        data: Any
+        widget: Any
+
+        def gettext(self, string: str) -> str: ...
+
+    def __init__(self, *args: Any, allowed_values: AllowedValuesResolver | None = None, **kwargs: Any) -> None:
+        """Take the validation source here, so the three field variants do not each copy it.
+
+        The mixin sits first in all three MROs, so it can consume its own keyword and
+        pass everything else down to whichever WTForms field this is combined with.
+        """
+        self.allowed_values = allowed_values
+        super().__init__(*args, **kwargs)
+
+    async def prepare_choices(self, form: Any) -> None:
+        """Ask the declared source which of the submitted values are allowed."""
+        self._allowed: set[str] | None = None
+
+        resolver = self.allowed_values
+        if resolver is None:
+            return
+        widget = getattr(self, "widget", None)
+        if widget is not None and getattr(widget, "tags", False):
+            # `tags` exists so a user can enter something that does not exist yet.
+            return
+
+        submitted = self._submitted_values()
+        if not submitted:
+            self._allowed = set()
+            return
+        self._allowed = {str(value) for value in await resolver(form.request, submitted)}
+
+    def _submitted_values(self) -> list[str]:
+        """Return the submitted identifiers as text, however this field stores them."""
+        data = getattr(self, "data", None)
+        # The multiple variant stores a list, which is unhashable — so the container
+        # check has to come before any set membership test.
+        if isinstance(data, list | tuple | set):
+            return [str(item) for item in data if item is not None and item != ""]
+        if data is None or data == "":
+            return []
+        return [str(data)]
+
+    def pre_validate(self, form: Form) -> None:
+        """Refuse a value the declared source did not return."""
+        allowed = getattr(self, "_allowed", None)
+        if allowed is None:
+            return
+        if any(value not in allowed for value in self._submitted_values()):
+            raise ValidationError(self.gettext("Not a valid choice."))
+
+
+class AjaxSelectField(RemoteChoiceValidationMixin, SelectField):
     """远程 Select provider 的便捷字段封装。"""
 
     def __init__(
@@ -342,8 +462,28 @@ class AjaxSelectField(SelectField):
         )
         super().__init__(*args, choices=[], coerce=coerce, **kwargs)
 
+    def process_formdata(self, valuelist: list[Any]) -> None:
+        """清空远程 select 是合法提交：空值存成 None，由 validators 决定是否必填。"""
+        if valuelist and valuelist[0] in {"", None}:
+            self.data = None
+            return
+        super().process_formdata(valuelist)
 
-class AjaxSelectMultipleField(SelectMultipleField):
+    def initial_choice(self, value: Any, label: Any) -> None:
+        """编辑页首屏回显当前值。
+
+        远程字段的 choices 初始为空，不先放入当前值就会渲染成空选项。表单一旦带着提交数据处理过
+        （`raw_data` 不是 None，哪怕是空列表），这次提交说了算；空值也不改。所以在表单 `__init__`
+        里可以无条件调用。
+        """
+        if self.raw_data is not None or value in {None, ""}:
+            return
+        coerced = self.coerce(value)
+        self.choices = [(coerced, str(label))]
+        self.data = coerced
+
+
+class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
     """远程多选 Select provider 的便捷字段封装。"""
 
     def __init__(
@@ -379,11 +519,79 @@ class AjaxSelectMultipleField(SelectMultipleField):
         )
         super().__init__(*args, choices=[], coerce=coerce, **kwargs)
 
+    def process_formdata(self, valuelist: list[Any]) -> None:
+        """清空远程多选是合法提交：空值丢掉，结果是空列表。
+
+        前端清空时提交一个空字符串（和单选一致），不提交这个 key 时 WTForms 给的是空列表。
+        两条路径都应该落到 `[]`，不然调用方要为"提交了空"和"没提交"写两种处理。
+        """
+        super().process_formdata([value for value in valuelist if value not in {"", None}])
+
+    def initial_choices(self, choices: Sequence[tuple[Any, Any]]) -> None:
+        """编辑页首屏回显已选的多个值，顺序就是传入顺序。空值会被跳过。
+
+        守卫看的是"表单有没有带着提交数据处理过"（`raw_data is not None`），不是"有没有值"：
+        多选一个都不选时浏览器根本不提交这个 key，`raw_data` 是空列表，此时把旧值写回去等于把
+        用户的清空操作吃掉。
+        """
+        if self.raw_data is not None:
+            return
+        pairs = [(self.coerce(value), str(label)) for value, label in choices if value not in {None, ""}]
+        if not pairs:
+            return
+        self.choices = pairs
+        self.data = [value for value, _label in pairs]
+
+
+class AjaxAutocompleteField(RemoteChoiceValidationMixin, StringField):
+    """远程 Autocomplete provider 的便捷字段封装：提交的是 ID，输入框显示标签。"""
+
+    def __init__(
+        self,
+        *args: Any,
+        provider: str,
+        endpoint: str | None = None,
+        route_name: str | None = None,
+        page_size: int = 20,
+        dependent_fields: Sequence[str] = (),
+        label_mode: Literal["text", "html"] = "text",
+        route_kwargs: dict[str, object] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """组合 StringField 和 AjaxAutocompleteWidget，供简单场景快速声明。"""
+        kwargs.setdefault(
+            "widget",
+            AjaxAutocompleteWidget(
+                provider=provider,
+                endpoint=endpoint,
+                route_name=route_name,
+                page_size=page_size,
+                dependent_fields=dependent_fields,
+                label_mode=label_mode,
+                route_kwargs=route_kwargs,
+            ),
+        )
+        super().__init__(*args, **kwargs)
+
+    def initial_choice(self, value: Any, label: Any) -> None:
+        """编辑页首屏回显：字段值放 ID，输入框里显示给用户看的标签。
+
+        表单带着提交数据处理过（`raw_data` 不是 None）和空值都不改，所以可以无条件调用。
+        """
+        if self.raw_data is not None or value in {None, ""}:
+            return
+        self.data = str(value)
+        render_kw = dict(self.render_kw or {})
+        render_kw["value"] = str(label)
+        self.render_kw = render_kw
+
 
 __all__ = [
+    "AjaxAutocompleteField",
     "AjaxSelectField",
     "AjaxSelectMultipleField",
     "ColorPickerField",
+    "EmailField",
     "FileExtension",
     "FileSize",
     "JSONListField",

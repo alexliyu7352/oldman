@@ -1,3 +1,4 @@
+import { isSameSitePath } from "../core/http/urls";
 import type {
   FeedbackAlertOptions,
   FeedbackResult,
@@ -152,7 +153,10 @@ export class DashboardNotifications {
         if (this.stopped || this.refreshQueued) continue;
         this.applyTopbarFragment(context, source);
       } catch (error) {
-        if (!this.stopped && normalizeHttpError(error).status !== 401) {
+        // 顶栏用的是页面的 HTTP 客户端，而页面卸载会先 abort 页面信号，再跑到 stop()。
+        // 只看 this.stopped 会把这段空档里的取消当成真故障写进控制台。
+        const info = normalizeHttpError(error);
+        if (!this.stopped && !info.isCanceled && info.status !== 401) {
           this.services.logger.error("User notification topbar refresh failed", error);
         }
       }
@@ -388,7 +392,7 @@ export class DashboardNotifications {
       await this.refreshTopbar();
       if (!this.stopped) this.reloadCenter(center);
     } catch (error) {
-      if (!this.stopped) await this.reportMutationError(error);
+      if (!this.stopped && !normalizeHttpError(error).isCanceled) await this.reportMutationError(error);
     } finally {
       if (button && !this.stopped) {
         button.disabled = false;
@@ -541,12 +545,4 @@ function isNonNegativeInteger(value: unknown): value is number {
 
 function isOneOf<T extends string>(value: unknown, choices: readonly T[]): value is T {
   return typeof value === "string" && choices.includes(value as T);
-}
-
-function isSameSitePath(value: unknown): value is string {
-  return typeof value === "string"
-    && value.startsWith("/")
-    && !value.startsWith("//")
-    && !value.includes("\\")
-    && !/[\u0000-\u001f\u007f]/.test(value);
 }

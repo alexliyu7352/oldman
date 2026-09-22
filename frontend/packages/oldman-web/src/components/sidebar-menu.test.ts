@@ -1,5 +1,25 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarMenu } from "./sidebar-menu";
+
+function groupMarkup(): string {
+  return `
+    <ul id="navbar-nav">
+      <li data-om-menu-item class="oldman-menu-item">
+        <button data-om-menu-toggle aria-expanded="false"><i></i><span class="menu-text">目录</span></button>
+        <ul data-om-menu-panel class="hidden" hidden>
+          <li><a href="/catalog/channels" class="menu-link active" data-turbo-frame="oldman-main">频道</a></li>
+          <li><a href="/catalog/feeds" class="menu-link">源</a></li>
+        </ul>
+      </li>
+      <li data-om-menu-item class="oldman-menu-item">
+        <button data-om-menu-toggle aria-expanded="false"><span class="menu-text">系统</span></button>
+        <ul data-om-menu-panel class="hidden" hidden><li><a href="/users">用户</a></li></ul>
+      </li>
+    </ul>
+  `;
+}
+
+const flyout = () => document.querySelector<HTMLElement>("[data-om-menu-flyout]");
 
 function setViewportWidth(width: number): void {
   Object.defineProperty(document.documentElement, "clientWidth", {
@@ -39,6 +59,80 @@ describe("SidebarMenu", () => {
     } finally {
       await sidebarMenu.stop();
     }
+  });
+
+  it("opens a group flyout beside the collapsed rail on hover, click and arrow keys", async () => {
+    vi.useFakeTimers();
+    document.documentElement.setAttribute("data-sidebar-size", "sm");
+    const root = document.createElement("aside");
+    root.innerHTML = groupMarkup();
+    document.body.append(root);
+    const sidebarMenu = new SidebarMenu(root);
+    const [catalogToggle, systemToggle] = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-om-menu-toggle]"));
+
+    await sidebarMenu.start();
+    try {
+      catalogToggle!.dispatchEvent(new Event("pointerover", { bubbles: true }));
+      expect(flyout()).toBeNull();
+      vi.advanceTimersByTime(200);
+
+      const panel = flyout()!;
+      expect(panel.querySelector(".oldman-menu-flyout-title")?.textContent).toBe("目录");
+      expect(Array.from(panel.querySelectorAll<HTMLAnchorElement>(".oldman-menu-flyout-link"), (link) => link.getAttribute("href"))).toEqual(["/catalog/channels", "/catalog/feeds"]);
+      expect(panel.querySelector(".oldman-menu-flyout-link.active")?.textContent).toBe("频道");
+      expect(panel.querySelector(".oldman-menu-flyout-link")?.getAttribute("data-turbo-frame")).toBe("oldman-main");
+      expect(catalogToggle!.getAttribute("aria-expanded")).toBe("true");
+      // The inline panel stays collapsed: the rail has no room for it.
+      expect(root.querySelector<HTMLElement>("[data-om-menu-panel]")!.hidden).toBe(true);
+      // The common gesture: hover shows the flyout, then the user clicks the same icon. It must stay open.
+      catalogToggle!.click();
+      expect(flyout()).toBe(panel);
+
+      // Leaving the icon closes after the grace period unless the pointer reaches the flyout.
+      catalogToggle!.dispatchEvent(new MouseEvent("pointerout", { bubbles: true, relatedTarget: document.body }));
+      vi.advanceTimersByTime(100);
+      panel.dispatchEvent(new Event("pointerenter"));
+      vi.advanceTimersByTime(200);
+      expect(flyout()).toBe(panel);
+      panel.dispatchEvent(new Event("pointerleave"));
+      vi.advanceTimersByTime(150);
+      expect(flyout()).toBeNull();
+      expect(catalogToggle!.getAttribute("aria-expanded")).toBe("false");
+
+      // Click opens the flyout instead of expanding inline and never toggles it closed; a second group replaces the first.
+      catalogToggle!.click();
+      expect(flyout()?.querySelector(".oldman-menu-flyout-title")?.textContent).toBe("目录");
+      systemToggle!.click();
+      expect(document.querySelectorAll("[data-om-menu-flyout]")).toHaveLength(1);
+      expect(flyout()?.querySelector(".oldman-menu-flyout-title")?.textContent).toBe("系统");
+      systemToggle!.click();
+      expect(flyout()?.querySelector(".oldman-menu-flyout-title")?.textContent).toBe("系统");
+      document.body.click();
+      expect(flyout()).toBeNull();
+
+      // Keyboard: ArrowRight opens and focuses the first link, arrows move, Escape returns to the icon.
+      catalogToggle!.focus();
+      catalogToggle!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+      expect(document.activeElement?.getAttribute("href")).toBe("/catalog/channels");
+      document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+      expect(document.activeElement?.getAttribute("href")).toBe("/catalog/feeds");
+      document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      expect(flyout()).toBeNull();
+      expect(document.activeElement).toBe(catalogToggle);
+
+      // Outside click closes; an expanded sidebar goes back to inline panels.
+      catalogToggle!.click();
+      document.body.click();
+      expect(flyout()).toBeNull();
+      document.documentElement.setAttribute("data-sidebar-size", "lg");
+      catalogToggle!.click();
+      expect(flyout()).toBeNull();
+      expect(root.querySelector<HTMLElement>("[data-om-menu-panel]")!.hidden).toBe(false);
+    } finally {
+      await sidebarMenu.stop();
+      vi.useRealTimers();
+    }
+    expect(flyout()).toBeNull();
   });
 
   it("opens and closes mobile sidebar from document controls", async () => {

@@ -1,5 +1,6 @@
 import type { HttpClient } from "../http/client";
 import { getCookie, setCookie } from "../http/cookies";
+import { isCanceledError } from "../services/abort";
 import { selectPluralIndex } from "./plural";
 
 export type TranslationValue = string | string[];
@@ -118,9 +119,17 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     getLanguageDefinition(language) {
       return getLanguageDefinition(resolveLanguageCode(language));
     },
+    /**
+     * 把标了 `data-om-i18n-key` 的元素的文本换成当前语言的译文。
+     *
+     * 属性名带 `om-` 前缀不是风格问题:这个方法**覆写 textContent**,而框架其余 296 个
+     * 声明式属性都带前缀,只有它原先用的是裸 `data-key`。`data-key` 恰好是列表行主键、
+     * 表格列标识最常见的写法,于是一张用它存主键的表格会在用户切换语言时被写成主键本身,
+     * 而且现场离问题很远。属性归谁,不该由框架替使用者决定。
+     */
     translateDocument(root = runtimeDocument) {
-      for (const element of root.querySelectorAll<HTMLElement>("[data-key]")) {
-        const key = element.dataset.key;
+      for (const element of root.querySelectorAll<HTMLElement>("[data-om-i18n-key]")) {
+        const key = element.dataset.omI18nKey;
         if (key) element.textContent = runtime.t(key);
       }
     },
@@ -244,7 +253,7 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     try {
       await options.http.postJson(options.languagePreferencePath || "/preferences/language", { language });
     } catch (error) {
-      if (!isCanceledRequest(error)) console.warn("Failed to save language preference", error);
+      if (!isCanceledError(error)) console.warn("Failed to save language preference", error);
     }
   }
 
@@ -437,10 +446,5 @@ function translatePlural(
   });
 }
 
-function isCanceledRequest(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const candidate = error as { __CANCEL__?: unknown; code?: unknown };
-  return candidate.__CANCEL__ === true || candidate.code === "ERR_CANCELED";
-}
 
 export { selectPluralIndex };

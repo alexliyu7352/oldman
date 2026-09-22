@@ -37,7 +37,10 @@ def _settings(*, connect_timeout: int = 5, read_timeout: int = 10, debug: bool =
 
     return SimpleNamespace(
         proxy=SimpleNamespace(connect_timeout=connect_timeout, read_timeout=read_timeout),
-        web=SimpleNamespace(debug=debug),
+        web=SimpleNamespace(
+            debug=debug,
+            security=SimpleNamespace(secret_key="proxy-test-root-secret-0123456789abcdef"),
+        ),
         http_client=SimpleNamespace(max_connections=10, user_agent="oldman-proxy-test"),
     )
 
@@ -621,8 +624,8 @@ class ProxyParameterTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('media="/https/origin.test/live/chunk-$Number$.m4s?proxy_params=packed"', rewritten_mpd)
         self.assertIn('initialization="/https/origin.test/live/init.mp4?proxy_params=packed"', rewritten_mpd)
 
-    async def test_both_encryption_formats_round_trip_urls(self) -> None:
-        """The retained AES and compact XOR URL formats both decrypt their own output."""
+    async def test_sealed_url_formats_round_trip_and_reject_forgeries(self) -> None:
+        """Both proxies share one sealed format: reversible, and closed to edited paths."""
 
         url = "https://origin.test/live/segment.ts?token=secret"
         with patch.dict(conf.__dict__, {"settings": _settings()}):
@@ -634,6 +637,20 @@ class ProxyParameterTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(url, await encrypted_proxy.decrypt_url(f"{encrypted}.ts"))
         self.assertEqual(url, await mixed_proxy.decrypt_url(f"{mixed}.ts"))
+
+        # 上游地址会被直接拿去发请求，所以被改写的路径段必须拒绝，而不是解出别的地址。
+        tampered = encrypted[:-1] + ("A" if encrypted[-1] != "A" else "B")
+        self.assertIsNone(await encrypted_proxy.decrypt_url(f"{tampered}.ts"))
+
+    async def test_sealed_urls_do_not_share_a_keystream(self) -> None:
+        """A fixed keystream let anyone read every proxied address off one playlist."""
+
+        with patch.dict(conf.__dict__, {"settings": _settings()}):
+            proxy = EncryptMixStreamProxy("mixed")
+
+        first = await proxy.encrypt_url("https://origin.test/live/ch01/seg00001.ts")
+        second = await proxy.encrypt_url("https://origin.test/live/ch01/seg00002.ts")
+        self.assertNotEqual(first[:16], second[:16])
 
 
 if __name__ == "__main__":

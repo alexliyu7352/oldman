@@ -1,21 +1,15 @@
 {% from "oldman/dashboard/components/modal.html" import modal with context %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
 <div class="om-page-section">
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-12">
-    <div class="md:col-span-12">
-      <div class="om-page-header">
-        <h1 class="om-page-title">{{ _('User Session') }}</h1>
-        <div class="page-title-right">
-          <button type="button" class="om-button om-button-soft-info om-button-sm mr-2" data-om-modal-target="#user-session-permissions-modal">
-            <i class="ri-information-line align-bottom mr-1"></i>{{ _('Permissions') }}
-          </button>
-          <a href="{{ logout_path }}" class="om-button om-button-soft-danger om-button-sm">
-            <i class="mdi mdi-logout align-middle mr-1"></i>{{ _('Logout') }}
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
+  {% call page_head(_('User Session')) %}
+    <button type="button" class="om-button om-button-secondary" data-om-modal-target="#user-session-permissions-modal">
+      <i class="ri-information-line" aria-hidden="true"></i>{{ _('Permissions') }}
+    </button>
+    <a href="{{ logout_path }}" class="om-button om-button-secondary">
+      <i class="ri-logout-box-r-line" aria-hidden="true"></i>{{ _('Logout') }}
+    </a>
+  {% endcall %}
 
   <div id="user-session-feedback" data-om-component="feedback"></div>
 
@@ -23,46 +17,46 @@
     <div class="md:col-span-12 xl:col-span-4">
       <div class="om-card">
         <div class="om-card-body">
-          <div class="flex items-center">
-            <div class="om-avatar-lg">
-              <span class="om-avatar-title bg-primary-50 text-primary-600 rounded-full text-2xl">
-                <i class="mdi mdi-account-circle"></i>
-              </span>
-            </div>
-            <div class="flex-1 ml-3 min-w-0">
-              <h5 class="text-base mb-1 break-all">{{ session_profile.display_name }}</h5>
-              <p class="text-default-500 mb-2 break-all">{{ session_profile.username }}</p>
-              {% if session_profile.is_active %}
-                <span class="om-badge bg-green-50 text-green-700">{{ _('Active') }}</span>
-              {% else %}
-                <span class="om-badge bg-red-50 text-red-700">{{ _('Disabled') }}</span>
-              {% endif %}
-              {% if session_profile.is_superuser %}
-                <span class="om-badge bg-primary-50 text-primary-600">{{ _('Superuser') }}</span>
-              {% elif session_profile.is_staff %}
-                <span class="om-badge bg-default-100 text-default-500">{{ _('Staff') }}</span>
-              {% endif %}
+          <div class="flex items-center gap-4">
+            <span class="om-avatar om-avatar-md om-avatar-rounded bg-primary-soft text-2xl text-primary-soft-text" aria-hidden="true">
+              <i class="ri-user-3-line"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="om-card-title break-all">{{ session_profile.display_name }}</p>
+              <p class="mb-2 break-all text-sm text-content-muted">{{ session_profile.username }}</p>
+              <div class="flex flex-wrap items-center gap-1.5">
+                {% if session_profile.is_active %}
+                  <span class="om-badge om-badge-success">{{ _('Active') }}</span>
+                {% else %}
+                  <span class="om-badge om-badge-danger">{{ _('Disabled') }}</span>
+                {% endif %}
+                {% if session_profile.is_superuser %}
+                  <span class="om-badge om-badge-primary">{{ _('Superuser') }}</span>
+                {% elif session_profile.is_staff %}
+                  <span class="om-badge om-badge-default">{{ _('Staff') }}</span>
+                {% endif %}
+              </div>
             </div>
           </div>
-          <div class="mt-4">
+          <div class="mt-5">
             <button type="button"
-                    class="om-button om-button-primary w-full"
+                    class="om-button om-button-secondary w-full"
                     data-om-modal-target="#user-session-password-modal"
                     data-om-modal-url="{{ password_modal_path }}">
-              <i class="ri-lock-password-line align-bottom mr-1"></i>{{ _('Change Password') }}
+              <i class="ri-lock-password-line" aria-hidden="true"></i>{{ _('Change Password') }}
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="md:col-span-12 xl:col-span-8">
+    <div class="flex flex-col gap-4 md:col-span-12 xl:col-span-8">
       <div class="om-card">
-        <div class="om-card-header items-center flex">
-          <h4 class="om-card-title mb-0 flex-1">{{ _('Current Session') }}</h4>
+        <div class="om-card-header">
+          <h4 class="om-card-title">{{ _('Current Session') }}</h4>
         </div>
         <div class="om-card-body">
-          <form class="grid grid-cols-1 gap-4 md:grid-cols-12 g-3" data-om-component="form" data-om-form data-user-session-readonly-form>
+          <form class="grid grid-cols-1 gap-4 md:grid-cols-12" data-om-component="form" data-om-form data-user-session-readonly-form>
             <div class="md:col-span-6">
               <label class="om-form-label">{{ _('Username') }}</label>
               <input type="text" class="om-field" value="{{ session_profile.username }}" disabled>
@@ -84,24 +78,24 @@
       </div>
 
       <div class="om-card">
-        <div class="om-card-header items-center flex">
-          <h4 class="om-card-title mb-0 flex-1">{{ _('Session Boundaries') }}</h4>
+        <div class="om-card-header">
+          <h4 class="om-card-title">{{ _('Session Boundaries') }}</h4>
         </div>
         <div class="om-card-body">
           <div class="om-table-scroll">
-            <table class="om-table whitespace-nowrap align-middle mb-0">
+            <table class="om-table om-table-compact whitespace-nowrap align-middle">
               <tbody>
                 <tr>
-                  <th scope="row" class="text-default-500">{{ _('Page Scope') }}</th>
+                  <th scope="row" class="w-48 text-content-muted">{{ _('Page Scope') }}</th>
                   <td>{{ _('Current session only') }}</td>
                 </tr>
                 <tr>
-                  <th scope="row" class="text-default-500">{{ _('Password Scope') }}</th>
+                  <th scope="row" class="w-48 text-content-muted">{{ _('Password Scope') }}</th>
                   <td>{{ _('Current user only') }}</td>
                 </tr>
                 <tr>
-                  <th scope="row" class="text-default-500">{{ _('Logout Flow') }}</th>
-                  <td><a href="{{ logout_path }}" class="font-medium text-red-600 hover:text-red-700">{{ _('End current session') }}</a></td>
+                  <th scope="row" class="w-48 text-content-muted">{{ _('Logout Flow') }}</th>
+                  <td><a href="{{ logout_path }}" class="om-link-danger">{{ _('End current session') }}</a></td>
                 </tr>
               </tbody>
             </table>

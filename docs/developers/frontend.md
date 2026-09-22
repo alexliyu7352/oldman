@@ -32,11 +32,17 @@ async function loadPageEntry(pageName: string): Promise<void> {
 
 普通业务页在 [backend.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/backend.ts) 中继承项目 BasePage，并执行 `setupPage("backend", BackendPage)`。示例页则在 [examples.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/examples.ts) 注册 `setupPage("examples", ExamplesPage)`，提供自己的 loader 和动作。
 
-服务端通过 `page_entry="examples"` 指定示例入口。共享模板在 body 和 `dashboard_main_frame()` 输出的主 Frame 上标记同一页面名；不能只标记不会随 Frame 导航改变的 body。setupPage 注册构造器，PageRegistry 才创建页面实例。
+服务端通过 `page_entry="examples"` 指定示例入口。共享模板在 body 和 `dashboard_main_frame()` 输出的主 Frame 上标记同一页面名；不能只标记不会随 Frame 导航改变的 body。setupPage 注册构造器，PageRegistry 才创建页面实例。名字没有注册、`pageLoader` 也找不到对应模块时，注册表用 `startOldman({ fallbackPage })` 指定的类兜底（Demo 传项目 BasePage，Admin 传 AdminPage），并在控制台打一条 `No page registered for …` 警告；没有配置兜底时仍然报错。兜底只是让写错名字的页面还能挂上外壳组件，页面自己的 loader 和动作仍要注册正确的名字。
 
 项目 [base-page.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/base-page.ts) 中的 BasePage **是应用自己的类**，继承框架 DashboardPage；不要与 `oldman-web/app` 导出的框架 BasePage 混为一谈。它合并共享 Dashboard loaders 和应用覆盖项。纯 HTML 业务页仍需要这个公共运行时来挂载组件，不需要另写一份私有 Page 逻辑。
 
 完整资源和翻译接线见[资源参考](assets.md)，在 Demo 直接打开页面与侧栏进入页面都应该经过上述入口。不要把私有 loader 搬到全局来补救 Page 没有切换。
+
+模板里标 `data-om-i18n-key="<msgid>"` 的元素，会在启动和每次切换语言时由
+`i18n.translateDocument()` 把 **textContent 整体覆写**成当前语言的译文。因为它覆写内容，
+只标在文案元素上，不要标在同时承载业务数据的节点上。0.1.x 之前这个属性叫裸 `data-key`，
+与"列表行主键"这类常见写法冲突，已改名并不再识别旧名字；升级时把模板里的 `data-key` 换成
+`data-om-i18n-key`。多数场景不需要它——服务端渲染的文案由 Jinja 的 gettext 直接出译文。
 
 ## 三层对象的职责
 
@@ -80,7 +86,7 @@ Page 钩子为 `beforeMount()`、`mount()`、`afterMount()`、`beforeUnmount()`�
 
 Dashboard 默认使用 `#oldman-main` 作为业务页面 Frame。自定义容器时，在 Page 构造的顶层选项设置一次 `mainFrameSelector`，例如 `super({ root, mainFrameSelector: "#workspace-main", componentLoaders: createDashboardComponentLoaders() })`，并让 HTML 的 Frame、导航链接及响应使用同一目标。Page 生命周期、Page 内侧栏和通知中心都读取 `page.mainFrameSelector`；`sidebarOptions` 不另设主 Frame。独立使用、没有所属 Page 的 `DashboardSidebar` 仍可使用自身的选项。手写主 Frame 同样需要 `data-om-page` 入口标记；内部用于局部更新的嵌套 Frame 不重建 Page。
 
-同一浏览器文档内切页时，Dashboard 保留用户选择的主题和桌面侧栏宽度；默认值在文档首次初始化时应用。这不等于刷新后保存偏好。移动侧栏遮罩由 SidebarMenu 在组件清理时关闭，不能在每个业务 Page 再写一份清理。
+Dashboard 的明暗主题是持久偏好：顶栏切换后写入 `PreferenceStore` 的 `dashboard.theme`（localStorage 键 `oldman:dashboard.theme`），刷新和新标签页都沿用；没有记录时跟随系统 `prefers-color-scheme`，再没有才用模板默认值。`oldman/dashboard/base.html` 在 `<head>` 里先运行 `partials/theme_boot.html` 的内联脚本，在样式加载前设置 `data-theme`，避免先亮后暗的闪烁。桌面侧栏宽度只在同一浏览器文档内切页时保留，默认值在文档首次初始化时应用，刷新后不保存。移动侧栏遮罩由 SidebarMenu 在组件清理时关闭，不能在每个业务 Page 再写一份清理。
 
 Page 卸载由 PageRegistry 统一推进：普通组件交给 ComponentManager，Page 登记的清理回调最后执行。Dashboard 壳的 SSE、通知和组件分别登记到现有清理栈；一项清理失败会记录错误并继续其他清理。扩展 Page 时，通过 `this.cleanup(...)` 登记资源释放，不把单独调用 `beforeUnmount()` 当作完整销毁，也不重复卸载普通组件。
 
@@ -136,7 +142,9 @@ Demo 的 `templates/pages/examples/tables/dynamic.html` 通过 `table.render_she
 
 Demo 的 [tables/dynamic.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/tables/dynamic.html) 使用共享 `modal` 宏建立 `#example-project-modal`。按钮的 `data-om-modal-target` 指向它，`data-om-modal-url` 指向新建/编辑/删除视图。完整宏、GET 与提交源码见[教程](../users/tutorial-dashboard.md#4-modal-只负责装入内容)，不用另写一套 HTML 骨架。
 
-声明式远程加载使用 Modal parts JSON。通用 parts 有 title/body/footer；Demo 的 Dashboard Modal 实际接收 `{"title": "...", "html": "<form>..." }`，其中 html 装入内容区。它不是 ResponseAction JSON。`loadParts(url)` 处理这种分部内容；需要真实 HTML HTTP 响应时使用 `loadContent(url)`，不要混淆两种方法。
+需要在 Python 里生成一个内嵌的 Modal（例如表格单元格里带出证据面板）时用 `oldman.web.components` 的 `await render_modal(request, modal_id=..., title=..., body=...)`，同步回调里用 `render_modal_sync(self, ...)`；参数就是宏的参数（`component`、`close_label`、`footer_close_label`、`dialog_class`、`managed`、`hidden`），不要手写 `modal_fragment.html` 的那一串 `modal_*` 变量名——拼错一个只会渲染出空壳。
+
+声明式远程加载使用 Modal parts JSON。通用 parts 有 title/body/footer；Demo 的 Dashboard Modal 实际接收 `{"title": "...", "html": "<form>..." }`，其中 html 装入内容区。它不是 ResponseAction JSON。后端不要自己拼这个 dict：`oldman.web.api.modal_response(title, html=...)` 或 `modal_response(title, body=..., footer=...)` 生成载荷，只读 modal 用 `close_label=_("Close")` 直接得到那一个关闭按钮，对象已经不存在时用 `modal_not_found_response(title, message)`（404 加一行灰字，浏览器手上的列表过期是正常情况，不是 500）。`loadParts(url)` 处理这种分部内容；需要真实 HTML HTTP 响应时使用 `loadContent(url)`，不要混淆两种方法。
 
 声明式触发先加载内容，成功后才打开 Modal。失败会设置 error 状态并派发 om:modal:error，但不打开尚未加载成功的内容；共享点击入口同时使用所属 Page 的现有 Feedback 显示“请求失败”。Demo 不需要额外监听这个事件再弹一次提示。离开页面或销毁组件导致的请求取消保持静默，不把旧页面的错误带到新页面。
 
@@ -147,6 +155,8 @@ Demo 的 [tables/dynamic.html](https://github.com/alexliyu7352/oldman-epg-dashbo
 Modal 动态内容中的 Form 仍声明 `data-om-component="form"`。提交响应可以更新 Form、关闭 Modal、刷新 Table 或跳转，全部交给 Form 和 Runner。不另设 Modal 专属的字段校验或保存协议。
 
 `om:component:before-dynamic-content-mount` 允许在同步回调中调用 `detail.waitUntil(promise)` 登记异步 loader。BasePage 已处理正常 loader；只有自定义加载机制才需要监听，不必每个业务 Modal 都写一份。
+
+`modal` 宏的 `description` 参数在标题下输出一句 14px 说明；弹窗内边距 24px、header/body/footer 之间 16px、没有分隔线，页脚按钮靠右、窄屏纵排。确认类弹窗给 `dialog_class="om-modal-dialog-sm"`（416px），正文用 `oldman/dashboard/partials/confirm.html` 的 `confirm_body(title, description, icon=, tone=, title_tag=, wrapper_class=)` 宏生成（它输出 `om-confirm-icon om-confirm-icon-danger|warning|success|info` + `om-confirm-title` + `om-confirm-description` 那一组类），不要各写一遍这几个类名。Tooltip 由指针悬停触发时默认等待 200ms（`data-om-delay="0"` 可关闭延迟），键盘焦点立即显示；浮层定位统一取整到整像素。页面切换的反馈是顶部 2px 的签名色进度条，由 preloader 组件跟随 Turbo 的 visit / frame / submit 事件驱动，全屏遮罩只在首次加载出现。
 
 DashboardModal 提供主题选择器、焦点、动画与遮罩适配。`data-om-keyboard="false"` 禁止 Escape 关闭；`data-om-backdrop="static"` 禁止外部点击关闭。保留 dialog 语义、标题关联、可访问关闭按钮和键盘操作，不为视觉复制另一套 Modal。
 
@@ -170,7 +180,7 @@ DashboardModal 提供主题选择器、焦点、动画与遮罩适配。`data-om
 
 Turbo 整页访问和 `#oldman-main` 的业务页面导航都会清理旧 Page、创建新 Page。主 Frame 收到响应后，统一生命周期通过 Turbo 的暂停/恢复渲染入口等待旧 Page 的异步清理，然后允许替换 DOM，加载并挂载目标 Page。侧栏和顶栏 DOM 可以保留，但它们所属的旧 Page、组件事件、计时器和 SSE 会正常释放，新 Page 重新建立自己的资源；不是“常驻壳 Page＋业务子 Page”两层实例。
 
-两个 URL 即使都使用 `ExamplesPage`，切页时也创建不同实例。缓存的是已经导入的 JS 模块和 Page 类，不是已经离开的页面实例。需要手写主 Frame 时，响应应包含 `<turbo-frame id="oldman-main" data-turbo-action="advance" data-om-page="examples">…</turbo-frame>`；body 与 Frame 的入口名相同。没有提供新入口名时沿用当前入口，但仍重建实例。优先使用共享宏，不在各页面重复拼这些属性。Frame 导航随后产生的文档级事件不再重复挂载或清理新组件 loading；浏览器前进/后退仍走对应的恢复生命周期。
+两个 URL 即使都使用 `ExamplesPage`，切页时也创建不同实例。缓存的是已经导入的 JS 模块和 Page 类，不是已经离开的页面实例。需要手写主 Frame 时，响应应包含 `<turbo-frame id="oldman-main" data-turbo-action="advance" data-om-page="examples">…</turbo-frame>`；body 与 Frame 的入口名相同。没有提供新入口名时沿用当前入口，但仍重建实例。优先使用共享宏，不在各页面重复拼这些属性。侧边栏同理：`oldman/dashboard/partials/shell.html` 里 `sidebar_menu_link(href, label, icon=, active=)` 输出单层菜单项（含窄栏 tooltip），`{% call sidebar_menu_group(panel_id, label, icon, active=) %}` 加 `sidebar_menu_item(href, label, active=)` 输出可展开分组，`data-om-menu-*` 属性和 active/hidden 状态都由宏负责；登录、找回密码这类认证页用 `oldman/auth/partials/auth_layout.html` 的 `{% call auth_layout(brand_href, brand_name) %}`，它带上右上角语言切换、品牌、卡片和 `oldman-footer-auth` 页脚。Frame 导航随后产生的文档级事件不再重复挂载或清理新组件 loading；浏览器前进/后退仍走对应的恢复生命周期。
 
 Form、Table、Modal 和 `ReplaceHtmlAction` 在当前页面更新局部 HTML 不属于业务页面导航，只卸载和挂载受影响的组件。尤其是 Action 自己替换发起请求的 Form 后，同一列表的后续动作仍可继续；不能将它误判为用户离开。用户真正导航、刷新或关闭页面时，旧响应和剩余 UI Actions 则被放弃，不等待执行完、不在新 Page 恢复；取消前端操作不保证服务器撤销已经处理的请求。
 

@@ -31,9 +31,7 @@ class _MessagesProxy:
         try:
             request = get_current_request()
         except SanicException as exc:
-            raise RuntimeError(
-                "The messages template global requires an active request"
-            ) from exc
+            raise RuntimeError("The messages template global requires an active request") from exc
         return _get_request_storage(request)
 
 

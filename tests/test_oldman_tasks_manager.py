@@ -88,3 +88,68 @@ class BaseManagerQueueLifecycleTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AsyncQueueRaceTest(unittest.IsolatedAsyncioTestCase):
+    """`empty()` then `get_nowait()` is a race, and losing it is not a failure.
+
+    The old code caught every exception, logged it and re-raised, with an unreachable
+    `pass` underneath whose comment said the opposite: "ignore the concurrency issue in
+    the empty check". Losing the race raises queue.Empty, which was then reported to the
+    caller as a fault. The same bare handler also swallowed-then-reraised deserialization
+    errors identically, so the two could not be told apart.
+    """
+
+    @staticmethod
+    def _queue(behaviour: Any) -> Any:
+        from oldman.tasks.queue import AsyncQueue
+
+        instance = AsyncQueue.__new__(AsyncQueue)
+        instance._is_setup = True
+        instance.queue = behaviour
+        instance._data_available = asyncio.Event()
+        instance._data_available.set()
+        return instance
+
+    async def test_losing_the_race_keeps_waiting(self) -> None:
+        import queue as queue_module
+
+        from oldman.tasks.messages import MessageType, TaskMessage
+
+        class RacyQueue:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def empty(self) -> bool:
+                return False
+
+            def get_nowait(self) -> bytes:
+                self.calls += 1
+                if self.calls == 1:
+                    raise queue_module.Empty
+                return TaskMessage(type=MessageType.TASK_START, task_id="t-1").to_msgpack()
+
+        racy = RacyQueue()
+        message = await asyncio.wait_for(self._queue(racy).get(), timeout=3)
+        self.assertEqual("t-1", message.task_id)
+        self.assertEqual(2, racy.calls, "the consumer should have tried again, not raised")
+
+    async def test_a_real_fault_still_reaches_the_caller(self) -> None:
+        class BrokenQueue:
+            def empty(self) -> bool:
+                return False
+
+            def get_nowait(self) -> bytes:
+                raise ValueError("payload is not decodable")
+
+        with self.assertRaises(ValueError):
+            await asyncio.wait_for(self._queue(BrokenQueue()).get(), timeout=3)
+
+    def test_the_unreachable_branch_is_gone(self) -> None:
+        import inspect
+
+        from oldman.tasks.queue import AsyncQueue
+
+        source = inspect.getsource(AsyncQueue.get)
+        self.assertIn("except queue.Empty", source)
+        self.assertNotIn("raise\n                pass", source)

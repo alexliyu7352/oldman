@@ -1,0 +1,76 @@
+{# Table toolbar: search / selection count / bulk actions on the left, column, density and export tools on the right. #}
+<div class="om-table-toolbar" data-om-table-toolbar>
+  <div class="om-table-toolbar-start">
+    {% if show_search %}
+    <label class="om-table-search">
+      <i class="ri-search-line" aria-hidden="true"></i>
+      <input type="search" class="om-field om-field-sm" data-om-table-filter data-om-table-param="q" aria-label="{{ _('Search') }}" placeholder="{{ _('Search') }}" value="{{ initial_query }}">
+    </label>
+    {% endif %}
+    {% if selectable %}
+    <span class="om-table-selection-count" data-om-table-selection-count hidden></span>
+    {% endif %}
+    {% if bulk_actions_html %}
+    <div class="om-table-bulk-actions" data-om-table-bulk-actions hidden>{{ bulk_actions_html }}</div>
+    {% endif %}
+  </div>
+  <div class="om-table-toolbar-end">
+    {% for tool in tools %}
+      {% if tool == "columns" %}
+      <div class="om-dropdown" data-om-component="dropdown">
+        <button type="button" class="om-button om-button-secondary om-button-sm" data-om-dropdown-toggle aria-haspopup="true" aria-expanded="false">
+          <i class="ri-layout-column-line" aria-hidden="true"></i>
+          <span>{{ _("Columns") }}</span>
+          <i class="ri-arrow-down-s-line om-button-chevron" aria-hidden="true"></i>
+        </button>
+        <div class="om-dropdown-menu om-dropdown-menu-end hidden" data-om-dropdown-menu hidden>
+          {% for column in columns %}
+          <label class="om-dropdown-item">
+            <input type="checkbox" class="om-check" data-om-table-column-toggle value="{{ column.name }}" checked>
+            <span>{{ column.label or column.name }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% elif tool == "density" %}
+      <div class="om-dropdown" data-om-component="dropdown">
+        <button type="button" class="om-button om-button-secondary om-button-sm" data-om-dropdown-toggle aria-haspopup="true" aria-expanded="false">
+          <i class="ri-line-height" aria-hidden="true"></i>
+          <span>{{ _("Density") }}</span>
+          <i class="ri-arrow-down-s-line om-button-chevron" aria-hidden="true"></i>
+        </button>
+        <div class="om-dropdown-menu om-dropdown-menu-end hidden" data-om-dropdown-menu hidden>
+          <button type="button" class="om-dropdown-item active" data-om-table-density="comfortable" aria-pressed="true">
+            <span>{{ _("Comfortable") }}</span>
+            <i class="ri-check-line om-dropdown-check" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="om-dropdown-item" data-om-table-density="compact" aria-pressed="false">
+            <span>{{ _("Compact") }}</span>
+            <i class="ri-check-line om-dropdown-check" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      {% elif tool == "export" %}
+        {% if export_formats|length == 1 %}
+        <button type="button" class="om-button om-button-secondary om-button-sm" data-om-table-export="{{ export_formats[0].name }}">
+          <i class="ri-download-2-line" aria-hidden="true"></i>
+          <span>{{ _("Export") }}</span>
+        </button>
+        {% else %}
+        <div class="om-dropdown" data-om-component="dropdown">
+          <button type="button" class="om-button om-button-secondary om-button-sm" data-om-dropdown-toggle aria-haspopup="true" aria-expanded="false">
+            <i class="ri-download-2-line" aria-hidden="true"></i>
+            <span>{{ _("Export") }}</span>
+            <i class="ri-arrow-down-s-line om-button-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="om-dropdown-menu om-dropdown-menu-end hidden" data-om-dropdown-menu hidden>
+            {% for format in export_formats %}
+            <button type="button" class="om-dropdown-item" data-om-table-export="{{ format.name }}">{{ format.label }}</button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>

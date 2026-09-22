@@ -9,8 +9,8 @@ from typing import Any, Literal, cast
 from markupsafe import Markup
 from wtforms import Field, SelectMultipleField
 from wtforms.fields import SelectFieldBase
+from wtforms.widgets import CheckboxInput, TextInput
 from wtforms.widgets import Select as SelectWidget
-from wtforms.widgets import TextInput
 
 from oldman.i18n import gettext_lazy
 from oldman.web.components.selects.signing import SelectContext, sign_select_context
@@ -19,6 +19,29 @@ from oldman.web.template import render_component_template
 _DECREASE_VALUE_LABEL = gettext_lazy("Decrease value")
 _INCREASE_VALUE_LABEL = gettext_lazy("Increase value")
 _CHOOSE_COLOR_LABEL = gettext_lazy("Choose color")
+
+
+class CheckboxWidget(CheckboxInput):
+    """Boolean field as a 16px checkbox row: box on the left, label and help text beside it."""
+
+    presentation = "checkbox"
+
+
+class SwitchWidget(CheckboxInput):
+    """Boolean field as an inline 18×32 switch row with the label and help text beside it."""
+
+    presentation = "switch"
+
+    def __call__(self, field: Field, **kwargs: Any) -> Markup:
+        """Keep the checkbox contract for submission while announcing a switch to assistive tech."""
+        kwargs.setdefault("role", "switch")
+        return super().__call__(field, **kwargs)
+
+
+class SwitchCardWidget(SwitchWidget):
+    """Boolean field as a bordered card: label and help text on the left, switch on the right."""
+
+    presentation = "switch-card"
 
 
 class TagsInputWidget(TextInput):
@@ -382,10 +405,13 @@ def autocomplete_input_attrs(field: Field, attrs: dict[str, Any]) -> dict[str, A
 __all__ = [
     "AjaxAutocompleteWidget",
     "AjaxSelectWidget",
+    "CheckboxWidget",
     "ColorPickerWidget",
     "DateTimePickerWidget",
     "InputSpinnerWidget",
     "RichTextWidget",
+    "SwitchCardWidget",
+    "SwitchWidget",
     "TagsInputWidget",
     "TagsSelectWidget",
 ]

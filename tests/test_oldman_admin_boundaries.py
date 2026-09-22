@@ -55,7 +55,7 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         self.assertFalse((ROOT / "frontend" / "packages" / "oldman-web" / "src" / "dashboard" / "form-modal.ts").exists())
         self.assertIn("dropdown:", source)
         self.assertIn("emptyNotificationTemplate: adminNotificationEmptyState", source)
-        self.assertIn('class="empty-notification-elem px-6 py-8 text-center"', source)
+        self.assertIn('class="empty-notification-elem om-empty om-empty-sm"', source)
         self.assertIn('"oldman-web/styles/tailwind.css"', css_source)
         self.assertNotIn('"oldman-web/components/sidebar-menu"', source)
         self.assertNotIn("@app/", source)
@@ -96,8 +96,13 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         self.assertIn('login_path = f"{prefix}/login"', source)
         self.assertIn("authenticate_user(", source)
         self.assertIn("has_staff_access(", source)
-        self.assertIn("session_data_for_user(", source)
-        self.assertIn("Session.logout_session", source)
+        # The session steps themselves belong to the framework's login helpers, which the Admin calls.
+        self.assertIn("login_user(", source)
+        self.assertIn("logout_user(", source)
+        login_helpers = (ROOT / "oldman" / "web" / "auth" / "login.py").read_text(encoding="utf-8")
+        self.assertIn("session_data_for_user(", login_helpers)
+        self.assertIn("exclusive_login(", login_helpers)
+        self.assertIn("logout_session(", login_helpers)
         self.assertIn("admin_login_url(login_path, request)", source)
         self.assertIn("ApiErrorCode.AUTHENTICATION_REQUIRED", source)
         self.assertIn('data={"login_url": login_path}', source)
@@ -108,17 +113,9 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         """Admin user actions must keep the source FormValidator and page Feedback composition."""
         template_root = ROOT / "oldman" / "apps" / "admin" / "templates" / "admin" / "model"
         list_template = (template_root / "list.html").read_text(encoding="utf-8")
-        password_template = (
-            ROOT
-            / "oldman"
-            / "web"
-            / "templates"
-            / "oldman"
-            / "auth"
-            / "partials"
-            / "password_form.html"
-        ).read_text(encoding="utf-8")
-        delete_template = (template_root / "delete_modal_form.html").read_text(encoding="utf-8")
+        auth_partials = ROOT / "oldman" / "web" / "templates" / "oldman" / "auth" / "partials"
+        password_template = (auth_partials / "password_form.html").read_text(encoding="utf-8")
+        delete_template = (auth_partials / "user_delete_form.html").read_text(encoding="utf-8")
 
         self.assertIn('data-om-component="feedback"', list_template)
         self.assertNotIn("form-modal", list_template)

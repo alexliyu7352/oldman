@@ -6,9 +6,9 @@ from typing import Any
 
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.http import OldmanHTTPMethodView
+from oldman.web.request import get_arg
 from oldman.web.response import json_response
 
-from .providers import get_arg
 from .registry import SelectRegistry, select_registry
 from .signing import SelectBindError, verify_select_context
 

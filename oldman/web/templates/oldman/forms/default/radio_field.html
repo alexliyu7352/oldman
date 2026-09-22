@@ -1,5 +1,5 @@
 <fieldset{{ attrs|html_attrs }}>
-  <legend{{ label_attrs|html_attrs }}>{{ label_text }}</legend>
+  <legend{{ label_attrs|html_attrs }}>{{ label_text }}{% if field.flags.required %}<span class="om-form-required" aria-hidden="true">*</span>{% endif %}</legend>
   <div{{ group_attrs|html_attrs }}>
     {% for option in options %}<label{{ option.label_attrs|html_attrs }}>{{ option.control_html }}<span>{{ option.label_text }}</span></label>{% endfor %}
   </div>

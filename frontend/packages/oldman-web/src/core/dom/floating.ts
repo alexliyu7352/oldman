@@ -3,10 +3,12 @@ export type FloatingPlacement =
   | "top-start"
   | "top-end"
   | "right"
+  | "right-start"
   | "bottom"
   | "bottom-start"
   | "bottom-end"
-  | "left";
+  | "left"
+  | "left-start";
 
 export interface FloatingPositionOptions {
   gap?: number;
@@ -19,8 +21,10 @@ const PLACEMENTS: ReadonlySet<string> = new Set([
   "top-start",
   "top-end",
   "right",
+  "right-start",
   "bottom",
   "left",
+  "left-start",
   "bottom-start",
   "bottom-end"
 ]);
@@ -45,8 +49,9 @@ export function positionFloatingElement(
   const height = floatingRect.height || floating.offsetHeight;
   const effectivePlacement = flipPlacement(placement, referenceRect, width, height, gap, margin);
   const coordinates = placementCoordinates(effectivePlacement, referenceRect, width, height, gap);
-  const left = clamp(coordinates.left, margin, Math.max(margin, window.innerWidth - width - margin));
-  const top = clamp(coordinates.top, margin, Math.max(margin, window.innerHeight - height - margin));
+  // Whole pixels: a fractional origin would push the surface's text off the pixel grid and blur it.
+  const left = Math.round(clamp(coordinates.left, margin, Math.max(margin, window.innerWidth - width - margin)));
+  const top = Math.round(clamp(coordinates.top, margin, Math.max(margin, window.innerHeight - height - margin)));
 
   floating.style.position = "fixed";
   floating.style.left = `${left}px`;
@@ -110,14 +115,18 @@ function placementCoordinates(
   if (placement === "top-end") return { left: reference.right - width, top: reference.top - height - gap };
   if (placement === "top") return { left: reference.left + (reference.width - width) / 2, top: reference.top - height - gap };
   if (placement === "right") return { left: reference.right + gap, top: reference.top + (reference.height - height) / 2 };
+  if (placement === "right-start") return { left: reference.right + gap, top: reference.top };
   if (placement === "left") return { left: reference.left - width - gap, top: reference.top + (reference.height - height) / 2 };
+  if (placement === "left-start") return { left: reference.left - width - gap, top: reference.top };
   return { left: reference.left + (reference.width - width) / 2, top: reference.bottom + gap };
 }
 
 function oppositePlacement(placement: FloatingPlacement): FloatingPlacement {
   if (placement === "top") return "bottom";
   if (placement === "right") return "left";
+  if (placement === "right-start") return "left-start";
   if (placement === "left") return "right";
+  if (placement === "left-start") return "right-start";
   if (placement === "bottom-end") return "top-end";
   if (placement === "bottom-start") return "top-start";
   if (placement === "top-end") return "bottom-end";
@@ -128,7 +137,8 @@ function oppositePlacement(placement: FloatingPlacement): FloatingPlacement {
 function placementSide(placement: FloatingPlacement): "top" | "right" | "bottom" | "left" {
   if (placement === "bottom" || placement === "bottom-start" || placement === "bottom-end") return "bottom";
   if (placement === "top" || placement === "top-start" || placement === "top-end") return "top";
-  return placement;
+  if (placement === "right" || placement === "right-start") return "right";
+  return "left";
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

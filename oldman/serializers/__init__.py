@@ -6,7 +6,7 @@
 
 __author__ = "alex"
 
-from oldman.serializers.base import DataclassModelMixin, MsgspecModel, MsgspecSafeModel
+from oldman.serializers.base import DataclassModelMixin, MsgspecModel
 from oldman.serializers.cache import (
     BaseSerializer,
     JsonSerializer,
@@ -23,7 +23,6 @@ __all__ = (
     "JsonSerializer",
     "MsgpackSerializer",
     "MsgspecModel",
-    "MsgspecSafeModel",
     "NullSerializer",
     "PickleSerializer",
     "create_cache_serializer",

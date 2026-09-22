@@ -162,7 +162,8 @@ class NotificationTemplateTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('href="/user-notifications/17/open"', simplified)
         self.assertNotIn("checkbox", simplified)
         self.assertNotIn("data-om-user-notification-select", simplified)
-        self.assertNotIn("notification-item", simplified)
+        self.assertNotIn("data-om-activity-notification-item", simplified)
+        self.assertNotIn("notification-check", simplified)
 
     async def test_center_escapes_text_and_trusts_only_html_body(self) -> None:
         """Titles and text bodies autoescape while an HTML body keeps trusted tags."""

@@ -6,7 +6,6 @@
 
 __author__ = "alex"
 
-import logging
 import os
 import sys
 from pathlib import Path
@@ -74,43 +73,12 @@ def _find_project_root(start: Path | None = None) -> Path:
 PROJECT_ROOT = _find_project_root()
 BASE_PATH = BASE_DIR = PROJECT_ROOT
 
+# 保留下来的开关。其余曾经住在这里的常量都已移除：它们与 oldman/conf/schemas.py 里的
+# Pydantic 默认值一字不差地重复，而改 schema 并不会同步这里，于是两份会慢慢对不上。
+# 配置的唯一来源是 settings，不是这个模块。
 DEBUG = False
 
 TEMPLATE_DEBUG = DEBUG
-
-LOG_LEVEL: int = logging.INFO
-LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
-LOG_BACKUP_COUNT: int = 5
-
-MEDIA_ROOT = BASE_DIR / "media"
-
-MEDIA_URL = "/media/"
-
-STATIC_ROOT = BASE_DIR / "static"
-
-STATIC_URL = "/static/"
-
-DOMAIN = "http://localhost:17998"
-
-LOGS_DIR = BASE_DIR / "logs"
-
-DATA_DIR = BASE_DIR / "data"
-
-# 当前时区
-TIME_ZONE = "Asia/Singapore"
-
-PROXY_CONNECT_TIMEOUT = 5  # 代理连接超时
-
-PROXY_READ_TIMEOUT = 10  # 代理读取超时
-
-DEBUG_PROXY = "http://127.0.0.1:8118"
-
-DEFAULT_LISTEN_PORT = 17998
-DEFAULT_LISTEN_HOST = "::"
-DEFAULT_WORKERS = 1
-DEFAULT_ACCESS_LOG = False
-# 是否文件更改自动重载
-DEFAULT_AUTO_RELOAD = DEBUG
 
 USER_AGENT_DICT_DEFINE = {
     "browsers": [
@@ -149,9 +117,3 @@ USER_AGENT_DICT_DEFINE = {
     ],
     "platforms": ["desktop", "mobile", "tablet"],
 }
-
-USER_AGENT_DEFINE = "okhttp/3.8.7"
-
-HTTP_POOL_MAX_CONNECTIONS = 300
-
-USE_HTTP_POOL = False

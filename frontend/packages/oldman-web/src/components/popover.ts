@@ -38,6 +38,9 @@ export class Popover extends Component {
       trigger.focus();
     }, { capture: true });
     this.listen(window, "resize", () => this.reposition());
+    // 捕获阶段监听 document 的滚动是必要的:浮层锚定在触发元素上,而滚动可能发生在任何
+    // 祖先容器里,冒泡阶段收不到。不是性能问题:`scroll` 事件本来就不可取消,passive 与否
+    // 对它没有意义;`reposition()` 第一件事是判断是否打开,关闭时直接返回。
     this.listen(document, "scroll", () => this.reposition(), { capture: true });
     this.cleanup(() => this.close());
   }

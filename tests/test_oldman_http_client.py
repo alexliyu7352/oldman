@@ -1307,9 +1307,7 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
                         HttpMethod.GET,
                         f"{self.base_url}/success-stream",
                     ) as reconnecting:
-                        reconnect_body = b"".join(
-                            [chunk async for chunk in reconnecting.aiter_bytes(4)]
-                        )
+                        reconnect_body = b"".join([chunk async for chunk in reconnecting.aiter_bytes(4)])
                         self.assertEqual(201, reconnecting.status_code)
                 finally:
                     await client.close_client()

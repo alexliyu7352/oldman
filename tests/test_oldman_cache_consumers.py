@@ -8,8 +8,10 @@ import inspect
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
+
+from sqlalchemy.orm import Mapped, mapped_column
 
 ROOT = Path(__file__).resolve().parents[1]
 CONSUMERS = (
@@ -165,12 +167,201 @@ class CacheConsumerBoundaryTest(unittest.IsolatedAsyncioTestCase):
         with patch.dict(conf.__dict__, {"settings": SimpleNamespace(cache=SimpleNamespace(client="MODEL_CACHE"))}):
             self.assertEqual("MODEL_CACHE", sqlalchemy_cache._configured_cache_alias())
 
-    def test_sqlalchemy_cache_keeps_existing_generic_declarations(self) -> None:
-        source = consumer_source("db/sqlalchemy/cache.py")
-        self.assertIn("from typing import Any, ClassVar, Generic, TypeVar, cast", source)
-        self.assertIn("class AsyncModelCache(Generic[T]):", source)
-        self.assertIn("class AsyncQueryCache(Generic[T]):", source)
+    def test_cache_writes_wait_for_the_commit_that_produced_them(self) -> None:
+        """Mapper events fire during flush; a rollback after that must leave the cache alone."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+        session = SimpleNamespace(info={})
+        target = SimpleNamespace()
+        ran: list[tuple[Any, ...]] = []
+
+        async def invalidate(value: Any) -> None:
+            ran.append((value,))
+
+        with patch.object(sqlalchemy_cache, "object_session", return_value=session):
+            sqlalchemy_cache._queue_cache_task(target, invalidate, target)
+
+        self.assertEqual([], ran, "nothing may run before the transaction commits")
+
+        sqlalchemy_cache._discard_pending_cache_tasks(session)
+        sqlalchemy_cache._flush_pending_cache_tasks(session)
+        self.assertEqual([], ran, "a rolled back transaction leaves the cache untouched")
+
+        with patch.object(sqlalchemy_cache, "object_session", return_value=session):
+            sqlalchemy_cache._queue_cache_task(target, invalidate, target)
+        with patch.object(sqlalchemy_cache, "_run_cache_task") as run:
+            sqlalchemy_cache._flush_pending_cache_tasks(session)
+        run.assert_called_once_with((invalidate, (target,)))
+        self.assertEqual({}, session.info, "the queue is drained, not left to grow")
+
+    def test_cache_writes_are_supervised_not_fire_and_forget(self) -> None:
+        """A bare create_task can be collected mid-flight and swallows its own failures."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+
+        async def invalidate() -> None:
+            return None
+
+        manager = Mock()
+        with patch.object(sqlalchemy_cache, "BackgroundTaskManager", return_value=manager):
+            await_free = sqlalchemy_cache._run_cache_task
+            with patch.object(sqlalchemy_cache.asyncio, "get_running_loop", return_value=object()):
+                await_free((invalidate, ()))
+        manager.spawn.assert_called_once_with(invalidate)
+
+    def test_a_missing_loop_or_stopped_manager_cannot_break_a_committed_transaction(self) -> None:
+        """The transaction already landed; a stale cache entry must not turn into an error."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+
+        async def invalidate() -> None:
+            return None
+
+        with patch.object(sqlalchemy_cache.asyncio, "get_running_loop", side_effect=RuntimeError("no loop")):
+            sqlalchemy_cache._run_cache_task((invalidate, ()))
+
+        stopping = Mock()
+        stopping.spawn.side_effect = RuntimeError("BackgroundTaskManager is stopping")
+        with (
+            patch.object(sqlalchemy_cache.asyncio, "get_running_loop", return_value=object()),
+            patch.object(sqlalchemy_cache, "BackgroundTaskManager", return_value=stopping),
+        ):
+            sqlalchemy_cache._run_cache_task((invalidate, ()))
+
+    def test_database_model_json_round_trip_survives_the_cache_contract(self) -> None:
+        """The ORM cache stores model_dump_json and reads it back with model_validate_json.
+
+        A regression guard for the str(bytes) bug that made model_dump_json emit the repr
+        of a bytes object ("b'{...}'"), which model_validate_json could never parse - so a
+        cache hit threw instead of returning the row. This exercises the real round trip
+        with a real mapped model and no mocks, exactly what the cache does.
+        """
+        import orjson
+
+        from oldman.auth.models import User
+
+        instance = User(
+            id=17,
+            username="cache_probe",
+            password_hash="x",
+            is_active=True,
+            is_staff=True,
+            is_superuser=False,
+        )
+
+        dumped = instance.model_dump_json()
+        # It must be real JSON text, not the repr of a bytes object.
+        self.assertIsInstance(dumped, str)
+        self.assertEqual(17, orjson.loads(dumped)["id"])
+
+        restored = User.model_validate_json(dumped)
+        self.assertEqual(17, restored.id)
+        self.assertEqual("cache_probe", restored.username)
+        self.assertIs(True, restored.is_staff)
+
+    def test_nothing_spawns_an_unsupervised_task(self) -> None:
+        """Checked on the parsed call, not the text: prose about create_task is fine."""
+        tree = ast.parse(consumer_source("db/sqlalchemy/cache.py"))
+        calls = [ast.unparse(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)]
+        self.assertNotIn("asyncio.create_task", calls)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DatabaseModelContractTest(unittest.IsolatedAsyncioTestCase):
+    """Contracts the ORM helpers state but did not keep."""
+
+    _cached_model: Any = None
+
+    @classmethod
+    def _model(cls) -> Any:
+        """Define the throwaway model once: the declarative registry is shared."""
+        if cls._cached_model is None:
+            from oldman.db.sqlalchemy.models import DatabaseModel
+            from oldman.db.sqlalchemy.utils import JSONText
+
+            class ContractRow(DatabaseModel):
+                # No __tablename__: Base derives it from the class name (contractrow).
+                id: Mapped[int] = mapped_column(primary_key=True)
+                title: Mapped[str] = mapped_column(default="")
+                payload: Mapped[dict | None] = mapped_column(JSONText, nullable=True)
+
+            cls._cached_model = ContractRow
+        return cls._cached_model
+
+    async def test_update_refuses_a_field_name_it_does_not_have(self) -> None:
+        """A misspelled field used to change nothing and still report success."""
+        from sqlalchemy import Table
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+        model = self._model()
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(cast(Table, model.__table__).create)
+            async with session_factory() as session:
+                row = model(id=1, title="original")
+                session.add(row)
+                await session.commit()
+
+                with self.assertRaises(AttributeError) as caught:
+                    await row.update(session, titel="typo")
+                self.assertIn("titel", str(caught.exception))
+                self.assertEqual("original", row.title, "a refused update must not have changed anything")
+
+                await row.update(session, title="changed")
+                self.assertEqual("changed", row.title)
+        finally:
+            await engine.dispose()
+
+    async def test_jsontext_stores_text_not_a_blob(self) -> None:
+        """impl = Text, so the column has to receive str; orjson.dumps returns bytes."""
+        from sqlalchemy import Table, text
+        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+        model = self._model()
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(cast(Table, model.__table__).create)
+            async with session_factory() as session:
+                session.add(model(id=1, payload={"a": 1}))
+                await session.commit()
+            async with engine.begin() as connection:
+                stored_type = (await connection.execute(text("SELECT typeof(payload) FROM contractrow WHERE id = 1"))).scalar()
+                self.assertEqual("text", stored_type)
+                # A blob never matches a text literal, so this is what the wrong type broke.
+                matched = (
+                    await connection.execute(text("SELECT COUNT(*) FROM contractrow WHERE payload = :want").bindparams(want='{"a":1}'))
+                ).scalar()
+                self.assertEqual(1, matched)
+        finally:
+            await engine.dispose()
+
+    def test_invalidation_keys_name_their_model(self) -> None:
+        """Without the model name, User 5 and Article 5 share one invalidation set."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+
+        class User:
+            pass
+
+        class Article:
+            pass
+
+        user_cache = sqlalchemy_cache.AsyncQueryCache(User)
+        article_cache = sqlalchemy_cache.AsyncQueryCache(Article)
+
+        self.assertEqual("rev:User:5", user_cache._get_reverse_cache_key(5))
+        self.assertEqual("qs:User:5", user_cache._get_query_set_cache_key(5))
+        self.assertNotEqual(user_cache._get_reverse_cache_key(5), article_cache._get_reverse_cache_key(5))
+        self.assertNotEqual(user_cache._get_query_set_cache_key(5), article_cache._get_query_set_cache_key(5))
+
+    def test_the_committing_helpers_say_that_they_commit(self) -> None:
+        """save/delete/update end the caller's transaction; get_session hands one over."""
+        from oldman.db.sqlalchemy.models import DatabaseModel
+
+        for name in ("save", "delete", "update"):
+            with self.subTest(method=name):
+                doc = getattr(DatabaseModel, name).__doc__ or ""
+                self.assertIn("提交", doc, f"{name} does not document that it commits")

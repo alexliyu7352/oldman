@@ -1,5 +1,6 @@
 """Public async storage API."""
 
+from oldman.storage._urls import media_url
 from oldman.storage.backends import FileSystemStorage, InMemoryStorage
 from oldman.storage.base import Storage, StorageContent, validate_storage_name
 from oldman.storage.exceptions import (
@@ -40,6 +41,7 @@ __all__ = (
     "default_storage",
     "file_column",
     "media_storage",
+    "media_url",
     "memory_storage",
     "storages",
     "validate_storage_name",

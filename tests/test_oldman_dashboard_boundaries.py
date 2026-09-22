@@ -76,6 +76,51 @@ class OldmanDashboardBoundaryTest(unittest.TestCase):
         self.assertIn("locale | default('en')", shared_base)
         self.assertIn("block dashboard_language", shared_base)
 
+    def test_theme_boot_script_reads_the_bundle_preference_key(self) -> None:
+        """head 里的预绘制脚本和 oldman-web 的主题偏好必须读写同一个 localStorage 键。"""
+        dashboard_templates = ROOT / "oldman" / "web" / "templates" / "oldman" / "dashboard"
+        shared_base = (dashboard_templates / "base.html").read_text(encoding="utf-8")
+        theme_boot = (dashboard_templates / "partials" / "theme_boot.html").read_text(encoding="utf-8")
+        theme_source = (PACKAGE_DASHBOARD / "theme.ts").read_text(encoding="utf-8")
+        preferences_source = (PACKAGE_DASHBOARD.parent / "core" / "services" / "preferences.ts").read_text(encoding="utf-8")
+
+        self.assertIn('export const DASHBOARD_THEME_PREFERENCE_KEY = "dashboard.theme";', theme_source)
+        self.assertIn('const namespace = options.namespace ?? "oldman";', preferences_source)
+        self.assertIn('var key = "oldman:dashboard.theme";', theme_boot)
+        self.assertIn("prefers-color-scheme: dark", theme_boot)
+        self.assertLess(
+            shared_base.index('include "oldman/dashboard/partials/theme_boot.html"'),
+            shared_base.index('include "oldman/dashboard/partials/preloader_critical_css.html"'),
+        )
+
+
+    def test_shell_footer_partial_is_included_and_dated_per_render(self) -> None:
+        """The footer is one overridable partial fed by a per-render year global."""
+        from datetime import datetime
+
+        from jinja2 import Environment
+
+        from oldman.web.template import register_component_filters
+
+        shared_base = (ROOT / "oldman" / "web" / "templates" / "oldman" / "dashboard" / "base.html").read_text(encoding="utf-8")
+        login = (ROOT / "oldman" / "apps" / "admin" / "templates" / "admin" / "login.html").read_text(encoding="utf-8")
+        footer = (ROOT / "oldman" / "web" / "templates" / "oldman" / "dashboard" / "partials" / "footer.html").read_text(encoding="utf-8")
+
+        self.assertIn("block dashboard_footer", shared_base)
+        self.assertIn('include "oldman/dashboard/partials/footer.html"', shared_base)
+        # 认证页的页脚在共享的 auth_layout 宏里，登录模板只负责调用它。
+        auth_layout = (ROOT / "oldman" / "web" / "templates" / "oldman" / "auth" / "partials" / "auth_layout.html").read_text(encoding="utf-8")
+        self.assertIn('include "oldman/dashboard/partials/footer.html"', auth_layout)
+        self.assertIn("oldman-footer-auth", auth_layout)
+        self.assertIn("auth_layout(", login)
+        self.assertIn("current_year()", footer)
+
+        environment = Environment(autoescape=True)
+        register_component_filters(environment)
+        year = environment.globals["current_year"]
+        self.assertTrue(callable(year))
+        self.assertEqual(datetime.now().year, year())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from oldman.logging.config import ColorPolicy, build_sink_config
+from oldman.logging.config import ColorPolicy, RotationSettings, build_sink_config
 from oldman.logging.rotation import RotationCoordinator
 
 logger = logging.getLogger("default")
@@ -39,11 +39,7 @@ def get_logger(name: str) -> logging.Logger:
 def _iter_loggers() -> list[logging.Logger]:
     """Return root and every currently materialized logger exactly once."""
     loggers = [logging.getLogger()]
-    loggers.extend(
-        entry
-        for entry in logging.root.manager.loggerDict.values()
-        if isinstance(entry, logging.Logger)
-    )
+    loggers.extend(entry for entry in logging.root.manager.loggerDict.values() if isinstance(entry, logging.Logger))
     return loggers
 
 
@@ -240,10 +236,7 @@ class LoggingRuntime:
     def matches(self, log_config: Mapping[str, Any], *, owns_rotation: bool) -> bool:
         """Return whether repeated initialization describes the same local runtime."""
         return (
-            not self._closed
-            and self.process_id == os.getpid()
-            and (self._coordinator is not None) == owns_rotation
-            and self.log_config == log_config
+            not self._closed and self.process_id == os.getpid() and (self._coordinator is not None) == owns_rotation and self.log_config == log_config
         )
 
     def close(self) -> None:
@@ -285,6 +278,24 @@ class LoggingRuntime:
 def get_active_runtime() -> LoggingRuntime | None:
     """Return the active process-local runtime when logging is initialized."""
     return _active_runtime
+
+
+def resolve_child_logging_context(override: ChildLoggingContext | None = None) -> ChildLoggingContext | None:
+    """Return the logging context a child process should inherit.
+
+    Read immediately before the process starts, not at construction: the runtime may not
+    exist yet when the parent object is built, and a closed one must not be handed on.
+    An explicit `override` always wins.
+
+    Lives here because this package owns both halves of the answer. Two callers - the
+    process executor and the task manager - had byte-identical private copies of it.
+    """
+    if override is not None:
+        return override
+    runtime = get_active_runtime()
+    if runtime is None or runtime.closed:
+        return None
+    return runtime.child_context
 
 
 def _close_active_for_replacement(active: LoggingRuntime) -> None:
@@ -384,6 +395,12 @@ def init_logging(
         resolved_level,
         resolved_color,
         config,
+        rotation=RotationSettings(
+            when=defaults.rotate_when,
+            interval=defaults.rotate_interval,
+            max_bytes=defaults.max_bytes,
+            backup_count=defaults.backup_count,
+        ),
     )
     return _replace_active_runtime(
         log_config,

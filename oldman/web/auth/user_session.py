@@ -13,18 +13,26 @@ import oldman.conf as conf
 from oldman.auth import change_user_password, get_user_by_id
 from oldman.auth.settings import AuthSettings
 from oldman.db import DatabaseManager
-from oldman.i18n import LanguageRegistry, LazyTranslation, gettext
+from oldman.i18n import LanguageRegistry, gettext
 from oldman.web.api import (
     ApiErrorCode,
     CloseModalAction,
     DefaultApiFormResponse,
     FeedbackAction,
+    RedirectAction,
     ResponseAction,
+    form_error_response,
+    modal_not_found_response,
+    modal_response,
 )
-from oldman.web.auth.forms import UserPasswordForm
+from oldman.web.auth.forms import SessionPasswordForm
+from oldman.web.auth.session import revoke_user_sessions
 from oldman.web.response import json_response
 from oldman.web.session import SessionData
 from oldman.web.template import render_component_template
+
+# Long enough for the success toast to be read before the browser leaves for the login page.
+SIGN_IN_AGAIN_DELAY_MS = 1500
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,47 +86,57 @@ async def render_session_password_modal(
         db_manager=db_manager,
     )
     if user is None:
-        message = gettext("Current session user not found.", request=request)
-        return json_response(
-            {
-                "title": gettext("Change Password", request=request),
-                "html": f'<p class="text-default-500 mb-0">{escape(message)}</p>',
-            },
-            status=404,
+        return modal_not_found_response(
+            gettext("Change Password", request=request),
+            gettext("Current session user not found.", request=request),
         )
 
-    form = UserPasswordForm(request=request)
+    form = SessionPasswordForm(request=request)
     modal_html = await render_component_template(
         form,
         "oldman/auth/partials/password_form.html",
         {"action": action, "form": form, "user": user},
     )
     username = escape(str(getattr(user, "username", session_data.username)))
-    return json_response(
-        {
-            "title": (
-                f'{gettext("Change Session Password", request=request)} · '
-                f"{username}"
-            ),
-            "html": str(modal_html),
-        }
-    )
+    return modal_response(f"{gettext('Change Session Password', request=request)} · {username}", html=modal_html)
 
 
 async def update_session_password(
     request: Any,
     *,
+    login_url: str = "/login",
     success_actions: Sequence[ResponseAction] = (),
     auth_settings: AuthSettings | None = None,
     db_manager: DatabaseManager | None = None,
 ):
-    """Change the current User password and include host-owned success actions."""
-    form = UserPasswordForm.from_request(request)
+    """Change the current User password, then sign the user out everywhere.
+
+    Two things separate this from an administrator setting someone else's password. The
+    current password is required, so holding a session is not by itself enough to take the
+    account over; and the change ends every session the user had, this browser included, so
+    the new password is what gets them back in.
+
+    Ending the current session too is what makes the outcome independent of session policy:
+    whether the site runs exclusive logins or lets one user hold several, a password change
+    leaves nothing behind for a stolen cookie to use, and the browser is simply asked to
+    sign in again.
+    """
+    form = SessionPasswordForm.from_request(request)
     if not await form.validate():
         return json_response(form.to_api_response().to_dict())
 
     session_data = _request_session(request)
     user_id = _authenticated_user_id(session_data)
+    current = await get_user_by_id(user_id, auth_settings=auth_settings, db_manager=db_manager)
+    if current is None:
+        return form_error_response(
+            gettext("Current session user not found", request=request),
+            status=404,
+        )
+    if not bool(current.check_password(str(form.cleaned_data["current_password"]))):
+        message = gettext("Current password is incorrect.", request=request)
+        return form_error_response(message, errors={"current_password": message})
+
     user = await change_user_password(
         user_id,
         str(form.cleaned_data["password"]),
@@ -126,32 +144,30 @@ async def update_session_password(
         db_manager=db_manager,
     )
     if user is None:
-        return _form_error_response(
+        return form_error_response(
             gettext("Current session user not found", request=request),
             status=404,
         )
 
-    username = str(getattr(user, "username", session_data.username))
     message = gettext("Session password changed", request=request)
-    description = gettext(
-        "%(username)s password was updated.",
-        request=request,
-        username=username,
-    )
     actions: list[ResponseAction] = [
         FeedbackAction(
             title=message,
-            text=description,
+            text=gettext("Your password was updated. Please sign in again.", request=request),
             icon="success",
         ),
         *success_actions,
         CloseModalAction(),
+        RedirectAction(url=login_url, delay_ms=SIGN_IN_AGAIN_DELAY_MS),
     ]
     payload = DefaultApiFormResponse(
         error_code=ApiErrorCode.OK,
         message=message,
         actions=actions,
     )
+    # Every session this user held, this request's own included: nothing is left for a
+    # stolen cookie to use, and the new password is what gets the browser back in.
+    await revoke_user_sessions(request, user_id)
     return json_response(payload.to_dict())
 
 
@@ -165,7 +181,7 @@ def save_language_preference(
     language = registry.resolve(str(payload.get("language", "")))
     if not language:
         message = gettext("Unsupported language.", request=request)
-        return _form_error_response(
+        return form_error_response(
             message,
             errors={"language": message},
         )
@@ -206,23 +222,8 @@ def _authenticated_user_id(session_data: SessionData) -> int:
     return session_data.user_id
 
 
-def _form_error_response(
-    message: str,
-    *,
-    status: int = 200,
-    errors: dict[str, str] | None = None,
-):
-    """Return the Form error protocol consumed by the shared frontend."""
-    resolved_errors: dict[str, str | LazyTranslation] = dict(errors or {})
-    payload = DefaultApiFormResponse(
-        error_code=ApiErrorCode.FORM_INVALID,
-        message=message,
-        errors=resolved_errors,
-    )
-    return json_response(payload.to_dict(), status=status)
-
-
 __all__ = [
+    "SIGN_IN_AGAIN_DELAY_MS",
     "UserSessionProfile",
     "render_session_password_modal",
     "save_language_preference",

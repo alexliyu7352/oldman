@@ -6,7 +6,7 @@ import json
 import unittest
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from jinja2 import DictLoader, Environment
 from sqlalchemy.schema import Table
@@ -18,13 +18,14 @@ from oldman.conf.schemas import DatabaseConfig, SessionConfig
 from oldman.db.session import DatabaseManager
 from oldman.i18n import LanguageRegistry
 from oldman.web.auth import (
+    SessionPasswordForm,
     UserPasswordForm,
     render_session_password_modal,
     save_language_preference,
     session_profile,
     update_session_password,
 )
-from oldman.web.session import SessionData
+from oldman.web.session import Session, SessionData
 
 
 class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
@@ -32,9 +33,7 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self) -> None:
         """Create one isolated configured User and template environment."""
-        self.manager = DatabaseManager(
-            DatabaseConfig(url="sqlite+aiosqlite:///:memory:")
-        )
+        self.manager = DatabaseManager(DatabaseConfig(url="sqlite+aiosqlite:///:memory:"))
         self.auth_settings = AuthSettings()
         await self.manager.initialize()
         async with self.manager.engine.begin() as connection:
@@ -56,18 +55,21 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
         environment = Environment(
             loader=DictLoader(
-                {
-                    "oldman/auth/partials/password_form.html": (
-                        '<form action="{{ action }}">{{ user.username }}|'
-                        "{{ form.password.label.text }}</form>"
-                    )
-                }
+                {"oldman/auth/partials/password_form.html": ('<form action="{{ action }}">{{ user.username }}|{{ form.password.label.text }}</form>')}
             ),
             autoescape=True,
             enable_async=True,
         )
+        # The double sits at the interface seam, because the views reach the store through
+        # the installed Session extension rather than through whatever object ctx happens to hold.
+        self.session_interface = SimpleNamespace(
+            force_logout_user=AsyncMock(return_value=("first-sid", "second-sid")),
+            _logout_request=AsyncMock(),
+        )
+        self.session_manager = Session()
+        self.session_manager.interface = cast(Any, self.session_interface)
         self.app = SimpleNamespace(
-            ctx=SimpleNamespace(),
+            ctx=SimpleNamespace(session=self.session_manager),
             ext=SimpleNamespace(environment=environment),
         )
 
@@ -137,10 +139,12 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
             self.make_request(
                 method="POST",
                 form={
+                    "current_password": "OldPass2026",
                     "password": "NewPass2026",
                     "confirm_password": "NewPass2026",
                 },
             ),
+            login_url="/admin/login",
             auth_settings=self.auth_settings,
             db_manager=self.manager,
         )
@@ -151,9 +155,10 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
             updated = await database_session.get(User, self.user_id)
         self.assertEqual(200, response.status)
         self.assertEqual(
-            ["feedback", "close_modal"],
+            ["feedback", "close_modal", "redirect"],
             [action["action"] for action in payload["actions"]],
         )
+        self.assertEqual("/admin/login", payload["actions"][-1]["url"])
         self.assertEqual("Session password changed", payload["actions"][0]["title"])
         self.assertEqual({}, payload["data"])
         self.assertIsNotNone(updated)
@@ -163,6 +168,7 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
         missing_request = self.make_request(
             method="POST",
             form={
+                "current_password": "OldPass2026",
                 "password": "OtherPass2026",
                 "confirm_password": "OtherPass2026",
             },
@@ -183,6 +189,67 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1100, missing_payload["error_code"])
         self.assertEqual("Current session user not found", missing_payload["message"])
         self.assertEqual([], missing_payload["actions"])
+
+    async def test_changing_your_own_password_ends_every_session_you_had(self) -> None:
+        """No session may outlive the password it was opened under, this browser's included."""
+        request = self.make_request(
+            method="POST",
+            form={
+                "current_password": "OldPass2026",
+                "password": "NewPass2026",
+                "confirm_password": "NewPass2026",
+            },
+        )
+
+        response = await update_session_password(
+            request,
+            auth_settings=self.auth_settings,
+            db_manager=self.manager,
+        )
+
+        self.assertEqual(200, response.status)
+        # Every session the user held, wherever it was opened...
+        self.session_interface.force_logout_user.assert_awaited_once_with(self.user_id)
+        # ...and this request's own cookie, so no new one is issued to take its place.
+        self.session_interface._logout_request.assert_awaited_once_with(request)
+
+    async def test_a_wrong_current_password_changes_nothing(self) -> None:
+        """Holding a session is not by itself permission to take the account over."""
+        response = await update_session_password(
+            self.make_request(
+                method="POST",
+                form={
+                    "current_password": "NotTheOldPass2026",
+                    "password": "NewPass2026",
+                    "confirm_password": "NewPass2026",
+                },
+            ),
+            auth_settings=self.auth_settings,
+            db_manager=self.manager,
+        )
+        assert response.body is not None
+        payload = json.loads(response.body)
+
+        async with self.manager.get_read_session() as database_session:
+            unchanged = await database_session.get(User, self.user_id)
+        assert unchanged is not None
+
+        self.assertEqual(1100, payload["error_code"])
+        self.assertIn("current_password", payload["errors"])
+        self.assertTrue(unchanged.check_password("OldPass2026"))
+        self.session_interface.force_logout_user.assert_not_awaited()
+
+    async def test_the_current_password_is_required_at_all(self) -> None:
+        """The form an administrator uses for someone else must not be the one used here."""
+        form = SessionPasswordForm.from_request(
+            self.make_request(
+                method="POST",
+                form={"password": "NewPass2026", "confirm_password": "NewPass2026"},
+            )
+        )
+
+        self.assertFalse(await form.validate())
+        self.assertIn("current_password", form.errors)
 
     def test_language_preference_normalizes_alias_and_writes_both_cookies(self) -> None:
         """Both public language routes should consume one canonical cookie response."""

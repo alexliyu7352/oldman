@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import json
 import unittest
 from collections.abc import Awaitable
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -14,6 +16,7 @@ from oldman.web.auth import (
     api_authorized,
     api_key_authorized,
     api_login_required,
+    decorators,
     login_required,
     session_data_for_user,
     staff_required,
@@ -68,9 +71,7 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             del request
             return "unreachable"
 
-        html_response = run_async(
-            html_endpoint(make_request(path="/projects", query_string="page=2"))
-        )
+        html_response = run_async(html_endpoint(make_request(path="/projects", query_string="page=2")))
         api_response = run_async(api_endpoint(make_request()))
         api_payload = json.loads(api_response.body)
 
@@ -108,20 +109,10 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             del request
             return "superuser"
 
-        ordinary_response = run_async(
-            staff_endpoint(make_request(session=authenticated_session()))
-        )
-        staff_result = run_async(
-            staff_endpoint(make_request(session=authenticated_session(is_staff=True)))
-        )
-        staff_only_response = run_async(
-            superuser_endpoint(make_request(session=authenticated_session(is_staff=True)))
-        )
-        superuser_result = run_async(
-            superuser_endpoint(
-                make_request(session=authenticated_session(is_staff=True, is_superuser=True))
-            )
-        )
+        ordinary_response = run_async(staff_endpoint(make_request(session=authenticated_session())))
+        staff_result = run_async(staff_endpoint(make_request(session=authenticated_session(is_staff=True))))
+        staff_only_response = run_async(superuser_endpoint(make_request(session=authenticated_session(is_staff=True))))
+        superuser_result = run_async(superuser_endpoint(make_request(session=authenticated_session(is_staff=True, is_superuser=True))))
 
         self.assertEqual(403, ordinary_response.status)
         self.assertEqual("staff", staff_result)
@@ -137,9 +128,7 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
                 del request
                 return "method-ok"
 
-        result = run_async(
-            DemoView().endpoint(make_request(session=authenticated_session(is_staff=True)))
-        )
+        result = run_async(DemoView().endpoint(make_request(session=authenticated_session(is_staff=True))))
 
         self.assertEqual("method-ok", result)
 
@@ -156,15 +145,9 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             del request
             return "token-ok"
 
-        rejected_query = run_async(
-            query_endpoint(make_request(args={"admin_secrets": "wrong"}))
-        )
-        accepted_query = run_async(
-            query_endpoint(make_request(args={"admin_secrets": "query-secret"}))
-        )
-        loopback_query = run_async(
-            query_endpoint(make_request(ip="127.0.0.1", client_ip="127.0.0.1"))
-        )
+        rejected_query = run_async(query_endpoint(make_request(args={"admin_secrets": "wrong"})))
+        accepted_query = run_async(query_endpoint(make_request(args={"admin_secrets": "query-secret"})))
+        loopback_query = run_async(query_endpoint(make_request(ip="127.0.0.1", client_ip="127.0.0.1")))
         rejected_token = run_async(token_endpoint(make_request(token="wrong")))
         accepted_token = run_async(token_endpoint(make_request(token="token-secret")))
 
@@ -179,6 +162,36 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             @api_authorized()  # pyright: ignore[reportCallIssue] -- intentional contract rejection
             async def missing_secret(request: Any) -> None:
                 del request
+
+    def test_a_missing_secret_is_denied_rather_than_raising(self) -> None:
+        """No query parameter and no Authorization header must reach the same 403, not a TypeError."""
+
+        @api_authorized("query-secret")
+        async def query_endpoint(request: Any) -> Any:
+            del request
+            return "query-ok"
+
+        @api_key_authorized("token-secret")
+        async def token_endpoint(request: Any) -> Any:
+            del request
+            return "token-ok"
+
+        missing_query = run_async(query_endpoint(make_request()))
+        missing_token = run_async(token_endpoint(make_request()))
+
+        self.assertEqual(403, missing_query.status)
+        self.assertEqual(403, missing_token.status)
+
+    def test_shared_secrets_are_never_compared_with_an_equality_operator(self) -> None:
+        """`==` stops at the first differing byte; the secret's prefix must not be readable from the timing."""
+        source = Path(decorators.__file__).read_text(encoding="utf-8")
+        equality_comparisons = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Compare) and any(isinstance(op, ast.Eq | ast.NotEq) for op in node.ops) and "secret" in ast.unparse(node)
+        ]
+
+        self.assertEqual([], [ast.unparse(node) for node in equality_comparisons])
 
 
 class Args(dict[str, str]):

@@ -39,6 +39,8 @@ class ExampleTeam(DatabaseModel):
 
 `oldman.db` 公开 `Base`、`DatabaseModel`、`ModelMetadata`、`DatabaseManager`、`DatabaseNotConfiguredError` 和进程级 `db_manager`。DatabaseModel 是共享 Base 的抽象子类，没有自动 id；业务自己声明主键。没有显式表名时 Base 使用类名的小写形式，建议真实项目显式命名。
 
+时间列存的是无时区 UTC。需要“现在”时用 `oldman.utils.date.naive_utcnow`（`default=naive_utcnow`、`onupdate=naive_utcnow`，代码里 `naive_utcnow()`），不要在每处写一遍 `datetime.now(UTC).replace(tzinfo=None)`，也不要让同一列出现带时区和不带时区两种值。
+
 App Registry 根据已注册包的 models 模块加载模型，记录所属 App、Table、展示名和 managed 状态。不扫描所有安装包，也不应在 App 元数据模块中提前导入模型。一个 Table 只能归属一个 App；独立的关联 Table 也必须在该 App 的模型模块树中声明。模型模块拆成包时，由其 models/__init__.py 显式导入各子模块。
 
 Demo 服务 YAML 的 apps 包含 `apps.examples`，该包的 [apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) 声明 label 为 `examples`。因此包路径、App label、Python 类名 ExampleTeam、数据库表名 example_team 是不同标识，不能混用。已有迁移随 [migrations](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/apps/examples/migrations) 保存；查看示例不需要每次重新生成它们。
@@ -152,7 +154,7 @@ flush 发送 SQL、取得数据库分配的 id，但事务仍可能回滚。不�
 | `execute_query(session, *conditions, page=None, page_size=None)` | 不分页返回列表；分页返回 PageResult |
 | `execute_query_with_select(session, query, page=None, page_size=None)` | 同上，接收自定义 Select |
 | `add_to_session(session)` | 只 add，返回实例，不提交 |
-| `save(session)`、`update(session, **kwargs)`、`delete(session)` | **会自行提交**；不适合混进上面的组合事务 |
+| `save(session)`、`update(session, **kwargs)`、`delete(session)` | **会自行提交**；不适合混进上面的组合事务。`update()` 遇到模型上不存在的字段名会抛 `AttributeError`,不会静默跳过 |
 
 ModelForm.save 与 DatabaseModel.save 不是同一个接口。前者的 commit=True 仅 add/flush，后者会 commit。组合业务优先使用 session.add、session.delete 和 flush，避免方法名相似造成提前提交。
 

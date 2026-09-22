@@ -20,6 +20,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from oldman.cli._main import create_app
+from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
 from oldman.cli.scaffold import DatabaseChoice, ProjectType, start_project
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
@@ -416,21 +417,29 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             frontend_main = (
                 target / "frontend" / "src" / "main.ts"
             ).read_text(encoding="utf-8")
-            i18n_builder = (
-                target / "scripts" / "build_frontend_i18n.py"
+            generated_manifest = (
+                target / "frontend" / "src" / "i18n" / "generated.ts"
             ).read_text(encoding="utf-8")
+            i18n_builder_exists = (
+                target / "scripts" / "build_frontend_i18n.py"
+            ).exists()
             template_exists = (target / "templates" / "base.html").exists()
 
         self.assertIn('"oldman>=9.8.7"', pyproject)
         self.assertIn('"oldman-web": "^9.8.7"', frontend)
         self.assertEqual(
             frontend_package["scripts"]["generate:i18n"],
-            "../.venv/bin/python ../scripts/build_frontend_i18n.py",
+            "../run.sh i18n compile-frontend --service dashboard",
         )
-        self.assertIn("loadLanguageManifest", frontend_main)
-        self.assertNotIn("initialCatalog", frontend_main)
-        self.assertIn("compile_project_frontend_catalog", i18n_builder)
-        self.assertNotIn("js_messages", i18n_builder)
+        # 生成的项目用框架的 CLI 构建，自己不留一份编译入口，也不自带 loader 和清单抓取。
+        self.assertFalse(i18n_builder_exists)
+        self.assertIn('from "./i18n/generated"', frontend_main)
+        self.assertIn("createFetchCatalogLoader", frontend_main)
+        self.assertNotIn("loadLanguageManifest", frontend_main)
+        self.assertNotIn("function readAssetBaseUrl", frontend_main)
+        # 语言清单是构建产物，但脚手架自带首份，新项目 install + build 就能跑。
+        self.assertIn('export const defaultLanguage = "en";', generated_manifest)
+        self.assertIn('catalogPath: "i18n/en.json",', generated_manifest)
         self.assertTrue(template_exists)
         root_metadata = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -502,28 +511,26 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             )
             package_bin.mkdir(parents=True)
             (package_bin / "oldman-web-i18n.mjs").symlink_to(I18N_CLI)
-            subprocess.run(
-                [sys.executable, str(target / "scripts" / "build_frontend_i18n.py")],
-                cwd=target,
-                check=True,
-            )
+            # 生成的项目用 `oldman i18n compile-frontend` 构建，这里直接调它的实现。
+            build_frontend_catalogs(project_root=target, service="dashboard")
 
             output = target / "frontend" / "public" / "i18n"
-            manifest = json.loads(
-                (output / "languages.json").read_text(encoding="utf-8")
-            )
+            manifest = (
+                target / "frontend" / "src" / "i18n" / "generated.ts"
+            ).read_text(encoding="utf-8")
             english = json.loads(
                 (output / "en.json").read_text(encoding="utf-8")
             )
             chinese = json.loads(
                 (output / "zh-hans.json").read_text(encoding="utf-8")
             )
+            published = sorted(item.name for item in output.iterdir())
 
-        self.assertEqual(manifest["defaultLanguage"], "en")
-        self.assertEqual(
-            [language["code"] for language in manifest["languages"]],
-            ["en", "zh-Hans"],
-        )
+        self.assertIn('export const defaultLanguage = "en";', manifest)
+        self.assertIn('code: "en",', manifest)
+        self.assertIn('code: "zh-Hans",', manifest)
+        # 清单不在 catalog 目录里，发布目录时不会被一起换掉，也不会多出一份运行时 fetch 的文件。
+        self.assertEqual(["en.json", "zh-hans.json"], published)
         self.assertEqual(english["messages"]["Loading..."], "Loading...")
         self.assertEqual(chinese["messages"]["Loading..."], "正在加载...")
         self.assertNotIn("Backend only", chinese["messages"])

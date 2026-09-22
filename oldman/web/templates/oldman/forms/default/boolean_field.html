@@ -1,2 +1,8 @@
-<div{{ wrapper_attrs|html_attrs }}>{{ control_html }}<label{{ label_attrs|html_attrs }}>{{ label_text }}</label></div>
+<div{{ wrapper_attrs|html_attrs }}>
+  {{ control_html }}
+  <span class="om-boolean-text">
+    <label{{ label_attrs|html_attrs }}>{{ label_text }}{% if field.flags.required %}<span class="om-form-required" aria-hidden="true">*</span>{% endif %}</label>
+    {{ help_html }}
+  </span>
+</div>
 <div class="om-form-control-stack">{{ errors_html }}</div>

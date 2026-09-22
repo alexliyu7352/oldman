@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 
 from sqlalchemy import AsyncAdaptedQueuePool
 from sqlalchemy.exc import NoSuchModuleError
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db import db_manager as public_db_manager
@@ -413,3 +414,93 @@ class DatabaseManagerInitializationTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PortableMixinServerDefaultTest(unittest.IsolatedAsyncioTestCase):
+    """The shipped mixins must build and insert on every dialect the framework supports.
+
+    These are published API with no in-repo consumer, so nothing else would notice them
+    breaking. They used to be hardcoded to MySQL: NativeTimestampsMixin could not even
+    create its table on SQLite (current_timestamp(0) is a syntax error), and the UTC and
+    UUID defaults raised "unknown function" on any write that bypassed the ORM's
+    Python-side default - a raw INSERT, a migration backfill, another service.
+    """
+
+    @staticmethod
+    def _models() -> tuple[Any, Any, Any]:
+        """Define throwaway models on an isolated registry, once per call."""
+        from oldman.db.sqlalchemy.models import (
+            NativeTimestampsMixin,
+            UtcTimestampsMixin,
+            UUIDMixin,
+        )
+
+        class Local(DeclarativeBase):
+            pass
+
+        class NativeRow(NativeTimestampsMixin, Local):
+            __tablename__ = "portable_native"
+            id: Mapped[int] = mapped_column(primary_key=True)
+
+        class UtcRow(UtcTimestampsMixin, Local):
+            __tablename__ = "portable_utc"
+            id: Mapped[int] = mapped_column(primary_key=True)
+
+        class UuidRow(UUIDMixin, Local):
+            __tablename__ = "portable_uuid"
+
+        return NativeRow, UtcRow, UuidRow
+
+    def test_every_dialect_renders_a_default_it_can_execute(self) -> None:
+        from sqlalchemy import Table
+        from sqlalchemy.dialects import mysql, postgresql, sqlite
+        from sqlalchemy.schema import CreateTable
+
+        native_row, utc_row, _ = self._models()
+        rendered: dict[tuple[str, str], str] = {}
+        for name, dialect in (("sqlite", sqlite.dialect()), ("mysql", mysql.dialect()), ("postgresql", postgresql.dialect())):
+            for label, model in (("native", native_row), ("utc", utc_row)):
+                rendered[(name, label)] = str(CreateTable(cast(Table, model.__table__)).compile(dialect=dialect))
+
+        # No dialect may be handed another dialect's private function.
+        for (name, label), ddl in rendered.items():
+            self.assertNotIn("current_timestamp(0)", ddl, f"{name}/{label} keeps the MySQL-only precision syntax")
+            if name != "mysql":
+                self.assertNotIn("UTC_TIMESTAMP", ddl.upper(), f"{name}/{label} keeps the MySQL-only function")
+
+        self.assertIn("datetime('now', 'localtime')", rendered[("sqlite", "native")])
+        self.assertIn("(UTC_TIMESTAMP())", rendered[("mysql", "utc")])
+        self.assertIn("NOW() AT TIME ZONE 'utc'", rendered[("postgresql", "utc")])
+
+    async def test_sqlite_creates_the_tables_and_the_database_default_actually_fires(self) -> None:
+        from sqlalchemy import Table, text
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        native_row, utc_row, uuid_row = self._models()
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        try:
+            async with engine.begin() as connection:
+                for model in (native_row, utc_row, uuid_row):
+                    await connection.run_sync(cast(Table, model.__table__).create)
+
+                # A raw INSERT is the path that bypasses the Python-side default, so it is
+                # the only one that proves the server_default is valid on this dialect.
+                for table in ("portable_native", "portable_utc"):
+                    await connection.execute(text(f"INSERT INTO {table} (id) VALUES (1)"))
+                    stored = (await connection.execute(text(f"SELECT created_at FROM {table} WHERE id = 1"))).scalar_one()
+                    self.assertTrue(stored, f"{table} stored no server-side timestamp")
+        finally:
+            await engine.dispose()
+
+    def test_uuid_primary_key_is_generated_in_python_not_by_one_dialect(self) -> None:
+        """gen_random_uuid() is PostgreSQL-only and yields v4, while the Python default is v7."""
+        import uuid as uuid_pkg
+
+        from sqlalchemy import Table
+
+        _, _, uuid_row = self._models()
+        column = cast(Table, uuid_row.__table__).c.uuid
+        self.assertIsNone(column.server_default, "the database must not mint a second UUID flavour")
+        python_default = column.default
+        self.assertIsNotNone(python_default, "the primary key needs a Python-side value")
+        self.assertIsInstance(cast(Any, python_default).arg(None), uuid_pkg.UUID)

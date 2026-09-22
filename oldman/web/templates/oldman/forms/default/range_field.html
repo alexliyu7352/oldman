@@ -1,0 +1,10 @@
+<label{{ label_attrs|html_attrs }}>{{ label_text }}{% if field.flags.required %}<span class="om-form-required" aria-hidden="true">*</span>{% endif %}</label>
+<div class="om-form-control-stack">
+  <div class="om-field-range">
+    {{ start_html }}
+    <span class="om-field-range-separator" aria-hidden="true">→</span>
+    {{ end_html }}
+  </div>
+  {{ help_html }}
+  {{ errors_html }}
+</div>

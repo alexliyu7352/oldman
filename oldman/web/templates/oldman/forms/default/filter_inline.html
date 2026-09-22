@@ -1,0 +1,29 @@
+<form{{ attrs|html_attrs }}>
+  {% for hidden in hidden_fields %}{{ hidden }}{% endfor %}
+  {{ message_html }}
+  <div class="om-filter-row">
+    {% if search_html %}{{ search_html }}{% endif %}
+    {% for control in controls %}{{ control }}{% endfor %}
+    {% if advanced_fields %}
+      <div class="om-popover om-filter-advanced" data-om-component="popover" data-om-placement="bottom-end">
+        <button type="button" class="om-button om-button-secondary om-button-sm" data-om-popover-trigger aria-expanded="false">
+          <i class="ri-filter-3-line" aria-hidden="true"></i>{{ more_label }}
+        </button>
+        <div class="om-popover-content om-filter-advanced-panel" data-om-popover-content hidden>
+          <div class="{{ grid_class }}">
+            {% for item in advanced_fields %}
+              <div{{ item.attrs|html_attrs }}>{{ item.field_html }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    <span class="om-filter-spacer" aria-hidden="true"></span>
+    <div class="om-filter-actions">
+      <button type="button" class="om-button om-button-secondary om-button-sm" data-om-filter-reset>{{ reset_label }}</button>
+      <button type="submit" class="om-button om-button-secondary om-button-sm">{{ submit_label }}</button>
+      {{ extra_buttons }}
+    </div>
+  </div>
+  {{ status_html }}
+</form>

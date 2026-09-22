@@ -78,16 +78,10 @@ def _routes_for_request(request: Request) -> Any:
 
     path = str(request.path)
     matches = [
-        routes
-        for routes in installed.values()
-        if path == routes.center_url
-        or path == routes.topbar_url
-        or path.startswith(f"{routes.center_url}/")
+        routes for routes in installed.values() if path == routes.center_url or path == routes.topbar_url or path.startswith(f"{routes.center_url}/")
     ]
     if not matches:
-        raise RuntimeError(
-            f"No installed notification route prefix owns request path {path!r}"
-        )
+        raise RuntimeError(f"No installed notification route prefix owns request path {path!r}")
     return max(matches, key=lambda routes: len(routes.center_url))
 
 
@@ -132,11 +126,7 @@ def _translate_row(
         title=title,
         body=body,
         level=payload.level,
-        tone=(
-            "danger"
-            if payload.level is MessageLevel.ERROR
-            else payload.level.value
-        ),
+        tone=("danger" if payload.level is MessageLevel.ERROR else payload.level.value),
         format=payload.format,
         presentation=payload.presentation,
         href=payload.href,
@@ -195,9 +185,7 @@ async def _build_center_view(
             page=page,
         )
 
-    current_url = (
-        f"{routes.center_url}?state={state.value}&page={page}"
-    )
+    current_url = f"{routes.center_url}?state={state.value}&page={page}"
     return NotificationCenterView(
         items=_translated_items(request, result.items),
         state=state,

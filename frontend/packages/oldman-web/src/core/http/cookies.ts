@@ -37,7 +37,10 @@ export function serializeCookie(name: string, value: string, options: CookieOpti
   if (options.domain) parts.push(`Domain=${options.domain}`);
   if (options.path) parts.push(`Path=${options.path}`);
   if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`);
-  if (options.secure) parts.push("Secure");
+  // `SameSite=None` 缺了 `Secure`，浏览器会**静默丢弃**整条 cookie：不报错、不警告，
+  // 代码和类型检查都看不出来，只有跨站场景在运行时莫名失效。这不是替使用者做决定——
+  // 没有 `Secure` 的 `SameSite=None` 本来就没有一种能生效的用法。
+  if (options.secure || options.sameSite === "None") parts.push("Secure");
   if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
 
   return parts.join("; ");

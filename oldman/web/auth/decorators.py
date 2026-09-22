@@ -7,6 +7,7 @@ from functools import wraps
 from inspect import isawaitable
 from typing import Any
 
+from oldman.utils.crypto import constant_time_equals
 from oldman.utils.decorators import method_adaptor
 from oldman.web.api import DefaultApiResponse
 from oldman.web.http import (
@@ -161,7 +162,17 @@ def _superuser_required(
 
 
 def _api_authorized(secret_key: str):
-    """Require one explicit query-string shared secret outside loopback."""
+    """Require one explicit query-string shared secret outside loopback.
+
+    A request whose socket peer and resolved client address are both 127.0.0.1 skips the
+    check entirely, so a local operator reaches the endpoint without the secret. Behind a
+    reverse proxy that rests on `web.real_ip_header` and `web.proxies_count` being set:
+    they are what makes `request.client_ip` the caller rather than the proxy in front of it.
+
+    The secret travels in the query string, where access logs, browser history and the
+    Referer header all see it. `api_key_authorized` reads the same kind of secret from the
+    request token instead.
+    """
     if not secret_key:
         raise ValueError("secret_key must not be empty")
 
@@ -174,8 +185,8 @@ def _api_authorized(secret_key: str):
             **kwargs: Any,
         ) -> Any:
             is_loopback = request.ip == "127.0.0.1" and request.client_ip == "127.0.0.1"
-            supplied_secret = get_arg(request.args, "admin_secrets")
-            if not is_loopback and supplied_secret != secret_key:
+            supplied_secret = str(get_arg(request.args, "admin_secrets", ""))
+            if not is_loopback and not constant_time_equals(supplied_secret, secret_key):
                 return _shared_secret_denied_response()
             return await _call_handler(handler, view, request, args, kwargs)
 
@@ -185,7 +196,12 @@ def _api_authorized(secret_key: str):
 
 
 def _api_key_authorized(secret_key: str):
-    """Require one explicit request-token shared secret."""
+    """Require one explicit request-token shared secret.
+
+    The token is Sanic's `request.token`: the Bearer or Token value of an Authorization
+    header, or the header verbatim when it carries no scheme. Unlike `api_authorized`
+    there is no loopback exemption — every caller presents the secret.
+    """
     if not secret_key:
         raise ValueError("secret_key must not be empty")
 
@@ -197,7 +213,7 @@ def _api_key_authorized(secret_key: str):
             *args: Any,
             **kwargs: Any,
         ) -> Any:
-            if request.token != secret_key:
+            if not constant_time_equals(request.token or "", secret_key):
                 return _shared_secret_denied_response()
             return await _call_handler(handler, view, request, args, kwargs)
 

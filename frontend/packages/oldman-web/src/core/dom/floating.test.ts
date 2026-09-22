@@ -21,4 +21,23 @@ describe("positionFloatingElement", () => {
     expect(floating.style.top).toBe("122px");
     expect(floating.dataset.omEffectivePlacement).toBe("top-end");
   });
+
+  it("aligns a right-start surface with the top edge of its reference", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    const reference = document.createElement("button");
+    const floating = document.createElement("div");
+    Object.defineProperty(reference, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 100, right: 48, bottom: 132, left: 8, width: 40, height: 32 })
+    });
+    Object.defineProperty(floating, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top: 0, right: 192, bottom: 120, left: 0, width: 192, height: 120 })
+    });
+
+    expect(positionFloatingElement(reference, floating, "right-start", { gap: 12 })).toBe("right-start");
+    expect(floating.style.left).toBe("60px");
+    expect(floating.style.top).toBe("100px");
+  });
 });

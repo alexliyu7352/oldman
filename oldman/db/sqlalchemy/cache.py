@@ -8,6 +8,7 @@ __author__ = "alex"
 
 import asyncio
 import hashlib
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, ClassVar, Generic, TypeVar, cast
@@ -15,13 +16,72 @@ from typing import Any, ClassVar, Generic, TypeVar, cast
 import orjson
 from sqlalchemy import Select, event, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, object_session
 
 from oldman.db.schemas import PageResult
 from oldman.db.sqlalchemy.models import DatabaseModel
+from oldman.logging import logger
 from oldman.providers.redis import redis_client
+from oldman.tasks.simple import BackgroundTaskManager
 
 # 使用具体的 DatabaseModel 作为边界,而不是 Protocol
 T = TypeVar("T", bound=DatabaseModel)
+
+
+#: Cache writes waiting for the transaction that produced them to commit.
+_PENDING_CACHE_TASKS = "oldman.cache.pending"
+
+CacheTask = tuple[Callable[..., Coroutine[Any, Any, None]], tuple[Any, ...]]
+
+
+def _run_cache_task(task: CacheTask) -> None:
+    """把一次缓存写入交给后台任务管理器执行。
+
+    不用 asyncio.create_task：它不保留引用，CPython 可能在任务跑完之前就把它回收掉，
+    而任务里的异常也只会以"从未被取回"的警告形式出现。管理器会持有引用、把失败写进
+    日志，并在进程退出时统一取消。
+
+    没有运行中的事件循环、或者管理器正在停机时，这次写入就没有地方可跑。缓存变脏不好，
+    但在这里抛异常更糟——它所属的事务已经提交完成了。
+    """
+    coro_func, args = task
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        logger.warning(f"无事件循环，跳过缓存失效: {getattr(coro_func, '__qualname__', coro_func)}")
+        return
+    try:
+        BackgroundTaskManager().spawn(coro_func, *args)
+    except RuntimeError as exc:
+        logger.warning(f"后台任务管理器不可用，跳过缓存失效: {type(exc).__name__}")
+
+
+def _queue_cache_task(target: Any, coro_func: Callable[..., Coroutine[Any, Any, None]], *args: Any) -> None:
+    """把缓存写入推迟到产生它的事务真正提交之后。
+
+    mapper 事件是在 flush 时触发的，不是提交时：在那里直接写缓存，会把一次即将回滚的
+    改动也写进去；而且 SQLAlchemy 明确要求不要在 mapper 事件里做 I/O。
+    """
+    session = object_session(target)
+    if session is None:
+        # 不在 Session 里的实例没有事务可等，只能立即执行。
+        _run_cache_task((coro_func, args))
+        return
+    pending: list[CacheTask] = session.info.setdefault(_PENDING_CACHE_TASKS, [])
+    pending.append((coro_func, args))
+
+
+@event.listens_for(Session, "after_commit")
+def _flush_pending_cache_tasks(session: Session) -> None:
+    """事务确实落库之后，再执行排队的缓存写入。"""
+    for task in session.info.pop(_PENDING_CACHE_TASKS, []):
+        _run_cache_task(task)
+
+
+@event.listens_for(Session, "after_soft_rollback")
+def _discard_pending_cache_tasks(session: Session, *_: Any) -> None:
+    """回滚掉的事务什么都没改，它排队的缓存写入一并丢弃。"""
+    session.info.pop(_PENDING_CACHE_TASKS, None)
 
 
 def _configured_cache_alias() -> str:
@@ -121,11 +181,11 @@ def cached_model_simply(expire_seconds: int = 3600):
         # 设置事件监听器
         @event.listens_for(cls, "after_update")
         def after_update(mapper: Any, connection: Any, target: T) -> None:
-            asyncio.create_task(cache.set_cache(target))
+            _queue_cache_task(target, cache.set_cache, target)
 
         @event.listens_for(cls, "after_delete")
         def after_delete(mapper: Any, connection: Any, target: T) -> None:
-            asyncio.create_task(cache.delete_cache(model_primary_key_value(target)))
+            _queue_cache_task(target, cache.delete_cache, model_primary_key_value(target))
 
         return cls
 
@@ -184,11 +244,26 @@ class AsyncQueryCache(Generic[T]):  # noqa: UP046 -- preserve the existing Gener
         fields_key = self._generate_fields_key(fields)
         pipe.setex(fields_key, self.instance_expire_seconds, str(instance_id))
         # 记录反向映射用于失效处理 - 使用集合存储
-        reverse_key = f"rev:{instance_id}"
+        reverse_key = self._get_reverse_cache_key(instance_id)
         pipe.sadd(reverse_key, fields_key)
         pipe.expire(reverse_key, self.instance_expire_seconds)
 
         await pipe.execute()
+
+    def _get_reverse_cache_key(self, instance_id: Any) -> str:
+        """Key of the set listing which field keys point at one instance.
+
+        The model name belongs here for the same reason it is in the instance and query
+        keys: without it `User` 5 and `Article` 5 share `rev:5`, so invalidating one
+        model deletes the other's cached field keys. It only ever over-deletes, never
+        returns another model's row, but a write to one model should not quietly empty
+        another model's cache.
+        """
+        return f"rev:{self.model.__name__}:{instance_id}"
+
+    def _get_query_set_cache_key(self, instance_id: Any) -> str:
+        """Key of the set listing which query caches contain one instance."""
+        return f"qs:{self.model.__name__}:{instance_id}"
 
     def _generate_fields_key(self, fields: dict[str, Any]) -> str:
         """生成压缩的字段缓存键"""
@@ -331,7 +406,7 @@ class AsyncQueryCache(Generic[T]):  # noqa: UP046 -- preserve the existing Gener
 
         # 记录查询缓存与实例的关联
         for instance in instances:
-            query_set_key = f"qs:{model_primary_key_value(instance)}"
+            query_set_key = self._get_query_set_cache_key(model_primary_key_value(instance))
             pipe.sadd(query_set_key, cache_key)
             pipe.expire(query_set_key, self.query_expire_seconds)
 
@@ -349,13 +424,13 @@ class AsyncQueryCache(Generic[T]):  # noqa: UP046 -- preserve the existing Gener
             instance_key = self._get_instance_cache_key(instance_id_str)
             pipe.delete(instance_key)
 
-            reverse_key = f"rev:{instance_id_str}"
+            reverse_key = self._get_reverse_cache_key(instance_id_str)
             field_keys = await conn.smembers(reverse_key)
             for key in field_keys:
                 pipe.delete(key)
             pipe.delete(reverse_key)
             # 删除查询缓存
-            query_set_key = f"qs:{instance_id_str}"
+            query_set_key = self._get_query_set_cache_key(instance_id_str)
             query_keys = await conn.smembers(query_set_key)
             for key in query_keys:
                 pipe.delete(key)
@@ -416,11 +491,11 @@ def cached_model(instance_expire_seconds: int = 3600, query_expire_seconds: int 
         # 设置事件监听器
         @event.listens_for(cls, "after_update")
         def after_update(mapper: Any, connection: Any, target: T) -> None:
-            asyncio.create_task(cache_manager.invalidate(target))  # type: ignore
+            _queue_cache_task(target, cache_manager.invalidate, target)
 
         @event.listens_for(cls, "after_delete")
         def after_delete(mapper: Any, connection: Any, target: T) -> None:
-            asyncio.create_task(cache_manager.invalidate(target))  # type: ignore
+            _queue_cache_task(target, cache_manager.invalidate, target)
 
         return cls
 

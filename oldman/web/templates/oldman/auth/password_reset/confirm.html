@@ -1,0 +1,14 @@
+{# Card body for the set-password page; the form posts back to the tokenised URL. #}
+<h1 class="oldman-auth-title">{{ _("Choose a new password") }}</h1>
+<p class="oldman-auth-description">{{ _("Set a new password for %(username)s.", username=username) }}</p>
+
+<form action="{{ action }}" method="post" data-turbo="false" data-om-component="form" class="mt-6 space-y-4">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  <div>
+    {{ form.render_field("password") }}
+  </div>
+  <div>
+    {{ form.render_field("confirm_password") }}
+  </div>
+  <button class="om-button om-button-primary om-button-lg mt-2 w-full" type="submit">{{ _("Update password") }}</button>
+</form>

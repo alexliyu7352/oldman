@@ -62,7 +62,7 @@ class AsyncTask:
                 # 如果任务函数是正常返回或异常退出，都等待 delay 秒后重新运行
                 if thread_pool.shutdown_event.is_set():
                     break
-                logger.info(f"[{threading.current_thread().name}] Task {self.task_id} finished, " f"waiting {delay} seconds before next run.")
+                logger.info(f"[{threading.current_thread().name}] Task {self.task_id} finished, waiting {delay} seconds before next run.")
                 time.sleep(delay)
         else:
             # 非重复任务：只执行一次

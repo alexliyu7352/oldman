@@ -6,6 +6,7 @@ import copy
 import logging
 import os
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -40,10 +41,7 @@ LOGGING_CONFIG_DEFAULTS: dict[str, Any] = {
         },
         "no_color": {
             "class": "oldman.logging.formatters.PlainTextFormatter",
-            "format": (
-                "%(asctime)s [%(process)s] [%(levelname)s] "
-                "[%(filename)s:%(lineno)s]  %(message)s"
-            ),
+            "format": ("%(asctime)s [%(process)s] [%(levelname)s] [%(filename)s:%(lineno)s]  %(message)s"),
             "datefmt": "[%Y-%m-%d %H:%M:%S %z]",
         },
         "no_color_access": {
@@ -140,6 +138,16 @@ LOGGING_CONFIG_DEFAULTS: dict[str, Any] = {
 }
 
 
+@dataclass(frozen=True, slots=True)
+class RotationSettings:
+    """How the file sinks roll over, mirroring the fields on LoggingConfig."""
+
+    when: str | None = "D"
+    interval: int = 1
+    max_bytes: int = 0
+    backup_count: int = 3
+
+
 def _deep_merge(target: dict[str, Any], override: Mapping[str, Any]) -> None:
     """Merge nested mappings without sharing mutable values with the caller."""
     for key, value in override.items():
@@ -161,8 +169,15 @@ def build_sink_config(
     logger_level: int,
     color: ColorPolicy,
     overrides: Mapping[str, Any] | None = None,
+    *,
+    rotation: RotationSettings | None = None,
 ) -> dict[str, Any]:
-    """Build one independent sink configuration without opening any handlers."""
+    """Build one independent sink configuration without opening any handlers.
+
+    `rotation` comes from settings. It used to be hardcoded here as daily with three
+    backups, which meant a deployment could not change how much log history it keeps or
+    switch to size-based rollover without replacing the whole config dict.
+    """
     config = copy.deepcopy(LOGGING_CONFIG_DEFAULTS)
     config["root"]["level"] = logger_level
     for logger_config in config["loggers"].values():
@@ -183,6 +198,20 @@ def build_sink_config(
     config["handlers"]["access_file"]["filename"] = str(directory / f"{prefix}_access.log")
     config["handlers"]["database_file"]["filename"] = str(directory / f"{prefix}_database.log")
 
+    resolved_rotation = RotationSettings() if rotation is None else rotation
+    for handler_name in ("file", "access_file", "database_file"):
+        handler = config["handlers"][handler_name]
+        handler["backupCount"] = resolved_rotation.backup_count
+        if resolved_rotation.when is None:
+            # Size rollover: the handler rejects both being set, so the time keys go away.
+            handler.pop("when", None)
+            handler.pop("interval", None)
+            handler["maxBytes"] = resolved_rotation.max_bytes
+        else:
+            handler.pop("maxBytes", None)
+            handler["when"] = resolved_rotation.when
+            handler["interval"] = resolved_rotation.interval
+
     if overrides:
         _deep_merge(config, overrides)
 
@@ -192,5 +221,6 @@ def build_sink_config(
 __all__ = [
     "ColorPolicy",
     "LOGGING_CONFIG_DEFAULTS",
+    "RotationSettings",
     "build_sink_config",
 ]

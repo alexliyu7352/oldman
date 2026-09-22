@@ -1,9 +1,12 @@
 import "./admin.css";
 import {
+  createFetchCatalogLoader,
   createHttpClient,
   createI18n,
   createOldmanContext,
+  escapeHtml,
   getOldmanContext,
+  readAssetBaseUrl,
   setOldmanContext,
   setupPage,
   startOldman,
@@ -23,8 +26,8 @@ interface AdminI18nBootstrap {
 function adminNotificationEmptyState(): string {
   const message = escapeHtml(getOldmanContext().i18n.t("No notifications"));
   return `
-    <div class="empty-notification-elem px-6 py-8 text-center">
-      <p class="mb-0 text-sm text-default-500">${message}</p>
+    <div class="empty-notification-elem om-empty om-empty-sm">
+      <p class="om-empty-description">${message}</p>
     </div>
   `;
 }
@@ -42,9 +45,11 @@ class AdminPage extends DashboardPage {
         "form-validator": async () => (await import("oldman-web/components/form-validator")).FormValidator,
         "language-switcher": async () => (await import("oldman-web/components/language-switcher")).LanguageSwitcher,
         modal: async () => (await import("oldman-web/dashboard/modal")).DashboardModal,
+        popover: async () => (await import("oldman-web/components/popover")).Popover,
         preloader: async () => (await import("oldman-web/components/preloader")).Preloader,
         select: async () => (await import("oldman-web/components/select")).Select,
-        "table-filter-form": async () => (await import("oldman-web/components/table-filter-form")).TableFilterForm
+        "table-filter-form": async () => (await import("oldman-web/components/table-filter-form")).TableFilterForm,
+        tooltip: async () => (await import("oldman-web/components/tooltip")).Tooltip
       }),
       sidebarOptions: { defaultDashboardPath: adminBasePath },
       topbarOptions: {
@@ -67,7 +72,11 @@ async function startAdmin(): Promise<void> {
   const http = createHttpClient(httpOptions);
   const i18nBootstrap = readAdminI18nBootstrap();
   const i18n = createI18n({
-    catalogLoader: (language) => loadAdminLanguageCatalog(language, i18nBootstrap),
+    // 目录路径相对站点根，不相对 bundle 目录，所以这里不传 assetBaseUrl。
+    catalogLoader: createFetchCatalogLoader({
+      initialCatalog: i18nBootstrap.catalog,
+      initialLanguage: i18nBootstrap.currentLanguage
+    }),
     defaultLanguage: i18nBootstrap.defaultLanguage,
     document,
     http,
@@ -76,7 +85,7 @@ async function startAdmin(): Promise<void> {
     languages: i18nBootstrap.languages
   });
   const context = createOldmanContext({
-    assetBaseUrl: readAssetBaseUrl(),
+    assetBaseUrl: readAssetBaseUrl({ fallback: new URL(/* @vite-ignore */ "./", import.meta.url).toString() }),
     document,
     http,
     httpOptions,
@@ -84,14 +93,9 @@ async function startAdmin(): Promise<void> {
   });
   setOldmanContext(context);
   await context.i18n.init();
-  await startOldman({ context });
+  // Any entry name the templates use that is not registered still mounts the Admin shell.
+  await startOldman({ context, fallbackPage: AdminPage });
   document.documentElement.dataset.omReady = "true";
-}
-
-function readAssetBaseUrl(): string {
-  const configured = document.querySelector<HTMLMetaElement>('meta[name="oldman-asset-base"]')?.content;
-  if (configured) return new URL(configured, window.location.href).toString();
-  return new URL(/* @vite-ignore */ "./", import.meta.url).toString();
 }
 
 function readAdminBasePath(): string {
@@ -145,25 +149,6 @@ function readAdminI18nBootstrap(): AdminI18nBootstrap {
   }
 }
 
-async function loadAdminLanguageCatalog(
-  language: LanguageDefinition,
-  bootstrap: AdminI18nBootstrap
-): Promise<TranslationCatalog> {
-  if (language.code === bootstrap.currentLanguage) return bootstrap.catalog;
-  if (!language.catalogPath) return { locale: language.locale, messages: {} };
-
-  try {
-    const response = await fetch(new URL(language.catalogPath, window.location.href), {
-      headers: { Accept: "application/json" }
-    });
-    if (!response.ok) return { locale: language.locale, messages: {} };
-    const catalog = await response.json() as unknown;
-    return isTranslationCatalog(catalog) ? catalog : { locale: language.locale, messages: {} };
-  } catch {
-    return { locale: language.locale, messages: {} };
-  }
-}
-
 function isTranslationCatalog(value: unknown): value is TranslationCatalog {
   return isRecord(value)
     && typeof value.locale === "string"
@@ -192,10 +177,6 @@ function isLanguageDefinition(value: unknown): value is LanguageDefinition {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 void startAdmin().catch((error: unknown) => {

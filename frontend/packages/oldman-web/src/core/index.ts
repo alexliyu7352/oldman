@@ -6,6 +6,7 @@ export { createOldmanContext, getOldmanContext, resetOldmanContext, setOldmanCon
 export type { CreateOldmanContextOptions, OldmanContext } from "./runtime/context";
 export { onCoreEvent } from "./events";
 export type { CoreEvent, CoreEventHandler, CoreEventMap, CoreEventName, StopCoreEventListener } from "./events";
+export { abortable, abortError, isCanceledError } from "./services/abort";
 export { CleanupRegistry } from "./services/cleanup";
 export { EventService } from "./services/events";
 export type { CustomEventTarget, DirectEventHandler, EmitEventOptions } from "./services/events";
@@ -58,6 +59,7 @@ export {
   collectIncludedParams,
   data,
   delegate,
+  escapeHtml,
   isNamedFormControl,
   mustQuery,
   query,
@@ -103,3 +105,9 @@ export type {
 export { getStimulusApplication, registerController, registerControllers } from "./stimulus/controllers";
 export type { StimulusControllerDefinitions } from "./stimulus/controllers";
 export * from "./i18n";
+export {
+  FINGERPRINT_HEADER,
+  createFingerprintSender,
+  deviceVisitorId
+} from "./security/fingerprint";
+export type { FingerprintSender, FingerprintSenderOptions } from "./security/fingerprint";

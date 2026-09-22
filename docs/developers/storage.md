@@ -100,7 +100,7 @@ file_column 的参数是 upload_to、storage="default"、max_length=255、nullab
 
 upload_to 可以是目录字符串，也可以是同步函数 `(instance, filename) -> str`。框架先移除浏览器文件名携带的目录，再传给函数；返回完整逻辑名称，最终仍由 Storage 验证。函数不要执行 I/O；新增实例还没有自增主键，不要依赖刚生成的 id 命名。一个列保存一个文件，多文件列表用关联模型。
 
-对应 [ExampleAssetForm](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 显式声明了下面两个字段，以限制文件类型和大小。UploadField、FileSize、FileExtension 来自 `oldman.web.components.forms`，`_` 是 gettext_lazy。这是类内节选，不包括该类的名称字段、Meta 和新增必填校验：
+对应 [ExampleAssetForm](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 显式声明了下面两个字段，以限制文件类型和大小。UploadField、FileSize、FileExtension 来自 `oldman.web.components.forms`，`_` 是 gettext_lazy。这是类内节选，不包括该类的名称字段和 Meta：
 
 ```python
     document_path = UploadField(
@@ -115,11 +115,11 @@ upload_to 可以是目录字符串，也可以是同步函数 `(instance, filena
     )
 ```
 
-未显式声明时，ModelForm 自动将文件列转成 UploadField。字段绑定 request.files 中 Sanic 的 File 对象，渲染时使用 multipart enctype；不会把编辑记录中的旧字符串当成本次上传。非空自动文件字段首次必须上传，编辑已有文件时允许不上传并保留原名。Demo 显式覆盖后，自己的 validate() 另外处理了“新建必须有 Document”，不能只抄上面的两个字段而漏掉此规则。
+未显式声明时，ModelForm 自动将文件列转成 UploadField。字段绑定 request.files 中 Sanic 的 File 对象，渲染时使用 multipart enctype；不会把编辑记录中的旧字符串当成本次上传。非空文件列首次必须上传，编辑已有文件时允许不上传并保留原名——这条规则看的是模型列和 UploadField，显式声明字段（为了加尺寸、扩展名校验或 render_kw）不会让它失效，业务不用自己写 validate()。
 
 实际上传控件由 [_asset_form.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/storage/_asset_form.html) 放进普通 Form，包含 message、字段错误、CSRF 和提交状态。上面的 hidden input 与该模板中的上传增强配合使用，不是孤立复制一个隐藏 input 就能完成上传 UI。
 
-普通 OldmanForm 使用 UploadField 时只得到上传对象，不自动保存。可使用 FileSize(max_bytes)、FileExtension(("pdf", "txt")) 校验；扩展名不等于内容真实性，也没有自动病毒扫描。显式覆盖自动文件字段时，应自行定义新增/编辑必填规则；不要对所有编辑请求直接 DataRequired 而误拒绝“保留原文件”。
+普通 OldmanForm（不是 ModelForm）使用 UploadField 时只得到上传对象，不自动保存，也没有模型列可依据，必填规则要自己写。可使用 FileSize(max_bytes)、FileExtension(("pdf", "txt")) 校验；扩展名不等于内容真实性，也没有自动病毒扫描。不要对所有编辑请求直接 DataRequired 而误拒绝“保留原文件”。
 
 保存必须先通过 form.validate。Demo 的完整创建入口已在[文件教程](../users/data-and-files.md#3-完整保存入口)列出；这里给出同一 views/storage.py 中完整编辑入口，展示 instance 的来源：
 
@@ -165,6 +165,8 @@ Demo 同一文件中的 `example_asset_clear_preview()` 仅把 nullable 的 prev
 ## Web 下载与私有文件
 
 WebApplication 按 `web.media.storage` 和 `web.media.url` 发布一个只读媒体入口，默认 default 和 /media/；空 url 不安装该路由。文件系统后端使用 Sanic static（支持 Range），其他后端用 StoredFile 流式响应。
+
+模板和视图里不要硬写 `/media/...`：`oldman.storage.media_url(name)` 把 `web.media.url` 和存储名拼起来（会做 URL 转义，已经带 scheme 或 `data:` 的值原样返回），没有配置媒体路由时返回空字符串。它不检查文件是否存在。
 
 这个默认媒体路由不是认证下载接口。私有附件使用单独 alias/location，不把它发布为公开 media；在自己的下载视图先验证用户和记录权限，再读取流。Storage 没有统一的 url()、signed_url() 或按用户授权方法，不要调用不存在的 API。
 

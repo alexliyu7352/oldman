@@ -146,27 +146,20 @@ App 包根、`apps.py` 和配置模型模块应保持轻量：不读取尚未绑
 
 ## WebApplication
 
-Demo 的服务类是 `WebService(WebApplication)`；文件名为 `web.py`，所以命令为 `./run.sh web start`。它实现的 `prepare_server()` 完整方法如下：
+Demo 的服务类是 `WebService(WebApplication)`；文件名为 `web.py`，所以命令为 `./run.sh web start`。
+
+监听参数由基类的 `prepare_server()` 按 `web` 配置准备：host、port、debug、auto_reload、workers、access_log 都来自 YAML，`single_process` 由“没有多 worker 且没有 auto_reload”推导（Sanic 拒绝这两种组合同时出现）。把 YAML 的 `workers` 改大即可切换到多进程，不需要改代码。
+
+服务只在需要额外动作时覆盖它，并且仍然调用父类：
 
 ```python
 def prepare_server(self, app: WebApp) -> None:
-    """按照项目配置准备 Sanic 监听参数。"""
-    ensure_vite_build_available()
-    app.prepare(
-        host=settings.web.listen_host,
-        port=settings.web.listen_port,
-        debug=settings.web.debug,
-        motd=False,
-        auto_reload=settings.web.auto_reload,
-        single_process=True,
-        workers=settings.web.workers,
-        access_log=settings.web.access_log,
-    )
+    """先确认前端产物可用，再交给框架准备监听参数。"""
+    app_bundle_registry(app).ensure_build_available(APP_MAIN_BUNDLE)
+    super().prepare_server(app)
 ```
 
-方法属于类内部，不能只复制为模块函数。原文件已从 `config.settings` 导入全局 `settings`，从 `oldman.web.routing` 导入 `WebApp`。同文件 `ensure_vite_build_available()` 根据产品/开发模式检查资源：产品模式需要已构建、收集的 manifest；开发模式使用 Vite 地址。资源准备流程见[Assets](assets.md)，不是让 `prepare_server()` 隐式运行构建。
-
-这里调用原生 `app.prepare(...)`，Demo 明确传 `single_process=True`。需要多个 worker 时，必须同时按 Sanic 的参数约束调整这里，不能只把 YAML 的 `workers` 改大就假定切换完成。
+`ensure_build_available()` 根据产品/开发模式检查资源：产品模式需要已构建、收集的 manifest；开发模式使用 Vite 地址。资源准备流程见[Assets](assets.md)，不是让 `prepare_server()` 隐式运行构建。
 
 ### 模板和基础能力接线
 
@@ -210,7 +203,7 @@ def init(self) -> None:
 
 - `StatelessCSRFManager` 从 `oldman.web.security.csrf` 导入。
 - `install_notifications` 是 `oldman.web.messages.notifications.init_app` 的导入名称，不是另一个 subscriber。
-- `install_template_helpers()` 是 Demo 自己的函数：安装共享/项目模板 loader、静态 bundle、语言菜单、CSRF 和通知链接等模板 globals。完整实现仍在服务文件中，不能把它当成框架自动存在的方法。
+- `install_template_helpers()` 是 Demo 自己的函数：安装共享/项目模板 loader，用 `register_project_bundle()` 和 `registry.install_template_globals()` 接入静态 bundle（见 [Assets](assets.md)），再注册通知链接等 Demo 自己的模板 globals；语言菜单和 CSRF token 已是框架全局，不再由它提供。
 - `/user-events` 是 Demo 已声明的 SSE 视图地址；这里只将地址交给模板，不创建这条路由。SSE 关闭时传 None。
 
 父类 `init()` 创建 Sanic 和扩展环境，按开关安装 messages、Session，初始化 Storage 与 SSE 输出扩展，再让 Registry 加载 models/views。模型阶段在 bootstrap 已完成，再调用不会重复加载。Demo 的上述覆盖随后才安装自己的附加能力；最终开始处理请求时，这些接线都已完成。不能在 `apps.py`、models 或 views 的导入阶段就假定项目的模板 globals/CSRF 助手已经可用。
@@ -257,9 +250,9 @@ async def main(self, *args, **kwargs) -> None:
 
 正常运行顺序为 init/模型、按开关加载 events 声明、同步 prepare；事件循环中先打开启用的 Core/Taskiq 发送连接，再执行 before_start，开始 Core 接收，然后 main。main 返回或收到停止信号后，先结束 Core handler，再执行 before_stop/after_stop，最后关闭 Taskiq 与 Core。main 返回服务即结束；Demo 的 main 使用 await asyncio.Event().wait() 等正常停止，不是空 main 自动成为 Worker。
 
-`before_start()`、`before_stop()`、`after_stop()` 是异步扩展点。基类停止流程会取消通过其接口登记的后台任务，关闭已有缓存和 Redis；业务创建的其他资源仍需要自身的清理。
+`before_start()`、`before_stop()`、`after_stop()` 是异步扩展点。基类停止流程会取消通过其接口登记的后台任务，并依次关闭缓存、Redis 和数据库引擎（其中任何一个失败也不会漏掉后面的）；业务自己创建的其他资源仍需要自身的清理，不用再写一遍 `await db_manager.close()`。
 
-例如 nats_a 的 after_stop 先 await db_manager.close()，再在 finally 调用 super；此时接收 handler 已退出。业务停止钩子中仍可用 Core 发送给其他在线服务，不能再期待本地已停止的订阅回复。信号取消的是受管主协程，不先 loop.stop 抢断异步清理；等待仍是协作式取消，不保证无界阻塞业务的硬退出期限。
+业务钩子里的 `after_stop` 覆盖要记得在 finally 里调用 super，此时接收 handler 已退出。业务停止钩子中仍可用 Core 发送给其他在线服务，不能再期待本地已停止的订阅回复。信号取消的是受管主协程，不先 loop.stop 抢断异步清理；等待仍是协作式取消，不保证无界阻塞业务的硬退出期限。
 
 App 命令不执行 `main()` 或启动后台服务，而是走[命令生命周期](cli.md#命令生命周期)。不要把命令依赖的初始化全部放进 `prepare()` 后，又假定一次性命令也会调用它。
 

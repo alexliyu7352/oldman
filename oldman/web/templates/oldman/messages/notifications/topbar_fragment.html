@@ -7,7 +7,7 @@
       href="{{ view.center_url }}/{{ item.id }}/open"
       data-om-user-notification-preview
       data-om-user-notification-id="{{ item.id }}"
-      class="flex items-start gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-default-50 focus-visible:ring-2 focus-visible:ring-primary-500/40"
+      class="om-notification-item"
     >
       {% if item.icon %}
         <span class="om-notification-icon om-notification-icon-{{ item.tone }}">
@@ -15,9 +15,9 @@
         </span>
       {% endif %}
       <div class="min-w-0 flex-1">
-        <div class="truncate text-sm font-semibold text-default-900">{{ item.title }}</div>
-        {% if item.body %}<div class="mt-1 line-clamp-2 text-sm text-default-700">{{ item.body }}</div>{% endif %}
-        <time class="mt-1 block text-xs text-default-500" datetime="{{ item.created_at.isoformat() }}">{{ item.created_at }}</time>
+        <div class="om-notification-title">{{ item.title }}</div>
+        {% if item.body %}<div class="om-notification-body">{{ item.body }}</div>{% endif %}
+        <time class="om-notification-time" datetime="{{ item.created_at.isoformat() }}">{{ item.created_at }}</time>
       </div>
     </a>
   {% endfor %}

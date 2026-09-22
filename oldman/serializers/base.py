@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 from dataclasses import asdict
 from datetime import datetime
 from typing import Any, ClassVar, TypeVar
@@ -11,44 +10,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T")
 
-_tls = threading.local()
 
-
-def _get_mp_encoder() -> msgspec.msgpack.Encoder:
-    enc = getattr(_tls, "mp_enc", None)
-    if enc is None:
-        enc = _tls.mp_enc = msgspec.msgpack.Encoder()
-    return enc
-
-
-def _get_json_encoder() -> msgspec.json.Encoder:
-    enc = getattr(_tls, "json_enc", None)
-    if enc is None:
-        enc = _tls.json_enc = msgspec.json.Encoder()
-    return enc
-
-
-def _get_mp_decoder(cls: type) -> msgspec.msgpack.Decoder:
-    decs = getattr(_tls, "mp_decs", None)
-    if decs is None:
-        decs = _tls.mp_decs = {}
-    dec = decs.get(cls)
-    if dec is None:
-        dec = decs[cls] = msgspec.msgpack.Decoder(type=cls)  # ← 现在在“真正用到时”才创建
-    return dec
-
-
-def _get_json_decoder(cls: type) -> msgspec.json.Decoder:
-    decs = getattr(_tls, "json_decs", None)
-    if decs is None:
-        decs = _tls.json_decs = {}
-    dec = decs.get(cls)
-    if dec is None:
-        dec = decs[cls] = msgspec.json.Decoder(type=cls)
-    return dec
-
-
-# ---------- 基类：msgspec.Struct 版（高性能） ----------
 class MsgspecModel(msgspec.Struct):
     # 模块/类级复用的编码器（默认配置够用；需要可在 __init_subclass__ 里改）
     _mp_encoder: ClassVar[msgspec.msgpack.Encoder] = msgspec.msgpack.Encoder()
@@ -106,40 +68,6 @@ class MsgspecModel(msgspec.Struct):
         return msgspec.convert(data, type=cls)
 
 
-class MsgspecSafeModel(msgspec.Struct):
-    # ---- MsgPack ----
-    def to_msgpack(self) -> bytes:
-        return _get_mp_encoder().encode(self)
-
-    @classmethod
-    def from_msgpack(cls: type[T], data: bytes) -> T:
-        return _get_mp_decoder(cls).decode(data)
-
-    # ---- JSON ----
-    def to_json_bytes(self) -> bytes:
-        return _get_json_encoder().encode(self)
-
-    def to_json_str(self) -> str:
-        return self.to_json_bytes().decode("utf-8")
-
-    @classmethod
-    def from_json_bytes(cls: type[T], data: bytes) -> T:
-        return _get_json_decoder(cls).decode(data)
-
-    @classmethod
-    def from_json_str(cls: type[T], s: str) -> T:
-        return cls.from_json_bytes(s.encode("utf-8"))  # pyright: ignore[reportAttributeAccessIssue] -- method exists on MsgspecSafeModel subclasses
-
-    # ---- Python 内建结构 ----
-    def to_dict(self) -> dict[str, Any]:
-        return msgspec.to_builtins(self)
-
-    @classmethod
-    def from_dict(cls: type[T], data: dict[str, Any]) -> T:
-        return msgspec.convert(data, type=cls)
-
-
-# ---------- 混入：dataclass 版（标准库） ----------
 class DataclassModelMixin:
     """
     给 dataclass 提供一致的编解码 API。
@@ -214,7 +142,6 @@ class ModelSerializer:
 
 
 class PydanticModelSerializer(ModelSerializer):
-
     @staticmethod
     def deserialize(data: bytes | dict, model_class: type[BaseModel]) -> BaseModel:
         if isinstance(data, dict):

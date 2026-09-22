@@ -74,6 +74,12 @@ msgstr "兩次輸入的密碼不一致"
 msgid "New Password"
 msgstr "新密碼"
 
+msgid "Current Password"
+msgstr "目前密碼"
+
+msgid "Current password is incorrect."
+msgstr "目前密碼不正確。"
+
 msgid "Password must be 8-128 characters and include letters and numbers"
 msgstr "密碼必須為 8 至 128 個字元，並同時包含字母和數字"
 
@@ -189,6 +195,9 @@ msgstr "密碼已變更"
 msgid "%(username)s password was updated."
 msgstr "%(username)s 的密碼已更新。"
 
+msgid "%(username)s was signed out and needs the new password."
+msgstr "%(username)s 已被強制登出，需要使用新密碼重新登入。"
+
 msgid "Change Status"
 msgstr "變更狀態"
 
@@ -214,6 +223,9 @@ msgstr "需要登入"
 
 msgid "Invalid username or password."
 msgstr "使用者名稱或密碼錯誤。"
+
+msgid "Too many sign-in attempts. Please try again later."
+msgstr "登入嘗試過於頻繁，請稍後再試。"
 
 msgid "Action"
 msgstr "操作"
@@ -277,6 +289,9 @@ msgstr "此頁面管理目前已驗證的工作階段；使用者管理仍在應
 
 msgid "Session password changed"
 msgstr "工作階段密碼已變更"
+
+msgid "Your password was updated. Please sign in again."
+msgstr "密碼已更新，請重新登入。"
 
 msgid "Session password change failed"
 msgstr "工作階段密碼變更失敗"
@@ -545,3 +560,131 @@ msgstr "建立超級使用者"
 
 msgid "Username cannot be empty."
 msgstr "使用者名稱不能為空。"
+
+msgid "Breadcrumb"
+msgstr "麵包屑導覽"
+
+msgid "No models registered"
+msgstr "尚未註冊模型"
+
+msgid "Register a ModelAdmin to manage records here."
+msgstr "註冊一個 ModelAdmin 後即可在這裡管理記錄。"
+
+msgid "Remember me"
+msgstr "記住我"
+
+msgid "Can sign in"
+msgstr "可以登入"
+
+msgid "Can open the Admin"
+msgstr "可以進入後台"
+
+msgid "Has every permission"
+msgstr "擁有全部權限"
+
+msgid "More filters"
+msgstr "更多篩選"
+
+msgid "Reset"
+msgstr "重設"
+
+msgid "Columns"
+msgstr "欄位"
+
+msgid "Density"
+msgstr "密度"
+
+msgid "Comfortable"
+msgstr "舒適"
+
+msgid "Compact"
+msgstr "緊湊"
+
+msgid "Export"
+msgstr "匯出"
+
+msgid "{count} selected"
+msgstr "已選 {count} 項"
+
+msgid "Reset filters"
+msgstr "重設篩選"
+
+msgid "Adjust or reset the filters to see more records."
+msgstr "調整或重設篩選條件以查看更多記錄。"
+
+msgid "Forgot password?"
+msgstr "忘記密碼？"
+
+msgid "Reset your password"
+msgstr "重設密碼"
+
+msgid "Enter the email address of your account and we will send you a link to choose a new password."
+msgstr "輸入帳號綁定的電子郵件，我們會傳送一個用於設定新密碼的連結。"
+
+msgid "Too many requests. Please wait a while before trying again."
+msgstr "請求太頻繁，請稍後再試。"
+
+msgid "Enter a valid email address"
+msgstr "請輸入有效的電子郵件地址"
+
+msgid "you@example.com"
+msgstr "you@example.com"
+
+msgid "Send reset link"
+msgstr "傳送重設連結"
+
+msgid "Back to sign in"
+msgstr "返回登入"
+
+msgid "Check your email"
+msgstr "請查收郵件"
+
+msgid "If an account uses that address, a link to choose a new password is on its way. It stays valid for %(hours)s hours; check the spam folder if it does not arrive."
+msgstr "如果這個電子郵件對應一個帳號，設定新密碼的連結已經送出，%(hours)s 小時內有效；沒收到請檢查垃圾郵件。"
+
+msgid "Choose a new password"
+msgstr "設定新密碼"
+
+msgid "Set a new password for %(username)s."
+msgstr "為 %(username)s 設定一個新密碼。"
+
+msgid "Update password"
+msgstr "更新密碼"
+
+msgid "This link is no longer valid"
+msgstr "連結已失效"
+
+msgid "The password reset link has expired or was already used. Request a new one to continue."
+msgstr "重設連結已過期或已被使用，請重新申請。"
+
+msgid "Request a new link"
+msgstr "重新申請連結"
+
+msgid "Your password has been updated"
+msgstr "密碼已更新"
+
+msgid "Sign in with your new password to continue."
+msgstr "請使用新密碼登入。"
+
+msgid "Reset your %(site_name)s password"
+msgstr "重設你的 %(site_name)s 密碼"
+
+msgid "Hello %(username)s,"
+msgstr "%(username)s，你好："
+
+msgid "Someone asked to reset the password of your %(site_name)s account. Open the link below to choose a new one:"
+msgstr "有人申請重設你的 %(site_name)s 帳號密碼。開啟下面的連結設定新密碼："
+
+msgid "The link stays valid for %(hours)s hours. If you did not ask for this, ignore this message; your password stays as it is."
+msgstr "連結 %(hours)s 小時內有效。如果不是你本人申請，忽略這封郵件即可，密碼不會改變。"
+
+msgid "Can open the dashboard"
+msgstr "可以進入後台"
+
+#: oldman/apps/admin/commands.py
+msgid "User updated"
+msgstr "使用者已更新"
+
+#: oldman/apps/admin/commands.py
+msgid "%(variable)s must be set for a non-interactive run."
+msgstr "非互動執行需要設定 %(variable)s。"

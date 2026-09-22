@@ -1,40 +1,34 @@
+{% set language_items = language_items | default(language_menu_items(request), true) %}
+{% set language_current_code = language_current_code | default(current_language(request), true) %}
+{% if language_items | length > 1 %}
 {% set current_languages = language_items | selectattr("code", "equalto", language_current_code) | list %}
 {% set current_language = current_languages[0] if current_languages else (language_items[0] if language_items else none) %}
-{% set current_flag_url = current_language.flagUrl if current_language else "" %}
 {% set language_switcher_classes = language_switcher_classes | default("om-dropdown") %}
-{% set language_switcher_button_classes = language_switcher_button_classes | default("oldman-icon-button oldman-language-button") %}
+{% set language_switcher_button_classes = language_switcher_button_classes | default("oldman-language-button") %}
 
 <div class="{{ language_switcher_classes }}" data-om-component="dropdown">
   <div data-om-component="language-switcher">
     <button
       type="button"
-      class="{{ language_switcher_button_classes }}{% if not current_flag_url %} has-language-name{% endif %}"
+      class="{{ language_switcher_button_classes }}"
       data-om-dropdown-toggle
       data-om-language-current
       aria-haspopup="true"
       aria-expanded="false"
       aria-label="{{ _('Language') }}"
     >
-      <img
-        id="{{ language_switcher_flag_id | default('header-lang-img') }}"
-        data-om-language-current-flag
-        {% if current_flag_url %}src="{{ current_flag_url }}"{% else %}hidden{% endif %}
-        alt="{{ current_language.name if current_language else _('Language') }}"
-        class="h-5 w-7 rounded-sm object-cover"
-      >
-      <span
-        data-om-language-current-name
-        class="text-sm font-medium"
-        {% if current_flag_url %}hidden{% endif %}
-      >{{ current_language.name if current_language else _('Language') }}</span>
+      <i class="ri-global-line text-base leading-none" aria-hidden="true"></i>
+      <span data-om-language-current-name>{{ current_language.name if current_language else _('Language') }}</span>
+      <i class="ri-arrow-down-s-line text-base leading-none text-content-muted" aria-hidden="true"></i>
     </button>
-    <div class="om-dropdown-menu hidden" data-om-dropdown-menu hidden>
+    <div class="om-dropdown-menu om-dropdown-menu-end hidden" data-om-dropdown-menu hidden>
       {% for language in language_items %}
         <button type="button" class="om-dropdown-item language{% if language.code == language_current_code %} active{% endif %}" data-lang="{{ language.code }}"{% if language.url %} data-om-language-url="{{ language.url }}"{% endif %} aria-pressed="{{ 'true' if language.code == language_current_code else 'false' }}">
-          {% if language.flagUrl %}<img src="{{ language.flagUrl }}" alt="{{ language.name }}" class="h-4.5 w-6 rounded-sm object-cover">{% endif %}
           <span>{{ language.name }}</span>
+          <i class="ri-check-line om-dropdown-check" aria-hidden="true"></i>
         </button>
       {% endfor %}
     </div>
   </div>
 </div>
+{% endif %}

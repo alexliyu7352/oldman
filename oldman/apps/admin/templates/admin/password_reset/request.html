@@ -1,0 +1,7 @@
+{% extends "admin/password_reset/base.html" %}
+
+{% block title %}{{ _("Reset your password") }} · Oldman Admin{% endblock %}
+
+{% block auth_card %}
+  {% include "oldman/auth/password_reset/request.html" %}
+{% endblock %}

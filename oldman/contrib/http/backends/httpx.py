@@ -7,7 +7,7 @@
 __author__ = "alex"
 from contextlib import asynccontextmanager
 from http.cookiejar import CookieJar
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
 
@@ -58,27 +58,16 @@ class HttpxClient(BaseHttpClient):
         # 连接池可以周期重建，但客户端级 Cookie 状态必须跨 reset 保留。
         self.cookie_jar = parent.cookie_jar if parent.cookie_jar is not None else CookieJar()
 
+    session_attribute: ClassVar[str] = "http_client"
+    backend_label: ClassVar[str] = "HTTPX"
+
     async def init_client(self) -> None:
         """初始化HTTPX客户端"""
         logger.info(f"初始化HTTPX客户端, 最大连接数: {self.parent.max_connections}")
 
-    async def reset_client(self) -> bool:
-        """重置HTTPX客户端"""
-        if self.http_client:
-            await self.http_client.aclose()
-            self.http_client = None
-        logger.info("HTTPX客户端已重置")
-        return True
-
-    async def close_client(self) -> None:
-        """关闭HTTPX客户端"""
-        if self.http_client:
-            try:
-                await self.http_client.aclose()
-                self.http_client = None
-            except Exception as e:
-                logger.error(f"关闭HTTPX客户端时出错: {type(e).__name__}")
-        logger.info("HTTPX资源清理完成")
+    async def close_session(self, session: Any) -> None:
+        """关闭 HTTPX 客户端。"""
+        await session.aclose()
 
     async def get_client(self) -> httpx.AsyncClient:
         """获取或创建HTTPX客户端实例"""

@@ -7,78 +7,38 @@
 __author__ = "alex"
 
 import asyncio
-import base64
 import re
 import time
-from hashlib import md5, sha256
+from hashlib import md5
 from typing import Any, cast
 from urllib import parse
 
 from async_lru import alru_cache
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from isodate import parse_duration
 from msgspec import msgpack
 from sanic import HTTPResponse, Request, text
 
 from oldman.contrib.proxy.base import BaseStreamProxy
+from oldman.contrib.proxy.sealing import UrlSealingMixin
 from oldman.logging import logger
 from oldman.utils import strings_utils
-from oldman.utils.hash import pad_pkcs7, unpad_pkcs7
 
 
-class EncryptStreamProxy(BaseStreamProxy):
+class EncryptStreamProxy(UrlSealingMixin, BaseStreamProxy):
     """
     支持加密的代理类
     主要用于使用加密url来替代缓存Url
     """
 
-    DEFAULT_AES_KEY = b"132d73f7-2b6b-3189-a715-c2ab5d19"  # 默认AES密钥
-    DEFAULT_AES_IV = b"3f4165@f1e%13!71"  # 默认AES IV
-
-    def __init__(self, proxy_name: str = "base"):
-        super().__init__(proxy_name)
-        # 默认加密URL的AES密钥和IV
-        self.aes_key: bytes = self.DEFAULT_AES_KEY
-        self.aes_iv: bytes = self.DEFAULT_AES_IV
-
     @alru_cache(maxsize=4096)
     async def encrypt_url(self, url: str) -> str:
-        """
-        加密URL，使用AES-CBC模式
-        :param url:
-        :return:
-        """
-        # 使用PKCS7填充
-        data = url.encode("utf8")
-        padded_data = pad_pkcs7(data)
-
-        cipher = Cipher(algorithms.AES(self.aes_key), modes.CBC(self.aes_iv), backend=default_backend())
-        encryptor = cipher.encryptor()
-        encrypt_content = encryptor.update(padded_data) + encryptor.finalize()
-        return encrypt_content.hex()
+        """把上下文串封成不可伪造的路径段。"""
+        return self.seal_url(url)
 
     @alru_cache(maxsize=4096)
     async def decrypt_url(self, encrypted_url: str) -> str | None:
-        """
-        解密url，使用AES-CBC模式
-        :param encrypted_url:
-        :return:
-        """
-        # 如果存在扩展名则去除
-        ext_name = strings_utils.get_ext_from_filename(encrypted_url)
-        if ext_name:
-            encrypted_url = encrypted_url.replace(ext_name, "")
-        try:
-            cipher = Cipher(algorithms.AES(self.aes_key), modes.CBC(self.aes_iv), backend=default_backend())
-            decryptor = cipher.decryptor()
-            decrypt_content = decryptor.update(bytes.fromhex(encrypted_url)) + decryptor.finalize()
-
-            # 移除PKCS7填充
-            decrypt_content = unpad_pkcs7(decrypt_content)
-            return decrypt_content.decode("utf8")
-        except Exception:
-            return None
+        """还原上下文串；被改写或伪造的路径段返回 None。"""
+        return self.unseal_url(encrypted_url)
 
     async def save_sub_url(  # type: ignore[override]
         self,
@@ -114,8 +74,9 @@ class EncryptStreamProxy(BaseStreamProxy):
             "direct": 1 if direct else 0,
             **extra_context,  # 合并额外上下文
         }
-        # 把字典的基础上下文转换为使用|||分割的字符串
-        context_str = "|||".join(f"{k}={v}" for k, v in context.items() if v is not None)
+        # 把字典的基础上下文转换为使用|||分割的字符串。
+        # 空值不进 URL：它们占的是字节，带回来的是同一个空串，解析时补回去即可。
+        context_str = "|||".join(f"{k}={v}" for k, v in context.items() if v not in (None, ""))
         encrypted_url = await self.encrypt_url(context_str)
         line = f"/{self.proxy_name}/{channel_id}/{encrypted_url}{ext_name}"
         return line
@@ -220,6 +181,9 @@ class EncryptStreamProxy(BaseStreamProxy):
                 result[key.strip()] = value.strip()
             else:
                 result[part.strip()] = None
+        # 编码时省掉的空值在这里补回，消费方看到的字典形状不变。
+        for omitted in ("proxy_url", "user_agent"):
+            result.setdefault(omitted, "")
         if "direct" in result and result["direct"] == "1":
             result["direct"] = True
         else:
@@ -227,7 +191,7 @@ class EncryptStreamProxy(BaseStreamProxy):
         return result
 
 
-class EncryptMixStreamProxy(BaseStreamProxy):
+class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
     """
     支持加密和缓存的代理类,
     主要用于使用加密url来替代缓存Url, 但是代理,UA等参数缓存, 避免URL过长
@@ -235,60 +199,19 @@ class EncryptMixStreamProxy(BaseStreamProxy):
     这样可以避免URL过长的问题
     """
 
-    DEFAULT_AES_KEY = b"132d73f7-2b6b-3189-a715-c2ab5d19"  # 默认AES密钥
-
-    def __init__(self, proxy_name: str = "base", key_material: bytes = DEFAULT_AES_KEY):
+    def __init__(self, proxy_name: str = "base"):
         super().__init__(proxy_name)
-        self.aes_key = key_material
-        self.keystream_base: bytearray = bytearray(sha256(key_material).digest())
         self.ttl_cached: dict[str, tuple[int, int]] = {}
-
-    def _generate_keystream(self, length: int) -> bytes:
-        """生成指定长度的密钥流"""
-        keystream = bytearray(self.keystream_base)
-        while len(keystream) < length:
-            keystream.extend(sha256(bytes(keystream)).digest())
-        return bytes(keystream[:length])
 
     @alru_cache(maxsize=4096)
     async def encrypt_url(self, url: str) -> str:
-        """
-        加密URL，使用AES-CBC模式
-        :param url:
-        :return:
-        """
-        data = url.encode("utf-8")
-        # 生成密钥流(确定性)
-        keystream = self._generate_keystream(len(data))
-        # XOR 加密
-        ciphertext = bytes(a ^ b for a, b in zip(data, keystream, strict=False))
-        # 使用 Base64URL 编码 (移除 padding)
-        return base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("=")
+        """把真实 URL 封成不可伪造的路径段；代理、UA 等参数仍走缓存。"""
+        return self.seal_url(url)
 
     @alru_cache(maxsize=2048)
     async def decrypt_url(self, encrypted_url: str) -> str | None:
-        """
-        解密url，使用AES-CBC模式
-        :param encrypted_url:
-        :return:
-        """
-        # 如果存在扩展名则去除
-        ext_name = strings_utils.get_ext_from_filename(encrypted_url)
-        if ext_name:
-            encrypted_url = encrypted_url.replace(ext_name, "")
-        try:
-            # Base64URL 解码需要补充 padding
-            padding = 4 - len(encrypted_url) % 4
-            if padding != 4:
-                encrypted_url += "=" * padding
-
-            ciphertext = base64.urlsafe_b64decode(encrypted_url)
-            keystream = self._generate_keystream(len(ciphertext))
-            # XOR 解密
-            plaintext = bytes(a ^ b for a, b in zip(ciphertext, keystream, strict=False))
-            return plaintext.decode("utf-8")
-        except Exception:
-            return None
+        """还原真实 URL；被改写或伪造的路径段返回 None。"""
+        return self.unseal_url(encrypted_url)
 
     async def get_encrypt_sub_url(
         self,

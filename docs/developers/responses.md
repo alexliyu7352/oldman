@@ -29,6 +29,8 @@ def _project_saved_response(message: str | LazyTranslation):
 
 LazyTranslation 来自 `oldman.i18n`，json_response 来自 `oldman.web.response`。这是请求内翻译并输出响应的时点；不是把 lazy 对象直接塞给任意 JSON 库。`api_response(payload)` 封装了同样的 `payload.to_dict()` 加 JSON 输出，下一节的 Demo 路由使用该简写。
 
+`oldman.web.api` 还提供按 Accept 协商的 Form 响应助手，Admin 和演示站都用它们而不再各自拼 `DefaultApiFormResponse`：`accepts_json_form_response(request)` / `accepts_html_form_response(request)` 读取客户端要求；`form_response(message, actions=, errors=, error_code=, status=)` 是基础载荷；`form_error_response(message, errors=)` 是 HTTP 200 的业务错误（默认 `FORM_INVALID`，可换 `INVALID_REQUEST`）；`await form_invalid_response(request, form, fragment=, page=)` 在 JSON、422 片段和整页之间选择；`form_success_response(request, url)` 保存后给 JSON 客户端 `RedirectAction`、给浏览器 303；`feedback_response`、`form_saved_response(message, url=, delay_ms=, actions=)`、`modal_success_response(message, table_target=, text=, actions=)` 分别对应“留在本页”“跳转”“关闭 modal 并刷新表格”三种成功，附加动作插在 Feedback 之后。
+
 响应不提供单个 `action`、顶层 `html` 或多区域 `fragments` 字段。无动作就是 `actions=[]`。框架动作名称由 `ApiResponseAction` 管理；调用具体子类不需要手填名称。延迟翻译继承已有 `TranslatableMsgspecModel` 能力，在 HTTP 输出时解析；无需自己写递归 JSON 转换器。
 
 ## 五个内置动作
@@ -97,7 +99,7 @@ JSON Form 指的是**响应**格式，不表示请求体变成 JSON；Form 仍�
 
 HTML Form 的后端仍只返回 HTML。前端在接收边界把它转成一个内部响应：2xx 对应业务成功，422 对应表单无效，HTML 放入单个 replace_html 动作。转换后复用同一个 Runner；这没有废除 HTML HTTP 接口，也不要求后端包装 JSON。
 
-Table 和 Modal 的初次远程加载有自己的数据格式，不因为也用 JSON 就变成 `DefaultApiResponse`。见 [Table](tables.md) 和 [Modal](frontend.md#modal-只是容器)。
+Table 和 Modal 的初次远程加载有自己的数据格式，不因为也用 JSON 就变成 `DefaultApiResponse`。Modal 的载荷用 `oldman.web.api` 的 `modal_response(title, html=)` / `modal_response(title, body=, footer=)` / `modal_not_found_response(title, message)` 生成，不各自拼 dict。见 [Table](tables.md) 和 [Modal](frontend.md#modal-只是容器)。
 
 ## Form 的执行顺序
 

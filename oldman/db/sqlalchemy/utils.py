@@ -48,9 +48,13 @@ class JSONText(TypeDecorator):
         if value is None:
             return ""
         try:
-            return orjson.dumps(value)
+            # orjson.dumps 返回 bytes，而这一列声明的 impl 是 Text。不解码就会把 bytes 交给
+            # 驱动：SQLite 实测落成 blob（于是 `WHERE payload = '{"a":1}'` 这种和文本字面量
+            # 比较的查询匹配不上），PostgreSQL 的 TEXT 列收到 bytes 会直接报错。
+            return orjson.dumps(value).decode("utf-8")
         except (TypeError, ValueError):
-            # 如果 value 已经是字符串，则直接返回
+            # orjson 不认识的对象（比如自定义类）原样交回，由调用方和驱动去决定。
+            # 注意字符串走不到这里：orjson.dumps("hello") 成功，返回 b'"hello"'。
             return value
 
     def process_result_value(self, value, dialect):

@@ -8,7 +8,7 @@ import unittest
 import zlib
 from pathlib import Path
 
-from scripts.png_evidence import PngEvidenceError, require_png
+from oldman.testing.png_evidence import PngEvidenceError, require_png
 
 
 def png_chunk(chunk_type: bytes, payload: bytes) -> bytes:

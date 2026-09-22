@@ -131,7 +131,7 @@ export class TransitionService {
   }
 }
 
-function maxTimeListMs(durations: string, delays: string): number {
+export function maxTimeListMs(durations: string, delays: string): number {
   const durationValues = durations.split(",").map(timeToMs);
   const delayValues = delays.split(",").map(timeToMs);
 

@@ -256,30 +256,44 @@ class OldmanPackageBoundariesTest(unittest.TestCase):
 
         self.assertIs(BaseModelService, MigratedBaseModelService)
 
-    def test_db_schemas_is_the_complete_canonical_migration(self) -> None:
-        """The conventional source path must not be replaced by a reduced project facade."""
+    def test_db_schemas_keeps_the_symbols_that_have_consumers(self) -> None:
+        """Replaces a migration-completeness guard whose migration finished long ago.
+
+        The old assertion demanded thirteen symbols exist, under a name that read like it
+        protected a public API. Its docstring said otherwise - it was there to stop the
+        conventional source path being swapped for a reduced facade during a port - and
+        once that port landed, its only remaining effect was to pin dead code in place.
+
+        The RateLimit* family it guarded had nothing to do with the framework's actual
+        rate limiter, which is Redis and Lua under web/security/rate_limiter: one concept
+        with two unrelated representations. It is gone.
+        """
         from oldman.db import schemas
 
-        required = (
-            "TimezoneModel",
-            "TokenBlacklistBase",
-            "TokenBlacklistRead",
-            "TokenBlacklistCreate",
-            "TokenBlacklistUpdate",
-            "RateLimitBase",
-            "RateLimit",
-            "RateLimitRead",
-            "RateLimitCreate",
-            "RateLimitCreateInternal",
-            "RateLimitUpdate",
-            "RateLimitUpdateInternal",
-            "RateLimitDelete",
-        )
-
-        for name in required:
+        for name in ("PageResult", "TimezoneModel", "UTCDatetimeMixin", "TokenBlacklistBase", "tz_manager"):
             self.assertTrue(hasattr(schemas, name), name)
+
+        for removed in ("RateLimit", "RateLimitBase", "RateLimitCreate", "RateLimitDelete"):
+            self.assertFalse(hasattr(schemas, removed), f"{removed} duplicates the real rate limiter")
+
         self.assertFalse(hasattr(schemas, "Page"))
         self.assertFalse((verify_oldman_boundaries.OLDMAN_ROOT / "db" / "foundation_schemas.py").exists())
+
+    def test_timezone_model_does_not_use_a_removed_pydantic_feature(self) -> None:
+        """json_encoders is deprecated since Pydantic 2.0 and goes away in V3."""
+        import warnings
+        from datetime import UTC, datetime
+
+        from oldman.db.schemas import TimezoneModel
+
+        class Moment(TimezoneModel):
+            at: datetime
+
+        self.assertNotIn("json_encoders", TimezoneModel.model_config)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            rendered = Moment(at=datetime(2026, 9, 20, 12, 0, tzinfo=UTC)).model_dump_json()
+        self.assertIn("2026-09-20T12:00:00", rendered)
 
     def test_table_api_is_exported_from_its_component_package(self) -> None:
         import oldman.web as oldman_web

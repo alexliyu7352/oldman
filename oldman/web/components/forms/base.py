@@ -16,7 +16,7 @@ from oldman.i18n.translations import current_translations
 from oldman.web.api import ApiErrorCode, DefaultApiFormResponse
 
 from .fields import JSONListField
-from .layouts import Actions, FieldLayout, FormLayout, FormStep, Row
+from .layouts import Actions, FieldGroup, FieldLayout, FormLayout, FormStep, Row
 from .renderers import _FORM_INVALID_MESSAGE, FieldRenderer, FormRenderer
 
 _SAVE_LABEL = gettext_lazy("Save")
@@ -321,12 +321,44 @@ class OldmanForm(Form):
         """展开一个步骤中的字段布局。"""
         yield from self._iter_layout_items(step.items)
 
+    def iter_layout_segments(self) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
+        """按分组切分顶层布局：连续的散字段成一段，每个 FieldGroup 自成一段。"""
+        if self.layout is None:
+            yield None, tuple(self.iter_layout())
+            return
+        yield from self._iter_segments(self.layout.items)
+
+    def iter_step_segments(self, step: FormStep) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
+        """按分组切分一个步骤里的布局。"""
+        yield from self._iter_segments(step.items)
+
+    def _iter_segments(self, items: Iterable[object]) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
+        pending: list[FieldLayout] = []
+        for item in items:
+            if isinstance(item, (Actions, FormStep)):
+                continue
+            if isinstance(item, FieldGroup):
+                if pending:
+                    yield None, tuple(pending)
+                    pending = []
+                yield item, tuple(self._iter_layout_items(item.items))
+            else:
+                pending.extend(self._iter_layout_items((item,)))
+        if pending:
+            yield None, tuple(pending)
+
     def _iter_layout_items(self, items: Iterable[object]) -> Iterable[FieldLayout]:
-        """把字符串、Row 和 FieldLayout 统一展开为字段布局。"""
+        """把字符串、Row、FieldGroup 和 FieldLayout 统一展开为字段布局。"""
         for item in items:
             if isinstance(item, Row):
+                if item.as_range:
+                    start, end = item.fields
+                    yield FieldLayout(start, item.width, advanced=item.advanced, range_end=end, range_label=item.label)
+                    continue
                 for field_name in item.fields:
-                    yield FieldLayout(field_name, item.width)
+                    yield FieldLayout(field_name, item.width, advanced=item.advanced)
+            elif isinstance(item, FieldGroup):
+                yield from self._iter_layout_items(item.items)
             elif isinstance(item, FieldLayout):
                 yield item
             elif isinstance(item, str):
@@ -360,7 +392,12 @@ class OldmanForm(Form):
         self._set_list_error_message()
 
         for name, field in self._fields.items():
-            if isinstance(field, HiddenField) or field.errors or getattr(field, "list_errors", None):
+            # HiddenField 只是"不渲染成可见控件"，它承载的仍然是数据——声明一个
+            # HiddenField("record_id") 就是为了把它读回来。渲染器按类型跳过它是对的
+            # （隐藏字段由 hidden_fields() 统一输出），但数据层跳过它就让这个字段没法用：
+            # 调用方拿到 KeyError，populate_obj() 也不会写它。WTForms 自己的 form.data
+            # 是包含隐藏字段的。
+            if field.errors or getattr(field, "list_errors", None):
                 continue
             self._cleaned_data[name] = field.data
             cleaner = getattr(self, f"clean_{name}", None)
@@ -381,7 +418,10 @@ class OldmanForm(Form):
             self._error_message = _validation_error_message(exc)
             form_cleaned_data = None
         if isinstance(form_cleaned_data, dict):
-            self._cleaned_data = dict(form_cleaned_data)
+            # 合并而不是替换。替换语义下，一个只想补一个键的子类
+            # （`return {"extra": 1}`）会静默丢光所有字段数据，而且不报错。
+            # 想覆盖某个键照样可以——同名键以返回值为准。
+            self._cleaned_data.update(form_cleaned_data)
         errors = self.errors
         for name in errors:
             self._cleaned_data.pop(name, None)
@@ -389,7 +429,12 @@ class OldmanForm(Form):
         return self._validation_succeeded
 
     async def clean(self) -> dict[str, Any] | None:
-        """执行跨字段校验，业务子类可覆盖。"""
+        """执行跨字段校验，业务子类可覆盖。
+
+        返回 `None` 表示不改动 `cleaned_data`；返回 dict 则把其中的键**合并**进去，
+        同名键以返回值为准。跨字段错误用 `raise ValidationError(...)` 报，它会成为表单级
+        错误消息。
+        """
         return None
 
     @property
@@ -426,17 +471,18 @@ class OldmanForm(Form):
         return self._error_message
 
     def to_api_response(self) -> DefaultApiFormResponse:
-        """把当前表单状态转换为统一 API 响应对象。"""
+        """把当前表单状态转换为统一 API 响应对象。
+
+        每个字段只带**第一条**错误，因为前端一个字段下面只显示一条提示。这和 `errors`
+        属性的形状不同——那里是完整的列表——所以要拿全部错误请读 `errors`，不要从这个
+        响应里推断。
+        """
         errors = self.errors
         if errors or self._error_message is not None:
             return DefaultApiFormResponse(
                 error_code=ApiErrorCode.FORM_INVALID,
                 message=self._error_message or _FORM_INVALID_MESSAGE,
-                errors={
-                    (self._fields[name].name if name in self._fields else name): messages[0]
-                    for name, messages in errors.items()
-                    if messages
-                },
+                errors={(self._fields[name].name if name in self._fields else name): messages[0] for name, messages in errors.items() if messages},
             )
         return DefaultApiFormResponse(error_code=ApiErrorCode.OK)
 
@@ -464,7 +510,13 @@ def _validation_error_message(error: ValidationError) -> str | LazyTranslation:
 
 
 class TableFilterForm(OldmanForm):
-    """专门用于驱动 Table API 的筛选表单。"""
+    """专门用于驱动 Table API 的筛选表单。
+
+    ``layout_style``: ``"inline"``（默认，一行、标签嵌在控件左侧、``advanced`` 字段收进"更多筛选"）
+    或 ``"grid"``（标签在上的栅格，字段很多且都要一直可见时用）。
+    """
+
+    layout_style: str = "inline"
 
     async def render(
         self,

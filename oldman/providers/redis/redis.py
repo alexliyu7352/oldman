@@ -227,13 +227,27 @@ class AsyncRedis:
         lock_name: str,
         acquire_timeout: int = 10,
         retry_interval: float = 0.001,
+        expire_timeout: int | None = None,
     ) -> str | bool:
-        """Acquire a token-owned lock with a bounded retry period."""
+        """Acquire a token-owned lock with a bounded retry period.
+
+        `acquire_timeout` is how long to keep trying; `expire_timeout` is how long the
+        lock survives once held. They used to be the same number, which made the two
+        settings pull against each other: a caller willing to wait longer also got a
+        lock held longer, and a caller that wanted a short wait got a lock that could
+        expire in the middle of its own critical section. `get_locker` already keeps them
+        apart (`blocking_timeout` vs `expire_timeout`) and `get_db_lock` names its
+        hold-time unambiguously; this brings the third API in line.
+
+        `expire_timeout` defaults to `acquire_timeout` so existing callers keep the
+        behaviour they have today.
+        """
         conn = await self.async_get_conn()
+        hold_timeout = acquire_timeout if expire_timeout is None else expire_timeout
         identifier = str(uuid.uuid4())
         end = time.time() + acquire_timeout
         while time.time() < end:
-            if await conn.set(lock_name, identifier, nx=True, ex=acquire_timeout):
+            if await conn.set(lock_name, identifier, nx=True, ex=hold_timeout):
                 return identifier
             await asyncio.sleep(retry_interval)
         return False

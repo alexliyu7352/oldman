@@ -38,15 +38,16 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - direct script execution
     from release_artifacts import python_distribution_version
 
-try:
-    from scripts.linux_process_tree import ProcessTreeError, ProcessTreeTracker, tracked_popen
-except ModuleNotFoundError:  # pragma: no cover - direct script execution
-    from linux_process_tree import ProcessTreeError, ProcessTreeTracker, tracked_popen
-
-try:
-    from scripts.browser_cdp import BrowserResult, ChromePage, configure_viewport, navigate, save_screenshot
-except ModuleNotFoundError:  # pragma: no cover - direct script execution
-    from browser_cdp import BrowserResult, ChromePage, configure_viewport, navigate, save_screenshot
+from oldman.testing import (
+    BrowserResult,
+    ChromePage,
+    ProcessTreeError,
+    ProcessTreeTracker,
+    configure_viewport,
+    navigate,
+    save_screenshot,
+    tracked_popen,
+)
 
 MATRIX_CASES = (
     ("cli", "none"),
@@ -1156,9 +1157,27 @@ def run_dashboard_browser_probe(
             styles = browser_asset_evidence(project, url, dom_state.get("styleUrls"), label="CSS")
             resources = browser_asset_evidence(project, url, dom_state.get("resourceUrls"), label="resource")
             fonts = [item for item in resources if "dm-sans-latin-" in Path(item["path"]).name]
-            for weight in (300, 700):
-                if not any(Path(item["path"]).name.startswith(f"dm-sans-latin-{weight}-normal-") for item in fonts):
-                    contract_failures.append(f"Dashboard did not fetch its DM Sans latin {weight} font resource")
+            # 这条断言要证的是"生成出来的 Dashboard 在真实浏览器里确实把自己的网页字体取下来了",
+            # 也就是 CSS → @font-face → 网络这条链路经过脚手架和打包之后还活着。
+            #
+            # 不能按字重写死:浏览器只会去取**真的有文字用到**的那个字重。框架自己的标记只用了
+            # `font-medium`(500),脚手架模板一个字重类都没有,所以 300 和 700 永远不会被取——
+            # 原先写死这两个数的断言,要求的是任何标记都产生不出来的东西,和 `.bg-red-600` 是同一种过期。
+            # 400 是 body 默认字重,只要页面渲染出文字就必然产生,所以它不会随标记变化而失效。
+            #
+            # 「包里有没有带齐五个字重」是另一回事,由 verify-oldman-web-package.py 对构建产物断言,
+            # 那条是资源是否存在,不是浏览器有没有取。
+            fetched_weights = {
+                name.split("-")[3]
+                for name in (Path(item["path"]).name for item in fonts)
+                if name.startswith("dm-sans-latin-")
+            }
+            if not fetched_weights:
+                contract_failures.append("Dashboard did not fetch any DM Sans font resource")
+            elif "400" not in fetched_weights:
+                contract_failures.append(
+                    f"Dashboard did not fetch its DM Sans latin 400 font resource; fetched {sorted(fetched_weights)}"
+                )
         except RuntimeError as exc:
             contract_failures.append(str(exc))
     payload: dict[str, object] = {

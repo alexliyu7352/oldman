@@ -1,12 +1,12 @@
 {% extends "oldman/dashboard/base.html" %}
-{% from "oldman/dashboard/partials/shell.html" import dashboard_main_frame, dashboard_sidebar with context %}
+{% from "oldman/dashboard/partials/shell.html" import dashboard_main_frame, dashboard_sidebar, sidebar_menu_group, sidebar_menu_item with context %}
 
 {% block title %}Oldman Admin{% endblock %}
 
 {% block dashboard_head_meta %}
   <meta name="oldman-asset-base" content="{{ bundle_asset_base_url(admin_bundle_name) }}">
   <meta name="oldman-admin-base" content="{{ admin_prefix }}">
-  <meta name="csrf-token" content="{{ admin_csrf_token }}">
+  <meta name="csrf-token" content="{{ csrf_token_for(request) }}">
   {% if admin_is_authenticated and admin_user_events_url %}
     <meta name="oldman-user-events-url" content="{{ admin_user_events_url }}">
   {% endif %}
@@ -37,23 +37,11 @@
             {% set app_state.active = true %}
           {% endif %}
         {% endfor %}
-        <li class="menu-item oldman-menu-item nav-item{% if app_state.active %} active open{% endif %}" data-om-menu-item>
-          <button class="menu-link oldman-menu-link{% if app_state.active %} active{% endif %}" type="button" data-om-menu-toggle aria-expanded="{{ 'true' if app_state.active else 'false' }}" aria-controls="admin-app-{{ group.app_label }}">
-            <i class="menu-icon oldman-menu-icon {{ group.icon }}" aria-hidden="true"></i>
-            <span class="menu-text">{{ group.label or _("Models") }}</span>
-            <i class="menu-arrow oldman-menu-chevron ri-arrow-right-s-line" aria-hidden="true"></i>
-          </button>
-          <ul class="sub-menu oldman-submenu menu-om-dropdown {{ 'show' if app_state.active else 'hidden' }}" id="admin-app-{{ group.app_label }}" data-om-menu-panel{% if not app_state.active %} hidden{% endif %}>
-            {% for model in group.models %}
-              {% set model_active = request.path == model.url or request.path.startswith(model.url ~ '/') %}
-              <li class="menu-item">
-                <a class="menu-link oldman-submenu-link nav-link{% if model_active %} active{% endif %}" href="{{ model.url }}">
-                  <span class="menu-text">{{ model.label }}</span>
-                </a>
-              </li>
-            {% endfor %}
-          </ul>
-        </li>
+        {% call sidebar_menu_group("admin-app-" ~ group.app_label, group.label or _("Models"), group.icon, active=app_state.active) %}
+          {% for model in group.models %}
+            {{ sidebar_menu_item(model.url, model.label, active=request.path == model.url or request.path.startswith(model.url ~ '/')) }}
+          {% endfor %}
+        {% endcall %}
       {% endfor %}
     {% endcall %}
   {% endif %}
@@ -71,6 +59,12 @@
       {{ super() }}
     {% endcall %}
   {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block dashboard_footer %}
+  {% if admin_is_authenticated %}
     {{ super() }}
   {% endif %}
 {% endblock %}

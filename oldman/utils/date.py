@@ -1,7 +1,16 @@
 import enum
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
+
+
+def naive_utcnow() -> datetime:
+    """当前 UTC 时间，去掉 tzinfo。
+
+    数据库里的 DateTime 列大多是无时区的，存一个带时区的值会让同一列出现两种语义；模型默认值、
+    “最后一次看到”时间戳和图表的起点都用这一个函数，不各写一遍 `datetime.now(UTC).replace(...)`。
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def convert_timezone(dt: datetime | str, from_tz: str | ZoneInfo, to_tz: str | ZoneInfo, dt_format: str = "%Y-%m-%d %H:%M:%S") -> datetime:

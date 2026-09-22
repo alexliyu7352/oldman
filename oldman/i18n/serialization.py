@@ -102,8 +102,10 @@ def _msgpack_ext_hook(code: int, data: memoryview) -> LazyTranslation:
 
 
 def _json_enc_hook(value: Any) -> str:
-    """Resolve only LazyTranslation in the catalog bound by the caller."""
+    """Resolve LazyTranslation in the caller's catalog; other str subclasses (Markup) go out as plain text."""
     if not isinstance(value, LazyTranslation):
+        if isinstance(value, str):
+            return str(value)
         raise NotImplementedError
     _wire_from_translation(value)
     try:

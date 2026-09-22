@@ -13,10 +13,7 @@ from oldman.logging.config import ColorPolicy
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 _RICH_TAG_RE = re.compile(r"(?<!\\)\[(?P<tag>/?[^\[\]]+)]")
 _GENERIC_FORMAT = "%(asctime)s [%(process)s] [%(levelname)s] %(message)s"
-_ACCESS_FORMAT = (
-    "%(asctime)s - (%(name)s)[%(levelname)s][%(host)s]: "
-    "%(request)s %(message)s %(status)s %(byte)s"
-)
+_ACCESS_FORMAT = "%(asctime)s - (%(name)s)[%(levelname)s][%(host)s]: %(request)s %(message)s %(status)s %(byte)s"
 _ACCESS_FIELDS = ("host", "request", "status", "byte")
 _RESET = "\x1b[0m"
 

@@ -88,6 +88,7 @@ async def safe_cancellable_sleep(delay: float, log_cancel: bool = True) -> bool:
     except asyncio.CancelledError:
         if log_cancel:
             from oldman.logging import logger
+
             logger.warning(f"睡眠被取消，剩余时间: {delay}秒")
         return False
 

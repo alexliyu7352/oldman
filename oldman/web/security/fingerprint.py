@@ -10,10 +10,10 @@ import json
 import time
 
 from oldman.logging import logger
-from oldman.providers.redis import redis_client
 from oldman.serializers import MsgspecModel
 from oldman.web.response import json_response
 from oldman.web.security.decryptors import AESGcmDecrypt
+from oldman.web.security.store import security_redis_connection
 
 
 class FakeLog(MsgspecModel):
@@ -32,6 +32,14 @@ def validate_payload(payload: dict, max_diff: int) -> tuple[bool, str, str]:
     if not isinstance(visitor_id, str) or len(visitor_id) < 15:
         return False, "invalid_visitor_id", ""
 
+    # `ts` is as attacker-controlled as `vid`: the AES key is handed to the browser, so
+    # anyone who opens devtools can sign a payload of their choosing (see guard.py). A
+    # string or null here used to reach the subtraction below and raise TypeError, which
+    # left the decorator and became a 500. `bool` is excluded because it passes
+    # isinstance(x, int) and would silently compare as 0 or 1.
+    if isinstance(timestamp, bool) or not isinstance(timestamp, int):
+        return False, "invalid_timestamp", ""
+
     current_time = int(time.time() * 1000)
     if abs(current_time - timestamp) > max_diff:
         return False, "timestamp_expired", ""
@@ -43,7 +51,7 @@ async def log_fake_fingerprint_attempt(ip: str, reason: str):
     """记录伪造指纹尝试"""
     log_key = f"fake_attempts:{ip}"
     log_data = FakeLog(timestamp=int(time.time()), reason=reason)
-    conn = await redis_client.async_get_conn()
+    conn = await security_redis_connection()
 
     await conn.lpush(log_key, log_data.to_msgpack())
     await conn.ltrim(log_key, 0, 99)
@@ -72,7 +80,7 @@ def get_fingerprint_from_front(encrypted_b64: str, aes_secret_key: str, max_diff
 
 async def get_stats(fingerprint: str):
     """管理接口 - 查看指纹统计"""
-    conn = await redis_client.async_get_conn()
+    conn = await security_redis_connection()
 
     # 获取关联IP
     fp_ip_key = f"relation:fp_ip:{fingerprint}"

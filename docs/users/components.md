@@ -1,6 +1,6 @@
 # Dashboard UI 与交互组件
 
-本页帮助选择和接入现有组件。示例直接摘自 EPG Demo，保留实际类名、属性、路由和翻译调用；代码块是对应模板或类中的节选，不是完整的新页面。先按[入门步骤](getting-started.md)准备 Demo，再打开下面的路径。默认地址为 `http://127.0.0.1:17998`。
+本页帮助选择和接入现有组件。示例直接摘自 EPG Demo，保留实际类名、属性、路由和翻译调用；代码块是对应模板或类中的节选，不是完整的新页面。先按[入门步骤](getting-started.md)准备 Demo，再打开下面的路径。默认地址为 `http://127.0.0.1:17997`。
 
 纯 Card、按钮外观只需要 HTML/CSS；Dropdown 等交互还需要 Page 挂载组件。Admin 与业务 Dashboard 共用组件和视觉变量，但各自启用的 loader 清单由页面入口决定，不是复制 HTML 后所有能力自动启动。完整 Form/Modal/Table 接线见[Demo 教程](tutorial-dashboard.md)，所有页面见[示例索引](demo-examples.md)。
 
@@ -54,6 +54,43 @@ aria-busy 和 spinner 在这里是静态演示，不是正在发送请求；真�
 
 语义颜色包括 primary、success、info、warning、danger；具体组件支持哪些变体以对应页面及共享样式为准，不随意拼接不存在的 class。不要用整张 Card 的点击代替其中明确的链接。Badge/头像看 `/examples/ui/badges-avatars`，进度和占位看 `/examples/ui/progress-loading`。
 
+### 用法语法：哪种按钮放在哪里
+
+共享样式把强调分成固定的几层，页面作者只需要决定"这个动作属于哪一层"：
+
+| 层级 | class | 用在哪里 |
+| --- | --- | --- |
+| primary | `om-button-primary` | 每个区域只有一个：页面头的主动作、表单页脚的保存、弹窗的确认 |
+| secondary | `om-button-secondary`（`om-button-light` 是同义别名） | 其余动作的默认：描边 + 表面底，筛选条、卡片头、表格工具条、取消 |
+| soft | `om-button-soft-primary` / `om-button-soft-secondary` | 只用于卡片头里并列的选项组；同一行不与 secondary 混用 |
+| ghost | `om-button-ghost-secondary`，通常加 `om-button-icon` | 只有图标的动作：表格行内"更多"、卡片头"更多"、关闭 |
+| link | `om-button-link` | 只出现在一句话里，例如"查看全部" |
+| destructive | `om-button-danger` | 确认弹窗与确认页的最终删除；列表里的删除入口用菜单项 `om-dropdown-item om-dropdown-item-danger` |
+
+尺寸是 `om-button`（36px）、`om-button-sm`（32px，筛选条与卡片头）、`om-button-lg`（40px，登录）、`om-button-xs`（24px，只给表格行内）。图标按钮加 `om-button-icon`，按钮里的 `<i>` 会自动按 16px 排版并做光学居中，不再需要 `mr-1`/`align-bottom`。
+
+布尔字段默认渲染成开关卡片（`SwitchCardWidget`）：标签 14/500 加一句 12px 帮助文字在左，18×32 的开关在右，几个并排时同高对齐。要复选框行或不带边框的开关行，给字段传 `widget=CheckboxWidget()` / `widget=SwitchWidget()`；要给一组布尔字段加标题，用布局里的 `FieldGroup`。
+
+徽章：`om-badge om-badge-success|info|warning|danger|primary` 是带 6px 圆点的柔和徽章，用于状态、布尔与角色；`om-badge om-badge-default` 是描边徽章，用于计数、标签与版本。复选框和单选只有一套：`om-check` / `om-radio`；表格行的选中态由行内复选框的 `:checked` 推导，不需要另外加 class。
+
+### 页面头、表格卡与状态
+
+```jinja
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% call page_head(_("Users"), description=_("Staff accounts.")) %}
+  <a class="om-button om-button-primary" href="{{ admin_prefix }}/oldman_user/new"><i class="ri-user-add-line" aria-hidden="true"></i><span>{{ _("New User") }}</span></a>
+{% endcall %}
+```
+
+侧栏在桌面端可以收起成 48px 图标栏：只有链接的菜单项用 `data-om-component="tooltip"` 在图标右侧显示名字；带二级菜单的分组不需要写任何东西，侧栏脚本会在鼠标停留 200ms、点击或按右方向键时在图标旁弹出一块面板，顶部是分组名，下面是二级链接（当前页高亮），方向键、Home、End 可以在面板里移动，Esc 关闭并把焦点还给图标。
+
+`page_head` 输出 22px 标题、可选的 14px 说明和右侧动作槽。面包屑默认自动生成：顶栏脚本在每次 Turbo 帧切换和侧栏高亮更新后，把"侧栏分组 › 当前菜单项 › 页面标题"拼成面包屑，标题与菜单项同名时合并为一项，页面不需要写任何东西。特殊页面（例如要多一级记录名）传 `breadcrumbs=[{"label": ..., "href": ...}, ...]`，宏会把它以 `<template data-om-breadcrumb>` 随页面输出，顶栏优先镜像这段显式声明；页面也可以自己在内容里输出这个 `<template>`。列表页的固定顺序是：页面头 → 筛选条（`om-filter-toolbar`，由 TableFilterForm 渲染；默认一行式，标签是控件左侧的灰色前缀段，搜索框占满剩余宽度，`advanced=True` 的字段收进"更多筛选"弹出面板，右端是"重置 / 筛选"；字段很多时把 `layout_style` 设为 `grid` 变回标签在上的栅格）→ `om-card om-table-card`（卡片头带分隔线，内容区无内边距；表格外壳自带工具条，左边是搜索、已选计数和批量动作，右边是列、密度、导出的描边小按钮；表格放得下时表头吸在顶栏下方，放不下时改为横向滚动；没有数据时表体里是空状态组件，筛选后无结果时附带“重置筛选”；表格页脚带翻页）。表单页把表单放进 `om-card om-form-card`，保存/取消页脚会吸底。
+
+页脚是 `oldman/dashboard/partials/footer.html`，Dashboard 基础模板通过 `dashboard_footer` 区块包含它，登录卡下方包含同一个文件；默认输出"© 当前年份 Oldman"（模板全局 `current_year()`），项目在自己的模板目录放同路径文件即可换成自己的版权信息。
+
+空状态用 `om-empty`（可加 `om-empty-sm`）：`om-empty-icon`、`om-empty-title`、`om-empty-description`、`om-empty-actions`。骨架屏用 `om-skeleton`（`om-skeleton-text` / `-title` / `-circle`）。选项组切换用 `om-segmented`（`om-segmented-sm`）加 `om-segment`，选中项标 `aria-pressed="true"` 或 `aria-current="page"`。统计卡用 `om-stat-card`：`om-stat-label` → `om-stat-value` → `om-stat-meta`，右上角可放 `om-stat-icon`。
+
 ## Alert：页面内提示
 
 `/examples/ui/alerts` 的 [alerts.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/alerts.html) 同时展示静态提示和可关闭提示。下面这一项是完整的可关闭 Alert：
@@ -91,7 +128,7 @@ aria-busy 和 spinner 在这里是静态演示，不是正在发送请求；真�
         </div>
 ```
 
-组件处理菜单开关、外部点击、Escape、滚动/窗口大小变化后的定位；不要另加 document click 监听。右对齐在菜单加 om-dropdown-menu-end；实例公开 toggleOpen(force?)、close()。
+组件处理菜单开关、外部点击、Escape、滚动/窗口大小变化后的定位；不要另加 document click 监听。危险项用 `om-dropdown-item om-dropdown-item-danger`（示例里的 `text-danger-600` 是旧写法），分组标签用 `om-dropdown-label`，分隔线用 `om-dropdown-divider`。右对齐在菜单加 om-dropdown-menu-end；实例公开 toggleOpen(force?)、close()。
 
 此处 Edit/Duplicate/Archive 仍是菜单内容样式，没有提交动作。需要真实编辑/删除时参考[Table 与 Modal 教程](tutorial-dashboard.md)，不要推断 Dropdown 会按按钮文字自动处理数据。
 
@@ -327,6 +364,8 @@ services 是模板内的五条示意数据，吞吐量不会实时更新。Carou
 ## 图表
 
 打开 `/examples/charts/trends`、composition、distribution，数据来自已导入的 Example 数据库。完整来源为 [chart_views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/chart_views.py)、[views/charts.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/charts.py) 和 [charts/gallery.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/charts/gallery.html)。
+
+共享 ApexChart 默认把 `dataLabels` 关掉，不在每个数据点上印数值；需要时在 options 里显式写 `{"dataLabels": {"enabled": True}}`，treemap 示例就是这样声明的。
 
 views/charts.py 的完整外壳辅助函数是：
 

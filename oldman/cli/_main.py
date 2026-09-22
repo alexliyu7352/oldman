@@ -13,6 +13,7 @@ from typer.main import get_command
 
 from oldman.cli.discovery import discover_services
 from oldman.cli.i18n_commands import (
+    build_frontend_catalogs,
     compile_catalogs,
     extract_catalog,
     initialize_catalog,
@@ -471,6 +472,21 @@ def _i18n_compile() -> None:
     compile_catalogs()
 
 
+def _i18n_compile_frontend(
+    service: Annotated[
+        str,
+        typer.Option("--service", help=gettext("Service whose settings describe the languages.")),
+    ] = "web",
+) -> None:
+    """Build the browser catalogs and the language manifest the frontend imports."""
+    typer.echo(gettext("Building frontend catalogs..."))
+    try:
+        build_frontend_catalogs(project_root=Path.cwd(), service=service)
+    except ValueError as exc:
+        typer.echo(gettext("Error: %(error)s", error=str(exc)), err=True)
+        raise typer.Exit(1) from exc
+
+
 def _register_language_commands(
     app: typer.Typer,
     language_state: CliLanguageState,
@@ -653,6 +669,64 @@ def _register_static_commands(
     app.add_typer(static_app, name="static")
 
 
+def _register_mail_commands(
+    app: typer.Typer,
+    definition: ServiceDefinition,
+) -> None:
+    """Register the mail settings check for one service."""
+    mail_app = typer.Typer(
+        help=gettext("Check outgoing mail settings."),
+        cls=LocalizedTyperGroup,
+        rich_markup_mode=None,
+        add_completion=False,
+    )
+
+    def sendtest(
+        recipients: Annotated[
+            list[str],
+            typer.Argument(help=gettext("Recipient addresses.")),
+        ],
+        config_file: Annotated[
+            Path | None,
+            typer.Option("--config", help=gettext("Settings YAML path.")),
+        ] = None,
+    ) -> None:
+        """Send one test message through the configured backend."""
+        from oldman.cli.mail import send_test_mail
+
+        try:
+            result = send_test_mail(
+                definition.module_name,
+                recipients,
+                config_file=config_file,
+            )
+        except SettingsFileMissingError:
+            manager = _settings_manager(definition, config_file)
+            _exit_with_error(
+                gettext(
+                    "Settings file does not exist: %(path)s. Run `oldman %(service)s settings init` first.",
+                    path=manager.config_file,
+                    service=definition.module_name,
+                )
+            )
+        except Exception as exc:
+            _exit_with_error(gettext("Sending the test message failed: %(error)s", error=exc))
+        typer.echo(
+            gettext(
+                "Sent %(count)s test message(s) through %(backend)s.",
+                count=result.count,
+                backend=result.backend,
+            )
+        )
+
+    mail_app.command(
+        "sendtest",
+        help=gettext("Send a test message to the given addresses."),
+        cls=LocalizedTyperCommand,
+    )(sendtest)
+    app.add_typer(mail_app, name="mail")
+
+
 def _register_shell_command(
     app: typer.Typer,
     definition: ServiceDefinition,
@@ -718,6 +792,11 @@ def _register_i18n_commands(app: typer.Typer) -> None:
         help=gettext("Compile translation catalogs."),
         cls=LocalizedTyperCommand,
     )(_i18n_compile)
+    i18n_app.command(
+        "compile-frontend",
+        help=gettext("Build browser catalogs and the frontend language manifest."),
+        cls=LocalizedTyperCommand,
+    )(_i18n_compile_frontend)
     app.add_typer(i18n_app, name="i18n")
 
 
@@ -781,6 +860,7 @@ def create_app(
         if definition.application_base == "web":
             _register_static_commands(service_app, definition)
         _register_shell_command(service_app, definition)
+        _register_mail_commands(service_app, definition)
         if name == selected_service and service_class is not None:
             from oldman.cli.service import register_application_commands
 
@@ -794,6 +874,7 @@ def create_app(
                 app_registry,
                 command_class=LocalizedTyperCommand,
                 reserved_names={
+                    "mail",
                     "settings",
                     "shell",
                     *({"static"} if definition.application_base == "web" else set()),
@@ -814,7 +895,7 @@ def _selected_runtime_service(
     if definition is None:
         return None
     action = args[1] if len(args) > 1 else ""
-    if action in {"settings", "shell", "static"}:
+    if action in {"mail", "settings", "shell", "static"}:
         return None
     return definition
 

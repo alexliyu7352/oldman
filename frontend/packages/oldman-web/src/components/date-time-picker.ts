@@ -65,8 +65,9 @@ export class DateTimePicker extends Component {
       this.assignStringOption(options, "maxDate", input.getAttribute("data-maxDate"));
       if (dateFormat) options.dateFormat = dateFormat;
     }
-    if (input.hasAttribute("data-deafult-date")) {
-      this.assignStringOption(options, "defaultDate", input.getAttribute("data-deafult-date"));
+    const defaultDate = this.defaultDateAttribute(input);
+    if (defaultDate !== null) {
+      this.assignStringOption(options, "defaultDate", defaultDate);
       if (dateFormat) options.dateFormat = dateFormat;
     }
     if (input.hasAttribute("data-multiple-date")) {
@@ -79,7 +80,7 @@ export class DateTimePicker extends Component {
     }
     if (input.hasAttribute("data-inline-date")) {
       options.inline = true;
-      this.assignStringOption(options, "defaultDate", input.getAttribute("data-deafult-date"));
+      this.assignStringOption(options, "defaultDate", this.defaultDateAttribute(input));
       if (dateFormat) options.dateFormat = dateFormat;
     }
     if (input.hasAttribute("data-disable-date")) {
@@ -139,6 +140,17 @@ export class DateTimePicker extends Component {
    */
   private dateFormatWithTime(dateFormat: string): string {
     return /[HhGiS]/.test(dateFormat) ? dateFormat : `${dateFormat} H:i`;
+  }
+
+  /**
+   * 读取默认日期，两种拼写都认。
+   *
+   * 实现里一直写的是 `data-deafult-date`（`deafult`），而且这个文件的测试用的也是错拼写，
+   * 所以它一直是绿的——等于把打错的名字变成了既成契约。正确拼写现在优先，旧名字继续支持：
+   * 直接改掉会打断已经按错拼写写好模板的使用者。
+   */
+  private defaultDateAttribute(input: HTMLInputElement): string | null {
+    return input.getAttribute("data-default-date") ?? input.getAttribute("data-deafult-date");
   }
 
   /**

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import json
 import unittest
 from typing import cast
@@ -14,6 +15,7 @@ from oldman.web.components.charts import (
     BaseChartView,
     ChartConfig,
     ChartField,
+    ChartInvalidRequest,
     ChartResult,
     ChartSeries,
     ChartSummary,
@@ -188,6 +190,24 @@ class ChartViewLifecycleTest(unittest.TestCase):
                 assert body is not None
                 self.assertEqual(response.status, 400)
                 self.assertIn(b"Invalid chart parameter", body)
+
+    def test_range_key_translates_to_days_and_an_inclusive_window_start(self) -> None:
+        """range_days/range_start 是图表共用的时间窗口计算，业务不再各写一份。"""
+        end = dt.datetime(2026, 9, 17, 12, 30)
+
+        weekly = make_chart_request(args={"range": ["7d"]})
+        chart_request = DemoChartView().build_chart_request(weekly, route_kwargs={})
+
+        self.assertEqual(7, chart_request.range_days())
+        # 含今天的 7 天窗口从 6 天前的零点开始：按天分桶时最早一天必须是完整的一天，
+        # 否则第一个点只统计"此刻之后"的记录，还会随刷新时间漂移。
+        self.assertEqual(dt.datetime(2026, 9, 11, 0, 0), chart_request.range_start(end=end))
+        self.assertIsNone(chart_request.range_start().tzinfo)
+        self.assertEqual(dt.datetime(2026, 9, 17, 0, 0), chart_request.range_start(end=end.replace(hour=23, minute=59)) + dt.timedelta(days=6))
+
+        broken = DemoChartView().build_chart_request(make_chart_request(args={"range": ["week"]}), route_kwargs={})
+        with self.assertRaisesRegex(ChartInvalidRequest, "Unknown chart range"):
+            broken.range_days()
 
     def test_chart_view_permission_denied_returns_403(self) -> None:
         response = asyncio.run(DeniedChartView().get(make_chart_request()))

@@ -27,6 +27,7 @@ class Column:
     searchable: bool = field(default=False, init=False)
     exportable: bool = True
     visible: bool = True
+    hideable: bool = True
     header_attrs: dict[str, object] = field(default_factory=dict)
     cell_attrs: dict[str, object] = field(default_factory=dict)
 
@@ -45,6 +46,7 @@ class Column:
             callback=self.callback,
             exportable=self.exportable,
             visible=self.visible,
+            hideable=self.hideable,
             header_attrs=dict(self.header_attrs),
             cell_attrs=dict(self.cell_attrs),
         ).with_metadata(sortable=sortable, searchable=searchable)

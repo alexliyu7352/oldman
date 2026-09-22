@@ -1,6 +1,13 @@
 """Static asset bundle registry."""
 
-from oldman.web.staticfiles.bundles import StaticBundle, StaticBundleRegistry
+from oldman.web.staticfiles.bundles import (
+    DEV_MODE_ENV,
+    StaticBundle,
+    StaticBundleRegistry,
+    app_bundle_registry,
+    dev_mode_requested,
+    register_project_bundle,
+)
 from oldman.web.staticfiles.collector import (
     StaticCollectionConflict,
     StaticCollectionResult,
@@ -22,6 +29,7 @@ from oldman.web.staticfiles.urls import (
 )
 
 __all__ = [
+    "DEV_MODE_ENV",
     "OLDMAN_STATIC_NAMESPACE",
     "StaticBundle",
     "StaticBundleRegistry",
@@ -29,12 +37,15 @@ __all__ = [
     "StaticCollectionResult",
     "StaticSource",
     "StaticSourceFile",
+    "app_bundle_registry",
     "collect_project_static",
     "collect_static",
     "collection_manifest_path",
+    "dev_mode_requested",
     "framework_static_sources",
     "oldman_asset_path",
     "oldman_asset_url",
     "project_static_source",
+    "register_project_bundle",
     "static_asset_url",
 ]

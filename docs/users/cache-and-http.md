@@ -20,7 +20,7 @@ redis:
     redis_url: redis://localhost:6379/2
 ```
 
-这是现有 YAML 中的节选，不要用它覆盖整个配置。Session、SSE 等别名仍保留。已有本地 `web_settings.yaml` 应核对 `redis.CACHE` 的实际地址；Demo 不替你启动 Redis，也不修改正在使用的配置。启动 `./run.sh web start` 后，登录并从侧栏“缓存 → Redis 缓存”进入，默认地址是 `http://127.0.0.1:17998/examples/cache/redis`。
+这是现有 YAML 中的节选，不要用它覆盖整个配置。Session、SSE 等别名仍保留。已有本地 `web_settings.yaml` 应核对 `redis.CACHE` 的实际地址；Demo 不替你启动 Redis，也不修改正在使用的配置。启动 `./run.sh web start` 后，登录并从侧栏“缓存 → Redis 缓存”进入，默认地址是 `http://127.0.0.1:17997/examples/cache/redis`。
 
 按以下顺序操作：
 
@@ -128,7 +128,7 @@ rm -r -- "$demo_django_dir"
 
 ## 运行后端 HTTP 示例
 
-使用同一个已经初始化、可以登录的 Demo，从侧栏“HTTP → 后端 HTTP 客户端”进入，默认地址为 `http://127.0.0.1:17998/examples/http/client`。本例不要求新增数据库表、导入额外数据或启动另一个 Oldman 服务。
+使用同一个已经初始化、可以登录的 Demo，从侧栏“HTTP → 后端 HTTP 客户端”进入，默认地址为 `http://127.0.0.1:17997/examples/http/client`。本例不要求新增数据库表、导入额外数据或启动另一个 Oldman 服务。
 
 公开配置中的上游地址是：
 

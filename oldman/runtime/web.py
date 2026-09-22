@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import multiprocessing
-from abc import abstractmethod
 from collections.abc import Mapping
-from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing.util import Finalize
@@ -29,6 +26,7 @@ import oldman.conf as conf
 import oldman.web.messages as messages
 from oldman.cache import memory_cache
 from oldman.conf.constants import _find_project_root
+from oldman.db import db_manager
 from oldman.logging import ChildLoggingContext, logger
 from oldman.providers.redis import redis_client
 from oldman.runtime.base import BaseApplication
@@ -58,10 +56,7 @@ def prepare_process_context() -> None:
         Sanic._set_startup_method()
         return
     if actual != expected:
-        raise RuntimeError(
-            f"Sanic requires multiprocessing start method {expected!r}, "
-            f"but {actual!r} is already active"
-        )
+        raise RuntimeError(f"Sanic requires multiprocessing start method {expected!r}, but {actual!r} is already active")
 
     # Sanic rejects an already-set context even when it is the expected one.
     Sanic.START_METHOD_SET = True
@@ -155,18 +150,14 @@ class WebApplication(BaseApplication):
             **app_options,
         )
         self._app.ctx.oldman_app_registry = self.bootstrap_context.apps
+        # Handlers spawn fire-and-forget work here; the worker cancels it in before_server_stop.
+        self._app.ctx.tasks = self.task_manager
 
         ext_config = self.get_ext_config()
         if ext_config is not None:
-            runtime_ext_config = (
-                ext_config
-                if isinstance(ext_config, Config)
-                else Config(**dict(ext_config))
-            )
+            runtime_ext_config = ext_config if isinstance(ext_config, Config) else Config(**dict(ext_config))
             if runtime_ext_config.LOGGING:
-                raise ValueError(
-                    "Sanic-Ext logging conflicts with Oldman's logging runtime"
-                )
+                raise ValueError("Sanic-Ext logging conflicts with Oldman's logging runtime")
             Extend(
                 self._app,
                 config=runtime_ext_config,
@@ -174,7 +165,6 @@ class WebApplication(BaseApplication):
                 built_in_extensions=False,
             )
 
-        self._app.ctx.threads = ThreadPoolExecutor()
         self._app.update_config(
             {
                 "RESPONSE_TIMEOUT": settings.web.response_timeout,
@@ -218,8 +208,7 @@ class WebApplication(BaseApplication):
             self._app.static(settings.web.static.url, settings.web.static.root, name="static")
 
         self._app.register_listener(
-            self._services_before_server_start
-            if settings.taskiq.enabled or settings.nats_bus.enabled else self.before_server_start,
+            self._services_before_server_start if settings.taskiq.enabled or settings.nats_bus.enabled else self.before_server_start,
             "before_server_start",
         )
         self._app.register_listener(
@@ -227,8 +216,7 @@ class WebApplication(BaseApplication):
             "after_server_start",
         )
         self._app.register_listener(
-            self._services_after_server_stop
-            if settings.taskiq.enabled or settings.nats_bus.enabled else self.after_server_stop,
+            self._services_after_server_stop if settings.taskiq.enabled or settings.nats_bus.enabled else self.after_server_stop,
             "after_server_stop",
         )
         self._app.register_listener(
@@ -277,13 +265,8 @@ class WebApplication(BaseApplication):
                 static_url=settings.web.static.url,
             )
 
-            if (
-                settings.i18n.use_i18n_path
-                and hasattr(app.ext, "environment")
-            ):
-                app.ext.environment.globals["url_for"] = (
-                    build_i18n_url_with_request
-                )
+            if settings.i18n.use_i18n_path and hasattr(app.ext, "environment"):
+                app.ext.environment.globals["url_for"] = build_i18n_url_with_request
 
     async def after_server_start(self, app: WebApp) -> None:
         """Run after one Sanic server worker starts."""
@@ -318,33 +301,41 @@ class WebApplication(BaseApplication):
             raise
 
     async def _services_after_server_stop(self, app: WebApp) -> None:
-        """Close after the overridable hook, including when that hook fails."""
+        """Close taskiq and NATS first, then the resources their shutdown hooks may still use.
+
+        Taskiq 的 shutdown 钩子可能还要写一条收尾记录：`after_server_stop` 已经关掉数据库引擎的话，
+        `get_session()` 会惰性重建一个新引擎，而那一个到进程退出都没人关——正好是这段清理想消灭的东西。
+        """
         failure: BaseException | None = None
         try:
-            await self.after_server_stop(app)
+            await self._close_publishers()
         except BaseException as error:
             failure = error
             raise
         finally:
-            await self._close_publishers(failure)
+            try:
+                await self.after_server_stop(app)
+            except BaseException:
+                if failure is None:
+                    raise
+                logger.exception("Worker resource cleanup failed; preserving the publisher error")
 
     async def before_server_stop(self, app: WebApp) -> None:
         """Cancel worker-owned background tasks before resources are closed."""
         app.ctx.is_running = False
-        for task in self.background_tasks:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-        self.task_manager.stop_all_sync()
+        await self.task_manager.stop_all()
 
     async def after_server_stop(self, app: WebApp) -> None:
         """Close worker resources while preserving Sanic's final log records."""
         try:
             await memory_cache.close()
         finally:
-            await redis_client.close()
+            try:
+                await redis_client.close()
+            finally:
+                # The engine belongs to the worker too: leaving it open keeps database
+                # connections until the process dies, which a reload or a restart notices.
+                await db_manager.close()
         logger.info("%s server worker resources closed", self.app_name)
 
     def create_app(self) -> WebApp:
@@ -355,10 +346,25 @@ class WebApplication(BaseApplication):
         self._app.name = self.app_name
         return self._app
 
-    @abstractmethod
     def prepare_server(self, app: WebApp) -> None:
-        """Configure Sanic listeners and worker settings before serving."""
-        raise NotImplementedError
+        """Configure Sanic's listener from the `web` settings.
+
+        `single_process` 是**推导**出来的而不是写死的：写死 True 的话，配了多 worker 或 auto_reload
+        的服务会被 Sanic 在 `prepare()` 里直接拒绝（RuntimeError）。要注意它到这里也只参与那条校验——
+        真正据此选 `serve_single` 的是 `app.run()`，而这里走的是 `Sanic.serve()`，进程模型始终由
+        WorkerManager 决定。想要别的接法就覆盖这个方法，仍然可以调 `super().prepare_server(app)`。
+        """
+        web = conf.settings.web
+        app.prepare(
+            host=web.listen_host,
+            port=web.listen_port,
+            debug=web.debug,
+            motd=False,
+            auto_reload=web.auto_reload,
+            workers=web.workers,
+            access_log=web.access_log,
+            single_process=web.workers <= 1 and not web.auto_reload,
+        )
 
     def run(self, *args: Any, **kwargs: Any) -> None:
         """Create the primary app and enter Sanic's server lifecycle."""

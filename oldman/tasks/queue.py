@@ -8,6 +8,7 @@ __author__ = "alex"
 
 import asyncio
 import multiprocessing as mp
+import queue
 
 from oldman.logging import logger
 from oldman.tasks.messages import TaskMessage
@@ -55,10 +56,13 @@ class AsyncQueue:
                     logger.debug("队列数据读取成功，准备反序列化")
                     # 直接使用消息类型的反序列化方法
                     return TaskMessage.from_msgpack(serialized_data)
+            except queue.Empty:
+                # empty() 和 get_nowait() 之间另一个消费者可能已经取走了这条消息。
+                # 这是正常竞态，不是故障：继续等待下一个信号，而不是把它报给调用方。
+                pass
             except Exception:
                 logger.exception("从队列获取消息失败")
                 raise
-                pass  # 忽略empty检查的并发问题
 
             # 等待数据可用信号
             assert self._data_available is not None

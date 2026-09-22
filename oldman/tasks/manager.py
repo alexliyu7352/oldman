@@ -4,7 +4,7 @@ import time
 from abc import ABC
 from typing import Any, Literal
 
-from oldman.logging import ChildLoggingContext, get_active_runtime, logger
+from oldman.logging import ChildLoggingContext, logger, resolve_child_logging_context
 from oldman.tasks.base import TaskType
 from oldman.tasks.messages import MessageType, TaskMessage
 from oldman.tasks.worker import BaseWorker
@@ -70,12 +70,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
 
     def _resolve_logging_context(self) -> ChildLoggingContext | None:
         """Resolve the active application context immediately before Process.start()."""
-        if self._logging_context is not None:
-            return self._logging_context
-        runtime = get_active_runtime()
-        if runtime is None or runtime.closed:
-            return None
-        return runtime.child_context
+        return resolve_child_logging_context(self._logging_context)
 
     @staticmethod
     def _close_task_queue(task_queue: mp.Queue) -> None:

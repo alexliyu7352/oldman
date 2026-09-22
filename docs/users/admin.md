@@ -24,7 +24,7 @@ pnpm --dir frontend build
 
 init 读取 Demo 的 example YAML 创建本地配置；已有 web_settings.yaml 时跳过 init，不覆盖配置。数据库迁移按交互核对首次使用或现有状态。createsuperuser 通过隐藏输入创建你自己的账号，密码不放到命令参数或 Git。
 
-打开 [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin)，不是 EPG 的 17998。修改密码使用 `./run.sh web changepassword <用户名>`，将占位符替换为你实际创建的用户名。
+打开 [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin)，不是 EPG 的 17997。修改密码使用 `./run.sh web changepassword <用户名>`，将占位符替换为你实际创建的用户名。
 
 bootstrap 的本地源码/发行包选择与 EPG 一致：同级存在 oldman_framwork 或 oldman 源码目录时直接关联源码，否则使用清单中的发行包。不要把两个 Demo 安装到框架自己的环境里。
 
@@ -125,6 +125,18 @@ python3 scripts/dev.py
 - 长时间放置页面后出现 CSRF 403，应刷新取得新令牌；不要关闭 CSRF。
 
 需要自定义表单、列、保存规则或权限时看 [ModelAdmin 参考](../developers/admin.md#modeladmin)。项目模板通过 settings.web.template.dir 中的同名模板覆盖，不直接修改安装包资源。额外图标和 CSS 使用 extension bundle，不另建一套 Admin Form/Modal。
+
+## 6. 找回密码
+
+登录卡右下角的"忘记密码？"进入 `/admin/password-reset`。流程和 Django 一致：
+
+1. 输入账号邮箱并提交。不管邮箱有没有账号，页面都跳到"请查收邮件"，不会泄露账号是否存在；账号存在且启用时，收件箱会收到一封带链接的邮件。
+2. 打开邮件里的链接（`web.domain` 加上 `/admin/password-reset/<用户标识>/<token>`），设置新密码并确认，规则和后台改密码一样：8 到 128 位，字母和数字都要有。
+3. 改完后该用户在其他浏览器里的登录会话全部失效，页面提示用新密码登录。
+
+链接默认 24 小时内有效，改过密码、重新登录或过期后都会失效，同一个链接只能用一次。没有邮箱的账号不能自助找回，管理员在用户列表里改密码即可。每个 IP 15 分钟内最多申请 5 次（超出返回 429），每个邮箱 1 小时内最多收 3 封（超出后页面照常显示"已发送"但不再发信）。这些数值在 Auth App 的 `password_reset` 设置里，见[配置](../developers/configuration.md#app-settings)。
+
+本地开发时邮件后端默认是 console，邮件连同链接会打印在服务日志里；真实发信要配置 `mail.backend` 为 smtp，见[邮件](../developers/mail.md)。
 
 ## 常见问题
 

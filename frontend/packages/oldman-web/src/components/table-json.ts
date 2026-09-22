@@ -61,7 +61,7 @@ type TanStackJsonTable = Table<typeof jsonTableFeatures, TableJsonRow>;
 /**
  * 校验 Table endpoint 的受信 JSON 边界，避免错误 payload 生成半残 DOM。
  */
-export function parseTableJsonPayload(value: unknown, expectedColumns: readonly string[], selectable: boolean): TableJsonPayload {
+export function parseTableJsonPayload(value: unknown, expectedColumns: readonly string[]): TableJsonPayload {
   const payload = requireRecord(value, "Table JSON payload");
   const columns = requireArray(payload.columns, "Table JSON columns");
   const rows = requireArray(payload.rows, "Table JSON rows");

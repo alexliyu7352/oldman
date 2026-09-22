@@ -880,4 +880,25 @@ describe("PageRegistry", () => {
 
     await expect(registry.mount(document)).rejects.toThrow("No page registered for missing");
   });
+
+  it("mounts the fallback page and warns when a page entry is missing", async () => {
+    document.body.innerHTML = `<main data-om-page="typo"></main>`;
+    const registry = new PageRegistry();
+    const loadPage = vi.fn(async () => undefined);
+    const warn = vi.fn();
+
+    class FallbackPage extends Page {
+      override async mount(): Promise<void> {
+        this.root.dataset.fallbackMounted = "true";
+      }
+    }
+
+    const page = await registry.mount(document, { loadPage, fallbackPage: FallbackPage, logger: { warn } });
+
+    expect(page).toBeInstanceOf(FallbackPage);
+    expect(loadPage).toHaveBeenCalledWith("typo", document.querySelector("main"));
+    expect(document.querySelector<HTMLElement>("main")!.dataset.fallbackMounted).toBe("true");
+    expect(warn).toHaveBeenCalledWith("No page registered for typo; falling back to FallbackPage");
+    await registry.unmount();
+  });
 });

@@ -420,6 +420,26 @@ describe("startOldman", () => {
     expect(requestJsonCalls).toEqual([]);
   });
 
+  it("starts with the fallback page when the entry name is unknown", async () => {
+    document.body.innerHTML = `<main data-om-page="missing"></main>`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    class FallbackPage extends Page {
+      override async mount(): Promise<void> {
+        this.root.dataset.fallbackMounted = "true";
+      }
+    }
+
+    const app = await startOldman({ turbo: false, fallbackPage: FallbackPage });
+    try {
+      expect(document.querySelector<HTMLElement>("main")!.dataset.fallbackMounted).toBe("true");
+      expect(warn).toHaveBeenCalledWith("No page registered for missing; falling back to FallbackPage");
+    } finally {
+      await app.destroy();
+      warn.mockRestore();
+    }
+  });
+
   it("preserves startup errors when partial runtime cleanup fails", async () => {
     document.body.innerHTML = `<main data-om-page="missing"></main>`;
     const actionRoot = document.createElement("div");

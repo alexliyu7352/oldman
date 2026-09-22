@@ -5,7 +5,7 @@ from collections import deque
 from typing import Any, Protocol, Self, TypeVar, runtime_checkable
 
 import aiofiles
-import ujson as json
+import orjson
 
 
 @runtime_checkable
@@ -88,7 +88,7 @@ class SerializableMixin:
     def to_json(self) -> str:
         """将dataclass实例序列化为JSON字符串"""
 
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
+        return orjson.dumps(self.to_dict(), option=orjson.OPT_INDENT_2).decode("utf-8")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -100,7 +100,7 @@ class SerializableMixin:
     @classmethod
     def from_json(cls, json_str: str) -> Self:
         """从JSON字符串创建dataclass实例"""
-        data = json.loads(json_str)
+        data = orjson.loads(json_str)
         return cls.from_dict(data)
 
     def save_to_file(self, file_path: str) -> bool:

@@ -61,10 +61,7 @@ def _sanic_response_headers(
     else:
         response_headers = Header(headers or {})
     connection_options = {
-        option.strip().lower()
-        for value in response_headers.getall("connection", [])
-        for option in value.split(",")
-        if option.strip()
+        option.strip().lower() for value in response_headers.getall("connection", []) for option in value.split(",") if option.strip()
     }
     for name in connection_options:
         response_headers.pop(name, None)
@@ -76,7 +73,28 @@ def _sanic_response_headers(
 
 
 class BaseStreamProxy:
-    """流媒体代理基类"""
+    """流媒体代理基类。
+
+    部署约束：只在内网/localhost 使用，不要绑定到公网 IP。
+    ==========================================================================
+    这个代理会去取调用方给的任意上游 URL，而它**没有地址级的 SSRF 防护**。
+    2026-09-20 的 review 实测确认了两个问题，经评估按"内部使用"接受，不修：
+
+    1. **允许清单可被绕过。** `validate_real_url` 的 `included` 用字符串通配匹配，
+       `*` 会匹配 `/`、`#`、`?`。运营方写"只允许 `*.mycdn.com`"，
+       一个 `http://attacker.com/#.mycdn.com/` 就能通过校验——而 `#` 之后的片段
+       根本不会发给服务器，代理实际连的是 attacker.com。实测：清单只写了 `/safe/`，
+       请求真的打到了攻击者端口。
+
+    2. **默认完全不校验。** `included` 和 `blacklisted` 都默认 `None`，
+       即默认放行任意地址：`http://127.0.0.1:6379`（Redis）、
+       `http://169.254.169.254/`（云厂商凭据接口）都取得到，协议也不限于 http/https。
+
+    因此：**谁能控制传进来的上游 URL，谁就能让这个进程向任意地址发请求。**
+    只要代理不暴露在公网、且上游 URL 只来自可信的内部来源，这个风险是被围住的。
+    一旦要对公网开放，先补上按 URL 结构（scheme/host/path）匹配的允许清单、
+    限定 http/https、并拦截私有与回环地址。
+    """
 
     # 默认头信息
     DEFAULT_HEADERS = {
@@ -1065,7 +1083,18 @@ class BaseStreamProxy:
 
     @staticmethod
     def validate_real_url(real_url: str, included: list[str] | None = None, blacklisted: list[str] | None = None) -> tuple[bool, str | None]:
-        """验证真实URL是否符合要求"""
+        """验证真实URL是否符合要求。
+
+        不是一道能挡住攻击者的边界，只是一层配置过滤。见类 docstring 的部署约束：
+
+        - `match_url` 是整串 URL 上的字符串通配，`*` 会匹配 `/`、`#`、`?`。所以
+          `included=["*.mycdn.com/*"]` 会被 `http://attacker.com/#.mycdn.com/` 通过，
+          而请求实际发往 attacker.com（片段不会上线）。
+        - 两个参数默认 `None` = 不做任何校验；协议也不限 http/https。
+
+        要当真正的安全边界用，得改成按 urlsplit 的结果分别比对 scheme/host/path，
+        并另外拦截私有与回环地址。
+        """
         # 检查 real_url 是否匹配调用方传入的黑名单规则。
         if blacklisted and any(strings_utils.match_url(real_url, pattern) for pattern in blacklisted):
             logger.error(f"真实URL匹配黑名单: {real_url}")

@@ -85,9 +85,7 @@ class AtomicAppendFileHandler(logging.Handler):
         if when is not None and maxBytes:
             raise ValueError("time and size rotation cannot be enabled together")
         if reopen_check_interval < 0:
-            raise ValueError(
-                "reopen_check_interval must be greater than or equal to 0"
-            )
+            raise ValueError("reopen_check_interval must be greater than or equal to 0")
 
         self.baseFilename = os.path.abspath(os.fspath(filename))
         self.mode = mode
@@ -189,6 +187,8 @@ class AtomicAppendFileHandler(logging.Handler):
                 super().close()
         finally:
             self.release()
+
+
 __all__ = [
     "AtomicAppendFileHandler",
     "RotationPolicy",

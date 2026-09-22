@@ -111,7 +111,7 @@ async def users_new(request: Request):
     return await render_template("pages/users/form.html", context={"active_section": "system", "active_page": "users", "form": form, "user": None})
 ```
 
-与此不同，`oldman.web.template.render_component_template(owner, template_name, context)` 是返回 `Markup` 内容的公开接口；`owner.request` 用于取得当前环境。Form/Table renderer 使用它，业务也可用于自己的组件模板；不是一个自行发送 HTTP 的函数。Demo 的 Modal 初次加载则在活跃请求内取得 Jinja 模板、render_async 后组成 title/html JSON，具体代码见[Modal 教程](../users/tutorial-dashboard.md#4-modal-只负责装入内容)。传入的上下文仍需明确提供模板需要的变量。异步 Jinja 模板中调用异步方法可写 `{{ form.render() }}`；Python 中则必须 `await form.render()`。
+与此不同，`oldman.web.template.render_component_template(owner, template_name, context)` 是返回 `Markup` 内容的公开接口；`owner.request` 用于取得当前环境。Form/Table renderer 使用它，业务也可用于自己的组件模板；不是一个自行发送 HTTP 的函数。在视图函数里渲染一个片段用 `await render_fragment(request, template_name, **context)`：它通过应用已安装的模板环境渲染并返回 `Markup`，`request` 自动进入上下文；Demo 的 Modal 初次加载就是用它渲染后组成 title/html JSON，具体代码见[Modal 教程](../users/tutorial-dashboard.md#4-modal-只负责装入内容)。视图不要直接使用 `request.app.ext.environment`。所有模板环境都带三个壳层全局：`current_language(request)`、`language_menu_items(request)`（`oldman.web.i18n`，语言菜单和 `<html lang>` 用）和 `csrf_token_for(request)`（`oldman.web.security.csrf`，`csrf-token` meta 用）；`oldman/dashboard/partials/language_switcher.html` 不传参数时就用它们，只有一种语言时不渲染。传入的上下文仍需明确提供模板需要的变量。异步 Jinja 模板中调用异步方法可写 `{{ form.render() }}`；Python 中则必须 `await form.render()`。
 
 ## Session 和认证不是自动登录系统
 
@@ -140,7 +140,7 @@ def dashboard_session(request: Request) -> DashboardSessionData:
 
 `oldman.auth` 提供 `authenticate_user(username, password)`，它检查用户存在、active 和密码，不附加 staff 权限。Demo 的同名函数来自 apps.auth.services，另外检查 staff 和 Admin 配置的 require_superuser；不要混淆这两个导入。普通业务网站不必沿用 Admin 的 staff 限制。
 
-同一个 views.py 的完整登录入口如下。authenticate_user、session_data、touch_last_login 来自 apps.auth.services；form_value、safe_next_url、login_error_url 定义在同一视图文件；Session、redirect_response、CSRF 和 Request 来自框架。它是原生登录提交，不是 JSON Form：
+登录表单、用户筛选表单和用户创建/编辑 ModelForm 都来自 `oldman.web.auth`（`LoginForm`、`UserFilterForm`、`user_create_form_class(User)`、`user_edit_form_class(User)`），用户列表表格来自 `oldman.web.auth.UserTable`（子类只提供 `model`、路由名和 `object_url(row, action)`；单元格与行菜单也可单独用 `user_cell_value`、`user_row_actions`），用户管理的自保护规则（`set_user_active`、`validate_user_delete`、`UserManagementError`）来自 `oldman.auth`；行菜单里的启停和删除弹窗来自 `oldman.web.auth.user_status_modal_response(request, user, action=...)` 和 `user_delete_modal_response(...)`，视图只负责按 id 取用户（取不到就传 `None`，助手会回 404 的 modal 文案）和给出表单要 POST 的地址；项目和内置 Admin 共用同一份，不各自定义。同一个 views.py 的完整登录入口如下。authenticate_user 来自 apps.auth.services（框架凭据检查加本站的 staff 策略）；form_value、remember_me_requested、login_error_url、login_user、logout_user 和 safe_next_url 都来自 `oldman.web.auth`（safe_next_url 只放行站内路径，拒绝外站、`//host`、反斜杠和控制字符）；redirect_response、CSRF 和 Request 来自框架。它是原生登录提交，不是 JSON Form：
 
 ```python
 @app.post("/login", name="login_submit")
@@ -148,22 +148,13 @@ def dashboard_session(request: Request) -> DashboardSessionData:
 async def login_submit(request: Request):
     """处理后台用户名密码登录。"""
     next_url = safe_next_url(form_value(request, "next") or request.args.get("next"))
-    username = form_value(request, "username").strip()
-    password = form_value(request, "password")
-    user = await authenticate_user(username, password)
+    user = await authenticate_user(form_value(request, "username").strip(), form_value(request, "password"))
     if user is None:
-        return redirect_response(login_error_url(next_url, "invalid_credentials"), status=303)
-
-    session_manager = Session.get_session_manager(request)
-    authenticated_session = session_data(user, request.ip or request.client_ip or "")
-    new_session_id = await session_manager.exclusive_login(authenticated_session)
-    await touch_last_login(user.id)
-    response = redirect_response(next_url)
-    session_manager.update_session_id_to_cookie(response, new_session_id, authenticated_session)
-    return response
+        return redirect_response(login_error_url("/login", next_url, "invalid_credentials"), status=303)
+    return await login_user(request, user, response=redirect_response(next_url), remember=remember_me_requested(request))
 ```
 
-`user` 是刚通过认证的真实 User，session_data 通过框架 session_data_for_user() 创建 DashboardSessionData 并传入当前会话有效期及登录 IP。Demo 用 exclusive_login 创建排他登录；另一个公开方法 login() 允许同用户多个会话。当前请求退出用 `await Session.logout_session(request)`，同时安排清除 Cookie；强制退出某用户用 `await session_manager.force_logout_user(user_id)`。这些是服务端操作，不是在浏览器中删除一个标志就算注销。错误密码回到带错误说明的 GET 登录页，重新生成 CSRF；过期 CSRF 是下面的 403 错误页流程，不能当作密码错误绕过。
+`user` 是刚通过认证的真实 User。`login_user()` 用 `session_data_for_user()` 按请求上挂的 Session 类型（这里是 DashboardSessionData）创建会话数据，传入“记住我”决定的有效期和代理感知的登录 IP，用 exclusive_login 创建排他登录并写 Cookie；需要同用户多个会话时自己调用公开方法 login()。当前请求退出用 `await logout_user(request, "/login")`（内部是 `Session.logout_session`，同时安排清除 Cookie）；强制退出某用户用 `await session_manager.force_logout_user(user_id)`。这些是服务端操作，不是在浏览器中删除一个标志就算注销。错误密码回到带错误说明的 GET 登录页，重新生成 CSRF；过期 CSRF 是下面的 403 错误页流程，不能当作密码错误绕过。
 
 ## 权限入口
 
@@ -200,9 +191,20 @@ from oldman.web.security.csrf import (
 - 缺少令牌、过期、绑定不符均为 403，不取消验证来修复久置登录页。
 - CSRF 默认有效期为 `settings.web.security.csrf.ttl`，当前为 3600 秒；密钥来自统一 Web security 配置。
 
+`csrf_exempt` 只在 `web.security.csrf.enforce` 打开时有意义:那个开关会注册一个全局中间件,对每个状态改变请求校验 token,而被标注的 handler 跳过。开关关闭时保护是逐路由声明的(`@csrf_protect`),不加保护即等于豁免,这个装饰器不产生任何效果。
+
 不要给普通业务表单加 `csrf_exempt`。外部 Webhook 等特殊接口需要明确的另一种请求认证，不属于教程默认路径。
 
+### 可选:按请求解析时区
+
+`oldman.web.middlewares.install_timezone(app)` 注册一个请求中间件,按 `X-Timezone` 头、
+`timezone` cookie 的顺序解析调用方时区,写进 `request.ctx.timezone`;两者都没有时用
+`core.time_zone`。**默认不注册**——多数服务不读这个值,不该为它在每个请求上花一次头查找和时区解析。
+非法时区名回落到配置的默认值,不会抛异常。
+
 ## 错误页面和内容协商
+
+URL 里的主键来自浏览器，查不到是正常情况：在自己的事务里用 `await get_object_or_404(session, Model, object_id)`（来自 `oldman.web.shortcuts`）读对象，它读不到就抛 `NotFound`，交给下面的错误处理，不用每个视图写一遍“is None 就 raise”。需要自定义提示时传 `message=`。
 
 WebApplication 已安装 `OldmanErrorHandler`，默认 `settings.web.fallback_error_format: auto`。HTML 异常页面按下面顺序选择：
 
@@ -211,7 +213,7 @@ WebApplication 已安装 `OldmanErrorHandler`，默认 `settings.web.fallback_er
 3. `errors/default.html`。
 4. `oldman/errors/default.html`。
 
-模板上下文只有必要的 `request`、`status_code`，不把异常堆栈或敏感详情交给生产页面。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
+框架自带的错误页只有一段内联 CSS，不加载任何前端产物，纯 API 服务和网站项目同样可用；取色和字体回退与共享设计 token 一致，并跟随系统明暗。要让错误页带 Dashboard 外壳，按上面的顺序放项目自己的模板。模板上下文只有必要的 `request`、`status_code`，不把异常堆栈或敏感详情交给生产页面。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
 
 项目 `errors/default.html` 不会覆盖已经匹配到的框架专用 403/404/500；要定制它们需各放一个专用模板。若要统一覆盖所有框架默认样式，也可覆盖对应的 `oldman/errors/...` 路径。
 

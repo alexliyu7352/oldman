@@ -18,9 +18,11 @@ from oldman.auth import AuthSettings, get_user_model
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
 from oldman.i18n.translations import gettext, ngettext
+from oldman.web.auth.login import LoginRateLimit
+from oldman.web.auth.password_reset import RateLimiter
 from oldman.web.messages.notifications import init_app as install_notifications
 from oldman.web.security.csrf import CsrfExtension, StatelessCSRFManager
-from oldman.web.staticfiles import StaticBundleRegistry
+from oldman.web.staticfiles import app_bundle_registry
 from oldman.web.template import install_template_loaders
 
 
@@ -35,6 +37,8 @@ def install_admin(
     extension_bundle_name: str | None = None,
     auth_settings: AuthSettings | None = None,
     admin_settings: AdminSettings | None = None,
+    password_reset_rate_limiter: RateLimiter | None = None,
+    login_rate_limit: LoginRateLimit | None = None,
 ) -> AdminSite:
     """Install Admin routes, templates and the collected frontend bundle."""
     resolved_site = admin_site if admin_site is not None else default_admin_site
@@ -51,10 +55,7 @@ def install_admin(
 
         admin_settings = admin_app.settings
     resolved_site.register_user_model(get_user_model(auth_settings))
-    registry = getattr(app.ctx, "static_bundle_registry", None)
-    if registry is None:
-        registry = StaticBundleRegistry()
-        app.ctx.static_bundle_registry = registry
+    registry = app_bundle_registry(app)
 
     static_config = conf.settings.web.static
     register_admin_static_bundle(
@@ -85,15 +86,7 @@ def install_admin(
     environment.globals.setdefault("_", gettext)
     environment.globals.setdefault("gettext", gettext)
     environment.globals.setdefault("ngettext", ngettext)
-    environment.globals.update(
-        bundle_asset_base_url=registry.asset_base_url,
-        bundle_asset_url=registry.asset_url,
-        bundle_client=registry.client_tags,
-        bundle_entry=registry.entry_tags,
-        bundle_modulepreload=registry.modulepreload_tags,
-        bundle_script=registry.script_tags,
-        bundle_styles=registry.styles_tags,
-    )
+    registry.install_template_globals(environment)
 
     notification_routes = None
     if app_registry is not None:
@@ -112,6 +105,8 @@ def install_admin(
         admin_settings=admin_settings,
         notifications_enabled=notification_routes is not None,
         sse_enabled=conf.settings.web.sse.enabled,
+        password_reset_rate_limiter=password_reset_rate_limiter,
+        login_rate_limit=login_rate_limit,
     )
     app.ctx.oldman_admin_notification_routes = notification_routes
     app.ctx.oldman_admin_user_events_url = user_events_url

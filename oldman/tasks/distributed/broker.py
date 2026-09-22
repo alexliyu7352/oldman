@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import logging
 from collections.abc import AsyncGenerator
 from types import TracebackType
 from typing import Any
 
+import orjson
 from nats.aio.client import Client
 from nats.aio.msg import Msg
 from nats.aio.subscription import Subscription
@@ -229,7 +229,7 @@ class TaskiqBroker(PullBasedJetStreamBroker):
                 try:
                     await self.js._api_request(
                         f"$JS.API.CONSUMER.CREATE.{self.stream_name}.{name}.{config.filter_subject}",
-                        json.dumps(request).encode(), timeout=self.config.publish_timeout,
+                        orjson.dumps(request), timeout=self.config.publish_timeout,
                     )
                 except APIError as error:
                     if error.err_code != 10148:
@@ -266,7 +266,9 @@ class TaskiqBroker(PullBasedJetStreamBroker):
             return
         subject = f"{self._subject_prefix}.{queue}"
         identity = [subject, message.task_name, message.task_id, int(message.labels.get("_retries", 0))]
-        message_id = hashlib.sha256(json.dumps(identity, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        # orjson 的默认输出与 json.dumps(separators=(",", ":"), ensure_ascii=False) 逐字节相同，
+        # 所以换解析器不会改变已在途或已存储消息的 message_id。
+        message_id = hashlib.sha256(orjson.dumps(identity)).hexdigest()
         for attempt in range(2):
             try:
                 await self.js.publish(

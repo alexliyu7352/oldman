@@ -784,7 +784,11 @@ while True:
         self.assertIn("oldmanSelectChangeCount === 1", self.gate.DASHBOARD_BROWSER_CONTRACT)
         self.assertIn('"om:select:change"', self.gate.DASHBOARD_BROWSER_CONTRACT)
         self.assertIn("install_dashboard_component_fixture(project)", source)
-        self.assertIn('for weight in (300, 700):', source)
+        # 字体这条断言要钉的是"真实浏览器里确实取到了网页字体",不是某两个具体字重:
+        # 浏览器只取真的有文字用到的字重,写死 300/700 就会在标记不再使用它们时过期
+        # (它确实过期了)。400 是 body 默认字重,任何渲染出的文字都会产生。
+        self.assertIn("did not fetch any DM Sans font resource", source)
+        self.assertIn('"400" not in fetched_weights', source)
 
     def test_browser_assets_must_map_to_generated_static_dist(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

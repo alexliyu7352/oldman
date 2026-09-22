@@ -1,15 +1,9 @@
 import { Component } from "../core/component/component";
-
-const HISTORY_BACK_SELECTOR = "[data-om-history-back]";
-
-type TurboHistoryState = {
-  turbo?: {
-    restorationIndex?: number;
-  };
-};
+import { goBackOrFallback, HISTORY_BACK_SELECTOR } from "../core/runtime/history-back";
 
 /**
  * 标准历史返回行为：优先走 Turbo 历史，缺少历史时才使用声明的 fallback。
+ * 运行时在 document 上还有一条同样的兜底监听，覆盖页面尚未挂载完的那段时间。
  */
 export class HistoryBack extends Component {
   static readonly componentName = "history-back";
@@ -17,26 +11,8 @@ export class HistoryBack extends Component {
   override async mount(): Promise<void> {
     this.on("click", HISTORY_BACK_SELECTOR, (event, matchedElement) => {
       event.preventDefault();
-      this.goBackOrFallback(matchedElement as HTMLElement);
+      goBackOrFallback(matchedElement as HTMLElement, (url) => this.navigateToFallback(url));
     });
-  }
-
-  private goBackOrFallback(trigger: HTMLElement): void {
-    if (this.canUseTurboHistory()) {
-      window.history.back();
-      return;
-    }
-
-    const fallback = trigger.dataset.omHistoryFallback;
-    if (fallback) {
-      this.navigateToFallback(fallback);
-    }
-  }
-
-  private canUseTurboHistory(): boolean {
-    const state = window.history.state as TurboHistoryState | null;
-    const index = state?.turbo?.restorationIndex;
-    return typeof index === "number" && index > 0;
   }
 
   protected navigateToFallback(url: string): void {

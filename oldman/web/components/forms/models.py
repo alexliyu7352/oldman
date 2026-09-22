@@ -45,7 +45,14 @@ def model_field_for_column(
     description: str | None = None,
     model_choice: ModelChoice | None = None,
 ) -> Any:
-    """把 SQLAlchemy Column 转换为 WTForms 字段定义。"""
+    """把 SQLAlchemy Column 转换为 WTForms 字段定义。
+
+    标签和帮助文字的优先级：显式参数（Meta.labels / Meta.help_texts）> 列的 ``info["label"]`` /
+    ``info["help_text"]`` > 字段名转写。
+    """
+    column_info = getattr(column, "info", None) or {}
+    label = label or column_info.get("label")
+    description = description or column_info.get("help_text")
     if _get_model_file_config(column) is not None:
         field_kwargs: dict[str, Any] = {}
         if description:
@@ -260,7 +267,6 @@ class OldmanModelForm(OldmanForm):
     @classmethod
     def inject_model_fields(cls) -> None:
         """把 SQLAlchemy 模型字段映射为 WTForms 字段。"""
-        cls._oldman_auto_file_fields = frozenset()
         meta = getattr(cls, "Meta", None)
         model = getattr(meta, "model", None)
         fields = getattr(meta, "fields", None)
@@ -274,7 +280,6 @@ class OldmanModelForm(OldmanForm):
         labels = dict(getattr(meta, "labels", {}) or {})
         help_texts = dict(getattr(meta, "help_texts", {}) or {})
         model_choices = dict(getattr(meta, "model_choices", {}) or {})
-        auto_file_fields: set[str] = set()
         for field_name in fields:
             name = str(field_name)
             if hasattr(cls, name):
@@ -282,8 +287,6 @@ class OldmanModelForm(OldmanForm):
             column = mapper.columns.get(name)
             if column is None:
                 continue
-            if _get_model_file_config(column) is not None:
-                auto_file_fields.add(name)
             setattr(
                 cls,
                 name,
@@ -295,18 +298,21 @@ class OldmanModelForm(OldmanForm):
                     model_choice=model_choices.get(name),
                 ),
             )
-        cls._oldman_auto_file_fields = frozenset(auto_file_fields)
 
     async def validate(self, extra_validators: dict[str, Any] | None = None) -> bool:
-        """校验普通字段，并补充自动非空文件列的现有文件规则。"""
+        """校验普通字段，并补充非空文件列的“新建必传、编辑可沿用”规则。"""
         valid = await super().validate(extra_validators=extra_validators)
         if not self.is_bound:
             return False
         mapper = sqlalchemy_inspect(self.model)
-        for field_name in self._oldman_auto_file_fields:
+        # 这条规则看模型列和字段类型，不看字段是框架自动生成的还是表单自己声明的：
+        # 显式声明 UploadField（为了加尺寸/扩展名校验或 render_kw）不该让规则失效。
+        for field_name in self.model_fields:
             column = mapper.columns.get(field_name)
-            field = self._fields[field_name]
-            if column is None or column.nullable or field.data is not None:
+            field = self._fields.get(field_name)
+            if column is None or not isinstance(field, UploadField) or _get_model_file_config(column) is None:
+                continue
+            if column.nullable or field.data is not None:
                 continue
             if self.instance is not None and getattr(self.instance, field_name, None):
                 continue
@@ -354,6 +360,7 @@ class OldmanModelForm(OldmanForm):
             if active_session is not None:
                 register_created_file(active_session, instance, field_name, config.storage, stored_name)
             setattr(instance, field_name, stored_name)
+        await self.before_save(instance)
         if commit:
             assert active_session is not None
             active_session.add(instance)
@@ -362,6 +369,14 @@ class OldmanModelForm(OldmanForm):
                 await flush_result
         self.instance = instance
         return instance
+
+    async def before_save(self, instance: Any) -> None:
+        """派生字段的钩子：实例已经装好表单值和上传文件名，还没有写库。
+
+        子类在这里维护模型自己的派生列（创建/更新时间、小写查找列、拼出来的 key……），
+        不用重写 `save()`，也就不用复制 session、add 和 flush 那几行。
+        """
+        del instance
 
 
 __all__ = ["OldmanModelForm", "humanize_model_field_name", "model_field_for_column"]

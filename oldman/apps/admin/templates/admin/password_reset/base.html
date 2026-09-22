@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% from "oldman/auth/partials/auth_layout.html" import auth_layout with context %}
+
+{% block dashboard_head_meta %}
+  {{ super() }}
+  <meta name="turbo-cache-control" content="no-cache">
+  <meta name="turbo-visit-control" content="reload">
+{% endblock %}
+
+{% block content %}
+  {% call auth_layout(admin_prefix ~ "/login", "Oldman Admin") %}
+    {% block auth_card %}{% endblock %}
+  {% endcall %}
+{% endblock %}

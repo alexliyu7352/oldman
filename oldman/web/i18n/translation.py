@@ -5,15 +5,18 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import parse_qsl, quote, urlencode
 
 from babel.support import Translations
 from jinja2 import pass_context
 
+import oldman.conf as conf
 from oldman.i18n.catalogs import CatalogLoader
 from oldman.i18n.registry import LanguageDefinition, LanguageRegistry
 from oldman.i18n.translations import gettext, ngettext, pgettext
 from oldman.logging import logger
 from oldman.utils.singleton import singleton_adv
+from oldman.web.i18n.assets import direct_flag_url
 from oldman.web.request import Request, get_current_request
 from oldman.web.routing import WebApp
 
@@ -143,9 +146,10 @@ class TranslationService:
         if request_language:
             return request_language
 
-        cookie_language = self.resolve_language(str(request.cookies.get("lang", "") or ""))
-        if cookie_language:
-            return cookie_language
+        for cookie_name in ("lang", "preferred_language"):
+            cookie_language = self.resolve_language(str(request.cookies.get(cookie_name, "") or ""))
+            if cookie_language:
+                return cookie_language
 
         accept_language = str(request.headers.get("accept-language", "") or "")
         for entry in accept_language.split(","):
@@ -221,3 +225,82 @@ __all__ = [
     "build_i18n_url_with_request",
     "translation",
 ]
+
+
+def language_registry(request: Any = None) -> LanguageRegistry:
+    """The project's language registry: the initialized service's, else the settings', never empty.
+
+    Without i18n a one-entry registry is built from the request locale or the default language so
+    templates and menus keep working.
+    """
+    if translation.is_initialized and translation.registry:
+        return translation.registry
+    config = conf.settings.i18n
+    if config.use_i18n:
+        registry = LanguageRegistry(config.languages)
+        if registry:
+            return registry
+    fallback = str(getattr(getattr(request, "ctx", None), "locale", "") or config.default_language or "en")
+    return LanguageRegistry({fallback: {"aliases": [], "name": fallback, "flag": ""}})
+
+
+def current_language(request: Any = None) -> str:
+    """The canonical language of a request: its resolved locale, then the language cookies, then the default."""
+    registry = language_registry(request)
+    cookies = getattr(request, "cookies", None) or {}
+    candidates = (
+        str(getattr(getattr(request, "ctx", None), "locale", "") or ""),
+        str(cookies.get("lang", "") or ""),
+        str(cookies.get("preferred_language", "") or ""),
+        str(conf.settings.i18n.default_language or ""),
+    )
+    for candidate in candidates:
+        resolved = registry.resolve(candidate)
+        if resolved:
+            return resolved
+    return registry.codes[0]
+
+
+def language_switch_url(request: Any, language: str, *, default_language: str, use_i18n_path: bool) -> str:
+    """The current page in `language`: a path prefix when i18n paths are on, never a stale ?lang= override."""
+    request_context = getattr(request, "ctx", None)
+    clean_path = str(getattr(request_context, "clean_path", "") or getattr(request, "path", "") or "/")
+    if not clean_path.startswith("/"):
+        clean_path = f"/{clean_path}"
+    target_path = clean_path
+    if use_i18n_path and language != default_language:
+        target_path = f"/{quote(language, safe='')}{clean_path}"
+    query_items = [
+        (key, value)
+        for key, value in parse_qsl(str(getattr(request, "query_string", "") or ""), keep_blank_values=True)
+        if key != "lang"
+    ]
+    query = urlencode(query_items)
+    return f"{target_path}?{query}" if query else target_path
+
+
+def language_menu_items(request: Any = None) -> list[dict[str, Any]]:
+    """The language menu entries: code, locale, aliases, name, flag, flagUrl, is_current and url."""
+    config = conf.settings.i18n
+    registry = language_registry(request)
+    current = current_language(request)
+    default_language = registry.resolve(config.default_language) or registry.codes[0]
+    items: list[dict[str, Any]] = []
+    for definition in registry:
+        try:
+            flag_url = direct_flag_url(definition.flag, static_url=conf.settings.web.static.url)
+        except ValueError as exc:
+            raise RuntimeError(f"Language {definition.code} flag {definition.flag!r} cannot be resolved without settings.web.static.url") from exc
+        items.append(
+            {
+                "code": definition.code,
+                "locale": definition.code,
+                "aliases": list(definition.aliases),
+                "name": definition.name,
+                "flag": definition.flag,
+                "flagUrl": flag_url,
+                "is_current": definition.code == current,
+                "url": language_switch_url(request, definition.code, default_language=default_language, use_i18n_path=bool(config.use_i18n_path)),
+            }
+        )
+    return items

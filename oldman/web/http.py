@@ -11,6 +11,7 @@ from sanic.views import HTTPMethodView
 
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.errors import render_html_error_response
+from oldman.web.request import get_arg
 from oldman.web.response import json_response, redirect_response
 
 ResponseMode = Literal["auto", "html", "json"]
@@ -131,17 +132,6 @@ class OldmanHTTPMethodView(HTTPMethodView):
         """无权限响应 hook。"""
         del method_name
         return await permission_denied_response(request, response_mode, message=message)
-
-
-def get_arg(args: object, key: str, default: object = None) -> object:
-    """从 Sanic args 或普通 mapping 读取单值参数。"""
-    getter = getattr(args, "get", None)
-    if getter is None:
-        return default
-    value = getter(key, default)
-    if isinstance(value, list):
-        return value[0] if value else default
-    return value
 
 
 __all__ = [

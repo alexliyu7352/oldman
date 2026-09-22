@@ -23,7 +23,7 @@ uv sync --group dev
 pnpm install --frozen-lockfile
 ```
 
-当前元数据要求 Python 3.12 到 3.14、Node 20 及以上，packageManager 指定 pnpm 9.12.3。前端依赖版本以仓库的 `pnpm-lock.yaml` 为准；Python 依赖只受 `pyproject.toml` 的约束，`uv.lock` 是本机解析结果，不提交仓库。不通过随意升级来绕过失败。依赖变化本身应是独立、可审阅的任务。
+当前元数据要求 Python 3.12 到 3.14、Node 20 及以上，packageManager 指定 pnpm 9.12.3。前端依赖版本以仓库的 `pnpm-lock.yaml` 为准；Python 依赖只受 `pyproject.toml` 的约束，`uv.lock` 是本机解析结果，不提交仓库。不通过随意升级来绕过失败。依赖变化本身应是独立、可审阅的任务。CI 的 3.13 与 3.14 矩阵钉在 3.13.11 与 3.14.2：uvloop 0.22.1 在 asyncio 调试模式（`IsolatedAsyncioTestCase` 会强制开启）下于更新的补丁版崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），上游修复后再放开。
 
 编辑前检查 Git 状态、现有风格与全部相关调用方；一个明确任务一个提交。发布校验不是要求提交用户的未完成修改。需要干净已提交源码时先分清归属，不用 reset 或 add . 清场。
 

@@ -52,7 +52,7 @@ pnpm --dir frontend build
 
 run.sh 只是便捷命令入口，不会自动拉起其他服务。普通 Core 示例不需要 Worker/Scheduler；但 Web 若仍启用 taskiq，其发布连接仍需要启用 JetStream 的 NATS。只有 Web 的 taskiq.enabled 和 nats_bus.enabled 都关闭，Web 才不需要 NATS。
 
-默认登录地址 `http://127.0.0.1:17998/login`，使用自己创建的管理员。进入侧栏“服务通信”；监听端口若在 YAML 中改过，以实际配置为准。
+默认登录地址 `http://127.0.0.1:17997/login`，使用自己创建的管理员。进入侧栏“服务通信”；监听端口若在 YAML 中改过，以实际配置为准。
 
 ## 2. 三页分别看什么
 

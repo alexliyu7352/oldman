@@ -14,8 +14,8 @@ _sqids = Sqids(
 
 
 def generate_alphabet(
-        remove_chars: str = "",
-        seed: int | None = None,
+    remove_chars: str = "",
+    seed: int | None = None,
 ) -> str:
     """
     生成一个用于 Sqids 的自定义 alphabet。

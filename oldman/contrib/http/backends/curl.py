@@ -9,7 +9,7 @@ import asyncio
 import ipaddress
 from contextlib import asynccontextmanager
 from http.cookiejar import CookieJar
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 from urllib.parse import urljoin, urlsplit
 
 from curl_cffi import CurlOpt
@@ -217,27 +217,16 @@ class CurlCffiClient(BaseHttpClient):
         if self.parent.nameservers:
             self.curl_options[CurlOpt.DNS_SERVERS] = ",".join(self.parent.nameservers)  # type: ignore
 
+    session_attribute: ClassVar[str] = "client"
+    backend_label: ClassVar[str] = "curl_cffi"
+
     async def init_client(self) -> None:
         """初始化curl_cffi客户端"""
         logger.info(f"初始化curl_cffi客户端, 最大连接数: {self.parent.max_connections}")
 
-    async def reset_client(self) -> bool:
-        """重置curl_cffi客户端"""
-        if self.client:
-            await self.client.close()
-            self.client = None
-        logger.info("curl_cffi客户端已重置")
-        return True
-
-    async def close_client(self) -> None:
-        """关闭curl_cffi客户端"""
-        if self.client:
-            try:
-                await self.client.close()
-                self.client = None
-            except Exception as e:
-                logger.error(f"关闭curl_cffi客户端时出错: {type(e).__name__}")
-        logger.info("curl_cffi资源清理完成")
+    async def close_session(self, session: Any) -> None:
+        """关闭 curl_cffi 会话。"""
+        await session.close()
 
     async def get_client(self) -> AsyncSession:
         """获取或创建curl_cffi客户端"""

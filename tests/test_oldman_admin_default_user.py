@@ -164,6 +164,8 @@ class OldmanAdminDefaultUserTest(unittest.TestCase):
         self.assertEqual("empty-password", result.empty_display_name)
         self.assertEqual(result.existing_hash_before, result.existing_hash_after)
         self.assertIsNone(result.existing_display_name)
+        # The service stores one spelling per address, whatever the CLI or a script passed in.
+        self.assertEqual("existing@example.test", result.existing_email)
 
     def test_touch_last_login_persists_the_utc_clock_in_real_sqlite(self) -> None:
         """登录时间服务必须在无视觉门禁 trigger 的真实数据库中持久化。"""
@@ -292,10 +294,12 @@ async def exercise_default_admin_branches():
         existing = await ensure_superuser(
             "existing",
             "InitialPass!2026",
+            " Existing@Example.TEST ",
             auth_settings=AuthSettings(),
             db_manager=cast(Any, manager),
         )
         existing_hash_before = existing.password_hash
+        existing_email = existing.email
         async with manager.get_session() as session:
             persisted = await session.scalar(select(User).where(User.username == "existing"))
             if persisted is None:
@@ -314,6 +318,7 @@ async def exercise_default_admin_branches():
             existing_hash_before=existing_hash_before,
             existing_hash_after=existing.password_hash,
             existing_display_name=existing.display_name,
+            existing_email=existing_email,
         )
     finally:
         await engine.dispose()
@@ -338,16 +343,15 @@ async def exercise_touch_last_login(instant: dt.datetime) -> dt.datetime | None:
             db_manager=cast(Any, manager),
         )
 
-        with patch("oldman.auth.services.dt") as datetime_module:
-            datetime_module.UTC = dt.UTC
-            datetime_module.datetime.now.return_value = instant
+        # 服务用共享的 naive_utcnow 取时间，这里替换它来固定时钟。
+        with patch("oldman.auth.services.naive_utcnow", return_value=instant) as clock:
             await touch_last_login(
                 user.id,
                 auth_settings=AuthSettings(),
                 db_manager=cast(Any, manager),
             )
 
-        datetime_module.datetime.now.assert_called_once_with(dt.UTC)
+        clock.assert_called_once_with()
         async with session_factory() as session:
             persisted = await session.get(User, user.id)
             if persisted is None:

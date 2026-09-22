@@ -1,3 +1,4 @@
+import { integerAttribute } from "../core/dom/helpers";
 import { Component, type ComponentOptions } from "../core/component/component";
 
 const DEFAULT_INPUT_SELECTOR = "[data-om-upload-input], input[type='file']";
@@ -148,6 +149,12 @@ export class Upload extends Component {
   /**
    * 创建文件状态条目，并根据大小限制写入错误状态。
    */
+  /**
+   * 建立一条文件记录；超限的只打标记，**不阻断提交**。
+   *
+   * `syncInputFiles()` 会把带 error 的文件排除出原生 input，其余照常提交。前端限制是提示,
+   * 服务端仍然必须自己校验——框架不假装客户端检查是一道防线。
+   */
   private createItem(file: File): UploadFileItem {
     const maxSizeBytes = this.maxSizeBytes();
     const item: UploadFileItem = {
@@ -173,6 +180,10 @@ export class Upload extends Component {
     if (!template) return;
 
     this.previewTemplate = template.cloneNode(true) as HTMLElement;
+    // 克隆会连 data-om-upload-template 一起带走,于是每一条渲染出来的预览都自称是模板。
+    // 另一个上传组件找模板时就会捞到别人的预览,克隆之后还把它 remove() 掉——
+    // 第一个控件已经选好的文件预览会在第二个控件挂载的瞬间消失。
+    this.previewTemplate.removeAttribute("data-om-upload-template");
     template.remove();
   }
 
@@ -317,16 +328,30 @@ export class Upload extends Component {
    * 查找预览容器。
    */
   private previewContainer(): HTMLElement | null {
-    const selector = this.configuredPreviewSelector ?? this.root.dataset.omUploadPreviewSelector ?? DEFAULT_PREVIEW_SELECTOR;
-    return this.root.querySelector<HTMLElement>(selector) ?? document.querySelector<HTMLElement>(selector);
+    const configured = this.configuredPreviewSelector ?? this.root.dataset.omUploadPreviewSelector;
+    return this.resolveOwnOrConfigured(configured, DEFAULT_PREVIEW_SELECTOR);
   }
 
   /**
    * 查找预览模板。
    */
   private templateElement(): HTMLElement | null {
-    const selector = this.configuredTemplateSelector ?? this.root.dataset.omUploadTemplateSelector ?? DEFAULT_TEMPLATE_SELECTOR;
-    return this.root.querySelector<HTMLElement>(selector) ?? document.querySelector<HTMLElement>(selector);
+    const configured = this.configuredTemplateSelector ?? this.root.dataset.omUploadTemplateSelector;
+    return this.resolveOwnOrConfigured(configured, DEFAULT_TEMPLATE_SELECTOR);
+  }
+
+  /**
+   * 在组件根节点内查找；只有**显式配置过**选择器时才允许退回整个文档。
+   *
+   * 把预览容器或模板放在组件根节点之外是受支持的用法(见测试),那种写法一定会写
+   * `data-om-upload-preview-selector` / `-template-selector`，意图是明确的。
+   * 而默认选择器退回文档是意外的：页面上第二个上传控件会捞到第一个控件的节点。
+   */
+  private resolveOwnOrConfigured(configured: string | undefined, fallbackSelector: string): HTMLElement | null {
+    const selector = configured ?? fallbackSelector;
+    const own = this.root.querySelector<HTMLElement>(selector);
+    if (own || configured === undefined) return own;
+    return document.querySelector<HTMLElement>(selector);
   }
 
   /**
@@ -334,7 +359,7 @@ export class Upload extends Component {
    */
   private maxFiles(): number | undefined {
     const input = this.inputElement();
-    const declared = this.configuredMaxFiles ?? this.integerAttribute("data-om-upload-max-files");
+    const declared = this.configuredMaxFiles ?? integerAttribute(this.root, "data-om-upload-max-files");
     const inputDeclared = input?.getAttribute("data-max-files");
     const limit = declared ?? (inputDeclared ? Number(inputDeclared) : undefined);
     return input?.multiple ? limit : Math.min(limit ?? 1, 1);
@@ -374,14 +399,6 @@ export class Upload extends Component {
   /**
    * 读取整数属性。
    */
-  private integerAttribute(name: string): number | undefined {
-    const value = this.root.getAttribute(name);
-    if (!value) return undefined;
-
-    const parsed = Number(value);
-    return Number.isInteger(parsed) ? parsed : undefined;
-  }
-
   /**
    * 读取尺寸属性并转换为字节。
    */

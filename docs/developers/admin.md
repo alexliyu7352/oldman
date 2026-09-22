@@ -39,6 +39,8 @@ install_admin(
 )
 ```
 
+`prefix` 末尾的斜杠会被去掉，`/admin` 是首页的规范地址。Oldman Web 运行时以严格斜杠注册路由，Admin 因此额外把 `/admin/` 以 301 转到 `/admin` 并保留查询串；未开启严格斜杠的 Sanic 应用本来就两种写法都能命中，不会重复注册。
+
 除 app 外均为关键字参数，返回安装后的 `AdminSite`。默认使用框架数据库管理器和默认 site；Auth/Admin 配置分别来自已注册 App 的强类型 settings。通常不需要逐个传这三项。
 
 安装前提：
@@ -86,7 +88,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 - `async save_model(session, instance)`：默认 add + flush，返回实例；不提交外层事务。
 - `async delete_model(session, instance)`：默认 delete + flush；同样不自行提交。
 - `has_view_permission(request)`、`has_add_permission(request)`、`has_change_permission(request)`、`has_delete_permission(request)`：同步布尔判断；默认后面三个沿用 view 权限。
-- `row_value(instance, field_name)`、`table_cell_value(instance, field_name, *, admin_prefix)`：定制展示值；可信 HTML 需要按共享 Table 的输出规则显式声明。
+- `row_value(instance, field_name)`、`table_cell_value(instance, field_name, *, admin_prefix)`：定制展示值；可信 HTML 需要按共享 Table 的输出规则显式声明。默认实现把布尔值渲染成 Yes/No 徽章，`datetime` 显示为 `YYYY-MM-DD HH:MM` 并把 ISO 8601 作为 raw value，`date` 直接用 ISO 日期；其余值保持规范化后的原值。
 - `table_action_html(instance, *, admin_prefix)`、`get_edit_extra_buttons(instance, admin_prefix)`：定制控制按钮；需复用共享 DOM 和 actions 协议。
 
 保存钩子拿到的是当前请求事务。可以在里面设置业务字段，再 `await super().save_model(session, instance)`；不要另开一次提交，也不要在 flush 后就假定提交成功。文件字段仍遵循[模型文件生命周期](storage.md)，不由 Admin 单独删除附件。
@@ -101,7 +103,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 
 `AdminUserModelAdmin` 提供 User 专用表单、密码和状态操作。希望扩展选定 User 的管理界面时，先用该类的子类注册，而不是普通 ModelAdmin；安装器会保留已经注册的专用管理器。自定义 User 的字段、真实外键和迁移归属见[数据库参考](database.md)。
 
-`createsuperuser`、`changepassword` 是 Admin App 的异步命令；执行命令需要该服务安装 App，但不启动 Sanic。当前 `change_user_password()` 只更新数据库密码，不自动撤销既有 Session；不能把改密命令当作全端踢出。需要撤销登录时明确使用 [Session API](web.md#session-和认证不是自动登录系统)。
+`createsuperuser`、`changepassword` 是 Admin App 的异步命令；执行命令需要该服务安装 App，但不启动 Sanic。脚本和门禁用 `createsuperuser --noinput`：用户名（必须显式给 `--username`）和邮箱走参数，密码读环境变量 `OLDMAN_SUPERUSER_PASSWORD`（不放进命令行参数，避免进入进程列表和 shell 历史）。同名用户存在时两种模式都直接报错：`ensure_superuser` 会覆盖密码并把账号提成 active+staff+superuser，发布脚本重复执行会静默回滚管理员自己改过的密码，拿一个普通用户名执行则等于提权。确实要「有就更新」时显式加 `--update`。当前 `change_user_password()` 只更新数据库密码，不自动撤销既有 Session；不能把改密命令当作全端踢出。需要撤销登录时明确使用 [Session API](web.md#session-和认证不是自动登录系统)。
 
 ## 资源与模板
 

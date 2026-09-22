@@ -74,7 +74,11 @@ export class ScopedPreloader {
   }
 
   private ensureOverlay(): HTMLElement {
-    const existing = this.root.querySelector<HTMLElement>(PRELOADER_SELECTOR);
+    // 只认直接子级，和 `hide()` 的范围一致。用任意深度查找会捞到**内层作用域**的遮罩：
+    // `ScopedRoot` 在构造函数里给每个 Page 和每个 Component 都建一个 ScopedPreloader，
+    // 所以"外层里嵌着内层"是常态。接管之后外层的 hide() 会把内层的遮罩删掉，
+    // 而内层的 data-om-preloader-status 还停在 loading——它认为自己在加载，却什么都没有。
+    const existing = this.root.querySelector<HTMLElement>(`:scope > ${PRELOADER_SELECTOR}`);
     if (existing) {
       this.overlay = existing;
       return existing;

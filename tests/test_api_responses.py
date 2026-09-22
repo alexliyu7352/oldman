@@ -9,6 +9,7 @@ from pathlib import Path
 
 from oldman.i18n import TranslatableMsgspecModel, gettext_lazy
 from oldman.i18n.translations import bind_translations, reset_translations
+from oldman.web.api import DefaultApiResponse, ReplaceHtmlAction
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,6 +23,15 @@ class ApiResponseModelTest(unittest.TestCase):
 
         self.assertTrue(issubclass(DefaultApiResponse, TranslatableMsgspecModel))
         self.assertTrue(issubclass(DefaultApiFormResponse, DefaultApiResponse))
+
+    def test_rendered_markup_serializes_as_plain_text(self) -> None:
+        """A fragment rendered as Markup (render_fragment, form.render) must ride in an action as a string."""
+        from markupsafe import Markup
+
+        payload = DefaultApiResponse(actions=[ReplaceHtmlAction(html=Markup("<b>&amp;</b>"), target="#panel")]).to_dict()
+
+        self.assertEqual({"action": "replace_html", "html": "<b>&amp;</b>", "target": "#panel"}, payload["actions"][0])
+        self.assertIs(str, type(payload["actions"][0]["html"]))
 
     def test_response_to_dict_serializes_ordered_actions_and_lazy_translations(self) -> None:
         """to_dict 输出必须是前端可消费的单层有序动作。"""
@@ -175,6 +185,33 @@ class ApiResponseModelTest(unittest.TestCase):
                     offenders.append(path.relative_to(ROOT).as_posix())
 
         self.assertEqual([], offenders)
+
+
+class RedirectActionLinkRuleTest(unittest.TestCase):
+    """`RedirectAction.url` goes straight into `window.location.assign` in the browser.
+
+    `DashboardActivityAction` already holds its own `href` to this rule and says why in its
+    docstring; this action validated `delay_ms` and not the field that actually navigates.
+    """
+
+    def test_a_scheme_that_executes_is_refused(self) -> None:
+        from oldman.web.api import RedirectAction
+
+        for url in ("javascript:alert(1)", "data:text/html,<script>1</script>", "vbscript:msgbox", "JavaScript:alert(1)"):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                RedirectAction(url=url)
+
+    def test_an_external_destination_is_still_allowed(self) -> None:
+        """The framework must not decide that a redirect has to stay on this site.
+
+        Sending the browser to an external payment page, an OAuth provider or an object store is
+        ordinary business; only schemes that execute are refused.
+        """
+        from oldman.web.api import RedirectAction
+
+        for url in ("/login", "https://pay.example/checkout/7", "//cdn.example/x", "mailto:ops@example.com"):
+            with self.subTest(url=url):
+                self.assertEqual(url, RedirectAction(url=url).url)
 
 
 if __name__ == "__main__":

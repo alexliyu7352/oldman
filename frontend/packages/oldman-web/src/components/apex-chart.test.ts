@@ -106,9 +106,12 @@ describe("ApexChart", () => {
     });
 
     expect(chartInstances[0]!.options).toEqual({
-      series: [{ data: [3] }], xaxis: { categories: ["Today"] },
-      chart: { foreColor: "var(--om-chart-axis-text, #373d3f)" },
-      grid: { borderColor: "var(--om-chart-grid, #e0e0e0)" }
+      series: [{ data: [3] }],
+      xaxis: { axisBorder: { show: false }, axisTicks: { show: false }, categories: ["Today"] },
+      chart: { fontFamily: "inherit", foreColor: "var(--om-chart-axis-text, #373d3f)", toolbar: { show: false } },
+      grid: { strokeDashArray: 4, xaxis: { lines: { show: false } }, borderColor: "var(--om-chart-grid, #e0e0e0)" },
+      colors: ["#3b82f6", "#10b981", "#0ea5e9", "#f59e0b", "#f43f5e", "#8b5cf6"],
+      dataLabels: { enabled: false }
     });
     expect(root.querySelector("[data-om-chart-summary]")?.textContent).toContain("<b>Total</b>");
     expect(root.querySelector("[data-om-chart-summary] b")).toBeNull();
@@ -143,8 +146,11 @@ describe("ApexChart", () => {
     expect(chartInstances).toHaveLength(1);
     expect(chartInstances[0]!.options).toEqual({
       series: [{ data: [2] }],
-      chart: { foreColor: "var(--om-chart-axis-text, #373d3f)" },
-      grid: { borderColor: "var(--om-chart-grid, #e0e0e0)" }
+      xaxis: { axisBorder: { show: false }, axisTicks: { show: false } },
+      chart: { fontFamily: "inherit", foreColor: "var(--om-chart-axis-text, #373d3f)", toolbar: { show: false } },
+      grid: { strokeDashArray: 4, xaxis: { lines: { show: false } }, borderColor: "var(--om-chart-grid, #e0e0e0)" },
+      colors: ["#3b82f6", "#10b981", "#0ea5e9", "#f59e0b", "#f43f5e", "#8b5cf6"],
+      dataLabels: { enabled: false }
     });
 
     const pending = component.load("/api/chart?range=pending");
@@ -178,14 +184,43 @@ describe("ApexChart", () => {
     document.body.append(root);
     const component = new ApexChart(root);
     const options = Object.freeze({
-      chart: Object.freeze({ type: "line", foreColor: "#b45309" }),
-      grid: Object.freeze({ borderColor: "#64748b", show: false }),
+      chart: Object.freeze({ type: "line", foreColor: "#b45309", toolbar: { show: true } }),
+      grid: Object.freeze({ borderColor: "#64748b", show: false, strokeDashArray: 0 }),
+      xaxis: Object.freeze({ axisBorder: { show: true } }),
       colors: ["#ff0000"],
       series: [{ data: [1] }]
     });
     await component.renderChart(options);
-    expect(chartInstances[0]!.options).toEqual(options);
+    expect(chartInstances[0]!.options).toEqual({
+      ...options,
+      chart: { fontFamily: "inherit", ...options.chart },
+      grid: { xaxis: { lines: { show: false } }, ...options.grid },
+      xaxis: { axisTicks: { show: false }, ...options.xaxis },
+      dataLabels: { enabled: false }
+    });
     expect((chartInstances[0]!.options as { chart: unknown }).chart).not.toBe(options.chart);
+    await component.stop();
+  });
+
+  it("gives area charts the signature fill and reads the palette from the stylesheet tokens", async () => {
+    const root = document.createElement("section");
+    root.style.setProperty("--om-chart-1", "#123456");
+    document.body.append(root);
+    const component = new ApexChart(root);
+    await component.renderChart({ chart: { type: "area" }, series: [{ data: [1] }] });
+    const rendered = chartInstances[0]!.options as { colors: string[]; fill: { type: string } };
+    expect(rendered.colors[0]).toBe("#123456");
+    expect(rendered.colors[1]).toBe("#10b981");
+    expect(rendered.fill.type).toBe("gradient");
+    await component.stop();
+  });
+
+  it("lets an explicit dataLabels option override the disabled default", async () => {
+    const root = document.createElement("section");
+    document.body.append(root);
+    const component = new ApexChart(root);
+    await component.renderChart({ series: [{ data: [1] }], dataLabels: { enabled: true, offsetY: -4 } });
+    expect((chartInstances[0]!.options as { dataLabels: unknown }).dataLabels).toEqual({ enabled: true, offsetY: -4 });
     await component.stop();
   });
 

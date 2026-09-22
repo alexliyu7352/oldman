@@ -91,7 +91,7 @@ pnpm 的 prebuild/predev/pretypecheck 自动生成项目图标；前两个还生
 ./run.sh i18n compile
 ```
 
-已有语言不重复 init。Python、Jinja、App 命令及前端共用 messages；MO 和浏览器 JSON 是不同产物，不另维护前端 PO。App 命令 help 用 lazy translation。scripts/build_frontend_i18n.py 读取本服务语言设置，并只编译浏览器需要的词条；新增语言后还需重新构建前端。
+已有语言不重复 init。Python、Jinja、App 命令及前端共用 messages；MO 和浏览器 JSON 是不同产物，不另维护前端 PO。App 命令 help 用 lazy translation。`./run.sh i18n compile-frontend --service {{ service_name }}`（`pnpm generate:i18n` 会调它）读取本服务语言设置，只编译浏览器需要的词条，写出 `frontend/public/i18n/<code>.json` 和前端导入的 `frontend/src/i18n/generated.ts`；语言集合进了构建产物，所以新增语言后必须重新构建前端。
 
 ## 下一步
 

@@ -1,7 +1,10 @@
+import { cssEscape } from "../core/dom/helpers";
+import { relativeUrl } from "../core/http/urls";
 import { Component } from "../core/component/component";
-import { isCancel } from "axios";
+import { isCanceledError } from "../core/services/abort";
 import { queryAllSelfOrDescendants } from "../core/dom/helpers";
 import { ScopedPreloader } from "../core/services/preloader";
+import { createPreferenceStore, type PreferenceStore } from "../core/services/preferences";
 import { Dropdown } from "./dropdown";
 import type { JsonTableModel, TableJsonPayload, TableJsonRow } from "./table-json";
 
@@ -20,8 +23,21 @@ const TABLE_ROW_SELECTOR = "[data-om-table-row]";
 const TABLE_SELECT_ALL_SELECTOR = "[data-om-table-select-all]";
 const TABLE_SELECT_ROW_SELECTOR = "[data-om-table-select-row]";
 const TABLE_SHELL_SELECTOR = ".om-table-shell";
+const TABLE_SCROLL_SELECTOR = ".om-table-scroll";
+const TABLE_SCROLL_FIT_CLASS = "is-fit";
 const TABLE_SORT_SELECTOR = "[data-om-table-sort]";
 const TABLE_SUMMARY_SELECTOR = "[data-om-table-summary]";
+const TABLE_SELECTION_COUNT_SELECTOR = "[data-om-table-selection-count]";
+const TABLE_BULK_ACTIONS_SELECTOR = "[data-om-table-bulk-actions]";
+const TABLE_COLUMN_TOGGLE_SELECTOR = "[data-om-table-column-toggle]";
+const TABLE_DENSITY_SELECTOR = "[data-om-table-density]";
+// State attribute on the component root. Never reuse a trigger attribute here: delegated handlers
+// match the closest ancestor, and the root is one of them, so a shared name would swallow every click.
+const TABLE_DENSITY_STATE_ATTRIBUTE = "data-om-density";
+const TABLE_EXPORT_SELECTOR = "[data-om-table-export]";
+const TABLE_EMPTY_RESET_SELECTOR = "[data-om-table-empty-reset]";
+const TABLE_EMPTY_TEMPLATE_SELECTOR = "template[data-om-table-empty-template]";
+const TABLE_COLUMN_CELL_SELECTOR = "th[data-om-column], td[data-om-column]";
 
 export interface TableRefreshDetail<TTable extends Table = Table> {
   component: TTable;
@@ -36,8 +52,20 @@ export interface TableRefreshErrorDetail<TTable extends Table = Table> {
   url: string;
 }
 
+export interface TableSelectionDetail<TTable extends Table = Table> {
+  component: TTable;
+  ids: string[];
+}
+
 export type TableStatus = "idle" | "loading" | "success" | "error";
+export type TableDensity = "comfortable" | "compact";
 type TableSortDirection = "ascending" | "descending";
+
+/** Per-table view choices remembered in the browser (toolbar "Columns" and "Density"). */
+interface TableViewPreferences {
+  density?: TableDensity;
+  hiddenColumns?: string[];
+}
 
 interface TableSortState {
   direction: TableSortDirection;
@@ -54,11 +82,28 @@ interface TableColumnMetadata {
 /**
  * 为后端渲染表格提供无头过滤、分页状态和 HTML 片段刷新能力。
  */
+/** Whether one table request carries state: a query, a page, a sort or any filter. */
+function describesTableState(url: URL): boolean {
+  if (["q", "page", "sort"].some((name) => url.searchParams.get(name))) return true;
+  return Array.from(url.searchParams.keys()).some((name) => name.startsWith("filter."));
+}
+
+/** The same question for a page URL, where filters appear under their bare names. */
+function pageDescribesTableState(url: URL, filterNames: Set<string>): boolean {
+  if (describesTableState(url)) return true;
+  return Array.from(filterNames).some((name) => {
+    const normalized = name.startsWith("filter.") ? name.slice("filter.".length) : name;
+    return Boolean(url.searchParams.get(normalized));
+  });
+}
+
 export class Table extends Component {
   static readonly componentName = "table";
   private currentPage = 1;
   private externalFormParams: URLSearchParams | null = null;
   private externalFormFieldNames = new Set<string>();
+  /** Filter names removed by resetFilters(); the next page-URL sync must still delete their parameters. */
+  private clearedFilterNames = new Set<string>();
   private loadingPreloader: ScopedPreloader | null = null;
   private loadingPreloaderRoot: HTMLElement | null = null;
   private jsonTableModel: JsonTableModel | null = null;
@@ -66,6 +111,13 @@ export class Table extends Component {
   private refreshSerial = 0;
   private searchInteracted = false;
   private sortState: TableSortState | null = null;
+  private fallbackPreferences: PreferenceStore | null = null;
+  private hiddenColumns = new Set<string>();
+  private density: TableDensity = "comfortable";
+  private lastSelectionKey = "";
+  private fitObserver: ResizeObserver | null = null;
+  private fitObserverTarget: HTMLElement | null = null;
+  private fitUpdate: (() => void) | null = null;
 
   /**
    * 绑定表格控件，并同步初始可见行状态。
@@ -138,13 +190,40 @@ export class Table extends Component {
       if (target instanceof HTMLInputElement && this.jsonTableModel) {
         this.jsonTableModel.setRowSelected(target.value, target.checked);
       }
-      this.syncSelectAllState();
+      this.syncSelectionState();
     });
+
+    this.on("change", TABLE_COLUMN_TOGGLE_SELECTOR, (_event, target) => {
+      if (!(target instanceof HTMLInputElement)) return;
+      this.setColumnHidden(target.value, !target.checked);
+    });
+
+    this.on("click", TABLE_DENSITY_SELECTOR, (event, target) => {
+      event.preventDefault();
+      if (!(target instanceof HTMLElement)) return;
+      this.setDensity(target.getAttribute("data-om-table-density") === "compact" ? "compact" : "comfortable");
+    });
+
+    this.on("click", TABLE_EXPORT_SELECTOR, (event, target) => {
+      event.preventDefault();
+      if (!(target instanceof HTMLElement)) return;
+      const format = target.getAttribute("data-om-table-export") || "";
+      if (format) this.download(this.exportUrl(format));
+    });
+
+    this.on("click", TABLE_EMPTY_RESET_SELECTOR, (event) => {
+      event.preventDefault();
+      void this.resetFilters();
+    });
+
+    this.restoreViewPreferences();
+    this.observeScrollFit();
+    this.cleanup(() => this.fitObserver?.disconnect());
 
     if (this.isServerMode()) {
       if (this.syncsPageUrl()) this.restoreInitialPageState();
       this.restoreInitialSortState();
-      this.syncSelectAllState();
+      this.syncSelectionState();
       if (this.partialNeedsInitialRefresh()) {
         void this.refresh().catch((error: unknown) => {
           this.logger.error("Oldman table initial refresh failed", error);
@@ -173,6 +252,10 @@ export class Table extends Component {
     const format = this.dataFormat();
     this.setStatus("loading", this.i18n.t("Loading..."));
     this.showLoading();
+    // 地址栏与根节点状态只依赖请求本身，等响应回来再写就晚了：用户在这一来一回之间点了
+    // "新增"，Turbo 会先缓存快照再换页，这一页的筛选、排序、页码就一起丢了，取消返回时
+    // 看到的是一张默认表格。
+    if (this.isServerMode() && this.syncsPageUrl()) this.syncPageUrl(url);
 
     try {
       if (format === "json") {
@@ -193,9 +276,10 @@ export class Table extends Component {
 
       this.setStatus("success");
       if (this.isServerMode()) {
-        if (this.syncsPageUrl()) this.syncPageUrl(url);
         if (this.sortState) this.syncSortControls();
-        this.syncSelectAllState();
+        this.syncSelectionState();
+        this.applyColumnVisibility();
+        this.observeScrollFit();
       } else {
         this.applyLocalView();
       }
@@ -279,10 +363,7 @@ export class Table extends Component {
    * 判断刷新是否被页面卸载或新请求主动取消，取消不属于业务错误。
    */
   private isCanceledRefresh(error: unknown): boolean {
-    if (isCancel(error)) return true;
-    if (!error || typeof error !== "object") return false;
-    const record = error as { code?: unknown; name?: unknown };
-    return record.code === "ERR_CANCELED" || record.name === "CanceledError";
+    return this.signal.aborted || isCanceledError(error);
   }
 
   /**
@@ -309,7 +390,7 @@ export class Table extends Component {
 
     this.renderPagination(pageCount);
     this.renderSummary(filteredRows.length, pageRows.length);
-    this.syncSelectAllState();
+    this.syncSelectionState();
 
     if (!empty) return;
 
@@ -396,7 +477,7 @@ export class Table extends Component {
       url.searchParams.set("sort", initialSort);
     }
 
-    return this.relativeUrl(url);
+    return relativeUrl(url);
   }
 
   /**
@@ -425,6 +506,25 @@ export class Table extends Component {
   private syncPageUrl(requestUrl: string): void {
     const request = new URL(requestUrl, window.location.href);
     const page = new URL(window.location.href);
+    const initialFilterNames = Array.from(this.root.attributes)
+      .filter((attribute) => attribute.name.startsWith("data-om-filter-"))
+      .map((attribute) => attribute.name.replace("data-om-filter-", "").replaceAll("-", "_"));
+    const filterNames = new Set([...initialFilterNames, ...this.externalFormFieldNames, ...this.clearedFilterNames]);
+    // 用户清空搜索或筛选时，请求里同样没有状态，但那是一次真实操作，地址栏必须跟着清干净。
+    // 要跳过的只有"组件自己还不知道状态"的那一次刷新：Turbo 还原之后组件可能先于服务端注入的
+    // data-om-* 状态挂载完成，于是按默认值请求一次。`replaceState` 改的是历史条目本身，一旦让它
+    // 抹掉，用户按"取消/后退"回来的就是一个没有筛选的列表。
+    const userDrivenRefresh = Boolean(
+      this.externalFormParams
+      || this.searchInteracted
+      || this.sortState
+      || this.clearedFilterNames.size
+      || filterNames.size
+      || this.initialQuery()
+      || this.initialSort()
+    );
+    if (!userDrivenRefresh && !describesTableState(request) && pageDescribesTableState(page, filterNames)) return;
+    this.clearedFilterNames = new Set();
     for (const name of ["q", "page_size", "page", "sort"]) {
       const wasExplicit = page.searchParams.has(name);
       page.searchParams.delete(name);
@@ -434,10 +534,6 @@ export class Table extends Component {
       page.searchParams.set(name, value);
     }
 
-    const initialFilterNames = Array.from(this.root.attributes)
-      .filter((attribute) => attribute.name.startsWith("data-om-filter-"))
-      .map((attribute) => attribute.name.replace("data-om-filter-", "").replaceAll("-", "_"));
-    const filterNames = new Set([...initialFilterNames, ...this.externalFormFieldNames]);
     for (const name of filterNames) {
       page.searchParams.delete(name.startsWith("filter.") ? name.slice("filter.".length) : name);
     }
@@ -557,7 +653,7 @@ export class Table extends Component {
   private async replaceJsonPayload(adapter: typeof import("./table-json"), value: unknown, requestUrl: string): Promise<void> {
     const expectedColumns = Array.from(this.localColumnMetadata().keys());
     const selectable = Boolean(this.root.querySelector(TABLE_SELECT_ALL_SELECTOR));
-    const payload = adapter.parseTableJsonPayload(value, expectedColumns, selectable);
+    const payload = adapter.parseTableJsonPayload(value, expectedColumns);
     const body = this.root.querySelector<HTMLTableSectionElement>(TABLE_BODY_SELECTOR);
     const partial = this.partialContainer();
     const pageSizeControl = this.root.querySelector<HTMLSelectElement | HTMLInputElement>(TABLE_PAGE_SIZE_CONTROL_SELECTOR);
@@ -594,8 +690,12 @@ export class Table extends Component {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = payload.columns.length + (selectable ? 1 : 0);
-      cell.className = "px-4 py-8 text-center text-default-500";
-      cell.textContent = this.root.getAttribute("data-om-table-empty-message") || "";
+      cell.className = "om-table-empty-cell";
+      // The shell ships both empty-state variants as templates; "filtered" when the user's filters hid records.
+      const variant = payload.pagination.filtered_total < payload.pagination.total ? "filtered" : "all";
+      const template = this.root.querySelector<HTMLTemplateElement>(`${TABLE_EMPTY_TEMPLATE_SELECTOR}[data-om-table-empty-template="${variant}"]`);
+      if (template) cell.append(template.content.cloneNode(true));
+      else cell.textContent = this.root.getAttribute("data-om-table-empty-message") || "";
       row.append(cell);
       fragment.append(row);
       return fragment;
@@ -764,7 +864,9 @@ export class Table extends Component {
    * 判断当前远程刷新是否仍然是最新请求。
    */
   private isCurrentRefresh(refreshSerial: number): boolean {
-    return refreshSerial === this.refreshSerial;
+    // 组件卸载后这次刷新就不再有"当前"可言：响应可能正好赶在 abort 之前落地，继续往下走
+    // 会把 DOM、状态、以及 syncPageUrl 的 replaceState 写到已经属于下一个页面的历史条目上。
+    return refreshSerial === this.refreshSerial && !this.signal.aborted;
   }
 
   /** 串行执行异步 DOM 生命周期；单次异常仍交给对应 refresh，后续提交可以继续。 */
@@ -824,11 +926,6 @@ export class Table extends Component {
   /**
    * 将同源 URL 压缩为相对地址，避免测试和模板输出受域名影响。
    */
-  private relativeUrl(url: URL): string {
-    if (url.origin !== window.location.origin) return url.toString();
-    return `${url.pathname}${url.search}${url.hash}`;
-  }
-
   /**
    * 将未知错误转换为可显示的错误消息。
    */
@@ -983,8 +1080,9 @@ export class Table extends Component {
     if (!container) return;
 
     const existingButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"));
-    const previousLabel = existingButtons.at(0)?.textContent?.trim() || "";
-    const nextLabel = existingButtons.at(-1)?.textContent?.trim() || "";
+    // The server renders the previous/next controls (icon or text); reuse them as-is on every re-render.
+    const previousControl = navigationControl(existingButtons.at(0));
+    const nextControl = navigationControl(existingButtons.at(-1));
     container.replaceChildren();
     if (!windowed) {
       for (let page = 1; page <= pageCount; page += 1) {
@@ -993,26 +1091,33 @@ export class Table extends Component {
       return;
     }
 
-    container.append(this.paginationButton(this.currentPage - 1, previousLabel, this.currentPage <= 1));
+    container.append(this.paginationButton(this.currentPage - 1, previousControl, this.currentPage <= 1));
     let previousPage: number | null = null;
     for (const page of paginationWindow(this.currentPage, pageCount)) {
       if (previousPage !== null && page - previousPage > 1) {
         const ellipsis = document.createElement("span");
-        ellipsis.className = "px-2 text-xs text-default-400";
-        ellipsis.textContent = "...";
+        ellipsis.className = "om-pagination-ellipsis";
+        ellipsis.setAttribute("aria-hidden", "true");
+        ellipsis.textContent = "…";
         container.append(ellipsis);
       }
       container.append(this.paginationButton(page, String(page)));
       previousPage = page;
     }
-    container.append(this.paginationButton(this.currentPage + 1, nextLabel, this.currentPage >= pageCount));
+    container.append(this.paginationButton(this.currentPage + 1, nextControl, this.currentPage >= pageCount));
   }
 
-  private paginationButton(page: number, label: string, disabled = false): HTMLButtonElement {
+  private paginationButton(page: number, control: string | PaginationControl, disabled = false): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `om-page-button ${page === this.currentPage ? "is-active" : ""}`.trim();
-    button.textContent = label;
+    if (typeof control === "string") {
+      button.textContent = control;
+    } else {
+      button.classList.add("om-page-button-nav");
+      button.innerHTML = control.html;
+      if (control.label) button.setAttribute("aria-label", control.label);
+    }
     button.disabled = disabled;
     if (!disabled) button.setAttribute("data-om-table-page", String(page));
     if (page === this.currentPage) button.setAttribute("aria-current", "page");
@@ -1033,6 +1138,60 @@ export class Table extends Component {
   }
 
   /**
+   * Clear the search box, the initial filters and any external filter form, then reload. A linked
+   * TableFilterForm (`data-om-table-target="#<id>"`) resets through its own button so its controls clear too.
+   */
+  async resetFilters(): Promise<void> {
+    const filter = this.root.querySelector<HTMLInputElement>(TABLE_FILTER_SELECTOR);
+    if (filter) filter.value = "";
+    this.searchInteracted = true;
+    this.externalFormParams = null;
+    this.externalFormFieldNames = new Set();
+    this.currentPage = 1;
+    for (const attribute of Array.from(this.root.attributes)) {
+      if (!attribute.name.startsWith("data-om-filter-")) continue;
+      this.clearedFilterNames.add(attribute.name.replace("data-om-filter-", "").replaceAll("-", "_"));
+      this.root.removeAttribute(attribute.name);
+    }
+    this.root.removeAttribute("data-om-table-initial-query");
+
+    const reset = this.root.id
+      ? document.querySelector<HTMLElement>(`[data-om-table-target="#${cssEscape(this.root.id)}"] [data-om-filter-reset]`)
+      : null;
+    if (reset) {
+      reset.click();
+      return;
+    }
+    await this.reload();
+  }
+
+  /** Data URL for an export in `format`: current search, filters and sort, never a page (exports cover every matching row). */
+  exportUrl(format: string): string {
+    const url = new URL(this.buildUrl(), window.location.href);
+    url.searchParams.delete("page");
+    url.searchParams.delete("page_size");
+    url.searchParams.set("export", format);
+    return relativeUrl(url);
+  }
+
+  /** A same-origin attachment response downloads without leaving the page, so a plain navigation is enough. */
+  private download(url: string): void {
+    window.location.assign(url);
+  }
+
+  /** Ids of the checked rows on the current page, in row order. */
+  selectedIds(): string[] {
+    return this.visibleRowCheckboxes()
+      .filter((checkbox) => checkbox.checked)
+      .map((checkbox) => checkbox.value || checkbox.closest(TABLE_ROW_SELECTOR)?.getAttribute("data-om-table-row-id") || "");
+  }
+
+  /** Uncheck every row on the current page; bulk actions call this after they finish. */
+  clearSelection(): void {
+    this.setVisibleRowsSelected(false);
+  }
+
+  /**
    * 切换当前可见行的选择框状态。
    */
   private setVisibleRowsSelected(selected: boolean): void {
@@ -1042,24 +1201,138 @@ export class Table extends Component {
       if (checkbox) checkbox.checked = selected;
     }
 
-    this.syncSelectAllState();
+    this.syncSelectionState();
   }
 
-  /**
-   * 根据当前可见行选择状态同步表头复选框。
-   */
-  private syncSelectAllState(): void {
-    const selectAll = this.root.querySelector<HTMLInputElement>(TABLE_SELECT_ALL_SELECTOR);
-    if (!selectAll) return;
-
-    const visibleChecks = this.localRows()
+  private visibleRowCheckboxes(): HTMLInputElement[] {
+    return this.localRows()
       .filter((row) => !row.hidden)
       .map((row) => row.querySelector<HTMLInputElement>(TABLE_SELECT_ROW_SELECTOR))
       .filter((checkbox): checkbox is HTMLInputElement => Boolean(checkbox));
+  }
+
+  /**
+   * Mirror the row checkboxes into the header checkbox, the toolbar count and the bulk-action slot,
+   * and announce the selection whenever the set of ids changes.
+   */
+  private syncSelectionState(): void {
+    const visibleChecks = this.visibleRowCheckboxes();
     const selectedCount = visibleChecks.filter((checkbox) => checkbox.checked).length;
 
-    selectAll.checked = visibleChecks.length > 0 && selectedCount === visibleChecks.length;
-    selectAll.indeterminate = selectedCount > 0 && selectedCount < visibleChecks.length;
+    const selectAll = this.root.querySelector<HTMLInputElement>(TABLE_SELECT_ALL_SELECTOR);
+    if (selectAll) {
+      selectAll.checked = visibleChecks.length > 0 && selectedCount === visibleChecks.length;
+      selectAll.indeterminate = selectedCount > 0 && selectedCount < visibleChecks.length;
+    }
+
+    const ids = this.selectedIds();
+    const count = this.root.querySelector<HTMLElement>(TABLE_SELECTION_COUNT_SELECTOR);
+    if (count) {
+      count.textContent = this.i18n.t("{count} selected", { count: ids.length });
+      count.hidden = ids.length === 0;
+    }
+    const bulkActions = this.root.querySelector<HTMLElement>(TABLE_BULK_ACTIONS_SELECTOR);
+    if (bulkActions) bulkActions.hidden = ids.length === 0;
+
+    const key = ids.join("\u0000");
+    if (key === this.lastSelectionKey) return;
+    this.lastSelectionKey = key;
+    this.emit<TableSelectionDetail>("om:table:selection", { component: this, ids });
+  }
+
+  private preferenceStore(): PreferenceStore {
+    if (this.page?.preferences) return this.page.preferences;
+    this.fallbackPreferences ??= createPreferenceStore();
+    return this.fallbackPreferences;
+  }
+
+  /** One preference record per table, keyed by its element id (or data source as a fallback). */
+  private viewPreferenceKey(): string {
+    return `table:${this.root.id || this.remoteSource() || window.location.pathname}`;
+  }
+
+  private restoreViewPreferences(): void {
+    const stored = this.preferenceStore().getJson<TableViewPreferences>(this.viewPreferenceKey()) ?? {};
+    const remembered = Array.isArray(stored.hiddenColumns) ? stored.hiddenColumns.map(String) : [];
+    // Only a column with a toggle can stay hidden: a remembered name the menu no longer offers (pinned,
+    // renamed or removed since) would otherwise be hidden with no control to bring it back.
+    const hideable = new Set(Array.from(this.root.querySelectorAll<HTMLInputElement>(TABLE_COLUMN_TOGGLE_SELECTOR), (toggle) => toggle.value));
+    this.hiddenColumns = new Set(remembered.filter((name) => hideable.has(name)));
+    this.density = stored.density === "compact" ? "compact" : "comfortable";
+    if (this.hiddenColumns.size !== remembered.length) this.storeViewPreferences();
+    this.applyDensity();
+    this.syncColumnToggles();
+    this.applyColumnVisibility();
+  }
+
+  private storeViewPreferences(): void {
+    const value: TableViewPreferences = { density: this.density, hiddenColumns: Array.from(this.hiddenColumns) };
+    this.preferenceStore().setJson(this.viewPreferenceKey(), value);
+  }
+
+  private setColumnHidden(name: string, hidden: boolean): void {
+    if (!name) return;
+    if (hidden) this.hiddenColumns.add(name);
+    else this.hiddenColumns.delete(name);
+    this.storeViewPreferences();
+    this.syncColumnToggles();
+    this.applyColumnVisibility();
+  }
+
+  private setDensity(density: TableDensity): void {
+    this.density = density;
+    this.storeViewPreferences();
+    this.applyDensity();
+  }
+
+  /** Density lives on the component root so a replaced table body keeps it without re-applying. */
+  private applyDensity(): void {
+    this.root.setAttribute(TABLE_DENSITY_STATE_ATTRIBUTE, this.density);
+    for (const item of this.root.querySelectorAll<HTMLElement>(TABLE_DENSITY_SELECTOR)) {
+      const active = item.getAttribute("data-om-table-density") === this.density;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    }
+  }
+
+  private syncColumnToggles(): void {
+    for (const toggle of this.root.querySelectorAll<HTMLInputElement>(TABLE_COLUMN_TOGGLE_SELECTOR)) {
+      toggle.checked = !this.hiddenColumns.has(toggle.value);
+    }
+  }
+
+  /**
+   * Mark the scroll box `is-fit` while the table fits inside it (no sideways scrolling), which lets the
+   * sticky header reach the page; re-run after a refresh because the initial partial replaces the box.
+   */
+  private observeScrollFit(): void {
+    const scroll = this.root.querySelector<HTMLElement>(TABLE_SCROLL_SELECTOR);
+    if (!scroll) return;
+    if (scroll === this.fitObserverTarget) {
+      // Same box, new cells (a region refresh): re-measure now instead of waiting for the observer.
+      this.fitUpdate?.();
+      return;
+    }
+
+    this.fitObserver?.disconnect();
+    this.fitObserverTarget = scroll;
+    const update = () => scroll.classList.toggle(TABLE_SCROLL_FIT_CLASS, scroll.scrollWidth <= scroll.clientWidth);
+    this.fitUpdate = update;
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+
+    this.fitObserver = new ResizeObserver(update);
+    this.fitObserver.observe(scroll);
+    const table = scroll.querySelector("table");
+    if (table) this.fitObserver.observe(table);
+  }
+
+  /** Hide the cells of switched-off columns; runs again after every server refresh replaces cells. */
+  private applyColumnVisibility(): void {
+    if (this.hiddenColumns.size === 0 && !this.root.querySelector(`${TABLE_COLUMN_CELL_SELECTOR.replaceAll("]", "][hidden]")}`)) return;
+    for (const cell of this.root.querySelectorAll<HTMLElement>(TABLE_COLUMN_CELL_SELECTOR)) {
+      cell.hidden = this.hiddenColumns.has(cell.getAttribute("data-om-column") || "");
+    }
   }
 
   /**
@@ -1098,6 +1371,12 @@ export class Table extends Component {
       const direction = isActive ? this.sortState!.direction : "none";
       sort.setAttribute("aria-sort", direction);
       sort.classList.toggle("active", isActive);
+      const icon = sort.querySelector<HTMLElement>("[data-om-table-sort-icon]");
+      if (icon) {
+        icon.className = direction === "ascending"
+          ? "ri-arrow-up-line"
+          : direction === "descending" ? "ri-arrow-down-line" : "ri-arrow-up-down-line";
+      }
 
       const header = sort.closest("th");
       if (!header) continue;
@@ -1109,10 +1388,17 @@ export class Table extends Component {
     }
   }
 }
+interface PaginationControl {
+  html: string;
+  label: string;
+}
 
-function cssEscape(value: string): string {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
-  return value.replace(/["\\]/g, "\\$&");
+/** Snapshot a server-rendered previous/next button so client re-renders keep its icon and label. */
+function navigationControl(button: HTMLButtonElement | undefined): PaginationControl {
+  return {
+    html: button?.innerHTML ?? "",
+    label: button?.getAttribute("aria-label") ?? ""
+  };
 }
 
 function paginationWindow(currentPage: number, pageCount: number): number[] {

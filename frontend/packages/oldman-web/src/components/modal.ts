@@ -1,7 +1,8 @@
-import { isCancel } from "axios";
+import { maxTimeListMs } from "../core/services/transitions";
 import { showResponseActionFailure } from "../core/actions/response-actions";
 import { Component, type ComponentOptions } from "../core/component/component";
 import { setHidden } from "../core/dom/helpers";
+import { isCanceledError } from "../core/services/abort";
 
 export type ModalContent = string | Node | Node[];
 export type ModalStatus = "idle" | "loading" | "success" | "error";
@@ -122,6 +123,8 @@ export class Modal extends Component {
   private backdropElement: HTMLElement | null = null;
   private closeTransitionCleanup: (() => void) | null = null;
   private closeTimerId: number | null = null;
+  /** 已经安排、还在等过渡的那次关闭收尾；卸载时要把它跑完，不是取消。 */
+  private pendingCloseFinish: (() => void) | null = null;
   private previouslyFocusedElement: HTMLElement | null = null;
 
   /**
@@ -165,7 +168,7 @@ export class Modal extends Component {
       event.preventDefault();
       // 声明式点击由此入口显示失败；直接调用 loadParts/loadContent 仍由调用方处理。
       void this.openFromTrigger(trigger).catch((error: unknown) => {
-        if (this.signal.aborted || isCancel(error) || (error instanceof DOMException && error.name === "AbortError")) return;
+        if (this.signal.aborted || isCanceledError(error)) return;
         if (this.page) return showResponseActionFailure(this.page, trigger, error);
         this.logger.error("Oldman modal loading failed", error);
       });
@@ -602,7 +605,19 @@ export class Modal extends Component {
    * 生命周期结束时清理仍然打开的弹窗副作用。
    */
   private cleanupOpenState(): void {
-    this.clearPendingCloseTransition();
+    // 还有一次关闭在等过渡时，要把它**跑完**，不能取消。
+    // `destroy()` 是 close() + stop()，而 stop() 的清理走到这里：取消掉那个定时器就等于
+    // finishClose 永远不执行，面板留在屏幕上、状态卡在 `closing`、aria-modal 还宣称自己是
+    // 打开的对话框，而组件已经停止、所有关闭入口都失效了。
+    // 没有 CSS 过渡的弹窗恰好躲过这一点，而那才是现实中少见的情况。
+    const finishPendingClose = this.pendingCloseFinish;
+    if (finishPendingClose) {
+      // finishClose() 内部会调用 clearPendingCloseTransition()，收尾一并完成。
+      finishPendingClose();
+    } else {
+      this.clearPendingCloseTransition();
+    }
+
     if (this.isOpen()) {
       this.hideBackdrop();
       this.unregisterOpenModal();
@@ -713,6 +728,7 @@ export class Modal extends Component {
       finished = true;
       finish();
     };
+    this.pendingCloseFinish = done;
 
     const onEnd = (event: Event) => {
       // 部分主题或嵌套弹窗会产生很早的 transitionend，必须等到声明的过渡时间后再真正隐藏。
@@ -746,6 +762,7 @@ export class Modal extends Component {
       this.closeTimerId = null;
     }
 
+    this.pendingCloseFinish = null;
     this.closeTransitionCleanup?.();
     this.closeTransitionCleanup = null;
   }
@@ -782,27 +799,4 @@ export class Modal extends Component {
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : this.i18n.t("Request failed");
   }
-}
-
-/**
- * 计算 CSS duration/delay 列表中的最大总耗时。
- */
-function maxTimeListMs(durations: string, delays: string): number {
-  const durationValues = durations.split(",").map(timeToMs);
-  const delayValues = delays.split(",").map(timeToMs);
-
-  return durationValues.reduce((max, duration, index) => {
-    const delay = delayValues[index] ?? delayValues[delayValues.length - 1] ?? 0;
-    return Math.max(max, duration + delay);
-  }, 0);
-}
-
-/**
- * 将 CSS 时间字符串转换成毫秒，支持 s 和 ms 两种单位。
- */
-function timeToMs(value: string): number {
-  const trimmed = value.trim();
-  if (trimmed.endsWith("ms")) return Number.parseFloat(trimmed) || 0;
-  if (trimmed.endsWith("s")) return (Number.parseFloat(trimmed) || 0) * 1000;
-  return Number.parseFloat(trimmed) || 0;
 }

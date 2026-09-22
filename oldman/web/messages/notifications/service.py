@@ -6,7 +6,6 @@ import threading
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlparse
 
 from markupsafe import escape
 from sqlalchemy import delete as sql_delete
@@ -22,6 +21,7 @@ from oldman.runtime.bootstrap import (
     ServiceBootstrapContext,
     _get_bootstrap_context,
 )
+from oldman.utils.date import naive_utcnow
 from oldman.web.messages.flash import MessageFormat, MessageLevel
 from oldman.web.messages.notifications.payloads import (
     MAX_NOTIFICATION_PAYLOAD_SIZE,
@@ -32,6 +32,7 @@ from oldman.web.messages.notifications.payloads import (
     NotificationState,
     NotificationSyncPayload,
 )
+from oldman.web.messages.paths import is_same_site_path
 from oldman.web.sse.publisher import (
     SSEMessageTooLargeError,
     SSEPublisher,
@@ -114,25 +115,6 @@ def _escape_html_translation(value: LazyTranslation) -> LazyTranslation:
     )
 
 
-def _is_same_site_path(value: object) -> bool:
-    """Return whether a browser path remains a local absolute-path reference."""
-    if not isinstance(value, str):
-        return False
-    try:
-        value.encode("utf-8")
-    except UnicodeEncodeError:
-        return False
-    if not value.startswith("/") or value.startswith("//"):
-        return False
-    if any(character == "\\" or ord(character) < 0x20 or ord(character) == 0x7F for character in value):
-        return False
-    try:
-        parsed = urlparse(value)
-    except ValueError:
-        return False
-    return not parsed.scheme and not parsed.netloc
-
-
 def _build_payload(
     *,
     title: str | LazyTranslation,
@@ -171,7 +153,7 @@ def _build_payload(
     if format is MessageFormat.HTML and normalized_body is not None:
         normalized_body = _escape_html_translation(normalized_body)
 
-    if href is not None and not _is_same_site_path(href):
+    if href is not None and not is_same_site_path(href):
         raise ValueError("href must be a safe same-site absolute path")
     if icon is not None:
         _validate_icon_class(icon, field_name="icon")
@@ -431,7 +413,7 @@ class Notifications:
             return 0
         from oldman.web.messages.notifications.models import Notification
 
-        changed_at = datetime.now(UTC).replace(tzinfo=None)
+        changed_at = naive_utcnow()
         async with db_manager.get_session() as session:
             result = await session.exec(
                 update(Notification)
@@ -456,7 +438,7 @@ class Notifications:
         validated_user_id = validate_user_id(user_id)
         from oldman.web.messages.notifications.models import Notification
 
-        changed_at = datetime.now(UTC).replace(tzinfo=None)
+        changed_at = naive_utcnow()
         async with db_manager.get_session() as session:
             result = await session.exec(
                 update(Notification)

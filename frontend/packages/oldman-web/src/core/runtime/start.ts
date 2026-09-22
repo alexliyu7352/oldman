@@ -1,6 +1,7 @@
 import { Application } from "@hotwired/stimulus";
 import { startActions } from "../actions/actions";
 import { PageRegistry } from "../page/registry";
+import { startHistoryBack } from "./history-back";
 import { startPageLifecycle } from "../page/lifecycle";
 import { createOldmanContext, resetOldmanContext, setOldmanContext } from "./context";
 import { registerControllers, setStimulusApplication } from "../stimulus/controllers";
@@ -28,6 +29,9 @@ export async function startOldman(options: StartOldmanOptions = {}): Promise<Old
   let application: Application | undefined;
   let destroyPromise: Promise<void> | undefined;
 
+  // Turbo 每次渲染都会重建页面，页面级组件因此有一段还没挂载的空窗；这条监听活到运行时结束。
+  cleanupCallbacks.push(startHistoryBack(document));
+
   const actionOptions = normalizeActionsOptions(options.actions);
   try {
     application = Application.start();
@@ -38,7 +42,10 @@ export async function startOldman(options: StartOldmanOptions = {}): Promise<Old
       cleanupCallbacks.push(startActions({ ...actionOptions, http, pageRegistry: context.pageRegistry }));
     }
 
-    const lifecycleOptions = options.pageLoader ? { loadPage: options.pageLoader } : {};
+    const lifecycleOptions = {
+      ...(options.pageLoader ? { loadPage: options.pageLoader } : {}),
+      ...(options.fallbackPage ? { fallbackPage: options.fallbackPage } : {})
+    };
     cleanupCallbacks.push(await startPageLifecycle({ ...lifecycleOptions, registry: context.pageRegistry }));
 
     const startedApplication = application;

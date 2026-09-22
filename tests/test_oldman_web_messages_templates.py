@@ -21,7 +21,7 @@ import oldman.conf as conf
 from oldman.conf.schemas import DefaultSettings
 from oldman.web import messages
 from oldman.web.messages._cookie_storage import FLASH_COOKIE_NAME
-from oldman.web.template import build_template_loader, install_template_loaders
+from oldman.web.template import build_template_loader, install_template_loaders, register_component_filters
 
 _ROOT_SECRET = "oldman-web-message-template-test-secret"
 _PAGE_TEMPLATE = """\
@@ -301,6 +301,8 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             enable_async=True,
         )
         environment.globals["_"] = lambda value: value
+        # The shared base needs only the component globals (`_`, `current_year`), never the messages extension.
+        register_component_filters(environment)
 
         rendered = await environment.get_template("page.html").render_async()
         dom = _RenderedDOM(rendered)

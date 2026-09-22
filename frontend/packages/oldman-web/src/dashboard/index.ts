@@ -1,3 +1,4 @@
+import { isSameSitePath } from "../core/http/urls";
 import { BasePage, type BasePageComponentLoader, type OldmanAppOptions } from "../app/index";
 import type { FeedbackAlertOptions } from "../components/feedback";
 import {
@@ -19,6 +20,7 @@ import { DashboardFeedback } from "./feedback";
 import { DashboardModal } from "./modal";
 import { DashboardNotifications } from "./notifications";
 import { DashboardSidebar, type DashboardSidebarOptions } from "./sidebar";
+import { resolveInitialDashboardTheme } from "./theme";
 import {
   DashboardTopbar,
   type DashboardTopbarNotificationDetail,
@@ -206,6 +208,7 @@ export class DashboardPage extends BasePage {
 
   protected createTopbar(): Component {
     return new DashboardTopbar(this.root, {
+      preferences: this.preferences,
       ...this.topbarOptions,
       page: this,
       i18n: this.i18n
@@ -250,6 +253,13 @@ export class DashboardPage extends BasePage {
       // These are initial defaults, not instructions to discard choices on every Page mount.
       if (initialized && (name === "data-theme" || name === "data-sidebar-size")) continue;
       html.setAttribute(name, value);
+    }
+    if (!initialized) {
+      // A stored choice or the OS scheme beats the template default; later mounts keep the live value.
+      html.setAttribute(
+        "data-theme",
+        resolveInitialDashboardTheme(this.preferences, this.dashboardLayoutAttributes["data-theme"])
+      );
     }
     layoutInitializedRoots.add(html);
   }
@@ -327,15 +337,6 @@ function isSessionInvalidatedPayload(value: unknown): value is {
     && typeof payload.message === "string"
     && typeof payload.title === "string";
 }
-
-function isSameSitePath(value: unknown): value is string {
-  return typeof value === "string"
-    && value.startsWith("/")
-    && !value.startsWith("//")
-    && !value.includes("\\")
-    && !/[\u0000-\u001f\u007f]/.test(value);
-}
-
 export {
   DashboardBackToTop,
   DashboardFeedback,

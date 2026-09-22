@@ -1,6 +1,7 @@
+import type { ScopeState } from "../scope/scoped-root";
 import type { Component, ComponentOptions } from "./component";
 
-export type ComponentState = "created" | "mounting" | "mounted" | "unmounting" | "unmounted" | "failed";
+export type ComponentState = ScopeState;
 
 export interface ComponentConstructor<TComponent extends Component = Component> {
   new (root: HTMLElement, options?: ComponentOptions): TComponent;

@@ -3,9 +3,11 @@
 from .base import OldmanForm, SanicFormData, TableFilterForm
 from .choices import ModelChoice
 from .fields import (
+    AjaxAutocompleteField,
     AjaxSelectField,
     AjaxSelectMultipleField,
     ColorPickerField,
+    EmailField,
     FileExtension,
     FileSize,
     JSONListField,
@@ -15,27 +17,36 @@ from .fields import (
     TagsField,
     UploadField,
 )
-from .layouts import Actions, FieldLayout, FormLayout, FormStep, Row
+from .layouts import Actions, FieldGroup, FieldLayout, FormLayout, FormStep, Row
 from .models import OldmanModelForm
 from .renderers import FieldRenderer, FormRenderer, TailwindFieldRenderer, TailwindFormRenderer
 from .tailwind import TailwindForm, TailwindModelForm, TailwindTableFilterForm
 from .widgets import (
     AjaxAutocompleteWidget,
     AjaxSelectWidget,
+    CheckboxWidget,
     ColorPickerWidget,
     DateTimePickerWidget,
     InputSpinnerWidget,
     RichTextWidget,
+    SwitchCardWidget,
+    SwitchWidget,
     TagsInputWidget,
     TagsSelectWidget,
 )
 
 __all__ = [
+    "CheckboxWidget",
+    "FieldGroup",
+    "SwitchCardWidget",
+    "SwitchWidget",
+    "AjaxAutocompleteField",
     "AjaxAutocompleteWidget",
     "AjaxSelectField",
     "AjaxSelectMultipleField",
     "AjaxSelectWidget",
     "ColorPickerField",
+    "EmailField",
     "ColorPickerWidget",
     "Actions",
     "DateTimePickerWidget",

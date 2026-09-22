@@ -4,6 +4,7 @@ from abc import abstractmethod
 from typing import Any
 
 from oldman.cache import memory_cache
+from oldman.db import db_manager
 from oldman.logging import logger
 from oldman.providers.redis import redis_client
 from oldman.runtime.base import BaseApplication
@@ -136,38 +137,32 @@ class SimpleApplication(BaseApplication):
     async def before_stop(self) -> None:
         """服务停止前钩子"""
         self._should_exit = True
-        # 取消所有后台任务
-        for task in self.background_tasks:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-        # 停止任务管理器
-        self.task_manager.stop_all_sync()
+        # 停止任务管理器（等待每个任务的取消真正落地）
+        await self.task_manager.stop_all()
         logger.info(f"{self.app_name} 停止前清理完成")
 
     async def after_stop(self) -> None:
         """服务停止后钩子"""
-        await memory_cache.close()
-        await redis_client.close()
+        await self._close_shared_resources()
         logger.info(f"{self.app_name} 停止后清理完成")
 
     async def after_command(self, command_name: str, *args: Any, **kwargs: Any) -> None:
         """一次性命令执行后的轻量生命周期钩子。"""
-        await memory_cache.close()
-        await redis_client.close()
+        await self._close_shared_resources()
         logger.info(f"{self.app_name} 命令 {command_name} 执行后清理完成")
 
-    def add_background_task(self, coro, *args, **kwargs) -> None:
-        """添加后台任务"""
-        if self.loop and self.loop.is_running():
-            task = self.loop.create_task(coro(*args, **kwargs))
-            self.background_tasks.append(task)
-        else:
-            task = asyncio.create_task(coro(*args, **kwargs))
-            self.background_tasks.append(task)
+    async def _close_shared_resources(self) -> None:
+        """关闭进程共享的缓存、Redis 和数据库引擎。
+
+        每个都要关：留着数据库连接不放，下一次启动或者重启会看到连接数不降。
+        """
+        try:
+            await memory_cache.close()
+        finally:
+            try:
+                await redis_client.close()
+            finally:
+                await db_manager.close()
 
     def _setup_signal_handlers(self) -> None:
         """设置信号处理器"""

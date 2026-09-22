@@ -9,6 +9,8 @@ import axios, {
   type RawAxiosHeaders
 } from "axios";
 import { getCsrfToken, isStateChangingMethod } from "./csrf";
+import { isSameOriginRequest } from "./urls";
+import { isCanceledError } from "../services/abort";
 
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 type RequestSignal = NonNullable<AxiosRequestConfig["signal"]>;
@@ -55,6 +57,17 @@ export interface HttpClient {
   postForm<T>(url: string, form: HTMLFormElement, config?: HttpRequestConfig, submitter?: HTMLElement): Promise<HttpResult<T>>;
 }
 
+/** 每个请求的合成信号解注册函数,按 axios config 对象索引。 */
+const signalDisposers = new WeakMap<object, () => void>();
+
+function disposeCombinedSignal(config: unknown): void {
+  if (!config || typeof config !== "object") return;
+  const dispose = signalDisposers.get(config);
+  if (!dispose) return;
+  signalDisposers.delete(config);
+  dispose();
+}
+
 export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
   const defaults: CreateAxiosDefaults = {
     baseURL: options.baseURL ?? "",
@@ -72,20 +85,29 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     const headers = AxiosHeaders.from(config.headers);
     headers.set("X-Requested-With", "XMLHttpRequest");
 
-    if (isStateChangingMethod(config.method ?? "get")) {
+    if (isStateChangingMethod(config.method ?? "get") && isSameOriginRequest(config.url, config.baseURL ?? defaults.baseURL)) {
       const token = getCsrfToken();
       if (token) headers.set("X-CSRFToken", token);
     }
 
     config.headers = headers;
-    const signal = combineAbortSignals(options.signal, config.signal);
-    if (signal) config.signal = signal;
+    const combined = combineAbortSignals(options.signal, config.signal);
+    if (combined) {
+      config.signal = combined.signal;
+      // 合成信号没有"请求结束"事件,解注册只能挂在请求生命周期上;config 对象在响应
+      // 拦截器里是同一个引用,所以用它做键。WeakMap 保证异常路径也不会把 config 留住。
+      if (combined.dispose) signalDisposers.set(config, combined.dispose);
+    }
     return config;
   });
 
   instance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      disposeCombinedSignal(response.config);
+      return response;
+    },
     async (error: unknown) => {
+      disposeCombinedSignal((error as { config?: unknown } | undefined)?.config);
       if (isCancel(error)) return Promise.reject(error);
       const authRedirected = handleAuthRedirect(error, options.onAuthRedirect, options.authLoginPath ?? "/login");
       if (authRedirected) return Promise.reject(error);
@@ -154,7 +176,7 @@ function withAccept(config: HttpRequestConfig | undefined, accept: string): Axio
 
 export function normalizeHttpError(error: unknown): HttpErrorInfo {
   const axiosError = isAxiosError(error);
-  const canceled = isCancel(error);
+  const canceled = isCanceledError(error);
   const response = axiosError ? error.response : undefined;
   const config = axiosError ? error.config : undefined;
   const status = response?.status;
@@ -222,28 +244,50 @@ function safeLoginUrl(value: unknown): URL | null {
   }
 }
 
+/**
+ * 把作用域信号和单次请求的信号合成一个。
+ *
+ * 回退分支必须把 `dispose` 一并交出去:`{ once: true }` 只在**触发时**摘除监听器,
+ * 而请求正常结束时它不触发,于是每发一个请求就在长命的作用域信号上永久多留一个闭包
+ * (闭包还持有那次请求的 `AbortController`)。合成信号本身没有"请求结束"的事件可挂,
+ * 所以解注册只能由请求生命周期来触发——见 `createHttpClient` 里的两条响应拦截器。
+ *
+ * `AbortSignal.any` 那条主路径不需要 `dispose`:规范保证复合信号可被回收。
+ */
 function combineAbortSignals(
   defaultSignal: AbortSignal | undefined,
   requestSignal: RequestSignal | undefined
-): RequestSignal | undefined {
-  if (!defaultSignal) return requestSignal;
-  if (!requestSignal) return defaultSignal;
-  if (defaultSignal === requestSignal) return defaultSignal;
+): CombinedAbortSignal | undefined {
+  if (!defaultSignal) return requestSignal ? { signal: requestSignal } : undefined;
+  if (!requestSignal) return { signal: defaultSignal };
+  if (defaultSignal === requestSignal) return { signal: defaultSignal };
 
   if (typeof AbortSignal.any === "function" && isAbortSignal(requestSignal)) {
-    return AbortSignal.any([defaultSignal, requestSignal]);
+    return { signal: AbortSignal.any([defaultSignal, requestSignal]) };
   }
 
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (defaultSignal.aborted || requestSignal.aborted) {
     abort();
-    return controller.signal;
+    return { signal: controller.signal };
   }
 
   defaultSignal.addEventListener("abort", abort, { once: true });
   addAbortListener(requestSignal, abort);
-  return controller.signal;
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      defaultSignal.removeEventListener("abort", abort);
+      removeAbortListener(requestSignal, abort);
+    }
+  };
+}
+
+interface CombinedAbortSignal {
+  signal: RequestSignal;
+  /** 只有回退分支有:请求结束时必须调用,否则监听器会留在作用域信号上。 */
+  dispose?: () => void;
 }
 
 function isAbortSignal(signal: RequestSignal): signal is AbortSignal {
@@ -253,6 +297,12 @@ function isAbortSignal(signal: RequestSignal): signal is AbortSignal {
 function addAbortListener(signal: RequestSignal, listener: () => void): void {
   if (isAbortSignal(signal)) {
     signal.addEventListener("abort", listener, { once: true });
+  }
+}
+
+function removeAbortListener(signal: RequestSignal, listener: () => void): void {
+  if (isAbortSignal(signal)) {
+    signal.removeEventListener("abort", listener);
   }
 }
 

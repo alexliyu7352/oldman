@@ -316,7 +316,9 @@ class SettingsManager[T_Settings: DefaultSettings]:
         security = settings.web.security
         if security.secret_key is None:
             raise RuntimeError("settings.web.security.secret_key is empty; run the service settings sync command")
-        if security.fingerprint.aes_secret_key is None:
+        # 只有真正开启指纹检查时才强制这把密钥：一个默认关闭的可选功能，不应该让每个
+        # 部署都生成并保管一个用不到的秘密。
+        if security.fingerprint.enabled and security.fingerprint.aes_secret_key is None:
             raise RuntimeError("settings.web.security.fingerprint.aes_secret_key is empty; run the service settings sync command")
 
     def _service_payload(self, payload: Mapping[str, Any]) -> dict[str, Any]:

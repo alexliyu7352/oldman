@@ -73,11 +73,7 @@ class NotificationCreatedPayload(
             raise TypeError("notification_id must be a positive integer")
         if not isinstance(self.notification, NotificationPayload):
             raise TypeError("notification must be a NotificationPayload")
-        if (
-            not isinstance(self.created_at, datetime)
-            or self.created_at.tzinfo is None
-            or self.created_at.utcoffset() != timedelta(0)
-        ):
+        if not isinstance(self.created_at, datetime) or self.created_at.tzinfo is None or self.created_at.utcoffset() != timedelta(0):
             raise TypeError("created_at must be a UTC-aware datetime")
 
 

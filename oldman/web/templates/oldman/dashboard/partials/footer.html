@@ -1,0 +1,4 @@
+{# Shell footer. Projects override this file (same path in their templates directory) to change the copy. #}
+<footer class="oldman-footer{% if footer_class is defined and footer_class %} {{ footer_class }}{% endif %}">
+  <span>&copy; {{ current_year() }} Oldman</span>
+</footer>

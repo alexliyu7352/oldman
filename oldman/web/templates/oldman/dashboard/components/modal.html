@@ -2,6 +2,7 @@
   id,
   title,
   component="modal",
+  description=none,
   close_label="Close",
   dialog_scrollable=false,
   remote_content=false,
@@ -39,10 +40,15 @@
     <div class="om-modal-dialog{% if dialog_scrollable %} om-modal-dialog-scrollable{% endif %}{% if dialog_class is not none %} {{ dialog_class }}{% endif %}">
       <div class="om-modal-surface">
         <div class="om-modal-header">
-          <{{ resolved_title_tag }} id="{{ resolved_title_id }}" class="om-modal-title"{% if remote_content %} data-om-modal-title{% endif %}>{{ title }}</{{ resolved_title_tag }}>
-          <button type="button" class="{{ close_button_class }}" data-om-modal-close aria-label="{{ close_label }}"{% if close_button_id is not none %} id="{{ close_button_id }}"{% endif %}>{% if close_icon_class is not none %}
-            <i class="{{ close_icon_class }}"></i>
-          {% endif %}</button>
+          <div class="om-modal-heading">
+            <{{ resolved_title_tag }} id="{{ resolved_title_id }}" class="om-modal-title"{% if remote_content %} data-om-modal-title{% endif %}>{{ title }}</{{ resolved_title_tag }}>
+            {% if description is not none %}
+              <p class="om-modal-description">{{ description }}</p>
+            {% endif %}
+          </div>
+          <button type="button" class="{{ close_button_class }}" data-om-modal-close aria-label="{{ close_label }}"{% if close_button_id is not none %} id="{{ close_button_id }}"{% endif %}>
+            <i class="{{ close_icon_class if close_icon_class is not none else 'ri-close-line' }}" aria-hidden="true"></i>
+          </button>
         </div>
         <div class="om-modal-body{% if body_class is not none %} {{ body_class }}{% endif %}"{% if remote_content %} data-om-modal-content{% endif %}>
           {{ caller() }}

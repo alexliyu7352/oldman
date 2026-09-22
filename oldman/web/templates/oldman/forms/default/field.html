@@ -1,4 +1,4 @@
-<label{{ label_attrs|html_attrs }}>{{ label_text }}</label>
+<label{{ label_attrs|html_attrs }}>{{ label_text }}{% if field.flags.required %}<span class="om-form-required" aria-hidden="true">*</span>{% endif %}</label>
 <div class="om-form-control-stack">
   {{ control_html }}
   {{ help_html }}

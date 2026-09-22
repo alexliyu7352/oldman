@@ -2,6 +2,7 @@ import type { Application } from "@hotwired/stimulus";
 import type { HttpClient, HttpClientOptions } from "./http/client";
 import type { StartActionsOptions } from "./actions/actions";
 import type { StimulusControllerDefinitions } from "./stimulus/controllers";
+import type { PageConstructor } from "./page/page";
 import type { PageLoader } from "./page/registry";
 import type { OldmanContext } from "./runtime/context";
 
@@ -16,6 +17,8 @@ export interface StartOldmanOptions {
   httpClient?: HttpClient;
   exposeGlobal?: string;
   pageLoader?: PageLoader;
+  /** Page class used when `data-om-page` names nothing registered (after `pageLoader` had its chance). */
+  fallbackPage?: PageConstructor;
 }
 
 export interface OldmanApp {

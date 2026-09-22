@@ -1,0 +1,11 @@
+{% from "oldman/dashboard/partials/confirm.html" import confirm_body with context %}
+<form method="post" action="{{ action }}" data-om-component="form" data-om-form data-om-form-mode="json">
+  {% csrf_token %}
+  {{ confirm_body(_("Delete user?"), user.username, icon="ri-delete-bin-line") }}
+  <div class="om-alert-danger mt-4" data-om-form-message hidden></div>
+  <p class="mt-2 text-xs text-content-muted" data-om-form-status role="status" aria-live="polite"></p>
+  <div class="om-modal-footer px-0 pb-0 pt-4">
+    <button class="om-button om-button-secondary" type="button" data-om-modal-close>{{ _("Cancel") }}</button>
+    <button class="om-button om-button-danger" type="submit" data-om-form-submit>{{ _("Delete") }}</button>
+  </div>
+</form>

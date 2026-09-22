@@ -10,11 +10,20 @@ from typing import Any, cast
 
 from markupsafe import Markup
 from wtforms import StringField
+from wtforms.validators import Optional
 
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
 from oldman.web.api.enums import ApiErrorCode
-from oldman.web.components.forms import AjaxAutocompleteWidget, AjaxSelectField, AjaxSelectWidget, TailwindForm
+from oldman.web.components.forms import (
+    AjaxAutocompleteField,
+    AjaxAutocompleteWidget,
+    AjaxSelectField,
+    AjaxSelectMultipleField,
+    AjaxSelectWidget,
+    SanicFormData,
+    TailwindForm,
+)
 from oldman.web.components.selects import (
     DataSelectProvider,
     ModelSelectProvider,
@@ -35,9 +44,7 @@ class SelectChoiceContractTest(unittest.TestCase):
 
     def test_choice_to_option_escapes_plain_html_and_keeps_markup(self) -> None:
         """普通 html 字符串必须转义，Markup 可以作为安全 HTML 透传。"""
-        escaped = SelectChoice(id=1, text="BBC", html="<b>BBC</b>", selected=True, disabled=True, data={"kind": "tv"}).to_option(
-            label_mode="html"
-        )
+        escaped = SelectChoice(id=1, text="BBC", html="<b>BBC</b>", selected=True, disabled=True, data={"kind": "tv"}).to_option(label_mode="html")
         safe = SelectChoice(id=2, text="CNN", html=Markup("<span>CNN</span>")).to_option(label_mode="html")
 
         self.assertEqual(escaped["id"], "1")
@@ -89,10 +96,94 @@ class RemoteSelectWidgetContractTest(unittest.TestCase):
 
     def test_ajax_select_field_forwards_label_mode(self) -> None:
         """便捷字段不能吞掉公开的 label_mode 配置。"""
+
         class SelectForm(TailwindForm):
             channel = AjaxSelectField(provider="channels", endpoint="/choices", enhance_choices=True, label_mode="html")
 
         self.assertEqual(cast(AjaxSelectWidget, SelectForm().channel.widget).label_mode, "html")
+
+
+class AjaxInitialChoiceTest(unittest.TestCase):
+    """远程字段的编辑页首屏回显与空提交处理。"""
+
+    class EditForm(TailwindForm):
+        """一个单选、一个多选、一个 autocomplete，都指向同一个 provider。"""
+
+        channel = AjaxSelectField(provider="channels", endpoint="/choices", validators=[Optional()])
+        channels = AjaxSelectMultipleField(provider="channels", endpoint="/choices", validators=[Optional()])
+        channel_lookup = AjaxAutocompleteField(provider="channels", endpoint="/choices", validators=[Optional()])
+
+    def test_initial_choice_seeds_the_only_option_of_an_empty_remote_field(self) -> None:
+        form = self.EditForm()
+        form.channel.initial_choice(7, "CCTV 1")
+        form.channels.initial_choices([(7, "CCTV 1"), (9, "CCTV 9")])
+        form.channel_lookup.initial_choice(7, "CCTV 1")
+
+        self.assertEqual([(7, "CCTV 1")], form.channel.choices)
+        self.assertEqual(7, form.channel.data)
+        self.assertEqual([(7, "CCTV 1"), (9, "CCTV 9")], form.channels.choices)
+        self.assertEqual([7, 9], form.channels.data)
+        self.assertEqual("7", form.channel_lookup.data)
+        self.assertEqual("CCTV 1", (form.channel_lookup.render_kw or {})["value"])
+
+    def test_a_blank_multiple_submission_is_an_empty_list(self) -> None:
+        """提交空字符串和完全不提交都表示"一个都没选"，调用方不该遇到两种结果。"""
+        blank = self.EditForm(formdata=SanicFormData({"channels": [""]}))
+        absent = self.EditForm(formdata=SanicFormData({"other": ["x"]}))
+
+        self.assertEqual([], blank.channels.data)
+        self.assertEqual([], absent.channels.data)
+        self.assertTrue(blank.validate())
+
+    def test_a_cleared_multiple_select_stays_cleared(self) -> None:
+        """多选一个都不选时浏览器不提交这个 key，回显入口不能把旧值写回去。"""
+        cleared = self.EditForm(formdata=SanicFormData({"other": ["x"]}))
+        cleared.channels.initial_choices([(7, "CCTV 1"), (9, "CCTV 9")])
+        cleared.channel.initial_choice(7, "CCTV 1")
+        cleared.channel_lookup.initial_choice(7, "CCTV 1")
+
+        self.assertEqual([], cleared.channels.data)
+        self.assertEqual([], cleared.channels.choices)
+        self.assertIsNone(cleared.channel.data)
+        self.assertIsNone(cleared.channel_lookup.data)
+
+    def test_initial_choice_runs_the_value_through_coerce(self) -> None:
+        """回显入口不能把值缩窄成字符串：int() 支持的对象照样能用。"""
+
+        class IntegerLike:
+            def __int__(self) -> int:
+                return 17
+
+        form = self.EditForm()
+        form.channel.initial_choice(IntegerLike(), "CCTV 17")
+
+        self.assertEqual([(17, "CCTV 17")], form.channel.choices)
+        self.assertEqual(17, form.channel.data)
+
+    def test_initial_choice_ignores_blank_values_and_submitted_fields(self) -> None:
+        empty = self.EditForm()
+        empty.channel.initial_choice(None, "CCTV 1")
+        empty.channels.initial_choices([("", "CCTV 1")])
+        empty.channel_lookup.initial_choice("", "CCTV 1")
+
+        self.assertEqual([], empty.channel.choices)
+        self.assertIsNone(empty.channel.data)
+        self.assertEqual([], empty.channels.choices)
+        self.assertIsNone(empty.channel_lookup.data)
+
+        submitted = self.EditForm(formdata=SanicFormData({"channel": ["9"], "channel_lookup": ["9"]}))
+        submitted.channel.initial_choice(7, "CCTV 1")
+        submitted.channel_lookup.initial_choice(7, "CCTV 1")
+
+        self.assertEqual(9, submitted.channel.data)
+        self.assertEqual([], submitted.channel.choices)
+        self.assertEqual("9", submitted.channel_lookup.data)
+
+    def test_clearing_an_optional_remote_select_submits_none_instead_of_failing(self) -> None:
+        form = self.EditForm(formdata=SanicFormData({"channel": [""]}))
+
+        self.assertIsNone(form.channel.data)
+        self.assertEqual((), tuple(form.channel.errors))
 
 
 class SelectRegistryContractTest(unittest.TestCase):
@@ -440,9 +531,7 @@ class SelectProviderEndpointContractTest(unittest.TestCase):
         registry.register("cities")(CountryProvider)
         bind = sign_select_context(select_context(), secret_key="secret")
 
-        payload, status = asyncio.run(
-            select_provider_payload(make_request(args={"bind": bind}), "cities", registry=registry, secret_key="secret")
-        )
+        payload, status = asyncio.run(select_provider_payload(make_request(args={"bind": bind}), "cities", registry=registry, secret_key="secret"))
 
         self.assertEqual(status, 400)
         self.assertEqual(payload["error_code"], ApiErrorCode.INVALID_REQUEST)
@@ -520,3 +609,124 @@ def make_request(*, args: Mapping[str, object] | None = None):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RemoteSelectAllowedValuesTest(unittest.TestCase):
+    """A remote select validates its submitted value against a source the form declares.
+
+    These fields render no local choices, so WTForms has nothing to check and choice
+    validation is off: any integer the browser sends is accepted. The source is declared
+    on the field rather than taken from the provider, because what a user may *see* and
+    what a user may *submit* are different sets - a form that reassigns a record to any
+    user while the dropdown shows only the twenty most recent is an ordinary case that
+    reusing the display filter would break.
+    """
+
+    @staticmethod
+    def _request(user_id: int = 7) -> Any:
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            ctx=SimpleNamespace(user_id=user_id, session={}),
+            app=None,
+            args={},
+            form={},
+            json=None,
+            headers={},
+            host="example.test",
+        )
+
+    def _validate(self, field, submitted: str, *, user_id: int = 7) -> tuple[bool, list[str]]:
+        class RemoteForm(TailwindForm):
+            value = field
+
+        form = RemoteForm(formdata=SanicFormData({"value": [submitted]}), request=self._request(user_id))
+        valid = asyncio.run(form.validate())
+        return valid, [str(message) for message in form.errors.get("value", [])]
+
+    def test_without_a_declared_source_nothing_is_validated(self) -> None:
+        """The default must stay exactly what it is today: no check, and no query."""
+        called: list[Any] = []
+
+        async def never(request: Any, values: list[str]) -> list[str]:
+            called.append(values)
+            return []
+
+        del never  # declared only to show it is not wired in by default
+
+        valid, _ = self._validate(AjaxSelectField("Doc", provider="p", endpoint="/s"), "999999")
+        self.assertTrue(valid)
+        self.assertEqual([], called)
+
+    def test_a_declared_source_decides_what_may_be_submitted(self) -> None:
+        async def owned(request: Any, values: list[str]) -> list[str]:
+            allowed = {"1", "2"} if request.ctx.user_id == 7 else set()
+            return [value for value in values if value in allowed]
+
+        field = lambda: AjaxSelectField("Doc", provider="p", endpoint="/s", allowed_values=owned)  # noqa: E731
+        self.assertTrue(self._validate(field(), "1")[0])
+
+        refused, errors = self._validate(field(), "999999")
+        self.assertFalse(refused)
+        self.assertIn("Not a valid choice.", errors)
+
+        other_user, _ = self._validate(field(), "1", user_id=99)
+        self.assertFalse(other_user, "the resolver sees the request, so it can scope by user")
+
+    def test_the_source_is_not_limited_to_a_database(self) -> None:
+        """Structured data answers the same hook; the resolver is a plain async callable."""
+
+        async def known_countries(request: Any, values: list[str]) -> list[str]:
+            return [value for value in values if value in {"CN", "SG"}]
+
+        field = lambda: AjaxAutocompleteField(  # noqa: E731
+            "Country", provider="p", endpoint="/s", allowed_values=known_countries
+        )
+        self.assertTrue(self._validate(field(), "CN")[0])
+        self.assertFalse(self._validate(field(), "XX")[0])
+
+    def test_tags_mode_still_accepts_something_that_does_not_exist_yet(self) -> None:
+        async def nothing(request: Any, values: list[str]) -> list[str]:
+            return []
+
+        valid, _ = self._validate(
+            AjaxSelectMultipleField("Doc", provider="p", endpoint="/s", tags=True, allowed_values=nothing),
+            "12345",
+        )
+        self.assertTrue(valid)
+
+    def test_every_variant_validates_including_the_list_backed_one(self) -> None:
+        """The multiple variant stores a list; an emptiness test written for a scalar raised."""
+
+        async def only_one(request: Any, values: list[str]) -> list[str]:
+            return [value for value in values if value == "1"]
+
+        for field_cls in (AjaxSelectField, AjaxSelectMultipleField, AjaxAutocompleteField):
+            with self.subTest(field=field_cls.__name__):
+                allowed, _ = self._validate(field_cls("V", provider="p", endpoint="/s", allowed_values=only_one), "1")
+                self.assertTrue(allowed)
+                refused, _ = self._validate(field_cls("V", provider="p", endpoint="/s", allowed_values=only_one), "999")
+                self.assertFalse(refused)
+
+    def test_the_source_is_taken_by_the_mixin_not_by_each_variant(self) -> None:
+        """One owner for the shared behavior; the three fields only forward kwargs."""
+        import inspect
+
+        from oldman.web.components.forms.fields import RemoteChoiceValidationMixin
+
+        self.assertIn("allowed_values", inspect.signature(RemoteChoiceValidationMixin.__init__).parameters)
+        for field_cls in (AjaxSelectField, AjaxSelectMultipleField, AjaxAutocompleteField):
+            with self.subTest(field=field_cls.__name__):
+                self.assertNotIn(
+                    "allowed_values",
+                    inspect.signature(field_cls.__init__).parameters,
+                    "the variant declares the keyword itself instead of letting the mixin own it",
+                )
+
+    def test_all_three_remote_field_variants_accept_a_source(self) -> None:
+        """They are siblings on different WTForms bases, so the behavior is a mixin."""
+        from oldman.web.components.forms.fields import RemoteChoiceValidationMixin
+
+        for field_cls in (AjaxSelectField, AjaxSelectMultipleField, AjaxAutocompleteField):
+            with self.subTest(field=field_cls.__name__):
+                self.assertTrue(issubclass(field_cls, RemoteChoiceValidationMixin))

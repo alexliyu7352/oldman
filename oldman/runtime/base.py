@@ -239,16 +239,23 @@ class BaseApplication(ABC):
             command_error = exc
             raise
         finally:
+            # 先关 taskiq/NATS：它们的 shutdown 钩子可能还要用数据库，而 after_command 会关掉引擎，
+            # 那时 get_session() 只会惰性再建一个没人关的新引擎。
             try:
-                await self.after_command(command_name, *args, **kwargs)
+                await self._close_publishers(command_error)
             except BaseException as error:
                 if command_error is None:
                     command_error = error
                     raise
-                logger.exception("%s 异步命令 %s 清理失败，保留命令原始异常", self.app_name, command_name)
+                logger.exception("%s 异步命令 %s 关闭 publisher 失败，保留命令原始异常", self.app_name, command_name)
             finally:
                 try:
-                    await self._close_publishers(command_error)
+                    await self.after_command(command_name, *args, **kwargs)
+                except BaseException as error:
+                    if command_error is None:
+                        command_error = error
+                        raise
+                    logger.exception("%s 异步命令 %s 清理失败，保留命令原始异常", self.app_name, command_name)
                 finally:
                     self._close_logging()
 
@@ -422,7 +429,6 @@ class BaseApplication(ABC):
         self.bootstrap_context = (
             config if config is not None else _get_bootstrap_context()
         )
-        self.background_tasks = []
         if not app_name:
             app_name = self.get_service_name()
         file_name = self.safe_pid_name(

@@ -10,7 +10,6 @@ import asyncio
 import base64
 import re
 from functools import lru_cache
-from hashlib import sha256
 from typing import Any, cast
 from urllib import parse
 
@@ -21,6 +20,7 @@ from sanic import HTTPResponse, Request, redirect, text
 from oldman.contrib.http import ReconnectStreamResponse
 from oldman.contrib.http.schemas import HttpMethod
 from oldman.contrib.proxy.base import BaseStreamProxy, _sanic_response_headers
+from oldman.contrib.proxy.sealing import UrlSealingMixin
 from oldman.logging import logger
 from oldman.utils import strings_utils
 from oldman.utils.strings_utils import escape_url_for_xml
@@ -447,64 +447,22 @@ class SimpleStreamProxy(BaseStreamProxy):
             return last_response
 
 
-class SimpleEncryptedStreamProxy(SimpleStreamProxy):
+class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
     """
     简单加密的流代理, 加密真实URL, 但是不进行任何缓存, 直接转发请求到本地的代理上
     """
 
-    DEFAULT_TOKEN_KEY = b"0cecd8dc4bcaf78fb3db9c71dadee9ca"
-
-    def __init__(self, proxy_name: str = "base", local_proxy=""):
-        super().__init__(proxy_name, local_proxy)
-        self.keystream_base: bytearray = bytearray(sha256(self.DEFAULT_TOKEN_KEY).digest())
-
-    def _generate_keystream(self, length: int) -> bytes:
-        """生成指定长度的密钥流"""
-        keystream = bytearray(self.keystream_base)
-        while len(keystream) < length:
-            keystream.extend(sha256(bytes(keystream)).digest())
-        return bytes(keystream[:length])
-
     # Proxy 实例随服务进程长期存在，有界缓存避免重复进行相同 URL 变换。
+    # 密封是确定性的，所以两个方向都能缓存，下游 HTTP 缓存也仍然有效。
     @lru_cache(maxsize=4096)  # noqa: B019
     def encrypt_url(self, url: str) -> str:
-        """
-        加密URL，使用AES-CBC模式
-        :param url:
-        :return:
-        """
-        data = url.encode("utf-8")
-        # 生成密钥流(确定性)
-        keystream = self._generate_keystream(len(data))
-        # XOR 加密
-        ciphertext = bytes(a ^ b for a, b in zip(data, keystream, strict=False))
-        # 使用 Base64URL 编码 (移除 padding)
-        return base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("=")
+        """把真实 URL 封成不可伪造的路径段。"""
+        return self.seal_url(url)
 
     @lru_cache(maxsize=2048)  # noqa: B019
     def decrypt_url(self, encrypted_url: str) -> str | None:
-        """
-        解密url，使用AES-CBC模式
-        :param encrypted_url:
-        :return:
-        """
-        # 如果存在扩展名则去除
-        ext_name = strings_utils.get_ext_from_filename(encrypted_url)
-        if ext_name:
-            encrypted_url = encrypted_url.replace(ext_name, "")
-        try:
-            # Base64URL 解码需要补充 padding
-            padding = 4 - len(encrypted_url) % 4
-            if padding != 4:
-                encrypted_url += "=" * padding
-
-            ciphertext = base64.urlsafe_b64decode(encrypted_url)
-            keystream = self._generate_keystream(len(ciphertext))
-            # XOR 解密
-            plaintext = bytes(a ^ b for a, b in zip(ciphertext, keystream, strict=False))
-            return plaintext.decode("utf-8")
-        except Exception:
-            return None
+        """还原真实 URL；被改写或伪造的路径段返回 None。"""
+        return self.unseal_url(encrypted_url)
 
     def get_encrypt_path(self, base_url: str, url: str, proxy_params_str: str | None = None, local_proxy: str | None = None) -> str:
         # 处理相对路径，转换为完整URL

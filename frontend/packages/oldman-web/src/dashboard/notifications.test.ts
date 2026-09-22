@@ -1,3 +1,4 @@
+import { CanceledError } from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   FeedbackAlertOptions,
@@ -410,6 +411,20 @@ describe("DashboardNotifications", () => {
     expect(harness.html).not.toHaveBeenCalled();
     expect(reload).not.toHaveBeenCalled();
     expect(document.querySelectorAll("[data-om-user-notification-center-item]")).toHaveLength(2);
+  });
+
+  it("stays quiet when the page cancels an in-flight refresh before stop runs", async () => {
+    installDom();
+    const response = deferred<string>();
+    const html = vi.fn(() => response.promise);
+    const harness = makeHarness({ html });
+    const refresh = harness.notifications.refreshTopbar();
+
+    // 页面卸载先 abort 页面信号，stop() 要等到 shell 清理才跑；这段空档里的取消不是故障。
+    response.reject(new CanceledError("canceled"));
+    await refresh;
+
+    expect(harness.logger.error).not.toHaveBeenCalled();
   });
 
   it("ignores in-flight results and delegated events after stop", async () => {

@@ -1,0 +1,11 @@
+{# In-table empty state; `filtered` means records exist but the search or filters hide them all. #}
+<div class="om-empty om-empty-sm" data-om-table-empty-state{% if filtered %} data-om-table-empty-filtered{% endif %}>
+  <span class="om-empty-icon" aria-hidden="true"><i class="{{ 'ri-filter-off-line' if filtered else 'ri-inbox-2-line' }}"></i></span>
+  <p class="om-empty-title">{{ title }}</p>
+  {% if description %}<p class="om-empty-description">{{ description }}</p>{% endif %}
+  {% if filtered %}
+  <div class="om-empty-actions">
+    <button type="button" class="om-button om-button-secondary om-button-sm" data-om-table-empty-reset>{{ _("Reset filters") }}</button>
+  </div>
+  {% endif %}
+</div>

@@ -103,6 +103,39 @@ describe("Upload", () => {
     await component.stop();
   });
 
+  it("渲染出的预览不再自称是模板,第二个上传组件也就抢不走它", async () => {
+    // captureTemplate 克隆模板时连 data-om-upload-template 一起复制了,于是每条预览都匹配
+    // 模板选择器;另一个没有自带模板的上传组件会把它当模板克隆走,并 remove() 掉——
+    // 第一个控件已经选好的文件预览就这么消失了。
+    document.body.innerHTML = `
+      <form>
+        <section id="first" data-om-component="upload">
+          <input type="file" data-om-upload-input multiple>
+          <div data-om-upload-preview></div>
+          <div data-om-upload-template><span data-om-upload-name></span></div>
+        </section>
+        <section id="second" data-om-component="upload">
+          <input type="file" data-om-upload-input multiple>
+          <div data-om-upload-preview></div>
+        </section>
+      </form>
+    `;
+    const first = new Upload(document.querySelector<HTMLElement>("#first")!);
+    await first.start();
+    first.addFiles([new File(["x"], "contract.pdf", { type: "text/plain" })]);
+
+    expect(document.querySelectorAll("[data-om-upload-template]")).toHaveLength(0);
+
+    const second = new Upload(document.querySelector<HTMLElement>("#second")!);
+    await second.start();
+    second.addFiles([new File(["y"], "mine.txt", { type: "text/plain" })]);
+
+    expect(document.querySelector("#first [data-om-upload-preview]")?.textContent).toContain("contract.pdf");
+
+    await second.stop();
+    await first.stop();
+  });
+
   it("支持点击上传区域触发隐藏文件选择框", async () => {
     document.body.innerHTML = uploadMarkup(`data-om-upload-click-select="true"`);
     const root = document.querySelector<HTMLElement>("[data-om-component='upload']")!;

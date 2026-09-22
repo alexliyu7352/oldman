@@ -17,6 +17,9 @@ const DEFAULT_MENU_PANEL_SELECTOR = "[data-om-menu-panel]";
 const DEFAULT_MENU_ROOT_ITEM_SELECTOR = "[data-om-menu-item], .nav-item";
 const DEFAULT_NAV_SELECTOR = "#navbar-nav";
 const SIDEBAR_MENU_SELECTOR = '[data-om-component~="sidebar-menu"]';
+/** Fired on document after the sidebar re-evaluated which item is active. */
+export const SIDEBAR_ACTIVE_CHANGE_EVENT = "om:sidebar:active-change";
+const SCROLL_INTO_VIEW_MARGIN = 16;
 
 interface SidebarMenuAttributes {
   defaultSidebarSize: string | null;
@@ -113,17 +116,28 @@ export class DashboardSidebar extends Component {
     const pathname = this.currentPathname();
     const exactPath = pathname === "/" ? this.defaultDashboardPath : pathname;
     const currentPaths = this.currentPagePaths();
-    if (currentPaths.length === 0) return;
+    if (currentPaths.length === 0) {
+      this.announceActiveChange();
+      return;
+    }
 
     const links = Array.from(sidebar.querySelectorAll<HTMLAnchorElement>("a[href]"));
     const activeLink =
       links.find((link) => link.getAttribute("href") === exactPath)
       ?? this.longestPathPrefixLink(links, pathname)
       ?? links.find((link) => currentPaths.includes(link.getAttribute("href") ?? ""));
-    if (!activeLink) return;
+    if (!activeLink) {
+      this.announceActiveChange();
+      return;
+    }
 
     activeLink.classList.add("active");
     this.expandParentMenu(activeLink);
+    this.announceActiveChange();
+  }
+
+  private announceActiveChange(): void {
+    document.dispatchEvent(new CustomEvent(SIDEBAR_ACTIVE_CHANGE_EVENT));
   }
 
   private clearActiveSidebarItems(sidebar: HTMLElement): void {
@@ -250,15 +264,37 @@ export class DashboardSidebar extends Component {
   }
 
   private scrollActiveMenuIntoView(): void {
-    const activeMenu = this.root.querySelector<HTMLElement>(
-      `${this.navSelector} :is(${this.menuRootItemSelector}) .active`
-    );
-    const offset = activeMenu?.offsetTop ?? 0;
-    if (offset <= 300) return;
-
     const wrapper = this.root.querySelector<HTMLElement>(this.scrollContainerSelector);
-    if (!wrapper) return;
-    wrapper.scrollTop = offset === 330 ? offset + 85 : offset;
+    const nav = this.root.querySelector<HTMLElement>(this.navSelector);
+    // Group toggles are marked active too and precede their panel, so the
+    // current page link is the last active anchor in document order.
+    const activeLinks = nav ? Array.from(nav.querySelectorAll<HTMLElement>("a.active")) : [];
+    const activeLink = activeLinks.at(-1) ?? null;
+    if (!wrapper || !nav || !activeLink) return;
+    const viewportHeight = wrapper.clientHeight;
+    if (viewportHeight <= 0) return;
+
+    // Keep the whole open group visible: its outermost item carries the parent
+    // title, while the active link may sit further down inside a nested panel.
+    const group = this.outermostMenuItem(activeLink, nav);
+    const wrapperTop = wrapper.getBoundingClientRect().top - wrapper.scrollTop;
+    const top = group.getBoundingClientRect().top - wrapperTop - SCROLL_INTO_VIEW_MARGIN;
+    const bottom = activeLink.getBoundingClientRect().bottom - wrapperTop + SCROLL_INTO_VIEW_MARGIN;
+    if (top >= wrapper.scrollTop && bottom <= wrapper.scrollTop + viewportHeight) return;
+
+    // Show the parent title first; when the open group is taller than the
+    // viewport the active link wins so the current page stays visible.
+    wrapper.scrollTop = Math.max(0, top, bottom - viewportHeight);
+  }
+
+  private outermostMenuItem(link: HTMLElement, nav: HTMLElement): HTMLElement {
+    let item = link.closest<HTMLElement>(this.menuRootItemSelector) ?? link;
+    let candidate = item.parentElement?.closest<HTMLElement>(this.menuRootItemSelector) ?? null;
+    while (candidate && nav.contains(candidate)) {
+      item = candidate;
+      candidate = candidate.parentElement?.closest<HTMLElement>(this.menuRootItemSelector) ?? null;
+    }
+    return item;
   }
 
   private elementInViewport(element: HTMLElement): boolean {

@@ -10,6 +10,18 @@ export interface FormParamOptions {
   submitter?: HTMLElement | null | undefined;
 }
 
+/**
+ * Escape text for interpolation into an HTML attribute or text node.
+ *
+ * Exported because it was needed outside the class that had it: the admin app declared a
+ * byte-identical copy, since the original was a `protected` member of DashboardTopbar
+ * and unreachable from a free function. Two copies of an escaper is how one of them
+ * eventually stops matching the other.
+ */
+export function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export function query<TElement extends Element = HTMLElement>(
   root: ParentNode,
   selector: string
@@ -151,6 +163,20 @@ export function setClasses(element: Element, classes: Record<string, boolean>): 
   }
 }
 
+/**
+ * Index a roving-focus list should move to for a navigation key, or null for any other key.
+ * Arrows stop at either end instead of wrapping; Home and End jump to the ends.
+ */
+export function listNavigationIndex(key: string, current: number, length: number): number | null {
+  if (length === 0) return null;
+  const last = length - 1;
+  if (key === "Home") return 0;
+  if (key === "End") return last;
+  if (key === "ArrowDown") return Math.min(last, current + 1);
+  if (key === "ArrowUp") return Math.max(0, current - 1);
+  return null;
+}
+
 export function setHidden(element: HTMLElement, hidden: boolean): void {
   element.hidden = hidden;
   element.setAttribute("aria-hidden", String(hidden));
@@ -256,4 +282,18 @@ function appendSubmitterFallback(formData: FormData, fallbackBase: FormData, sub
   const nativeCount = formData.getAll(submitter.name).length;
   const baseCount = fallbackBase.getAll(submitter.name).length;
   if (nativeCount === baseCount) formData.append(submitter.name, submitter.value);
+}
+
+/** 用 CSS.escape 构造选择器；环境缺失时只转义会破坏属性选择器的两个字符。 */
+export function cssEscape(value: string): string {
+  return globalThis.CSS?.escape ? globalThis.CSS.escape(value) : value.replace(/["\\]/g, "\\$&");
+}
+
+/** 读取一个整数属性；缺失或不是整数时返回 undefined，让调用方用自己的默认值。 */
+export function integerAttribute(element: Element, name: string): number | undefined {
+  const value = element.getAttribute(name);
+  if (!value) return undefined;
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : undefined;
 }

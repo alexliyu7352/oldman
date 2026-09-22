@@ -256,3 +256,58 @@ msgstr ""
     });
   });
 });
+
+describe("PO string escapes", () => {
+  const TAB = String.fromCharCode(9);
+  const VERTICAL_TAB = String.fromCharCode(11);
+  const BELL = String.fromCharCode(7);
+
+  it("decodes the C escapes gettext allows, not just the JSON subset", () => {
+    // readPoString 原先是 JSON.parse。PO 用的是 C 的转义集合,和 JSON 的不是一套:
+    // \v、\a、\xNN 在 PO 里合法,JSON.parse 一律抛 SyntaxError。而且 parseBlock /
+    // parsePo / compilePoCatalog 一层都没有 try,一个条目里的 \v 会让整份目录加载失败,
+    // 不是跳过这一条。
+    const source = [
+      String.raw`msgid "tab"`,
+      String.raw`msgstr "a\tb"`,
+      "",
+      String.raw`msgid "vertical"`,
+      String.raw`msgstr "a\vb"`,
+      "",
+      String.raw`msgid "bell"`,
+      String.raw`msgstr "a\ab"`,
+      "",
+      String.raw`msgid "hex"`,
+      String.raw`msgstr "a\x41b"`,
+      "",
+      String.raw`msgid "quote"`,
+      String.raw`msgstr "a\"b"`
+    ].join("\n");
+
+    const catalog = compilePoCatalog(source);
+
+    expect(catalog.messages["tab"]).toBe(`a${TAB}b`);
+    expect(catalog.messages["vertical"]).toBe(`a${VERTICAL_TAB}b`);
+    expect(catalog.messages["bell"]).toBe(`a${BELL}b`);
+    expect(catalog.messages["hex"]).toBe("aAb");
+    expect(catalog.messages["quote"]).toBe(String.raw`a"b`);
+  });
+
+  it("a single unparsable entry does not take the whole catalog down", () => {
+    const source = [
+      String.raw`msgid "good"`,
+      String.raw`msgstr "fine"`,
+      "",
+      String.raw`msgid "bad"`,
+      String.raw`msgstr "unterminated`,
+      "",
+      String.raw`msgid "after"`,
+      String.raw`msgstr "still here"`
+    ].join("\n");
+
+    const catalog = compilePoCatalog(source);
+
+    expect(catalog.messages["good"]).toBe("fine");
+    expect(catalog.messages["after"]).toBe("still here");
+  });
+});

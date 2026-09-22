@@ -1,21 +1,25 @@
 import { Component } from "../core/component/component";
-import { querySelfOrDescendant, setHidden } from "../core/dom/helpers";
+import { listNavigationIndex, querySelfOrDescendant, setHidden } from "../core/dom/helpers";
 import { positionFloatingElement, resetFloatingPosition } from "../core/dom/floating";
 
 const DROPDOWN_MENU_SELECTOR = "[data-om-dropdown-menu], .om-dropdown-menu";
 const DROPDOWN_TOGGLE_SELECTOR = "[data-om-dropdown-toggle]";
+const MENU_ITEM_SELECTOR = 'a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])';
+const NAVIGATION_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 
 export class Dropdown extends Component {
   static readonly componentName = "dropdown";
 
   /**
-   * 注册下拉触发器、外部点击和 Escape 键处理器。
+   * 注册下拉触发器、外部点击、Escape 和菜单内的方向键 / Home / End 处理器。
    */
   async mount(): Promise<void> {
     this.on("click", DROPDOWN_TOGGLE_SELECTOR, (event) => {
       event.preventDefault();
       this.toggleOpen();
     });
+
+    this.listen<KeyboardEvent>(this.root, "keydown", (event) => this.navigateWithKeys(event));
 
     this.listen<MouseEvent>(document, "click", (event) => {
       if (this.isOutsideClick(event)) this.close();
@@ -33,6 +37,9 @@ export class Dropdown extends Component {
     }, { capture: true });
 
     this.listen(window, "resize", () => this.reposition());
+    // 捕获阶段监听 document 的滚动是必要的:浮层锚定在触发元素上,而滚动可能发生在任何
+    // 祖先容器里,冒泡阶段收不到。不是性能问题:`scroll` 事件本来就不可取消,passive 与否
+    // 对它没有意义;`reposition()` 第一件事是判断是否打开,关闭时直接返回。
     this.listen(document, "scroll", () => this.reposition(), { capture: true });
     this.cleanup(() => this.close());
   }
@@ -57,6 +64,49 @@ export class Dropdown extends Component {
     } else {
       this.resetMenuPosition(menu);
     }
+  }
+
+  /**
+   * Arrow keys open the menu from its toggle and move between items; Home and End jump to the ends.
+   * Focus stops at either end instead of wrapping, so a held key cannot loop past the last item.
+   */
+  private navigateWithKeys(event: KeyboardEvent): void {
+    if (!NAVIGATION_KEYS.has(event.key)) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const menu = this.menu();
+    if (!menu) return;
+
+    if (target.closest(DROPDOWN_TOGGLE_SELECTOR)) {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      if (!this.isOpen()) this.toggleOpen(true);
+      this.focusItem(event.key === "ArrowUp" ? Number.MAX_SAFE_INTEGER : 0);
+      return;
+    }
+
+    if (!this.isOpen() || !menu.contains(target)) return;
+    const items = this.menuItems();
+    const current = items.findIndex((item) => item === target || item.contains(target));
+    const next = listNavigationIndex(event.key, current, items.length);
+    if (next === null) return;
+    event.preventDefault();
+    items[next]?.focus();
+  }
+
+  /** Focusable items of the open menu, in document order, skipping hidden ones. */
+  private menuItems(): HTMLElement[] {
+    const menu = this.menu();
+    if (!menu) return [];
+    return Array.from(menu.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR)).filter(
+      (item) => !item.hidden && !item.closest("[hidden]")
+    );
+  }
+
+  private focusItem(index: number): void {
+    const items = this.menuItems();
+    if (items.length === 0) return;
+    items[Math.max(0, Math.min(items.length - 1, index))]?.focus();
   }
 
   /**

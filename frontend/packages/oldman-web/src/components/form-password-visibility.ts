@@ -54,4 +54,7 @@ function syncPasswordVisibility(root: HTMLElement, button: HTMLButtonElement): v
   button.setAttribute("aria-pressed", visible ? "true" : "false");
   button.setAttribute("aria-label", visible ? hideLabel : showLabel);
   button.setAttribute("data-om-password-visible", visible ? "true" : "false");
+  // The icon shows the action's result: an open eye while hidden, a crossed eye while visible.
+  const icon = button.querySelector<HTMLElement>("i");
+  if (icon) icon.className = visible ? "ri-eye-off-line" : "ri-eye-line";
 }

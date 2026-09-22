@@ -24,11 +24,7 @@ class _RotationTarget:
 
 def _iter_loggers() -> tuple[logging.Logger, ...]:
     """Return root and every materialized named logger without placeholders."""
-    named = (
-        entry
-        for entry in logging.root.manager.loggerDict.values()
-        if isinstance(entry, logging.Logger)
-    )
+    named = (entry for entry in logging.root.manager.loggerDict.values() if isinstance(entry, logging.Logger))
     return (logging.getLogger(), *named)
 
 
@@ -65,11 +61,7 @@ class RotationCoordinator:
     @property
     def is_alive(self) -> bool:
         """Return whether this process owns a currently running coordinator thread."""
-        return bool(
-            os.getpid() == self.owner_pid
-            and self._thread is not None
-            and self._thread.is_alive()
-        )
+        return bool(os.getpid() == self.owner_pid and self._thread is not None and self._thread.is_alive())
 
     def _targets(self) -> tuple[_RotationTarget, ...]:
         """Discover and deduplicate current runtime handlers by absolute real path."""
@@ -91,14 +83,9 @@ class RotationCoordinator:
                 path = os.path.realpath(handler.baseFilename)
                 existing = policies.get(path)
                 if existing is not None and existing != policy:
-                    raise ValueError(
-                        f"conflicting rotation policies for activity path {path!r}"
-                    )
+                    raise ValueError(f"conflicting rotation policies for activity path {path!r}")
                 policies[path] = policy
-        return tuple(
-            _RotationTarget(path=path, policy=policy)
-            for path, policy in sorted(policies.items())
-        )
+        return tuple(_RotationTarget(path=path, policy=policy) for path, policy in sorted(policies.items()))
 
     @staticmethod
     def _new_helper(target: _RotationTarget) -> _RotatingHelper:
@@ -210,9 +197,7 @@ class RotationCoordinator:
         thread = self._thread
         if thread is not None and thread is not threading.current_thread():
             thread.join(max(0.0, deadline - time.monotonic()))
-        acquired = self._operation_lock.acquire(
-            timeout=max(0.0, deadline - time.monotonic())
-        )
+        acquired = self._operation_lock.acquire(timeout=max(0.0, deadline - time.monotonic()))
         if not acquired:
             _emergency_write(TimeoutError("log rotation coordinator did not stop in time"))
             return

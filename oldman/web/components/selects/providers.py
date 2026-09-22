@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
+from oldman.web.request import get_arg, iter_args
 
 from .choices import SelectChoice, SelectResult
 from .signing import SelectContext
@@ -252,35 +253,16 @@ def provider_api_error(error_code: ApiErrorCode, message: str, errors: dict[str,
     return DefaultApiResponse(error_code=error_code, message=message, data={"errors": errors}).to_dict()
 
 
-def get_arg(args: object, key: str, default: object = None) -> object:
-    """从 request.args 读取单值参数。"""
-    getter = getattr(args, "get", None)
-    return default if getter is None else first_arg_value(getter(key, default))
-
-
 def getlist_arg(args: object, key: str) -> list[object]:
     """从 request.args 读取多值参数。"""
     getlist = getattr(args, "getlist", None)
     if getlist is not None:
         return list(getlist(key))
     value = get_arg(args, key, [])
-    if value in {"", None}:
+    # 注意不要写成 `value in {...}`：新语义下这里会拿到列表，而列表不可哈希。
+    if value is None or value == "" or value == []:
         return []
     return value if isinstance(value, list) else [value]
-
-
-def iter_args(args: object) -> list[tuple[str, object]]:
-    """遍历 request.args 的单值参数。"""
-    if hasattr(args, "items"):
-        return [(key, first_arg_value(value)) for key, value in cast(Any, args).items()]
-    return []
-
-
-def first_arg_value(value: object) -> object:
-    """把 Sanic 多值查询参数规范为首个值。"""
-    if isinstance(value, (list, tuple)):
-        return value[0] if value else None
-    return value
 
 
 def read_positive_int_arg(args: object, key: str, *, default: int, maximum: int | None = None) -> int:

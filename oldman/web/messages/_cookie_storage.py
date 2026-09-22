@@ -210,10 +210,7 @@ class _FlashCookieCodec:
         ).digest()
         value = f"{signed_value}.{_urlsafe_b64encode(signature)}"
         encoded_size = len(value.encode("ascii"))
-        if (
-            len(payload) > self.decompressed_limit
-            or encoded_size > self.value_limit
-        ):
+        if len(payload) > self.decompressed_limit or encoded_size > self.value_limit:
             raise _FlashCookieTooLarge(encoded_size, len(payload))
         return value
 
@@ -226,18 +223,12 @@ class _FlashCookieCodec:
                 self.decompressed_limit + 1,
             )
             if len(payload) > self.decompressed_limit or decompressor.unconsumed_tail:
-                raise _InvalidFlashCookie(
-                    "Cookie payload exceeds the decompressed limit"
-                )
-            payload += decompressor.flush(
-                self.decompressed_limit + 1 - len(payload)
-            )
+                raise _InvalidFlashCookie("Cookie payload exceeds the decompressed limit")
+            payload += decompressor.flush(self.decompressed_limit + 1 - len(payload))
         except zlib.error:
             raise _InvalidFlashCookie("Cookie compression is invalid") from None
         if len(payload) > self.decompressed_limit:
-            raise _InvalidFlashCookie(
-                "Cookie payload exceeds the decompressed limit"
-            )
+            raise _InvalidFlashCookie("Cookie payload exceeds the decompressed limit")
         if not decompressor.eof or decompressor.unused_data:
             raise _InvalidFlashCookie("Cookie compression is invalid")
         return payload
@@ -346,17 +337,13 @@ def init_app(app: Sanic) -> None:
 
     environment = getattr(getattr(app, "ext", None), "environment", None)
     if environment is None:
-        raise RuntimeError(
-            "Web messages require the Sanic-Ext Jinja environment"
-        )
+        raise RuntimeError("Web messages require the Sanic-Ext Jinja environment")
 
     import oldman.conf as conf
 
     session_config = conf.settings.web.session
     runtime = _CookieFlashRuntime(
-        _FlashCookieCodec(
-            configured_web_security_key(WebSecurityPurpose.FLASH)
-        ),
+        _FlashCookieCodec(configured_web_security_key(WebSecurityPurpose.FLASH)),
         _FlashCookiePolicy(
             domain=session_config.cookie_domain,
             httponly=session_config.cookie_httponly,

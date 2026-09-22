@@ -223,9 +223,10 @@ EPG 第一次初始化时使用同目录的 `web_settings.example.yaml`，所以
 | `cache` | `RedisCacheConfig` | 缓存使用的 Redis 别名、namespace 和序列化器 |
 | `http_client` | `HttpClientConfig` | 出站连接池和 User-Agent 默认值 |
 | `storages` | `StoragesConfig` | 命名文件存储后端及 options |
+| `mail` | `MailConfig` | 外发邮件后端、默认发件人、管理员收件人和 SMTP 参数 |
 | `proxy` | `ProxyConfig` | 代理连接和读取超时等设置 |
 
-Auth 的 `user_model` 从 `oldman.auth.apps.app.settings` 读取；Admin 的 `require_superuser` 从 `oldman.apps.admin.apps.app.settings` 读取。它们保存为 `app_settings.auth`、`app_settings.admin`，不属于根设置。
+Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时、`ip_limit`/`ip_window` 5 次每 15 分钟、`email_limit`/`email_window` 3 封每小时）从 `oldman.auth.apps.app.settings` 读取；Admin 的 `require_superuser` 从 `oldman.apps.admin.apps.app.settings` 读取。它们保存为 `app_settings.auth`、`app_settings.admin`，不属于根设置。
 
 ### 常用非 Web 默认值
 
@@ -237,6 +238,10 @@ Auth 的 `user_model` 从 `oldman.auth.apps.app.settings` 读取；Admin 的 `re
 | `logging.level` | `logging.INFO`，也接受等级名如 `INFO` |
 | `logging.dir` | 项目根下 `logs` |
 | `logging.color` | `auto`，可选 `always`、`never` |
+| `logging.rotate_when` | `D`(按天);可选 `S`/`M`/`H`/`W0`–`W6`/`midnight`;设为 `null` 关闭时间轮转 |
+| `logging.rotate_interval` | `1`,表示每隔几个 `rotate_when` 单位滚动一次 |
+| `logging.max_bytes` | `0`(关闭)。按大小轮转,**要求 `rotate_when` 为 `null`**——两种轮转不能同时开 |
+| `logging.backup_count` | `3`,保留几份历史日志 |
 | `process.pid_dir` | 项目根下 `pids` |
 | `database.url` | `None`，用数据库前必须配置 |
 | `database.echo` | `None`，数据库管理器可使用 Web debug 作为回退 |
@@ -245,14 +250,17 @@ Auth 的 `user_model` 从 `oldman.auth.apps.app.settings` 读取；Admin 的 `re
 | `i18n.default_language` | `en` |
 | `cache.client` / `namespace` / `serializer` | `CACHE` / `main` / `pickle` |
 | `http_client.max_connections` | `300` |
+| `mail.backend` | `oldman.mail.backends.console.ConsoleEmailBackend`，打印到标准输出；生产改成 smtp |
+| `mail.default_from_email` / `subject_prefix` | `webmaster@localhost` / `[Oldman] ` |
+| `mail.smtp.host` / `port` / `timeout` | `localhost` / `25` / `10` 秒；`use_tls` 与 `use_ssl` 互斥 |
 
-Redis 内置 `DEFAULT`、`CACHE`、`SESSION` 别名；可添加其他别名，如 `SSE`。自定义别名必须提供真实 `redis_url`，不要假定它自动存在。开启依赖该别名的能力前，核对生成配置中的 URL、数据库编号和 `decode_responses`。
+Redis 内置 `DEFAULT`、`CACHE`、`SESSION` 别名，默认都指向 `localhost:6379` 的 TCP 端口（库 3、2、5）；`redis_url` 也接受 `rediss://`（TLS）和 `unix:///path/to/redis.sock?db=N`（已开启的 unix socket）。可添加其他别名，如 `SSE`。自定义别名必须提供真实 `redis_url`，不要假定它自动存在。开启依赖该别名的能力前，核对生成配置中的 URL、数据库编号和 `decode_responses`。
 
 NATS 默认 DEFAULT 指向 nats://localhost:4222；Taskiq 默认关闭，启用时必须配置 namespace 和实际存在的 NATS/Redis alias。非 Web 服务不自动生成 web，但仍生成这些根配置。全部 Taskiq 默认值、安全参数转换和生命周期见[分布式任务配置](distributed-tasks.md#配置与默认值)。
 
 Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_alias 默认 DEFAULT，启用时必须提供 namespace。它与 Taskiq 可以引用同一命名地址，但不共用连接/协议；全部默认值、peer_id、codec 和启动/停止预算见 [NATS 配置](providers.md#配置与默认值)。配置 init/sync/check 不连接 NATS，也不读取证书文件。
 
-显式配置 `storages` 时必须包含 `default`，每个后端使用真实的类导入路径及其 options。不在模型导入阶段创建后端连接。
+邮件字段的含义和内置后端见[邮件](mail.md)。显式配置 `storages` 时必须包含 `default`，每个后端使用真实的类导入路径及其 options。不在模型导入阶段创建后端连接。
 
 ## Web 默认值与开关
 
@@ -278,6 +286,8 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 设置真实 IP header 不表示所有请求都可信。生产反向代理应覆盖该 header，并限制直接绕过代理访问服务的路径。
 
+`web.debug` 为 true 时 Sanic 会对事件循环调用 `set_debug(True)`。uvloop 0.22.1 在该模式下于 CPython 3.13.15、3.14.7 及更新的补丁版会在回收未关闭的 async generator 时段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复）。调试模式请使用已验证的 3.13.11 或 3.14.2，3.12 不受影响；默认关闭调试的生产运行不受影响。
+
 ### Web 安全配置
 
 `web.security.secret_key` 默认空，在 Web 服务 `init/sync/write` 时生成并持久化。`fingerprint.aes_secret_key` 同样生成并持久化，采用 Base64 编码的 32 字节密钥。已有非空密钥不自动轮换。
@@ -288,6 +298,11 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 - `web.security.token_expire_time`：通用 Web token 有效期，默认 86400 秒。
 - `web.security.csrf.ttl`：默认 3600 秒；`check_referer` 默认 true，`check_url` 默认 false。
+- `web.security.csrf.enforce`：默认 **false**。打开后框架注册一个全局中间件，对每个状态改变请求(非 GET/HEAD/OPTIONS/TRACE)校验 CSRF token，被 `@csrf_exempt` 标注的 handler 跳过。
+  默认关是因为打开会波及**现在没有被保护的路由**——用令牌认证的 API、webhook、回调接口。
+  打开之前先把这些路由标上 `@csrf_exempt`，否则它们会开始返回 403。关闭时保护仍按逐路由的 `@csrf_protect` 声明生效。
+- `check_referer` 的语义已扩展:开启时按 **Origin 优先、Referer 回退**做同源校验,两者都缺失即拒绝。
+  仅看 Referer 是不够的——`referrer-policy: no-referrer` 是合法的请求状态,能把 Referer 完全去掉,而 Origin 去不掉。
 - `web.security.fingerprint`：浏览器指纹时间差、频率限制与异常策略。
 
 安全 token 和 Session 的有效期是不同设置，不能用其中一个代替另一个。
@@ -298,7 +313,8 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 | --- | --- |
 | `web.session.enabled` | false；启用才安装会话中间件 |
 | `web.session.redis_alias` | `SESSION` |
-| `web.session.expiry` | 2592000 秒，30 天 |
+| `web.session.expiry` | 43200 秒，12 小时；普通登录的会话时长（服务端 Redis TTL，Cookie 有效期与之一致，活动不续期） |
+| `web.session.remember_expiry` | 2592000 秒，30 天；登录时勾选"记住我"后的会话时长 |
 | `web.session.cookie_name` | `session_id` |
 | `web.session.cookie_httponly` / `cookie_secure` / `cookie_samesite` | true / false / `Lax`；HTTPS 部署应调整 Secure |
 | `web.messages.enabled` | false；控制 Cookie 一次性页面提示 |

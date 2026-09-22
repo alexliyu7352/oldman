@@ -31,7 +31,7 @@ describe("oldman-admin frontend", () => {
     expect(source).toContain("readAdminBasePath()");
     expect(source).toContain("sidebarOptions: { defaultDashboardPath: adminBasePath }");
     expect(source).toContain("emptyNotificationTemplate: adminNotificationEmptyState");
-    expect(source).toContain('class="empty-notification-elem px-6 py-8 text-center"');
+    expect(source).toContain('class="empty-notification-elem om-empty om-empty-sm"');
     expect(source).not.toContain('defaultDashboardPath: "/admin"');
     expect(source).not.toContain("pageLoader: async () => undefined");
   });

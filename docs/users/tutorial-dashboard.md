@@ -4,8 +4,8 @@
 
 打开：
 
-- [HTML Data Table](http://127.0.0.1:17998/examples/tables/html)
-- [JSON Data Table](http://127.0.0.1:17998/examples/tables/json)
+- [HTML Data Table](http://127.0.0.1:17997/examples/tables/html)
+- [JSON Data Table](http://127.0.0.1:17997/examples/tables/json)
 
 两页都使用 `ExampleProject`、`ExampleProjectTable`、`ExampleProjectForm` 和同一组增删改接口。只有 Table 数据的传输与渲染格式不同；JSON Table 不是另一份数据库数据。
 
@@ -185,7 +185,7 @@ def _project_saved_response(message: str | LazyTranslation):
 
 本章两个 Table 页里的 Modal 都提交 JSON Form。**HTML Table 不代表其中的 Form 也必须使用 HTML 响应**。
 
-要比较表单自身的两种返回方式，打开 [/examples/forms/basics](http://127.0.0.1:17998/examples/forms/basics)，分别操作 HTML response 和 JSON response actions 两张表单。其实际代码是 [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py)、[forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 和 [forms/page.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/forms/page.html)。validation 页用于另外展示校验规则，当前只挂载 JSON 表单，不要在那里寻找第二张 HTML 表单。
+要比较表单自身的两种返回方式，打开 [/examples/forms/basics](http://127.0.0.1:17997/examples/forms/basics)，分别操作 HTML response 和 JSON response actions 两张表单。其实际代码是 [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py)、[forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 和 [forms/page.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/forms/page.html)。validation 页用于另外展示校验规则，当前只挂载 JSON 表单，不要在那里寻找第二张 HTML 表单。
 
 `_form_error_response()` 根据客户端 Accept 返回 JSON 业务错误，或 HTTP 422 的错误表单 HTML。JSON Form 的响应和 HTML Form 的响应在前端适配到共同处理流程，不等于后端只剩 JSON。
 

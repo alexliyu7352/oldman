@@ -1,3 +1,17 @@
-{% for item in fields %}
-  <div{{ item.attrs|html_attrs }}>{{ item.field_html }}</div>
+{% for segment in segments %}
+  {% if segment.group %}
+    <fieldset class="om-form-group md:col-span-12">
+      <legend class="om-form-group-title">{{ segment.group.title }}</legend>
+      {% if segment.group.description %}<p class="om-form-group-description">{{ segment.group.description }}</p>{% endif %}
+      <div class="{{ segment.grid_class }}">
+        {% for item in segment.fields %}
+          <div{{ item.attrs|html_attrs }}>{{ item.field_html }}</div>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% else %}
+    {% for item in segment.fields %}
+      <div{{ item.attrs|html_attrs }}>{{ item.field_html }}</div>
+    {% endfor %}
+  {% endif %}
 {% endfor %}

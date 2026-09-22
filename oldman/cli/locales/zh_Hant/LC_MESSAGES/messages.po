@@ -658,3 +658,43 @@ msgstr "重新啟動服務。"
 
 #~ msgid "config.schemas.Settings must inherit oldman.conf.DefaultSettings."
 #~ msgstr "config.schemas.Settings 必須繼承 oldman.conf.DefaultSettings。"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Check outgoing mail settings."
+msgstr "檢查外發郵件設定。"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Recipient addresses."
+msgstr "收件人地址。"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Send a test message to the given addresses."
+msgstr "向指定地址傳送一封測試郵件。"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Sending the test message failed: %(error)s"
+msgstr "測試郵件傳送失敗：%(error)s"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Sent %(count)s test message(s) through %(backend)s."
+msgstr "已透過 %(backend)s 傳送 %(count)s 封測試郵件。"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "Test email from %(host)s on %(time)s"
+msgstr "來自 %(host)s 的測試郵件（%(time)s）"
+
+#: oldman/cli/_main.py oldman/cli/mail.py
+msgid "If you're reading this, the mail settings of this service work."
+msgstr "如果你能讀到這封郵件，代表這個服務的郵件設定正常。"
+
+#: oldman/cli/_main.py
+msgid "Build browser catalogs and the frontend language manifest."
+msgstr "產生瀏覽器語言包與前端語言清單。"
+
+#: oldman/cli/_main.py
+msgid "Building frontend catalogs..."
+msgstr "正在產生前端語言包……"
+
+#: oldman/cli/_main.py
+msgid "Service whose settings describe the languages."
+msgstr "語言設定所屬的服務。"

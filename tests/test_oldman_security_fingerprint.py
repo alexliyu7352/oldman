@@ -68,11 +68,10 @@ class FingerprintSecurityTest(unittest.TestCase):
             fingerprint.validate_payload({"vid": "visitor-identifier-123", "ts": now}, 1_000),
         )
 
-    def test_stats_uses_the_migrated_redis_client(self) -> None:
+    def test_stats_uses_the_shared_security_connection(self) -> None:
         connection = FakeFingerprintRedis()
-        client = SimpleNamespace(async_get_conn=lambda: self._connection(connection))
 
-        with patch.object(fingerprint, "redis_client", client):
+        with patch.object(fingerprint, "security_redis_connection", lambda: self._connection(connection)):
             response = asyncio.run(fingerprint.get_stats("fingerprint-1"))
 
         body = response.body
@@ -90,10 +89,10 @@ class FingerprintSecurityTest(unittest.TestCase):
                 del key, start, end
                 return ["not-json"]
 
-        client = SimpleNamespace(async_get_conn=lambda: self._connection(InvalidLogRedis()))
+        invalid = InvalidLogRedis()
 
         with (
-            patch.object(fingerprint, "redis_client", client),
+            patch.object(fingerprint, "security_redis_connection", lambda: self._connection(invalid)),
             self.assertRaises(json.JSONDecodeError),
         ):
             asyncio.run(fingerprint.get_stats("fingerprint-1"))
@@ -105,3 +104,116 @@ class FingerprintSecurityTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecurityStateConnectionTest(unittest.TestCase):
+    """Every Web security subsystem must read and write one Redis database.
+
+    The fingerprint blacklist used to be written on the DEFAULT alias while the rate
+    limiter's Lua read it on the session alias. On the shipped demo configuration those
+    are different databases (3 and 5), so the blacklist never took effect and nothing
+    reported a failure. These guard the single owner that now answers the question.
+    """
+
+    def test_the_alias_follows_the_session_connection(self) -> None:
+        import oldman.conf as conf
+        from oldman.web.security.store import security_redis_alias
+
+        configured = SimpleNamespace(web=SimpleNamespace(session=SimpleNamespace(redis_alias="SESSION")))
+        with patch.dict(conf.__dict__, {"settings": configured}):
+            self.assertEqual("SESSION", security_redis_alias())
+
+        moved = SimpleNamespace(web=SimpleNamespace(session=SimpleNamespace(redis_alias="OTHER")))
+        with patch.dict(conf.__dict__, {"settings": moved}):
+            self.assertEqual("OTHER", security_redis_alias(), "the alias must be read at call time, not captured")
+
+    def test_no_security_module_resolves_a_connection_on_its_own(self) -> None:
+        """A second answer to "which Redis" is how the writer and reader drifted apart."""
+        import inspect
+
+        from oldman.web.security import fingerprint as fingerprint_module
+        from oldman.web.security import guard
+        from oldman.web.security.rate_limiter import fixed_window
+
+        for module in (fingerprint_module, guard, fixed_window):
+            source = inspect.getsource(module)
+            self.assertNotIn(
+                "redis_client.async_get_conn()",
+                source,
+                f"{module.__name__} takes the default connection instead of the security one",
+            )
+            self.assertNotIn(
+                "settings.web.session.redis_alias",
+                source,
+                f"{module.__name__} names the alias itself instead of asking security_redis_alias()",
+            )
+
+    def test_the_blacklist_writer_uses_the_shared_connection(self) -> None:
+        """log_fake_fingerprint_attempt writes the key the rate limiter's Lua reads."""
+
+        class RecordingRedis:
+            def __init__(self) -> None:
+                self.keys: list[str] = []
+
+            async def lpush(self, key: str, value: object) -> int:
+                self.keys.append(key)
+                return 1
+
+            async def ltrim(self, key: str, start: int, end: int) -> None:
+                del key, start, end
+
+            async def expire(self, key: str, ttl: int) -> None:
+                del key, ttl
+
+            async def llen(self, key: str) -> int:
+                del key
+                return 11  # past the threshold, so the blacklist write happens
+
+            async def setex(self, key: str, ttl: int, value: str) -> None:
+                del ttl, value
+                self.keys.append(key)
+
+        recording = RecordingRedis()
+
+        async def shared() -> RecordingRedis:
+            return recording
+
+        with patch.object(fingerprint, "security_redis_connection", shared):
+            asyncio.run(fingerprint.log_fake_fingerprint_attempt("10.0.0.1", "forged"))
+
+        self.assertIn("blacklist:ip:10.0.0.1", recording.keys)
+
+
+class FingerprintPayloadTypeTest(unittest.TestCase):
+    """The decrypted payload is attacker-shaped input and must be type-checked.
+
+    guard.py says so itself: the AES key is handed to the browser, so anyone who opens
+    devtools can sign a payload of their choosing. `vid` was checked; `ts` was not, and a
+    string or null reached `abs(current_time - timestamp)`, raised TypeError, escaped the
+    decorator and became a 500 - a one-line request that takes a handler down.
+    """
+
+    VISITOR = "a" * 20
+
+    def test_a_forged_timestamp_type_is_refused_not_raised(self) -> None:
+        for value in ("1700000000000", None, 1.5, [1], {"a": 1}):
+            with self.subTest(timestamp=value):
+                valid, reason, visitor = fingerprint.validate_payload({"vid": self.VISITOR, "ts": value}, 300_000)
+                self.assertFalse(valid)
+                self.assertEqual("invalid_timestamp", reason)
+                self.assertEqual("", visitor)
+
+    def test_a_boolean_timestamp_is_refused(self) -> None:
+        """bool passes isinstance(x, int) and would quietly compare as 0 or 1."""
+        valid, reason, _ = fingerprint.validate_payload({"vid": self.VISITOR, "ts": True}, 300_000)
+        self.assertFalse(valid)
+        self.assertEqual("invalid_timestamp", reason)
+
+    def test_a_real_timestamp_still_validates(self) -> None:
+        valid, reason, visitor = fingerprint.validate_payload(
+            {"vid": self.VISITOR, "ts": int(time.time() * 1000)},
+            300_000,
+        )
+        self.assertTrue(valid)
+        self.assertEqual("valid", reason)
+        self.assertEqual(self.VISITOR, visitor)

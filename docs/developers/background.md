@@ -5,6 +5,7 @@
 | 需求 | 入口 |
 | --- | --- |
 | 同一事件循环周期采样 | `BackgroundTaskManager`，或 SimpleApplication 自己的 `main()` |
+| 请求或命令里即发即忘的一次性协程（发邮件、写审计） | `BackgroundTaskManager().spawn()`；Web 处理器用 `request.app.ctx.tasks.spawn()` |
 | 限并发执行同步 Python 计算 | `AsyncProcessManager` |
 | 启动外部程序、处理超时及子进程组 | `run_subprocess_exec` / `create_subprocess_exec` |
 | 多个长期 Worker 接收启动/停止任务指令 | `BaseManager`、`BaseWorker`、`BaseTask` |
@@ -26,18 +27,19 @@
 
 启动后，采样协程每秒读一次，第二个样本完成时设置 ready，仍继续等待下一次采样。异常/取消则在 finally 设置 cleaned 和 ready，确保父协程不一直等待根本不会产生的结果。命令最多等 10 秒，然后检查 `manager.tasks[name].task`；已经结束时 await 该 Task，传播真实错误，而不是仅凭事件、名称或登记状态说成功。
 
-成功路径先保存 `get_task_status` 的运行快照，再 await stop_task，输出停止状态和协程 finally 标记。无论成功失败，finally 都停止监控、移除自身任务、最后关闭数据库。此例为展示取消而用 PERSISTENT；它不让一个页面请求无限占用服务，也不承诺数据库统计是持久结果。
+成功路径先保存 `get_task_status` 的运行快照，再 await stop_task，输出停止状态和协程 finally 标记。无论成功失败，finally 都停止全部任务、移除自身登记、最后关闭数据库。此例为展示取消而用 PERSISTENT；它不让一个页面请求无限占用服务，也不承诺数据库统计是持久结果。
 
-`BackgroundTaskManager()` 是**进程级单例**，Web/SimpleApplication 的 `self.task_manager` 也使用它。不要在同进程为不同业务反复调用 `start_all()`；应由一个生命周期所有者启动一次。`add_task()` 接收协程函数及其参数，不是已创建的 coroutine。
+`BackgroundTaskManager()` 是**进程级单例**，Web/SimpleApplication 的 `self.task_manager` 也使用它。不要在同进程为不同业务反复调用 `start_all()`；应由一个生命周期所有者启动一次。`add_task()` 和 `spawn()` 都接收协程函数及其参数，不是已创建的 coroutine。
 
-- `add_task(name, coro_func, *args, restart_delay=30, max_restarts=-1, task_type=PERSISTENT, auto_remove_on_complete=None, **kwargs)` 注册但不自动启动。
+- `add_task(name, coro_func, *args, restart_delay=30, max_restarts=-1, task_type=PERSISTENT, auto_remove_on_complete=None, **kwargs)` 注册但不自动启动；同名再次注册抛 `ValueError`，替换前显式 `remove_task()`。
+- `spawn(coro_func, *args, name=None, **kwargs)` 立即启动一个一次性任务并返回 `asyncio.Task`：需要运行中的事件循环，结束后（成功、失败、取消）自动移除登记，失败只记日志、不重试。不传 `name` 时自动生成唯一名字。这是请求处理器里“发完就走”工作的入口，Web 进程通过 `request.app.ctx.tasks` 拿到同一个管理器；停机时和其他任务一起被取消。
 - `start_task(name)`、`stop_task(name)`、`remove_task(name)`、`restart_task(name)` 是异步方法，返回是否成功。
-- `start_all()` 启动已注册任务和监控协程；`stop_all()` 取消并等待；`stop_all_sync()` 只发出取消，不能代替需要等待的异步资源清理。
+- `start_all()` 启动尚未运行、也不在等待重启的已注册任务；`stop_all()` 取消全部任务和待执行的重启并等待；`stop_all_sync()` 只发出取消，不能代替需要等待的异步资源清理。
 - `get_task_status(name)` 返回状态字典，未知名称返回 `{}`；`get_all_status()` 返回全部注册项。
 
-`PERSISTENT` 指协程正常结束后也应重启；不是数据持久化。`ONE_TIME` 正常完成后默认移除。状态由默认每 60 秒运行一次的监控器更新，所以任务刚完成时可能仍显示 `running`，同时 `is_alive=False`。
+`PERSISTENT` 指协程正常结束后也应重启；不是数据持久化。`ONE_TIME` 正常完成后默认移除。任务结束由 done 回调即时处理，没有轮询监控器，`get_task_status()` 读到的就是当前状态。
 
-当前自动重启不是可靠重试队列：重启延迟/次数条件不满足时，不保证以后自动再次尝试。`max_restarts` 的当前判断只限制正数，不能把 `0` 当作明确的禁用重启选项。同名 `add_task()` 会覆盖登记，不负责先停止旧任务；替换前显式 `remove_task()`。不要依赖此组件实现需要重放、确认或精确调度的作业。
+自动重启规则：`PERSISTENT` 任务无论正常返回、抛异常还是被管理器之外的代码取消，都会在距上次启动 `restart_delay` 秒后重启；`max_restarts=-1` 不限次数，`0` 禁用，正数是上限，用完后状态变为 `error` 并记日志。`ONE_TIME` 任务失败默认不重启，只有 `max_restarts` 为正数时才重试，被外部取消视为停止。管理器自己发起的 `stop_task`/`remove_task`/`stop_all` 从不触发重启；`start_task()` 会清零重启计数。这仍不是可靠重试队列：没有持久化、确认或精确调度，进程退出即丢失，需要重放的作业用 Taskiq。
 
 ## 短期 Python 进程
 

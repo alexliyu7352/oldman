@@ -14,6 +14,7 @@ class WebSecurityPurpose(StrEnum):
     CSRF = "oldman.web.csrf.v1"
     SELECT_BINDING = "oldman.web.forms.select.v1"
     FLASH = "oldman.web.messages.flash.v1"
+    PROXY_URL = "oldman.contrib.proxy.url.v1"
 
 
 def derive_web_security_key(
@@ -39,9 +40,7 @@ def configured_web_security_key(purpose: WebSecurityPurpose) -> str:
 
     root_secret = conf.settings.web.security.secret_key
     if root_secret is None:
-        raise RuntimeError(
-            "settings.web.security.secret_key is empty; run `oldman <service> settings sync`"
-        )
+        raise RuntimeError("settings.web.security.secret_key is empty; run `oldman <service> settings sync`")
     return derive_web_security_key(root_secret, purpose)
 
 

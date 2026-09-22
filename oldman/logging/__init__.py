@@ -11,6 +11,7 @@ from oldman.logging.runtime import (
     get_logger,
     init_logging,
     logger,
+    resolve_child_logging_context,
 )
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "LOGGING_CONFIG_DEFAULTS",
     "LoggingRuntime",
     "get_active_runtime",
+    "resolve_child_logging_context",
     "get_logger",
     "init_logging",
     "logger",

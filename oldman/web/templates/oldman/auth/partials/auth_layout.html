@@ -1,0 +1,18 @@
+{% macro auth_layout(brand_href, brand_name, language_switcher_class="om-dropdown om-auth-language-switcher") %}
+  {# 登录、找回密码这类认证页的公共外壳：右上角语言切换、品牌、卡片、页脚。 #}
+  {% set language_switcher_classes = language_switcher_class %}
+  {% include "oldman/dashboard/partials/language_switcher.html" %}
+
+  <main class="oldman-auth-layout">
+    <a href="{{ brand_href }}" class="oldman-auth-brand">
+      <span class="oldman-brand-mark" aria-hidden="true"><span></span></span>
+      <span class="oldman-brand-name">{{ brand_name }}</span>
+    </a>
+
+    <section class="oldman-auth-card">
+      {{ caller() }}
+    </section>
+    {% set footer_class = "oldman-footer-auth" %}
+    {% include "oldman/dashboard/partials/footer.html" %}
+  </main>
+{% endmacro %}

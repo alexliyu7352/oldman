@@ -19,6 +19,8 @@ from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget, DateTimePickerWid
 _SAVE_LABEL = gettext_lazy("Save")
 _CANCEL_LABEL = gettext_lazy("Cancel")
 _FILTER_LABEL = gettext_lazy("Filter")
+_MORE_FILTERS_LABEL = gettext_lazy("More filters")
+_RESET_LABEL = gettext_lazy("Reset")
 _SHOW_PASSWORD_LABEL = gettext_lazy("Show password")
 _HIDE_PASSWORD_LABEL = gettext_lazy("Hide password")
 _FORM_INVALID_MESSAGE = gettext_lazy("Form validation failed")
@@ -112,6 +114,7 @@ class FormRenderer:
         cancel_url = kwargs.get("cancel_url")
         cancel_label = kwargs.get("cancel_label", _CANCEL_LABEL)
         extra_buttons = kwargs.get("extra_buttons", "")
+        layout_style = str(getattr(self.form, "layout_style", "inline") or "inline")
         form_class = css_classes("om-filter-toolbar", kwargs.get("form_class", ""))
 
         if not table_target:
@@ -129,8 +132,11 @@ class FormRenderer:
             "class": form_class or None,
             "data-om-component": "table-filter-form",
             "data-om-table-target": table_target,
+            "data-om-layout": layout_style,
             "novalidate": True,
         }
+        if layout_style == "inline":
+            return await self.render_inline_filter(attrs, submit_label=submit_label, extra_buttons=extra_buttons)
         return await self.render_with_attrs(
             attrs,
             method=method,
@@ -139,6 +145,49 @@ class FormRenderer:
             cancel_label=cancel_label,
             extra_buttons=extra_buttons,
             validator=False,
+        )
+
+    async def render_inline_filter(self, attrs: dict[str, Any], *, submit_label: object, extra_buttons: Markup | str) -> Markup:
+        """一行式筛选条：搜索框、带前缀标签的控件、范围控件、"更多筛选"面板和右端动作。"""
+        await self.form.prepare_async_fields()
+        field_renderer = self.form.get_field_renderer()
+        search_html: Markup | None = None
+        controls: list[Markup] = []
+        advanced: list[Any] = []
+        for layout in self.form.iter_layout():
+            field = self.form._fields.get(layout.name)
+            if field is None or isinstance(field, HiddenField):
+                continue
+            if layout.advanced:
+                advanced.append(layout)
+                continue
+            if layout.range_end:
+                end_field = self.form._fields.get(layout.range_end)
+                if end_field is None:
+                    raise ValueError(f"Range end field {layout.range_end!r} does not exist")
+                controls.append(await field_renderer.render_filter_range(field, end_field, label=layout.range_label))
+            elif search_html is None and is_search_field(field):
+                search_html = await field_renderer.render_filter_search(field)
+            else:
+                controls.append(await field_renderer.render_filter_control(field))
+        advanced_fields = await self._render_field_layouts(advanced)
+        return await render_component_template(
+            self.form,
+            self.template_name("filter_inline.html"),
+            {
+                "advanced_fields": advanced_fields,
+                "attrs": attrs,
+                "controls": controls,
+                "extra_buttons": extra_buttons,
+                "grid_class": self.fields_wrapper_class,
+                "hidden_fields": [field() for field in self.form.hidden_fields()],
+                "message_html": await self.render_message(),
+                "more_label": display_text(_MORE_FILTERS_LABEL),
+                "reset_label": display_text(_RESET_LABEL),
+                "search_html": search_html,
+                "status_html": await self.render_status(),
+                "submit_label": display_text(submit_label),
+            },
         )
 
     async def render_with_attrs(
@@ -194,7 +243,7 @@ class FormRenderer:
                 rendered_steps.append(
                     {
                         "description": display_text(step.description) if step.description else "",
-                        "fields_html": await self._render_field_layouts(self.form.iter_step_layout(step)),
+                        "fields_html": await self._render_segments(self.form.iter_step_segments(step)),
                         "index": index,
                         "title": display_text(step.title),
                     }
@@ -213,15 +262,49 @@ class FormRenderer:
                     "steps": rendered_steps,
                 },
             )
-        return await self._render_field_layouts(self.form.iter_layout())
+        return await self._render_segments(self.form.iter_layout_segments())
 
-    async def _render_field_layouts(self, layouts: Iterable[Any]) -> Markup:
-        """渲染一组已经展开的字段布局。"""
+    async def _render_segments(self, segments: Iterable[tuple[Any, Iterable[Any]]]) -> Markup:
+        """渲染按 FieldGroup 切分的字段布局；`fields` 仍给出扁平列表以兼容自定义模板。"""
+        rendered_segments: list[dict[str, Any]] = []
+        flat_fields: list[dict[str, Any]] = []
+        for group, layouts in segments:
+            fields = await self._render_field_layouts(layouts)
+            if not fields:
+                continue
+            flat_fields.extend(fields)
+            rendered_segments.append(
+                {
+                    "fields": fields,
+                    "group": None
+                    if group is None
+                    else {
+                        "description": display_text(group.description) if group.description else "",
+                        "title": display_text(group.title),
+                    },
+                    "grid_class": self.fields_wrapper_class,
+                }
+            )
+        return await render_component_template(
+            self.form,
+            self.template_name("fields.html"),
+            {"fields": flat_fields, "segments": rendered_segments},
+        )
+
+    async def _render_field_layouts(self, layouts: Iterable[Any]) -> list[dict[str, Any]]:
+        """展开一组字段布局为模板条目。"""
         fields: list[dict[str, Any]] = []
         for layout in layouts:
             field = self.form._fields.get(layout.name)
             if field is None or isinstance(field, HiddenField):
                 continue
+            if layout.range_end:
+                end_field = self.form._fields.get(layout.range_end)
+                if end_field is None:
+                    raise ValueError(f"Range end field {layout.range_end!r} does not exist")
+                field_html = await self.form.get_field_renderer().render_range_field(field, end_field, label=layout.range_label)
+            else:
+                field_html = await self.form.render_field(field)
             fields.append(
                 {
                     "attrs": {
@@ -230,11 +313,11 @@ class FormRenderer:
                         "data-om-form-field-name": field.name,
                     },
                     "field": field,
-                    "field_html": await self.form.render_field(field),
+                    "field_html": field_html,
                     "layout": layout,
                 }
             )
-        return await render_component_template(self.form, self.template_name("fields.html"), {"fields": fields})
+        return fields
 
     async def render_status(self) -> Markup:
         """渲染前端 Form 组件用于显示提交状态的锚点。"""
@@ -267,6 +350,9 @@ class FormRenderer:
                 },
                 "cancel_label": display_text(cancel_label),
                 "cancel_url": cancel_url,
+                # 原样当 HTML 插入，不转义。类型允许 str 是为了方便，但语义是"调用方保证
+                # 这段 HTML 可信"——和 MessageFormat.HTML、modal_response 的 html 一样。
+                # 任何用户数据在传进来之前必须自己转义。
                 "extra_buttons": Markup(extra_buttons) if extra_buttons else Markup(""),
                 "submit_attrs": {"type": "submit", "class": self.submit_button_class or None},
                 "submit_label": display_text(submit_label),
@@ -301,6 +387,8 @@ class FieldRenderer:
     label_class = ""
     boolean_label_class = ""
     boolean_wrapper_class = ""
+    #: Presentation used when a BooleanField keeps WTForms' plain CheckboxInput: checkbox | switch | switch-card.
+    default_boolean_presentation = "checkbox"
     radio_group_class = ""
     radio_input_class = ""
     radio_option_class = ""
@@ -418,7 +506,7 @@ class FieldRenderer:
             {
                 "button_attrs": {
                     "type": "button",
-                    "class": "oldman-icon-button absolute right-0 top-1/2 -translate-y-1/2 text-default-500",
+                    "class": "oldman-icon-button oldman-icon-button-sm absolute right-0.5 top-1/2 -translate-y-1/2",
                     "data-om-password-toggle": True,
                     "data-om-password-visible": "false",
                     "aria-controls": field.id,
@@ -445,20 +533,33 @@ class FieldRenderer:
         render_kw = getattr(field, "render_kw", None) or {}
         return render_kw.get("password_toggle", True) is not False
 
+    def boolean_presentation(self, field: BooleanField) -> str:
+        """返回布尔字段的呈现方式：widget 自带的优先，否则用 renderer 默认。"""
+        presentation = getattr(getattr(field, "widget", None), "presentation", None)
+        return str(presentation or self.default_boolean_presentation)
+
     async def render_boolean_field(self, field: BooleanField) -> Markup:
-        """渲染布尔开关字段。"""
-        control = await self.render_widget(field)
+        """渲染布尔字段：复选框行、开关行或开关卡片。"""
+        presentation = self.boolean_presentation(field)
+        extra_attrs: dict[str, Any] = {}
+        if presentation != "checkbox" and getattr(getattr(field, "widget", None), "presentation", None) is None:
+            extra_attrs["role"] = "switch"
+        control = await self.render_widget(field, **extra_attrs)
+        help_text = await self.render_help(field)
         errors = await self.render_field_errors(field)
+        template = "boolean_switch_card.html" if presentation == "switch-card" else "boolean_field.html"
         return await render_component_template(
             self.form,
-            self.template_name("boolean_field.html"),
+            self.template_name(template),
             {
                 "control_html": control,
                 "errors_html": errors,
                 "field": field,
+                "help_html": help_text,
                 "label_attrs": {"class": self.boolean_label_class or None, "for": field.id},
                 "label_text": display_text(field.label.text),
-                "wrapper_attrs": {"class": self.boolean_wrapper_class or None},
+                "presentation": presentation,
+                "wrapper_attrs": {"class": self.boolean_wrapper_class or None, "data-om-boolean": presentation},
             },
         )
 
@@ -476,6 +577,59 @@ class FieldRenderer:
     def template_name(self, name: str) -> str:
         """返回当前字段 renderer 使用的模板路径。"""
         return f"{self.template_namespace}/{name}"
+
+    async def render_range_field(self, start: Field, end: Field, *, label: object = None) -> Markup:
+        """栅格布局里的范围字段：范围标签（默认取起点字段标签）+ 两个控件并排。"""
+        return await render_component_template(
+            self.form,
+            self.template_name("range_field.html"),
+            {
+                "end_html": await self.render_widget(end, **{"aria-label": display_text(end.label.text)}),
+                "errors_html": Markup("").join([await self.render_field_errors(start), await self.render_field_errors(end)]),
+                "field": start,
+                "help_html": await self.render_help(start),
+                "label_attrs": {"class": self.label_class or None, "for": start.id},
+                "label_text": display_text(label) if label else display_text(start.label.text),
+                "start_html": await self.render_widget(start, **{"aria-label": display_text(start.label.text)}),
+            },
+        )
+
+    async def render_filter_search(self, field: Field) -> Markup:
+        """inline 筛选条的搜索框：无前缀，占满剩余宽度。"""
+        return await render_component_template(
+            self.form,
+            self.template_name("filter_search.html"),
+            {
+                "control_html": await self.render_widget(field),
+                "field": field,
+                "label_text": display_text(field.label.text),
+            },
+        )
+
+    async def render_filter_control(self, field: Field) -> Markup:
+        """inline 筛选条的控件：标签是控件左侧的前缀段。"""
+        return await render_component_template(
+            self.form,
+            self.template_name("filter_control.html"),
+            {
+                "control_html": await self.render_widget(field),
+                "field": field,
+                "label_text": display_text(field.label.text),
+            },
+        )
+
+    async def render_filter_range(self, start: Field, end: Field, *, label: object = None) -> Markup:
+        """inline 筛选条的范围控件：一个前缀（默认取起点字段标签），起止两个输入。"""
+        return await render_component_template(
+            self.form,
+            self.template_name("filter_range.html"),
+            {
+                "end_html": await self.render_widget(end, **{"aria-label": display_text(end.label.text)}),
+                "field": start,
+                "label_text": display_text(label) if label else display_text(start.label.text),
+                "start_html": await self.render_widget(start, **{"aria-label": display_text(start.label.text)}),
+            },
+        )
 
     async def render_help(self, field: Field) -> Markup:
         """渲染字段帮助文本。"""
@@ -555,8 +709,9 @@ class TailwindFieldRenderer(FieldRenderer):
 
     template_namespace = "oldman/forms/default"
     label_class = "om-form-label"
-    boolean_label_class = "text-sm font-medium text-default-700"
-    boolean_wrapper_class = "flex min-h-9 items-center gap-2"
+    boolean_label_class = "om-boolean-label"
+    boolean_wrapper_class = "om-boolean-row"
+    default_boolean_presentation = "switch-card"
     radio_group_class = "om-radio-group"
     radio_input_class = "om-radio"
     radio_option_class = "om-radio-option"
@@ -570,7 +725,7 @@ class TailwindFieldRenderer(FieldRenderer):
         if isinstance(field, SelectField):
             return "om-select"
         if isinstance(field, BooleanField):
-            return "om-check"
+            return "om-check" if self.boolean_presentation(field) == "checkbox" else "om-switch"
         if isinstance(field, PasswordField) and self.password_toggle_enabled(field):
             return "om-field pe-11"
         if isinstance(getattr(field, "widget", None), InputSpinnerWidget):
@@ -579,7 +734,13 @@ class TailwindFieldRenderer(FieldRenderer):
 
     def invalid_class(self) -> str:
         """返回字段错误 class。"""
-        return "border-red-300 focus:border-red-400 focus:ring-red-200/60"
+        return "border-danger focus:border-danger focus:ring-danger/20"
+
+
+def is_search_field(field: Field) -> bool:
+    """搜索框：``render_kw["type"] == "search"`` 或字段名是 ``q`` / ``search``。"""
+    render_kw = getattr(field, "render_kw", None) or {}
+    return str(render_kw.get("type", "")).lower() == "search" or field.name in {"q", "search"}
 
 
 def layout_width_classes(width: str) -> str:

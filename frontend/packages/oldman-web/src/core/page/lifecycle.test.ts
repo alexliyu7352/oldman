@@ -346,7 +346,14 @@ describe("business Page navigation", () => {
       expect(registry.current).toBeInstanceOf(PlainPage);
       expect(second.signal.aborted).toBe(true);
       expect(oldComponent.dataset.privateStopped).toBe("true");
-      await expect(registry.current!.components.mount(oldComponent)).rejects.toThrow("private-probe");
+      // The private component is still not globally registered. The new Page's manager now
+      // isolates that instead of failing the whole mount, so the evidence is an empty result
+      // plus the failed marker rather than a rejection.
+      const report = vi.spyOn(console, "error").mockImplementation(() => {});
+      await expect(registry.current!.components.mount(oldComponent)).resolves.toEqual([]);
+      expect(oldComponent.dataset.omComponentState).toBe("failed");
+      expect(report.mock.calls.flat().join(" ")).toContain("private-probe");
+      report.mockRestore();
     } finally { await stop(); }
   });
 

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import os
 import subprocess
 import sys
@@ -768,21 +767,87 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         with (
             patch("oldman.runtime.web.memory_cache.close", new=AsyncMock(side_effect=lambda: events.append("memory"))),
             patch("oldman.runtime.web.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
+            patch("oldman.runtime.web.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
             patch("oldman.runtime.web.logger.info", side_effect=lambda *args, **kwargs: events.append("log")),
         ):
             asyncio.run(
                 application.after_server_stop(cast(Any, SimpleNamespace()))
             )
 
-        self.assertEqual(["memory", "redis", "log"], events)
+        self.assertEqual(["memory", "redis", "database", "log"], events)
         self.logging_runtime.close.assert_not_called()
 
-    def test_public_web_application_keeps_its_abstract_service_contract(self) -> None:
-        """Runtime wiring must not replace required project hooks with empty defaults."""
-        self.assertTrue(inspect.isabstract(WebApplication))
-        self.assertEqual({"prepare_server"}, WebApplication.__abstractmethods__)
-        with self.assertRaises(TypeError):
-            cast(Any, WebApplication)("incomplete")
+    def test_worker_cleanup_closes_every_resource_even_when_one_fails(self) -> None:
+        """一个资源关闭失败不能让后面的资源留着连接。"""
+        events: list[str] = []
+        application = ConcreteWebApplication("worker-close-failure")
+
+        with (
+            patch("oldman.runtime.web.memory_cache.close", new=AsyncMock(side_effect=RuntimeError("cache is stuck"))),
+            patch("oldman.runtime.web.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
+            patch("oldman.runtime.web.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
+            self.assertRaisesRegex(RuntimeError, "cache is stuck"),
+        ):
+            asyncio.run(application.after_server_stop(cast(Any, SimpleNamespace())))
+
+        self.assertEqual(["redis", "database"], events)
+
+    def test_publishers_close_before_the_resources_their_hooks_use(self) -> None:
+        """taskiq 的 shutdown 钩子可能还要写库：引擎必须在它们之后才关，否则会惰性新建一个没人关的。"""
+        events: list[str] = []
+        application = ConcreteWebApplication("shutdown-order")
+
+        async def close_publishers(self: object, original_error: object = None) -> None:
+            del self, original_error
+            events.append("publishers")
+
+        async def after_server_stop(self: object, app: object) -> None:
+            del self, app
+            events.append("resources")
+
+        with (
+            patch.object(ConcreteWebApplication, "_close_publishers", close_publishers),
+            patch.object(ConcreteWebApplication, "after_server_stop", after_server_stop),
+        ):
+            asyncio.run(application._services_after_server_stop(cast(Any, SimpleNamespace())))
+
+        self.assertEqual(["publishers", "resources"], events)
+
+    def test_prepare_server_derives_the_listener_from_the_web_settings(self) -> None:
+        """默认监听参数来自配置，单进程只在没有多 worker、没有 auto_reload 时成立。"""
+        application = WebApplication("listener")
+        self.settings.web.listen_host = "127.0.0.1"
+        self.settings.web.listen_port = 17997
+        self.settings.web.access_log = True
+        # 三个值显式写出来：靠 runtime_settings() 的默认值碰巧成立的话，默认值一改这条就空转了。
+        self.settings.web.workers = 1
+        self.settings.web.auto_reload = False
+        self.settings.web.debug = False
+
+        single = Mock()
+        application.prepare_server(cast(Any, single))
+        single.prepare.assert_called_once_with(
+            host="127.0.0.1",
+            port=17997,
+            debug=False,
+            motd=False,
+            auto_reload=False,
+            workers=1,
+            access_log=True,
+            single_process=True,
+        )
+
+        # Sanic 拒绝 single_process 和多 worker / auto_reload 同时出现。
+        self.settings.web.workers = 4
+        multi_worker = Mock()
+        application.prepare_server(cast(Any, multi_worker))
+        self.assertEqual({"workers": 4, "single_process": False}, {key: multi_worker.prepare.call_args.kwargs[key] for key in ("workers", "single_process")})
+
+        self.settings.web.workers = 1
+        self.settings.web.auto_reload = True
+        reloading = Mock()
+        application.prepare_server(cast(Any, reloading))
+        self.assertEqual({"auto_reload": True, "single_process": False}, {key: reloading.prepare.call_args.kwargs[key] for key in ("auto_reload", "single_process")})
 
     def test_i18n_commands_are_not_owned_by_web_application(self) -> None:
         """Catalog commands belong to the CLI feature instead of Web services."""

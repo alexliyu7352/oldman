@@ -417,16 +417,15 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         self.assertIn(".ri-user-settings-line::before", shared_icons)
         self.assertIn(".ri-moon-line::before", shared_icons)
         self.assertNotIn(".ri-database-2-line::before", shared_icons)
-        self.assertIn(".om-modal-header {\n    @apply border-b;", shared_css)
-        self.assertIn(".om-modal-footer {\n    @apply border-t;", shared_css)
-        self.assertIn(".om-modal-body {\n    @apply px-5 py-5;", shared_css)
+        self.assertIn(".om-modal-header {\n    @apply flex items-start justify-between gap-4 px-6 pt-6;", shared_css)
+        self.assertIn(".om-modal-footer {\n    @apply flex flex-col-reverse gap-2 px-6 pb-6", shared_css)
+        self.assertIn(".om-modal-body {\n    @apply px-6 py-4;", shared_css)
         self.assertIn("[hidden] {\n    display: none !important;", shared_css)
         for utility in (
-            "min-h-9",
             "text-end",
-            "border-red-300",
-            "focus:border-red-400",
-            "focus:ring-red-200/60",
+            "border-danger",
+            "focus:border-danger",
+            "focus:ring-danger/20",
         ):
             self.assertIn(f'@source inline("{utility}");', shared_css)
         self.assertLess(len(admin_css.splitlines()), 80)
@@ -455,30 +454,24 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
             self.assertIn("prebuild", package["scripts"])
             self.assertIn("pretypecheck", package["scripts"])
 
-        shared_expected = collect_icon_classes(
-            (
-                WEB_PACKAGE_ROOT / "src" / "app",
-                WEB_PACKAGE_ROOT / "src" / "components",
-                WEB_PACKAGE_ROOT / "src" / "core",
-                WEB_PACKAGE_ROOT / "src" / "dashboard",
-                ROOT / "oldman" / "web" / "templates",
-            )
-        )
-        admin_expected = collect_icon_classes(
-            (
-                ROOT / "frontend" / "apps" / "admin" / "src",
-                ROOT / "oldman" / "apps" / "admin",
-                ROOT / "oldman" / "auth",
-            )
-        ) - shared_expected
-        self.assertEqual(shared_expected, generated_icon_classes(WEB_PACKAGE_ROOT / "src" / "styles" / "icons.css"))
-        self.assertIn("ri-arrow-up-down-line", shared_expected)
-        self.assertNotIn("ri-arrow-up-down-line", admin_expected)
-        self.assertEqual(
-            admin_expected,
-            generated_icon_classes(ROOT / "frontend" / "apps" / "admin" / "src" / "generated" / "icons.css"),
-        )
-        self.assertNotIn("ri-24-hours-fill", shared_expected | admin_expected)
+        shared_published = generated_icon_classes(WEB_PACKAGE_ROOT / "src" / "styles" / "icons.css")
+        admin_published = generated_icon_classes(ROOT / "frontend" / "apps" / "admin" / "src" / "generated" / "icons.css")
+
+        # 覆盖性检查扫的是整棵树，不是生成器被告知的那几个目录：生成器的 --source 写错时，
+        # 一份照着同一个列表算期望值的测试会跟着一起错（ri-more-fill 就是这么掉出去的）。
+        emitted = collect_icon_classes((ROOT / "oldman", WEB_PACKAGE_ROOT / "src", ROOT / "frontend" / "apps" / "admin" / "src"))
+        # 生成出来的项目扫自己的模板，脚手架里的图标不该由框架发布。
+        emitted -= collect_icon_classes((ROOT / "oldman" / "scaffolds",))
+        self.assertEqual(set(), emitted - (shared_published | admin_published))
+
+        # 分工：可插拔 App 自己的图标不进共享表，框架自己的图标不重复进 App 表。
+        admin_only = collect_icon_classes((ROOT / "oldman" / "apps" / "admin", ROOT / "frontend" / "apps" / "admin" / "src"))
+        framework_wide = collect_icon_classes((ROOT / "oldman" / "web", ROOT / "oldman" / "auth"))
+        self.assertEqual(set(), admin_published & shared_published)
+        self.assertEqual(set(), admin_published - admin_only)
+        self.assertEqual(set(), framework_wide - shared_published)
+        self.assertIn("ri-arrow-up-down-line", shared_published)
+        self.assertNotIn("ri-24-hours-fill", shared_published | admin_published)
 
     def test_icon_generator_skips_dormant_theme_and_test_sources(self) -> None:
         generator = WEB_PACKAGE_ROOT / "bin" / "oldman-web-icons.mjs"

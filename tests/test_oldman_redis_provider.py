@@ -32,10 +32,15 @@ class RedisSettingsContractTest(unittest.TestCase):
 
         for url in ("unix:///tmp/unused-redis.sock?db=3", "redis://user:password@localhost:6379/4"):
             with self.subTest(url=url):
-                config = RedisConnectionConfig.model_validate({
-                    "redis_url": url, "protocol": 3, "retry_on_timeout": False,
-                    "connection_socket_timeout": 2, "max_connections": 12,
-                })
+                config = RedisConnectionConfig.model_validate(
+                    {
+                        "redis_url": url,
+                        "protocol": 3,
+                        "retry_on_timeout": False,
+                        "connection_socket_timeout": 2,
+                        "max_connections": 12,
+                    }
+                )
                 before = config.model_dump()
                 values = config.model_dump(exclude=set(config.model_extra or {}))
                 converted = redis_pool_options(**values, connection_options=config.connection_options)
@@ -54,7 +59,7 @@ class RedisSettingsContractTest(unittest.TestCase):
     def test_redis_settings_keep_builtins_and_merge_partial_aliases(self) -> None:
         settings = DefaultSettings.model_validate({"redis": {"CACHE": {"max_connections": 256}}})
 
-        self.assertEqual("unix:///var/run/redis/redis.sock?db=3", settings.redis["DEFAULT"].redis_url)
+        self.assertEqual("redis://localhost:6379/3", settings.redis["DEFAULT"].redis_url)
         self.assertEqual("redis://localhost:6379/2", settings.redis["CACHE"].redis_url)
         self.assertEqual(256, settings.redis["CACHE"].max_connections)
         self.assertEqual(2, settings.redis["CACHE"].protocol)
@@ -99,9 +104,7 @@ class RedisSettingsContractTest(unittest.TestCase):
             RedisConnectionConfig.model_validate({"redis_url": "redis://localhost/0", "connection_retry": object()})
         for option in ("url", "connection_pool"):
             with self.subTest(option=option), self.assertRaisesRegex(ValidationError, option):
-                RedisConnectionConfig.model_validate(
-                    {"redis_url": "redis://localhost/0", f"connection_{option}": object()}
-                )
+                RedisConnectionConfig.model_validate({"redis_url": "redis://localhost/0", f"connection_{option}": object()})
 
     def test_redis_connection_rejects_invalid_operational_values(self) -> None:
         for field, value in (
@@ -128,9 +131,7 @@ class RedisSettingsContractTest(unittest.TestCase):
         self.assertEqual("pickle", settings.cache.serializer)
 
     def test_redis_protocol_accepts_nested_yaml_values(self) -> None:
-        settings = DefaultSettings.model_validate(
-            {"redis": {"CACHE": {"protocol": 3}}}
-        )
+        settings = DefaultSettings.model_validate({"redis": {"CACHE": {"protocol": 3}}})
 
         self.assertEqual(3, settings.redis["CACHE"].protocol)
 
@@ -380,7 +381,7 @@ class RedisRegistryContractTest(unittest.IsolatedAsyncioTestCase):
         with patch("oldman.providers.redis.client.AsyncRedis", _FakeAsyncRedis):
             await registry.async_get_conn()
 
-        self.assertEqual("unix:///var/run/redis/redis.sock?db=3", _FakeAsyncRedis.created[0].options["redis_url"])
+        self.assertEqual("redis://localhost:6379/3", _FakeAsyncRedis.created[0].options["redis_url"])
 
     async def test_registry_preserves_flat_connection_options_for_concrete_client(self) -> None:
         redis_config = RedisConfig.model_validate(
@@ -456,3 +457,57 @@ class RedisRegistryContractTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LockTimeoutSeparationTest(unittest.TestCase):
+    """How long to wait for a lock and how long to hold it are different questions.
+
+    acquire_lock used one parameter for both: the retry deadline was also passed as the
+    Redis TTL. A caller willing to wait longer therefore also held the lock longer, and
+    one that wanted a short wait got a lock that could expire inside its own critical
+    section. The other two lock APIs on the same client already keep them apart -
+    get_locker has blocking_timeout and expire_timeout, get_db_lock names its hold time
+    expire_timeout - so the answer already existed here.
+    """
+
+    class _RecordingConnection:
+        def __init__(self) -> None:
+            self.ttls: list[int | None] = []
+
+        async def set(self, name: str, value: str, nx: bool | None = None, ex: int | None = None) -> bool:
+            del name, value, nx
+            self.ttls.append(ex)
+            return True
+
+    def _client(self, connection: object):
+        from oldman.providers.redis.redis import AsyncRedis
+
+        client = AsyncRedis.__new__(AsyncRedis)
+
+        async def async_get_conn() -> object:
+            return connection
+
+        client.async_get_conn = async_get_conn  # type: ignore[method-assign]
+        return client
+
+    def test_the_hold_time_can_outlive_the_wait(self) -> None:
+        connection = self._RecordingConnection()
+        asyncio.run(self._client(connection).acquire_lock("job", acquire_timeout=5, expire_timeout=60))
+        self.assertEqual([60], connection.ttls, "the lock TTL must follow expire_timeout, not the retry deadline")
+
+    def test_omitting_the_hold_time_keeps_the_previous_behaviour(self) -> None:
+        connection = self._RecordingConnection()
+        asyncio.run(self._client(connection).acquire_lock("job", acquire_timeout=5))
+        self.assertEqual([5], connection.ttls)
+
+    def test_every_delegation_passes_the_hold_time_through(self) -> None:
+        """client.py duplicates the signature twice; a fix has to reach both."""
+        import inspect
+
+        from oldman.providers.redis.client import RedisAliasClient, RedisClientRegistry
+
+        for owner in (RedisAliasClient, RedisClientRegistry):
+            with self.subTest(owner=owner.__name__):
+                signature = inspect.signature(owner.acquire_lock)
+                self.assertIn("expire_timeout", signature.parameters)
+                self.assertIn("expire_timeout=expire_timeout", inspect.getsource(owner.acquire_lock))

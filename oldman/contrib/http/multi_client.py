@@ -323,21 +323,32 @@ class MultiHttpClient(BaseHttpClient):
             logger.info("reset_client 执行完成")
         return False
 
-    async def close_client(self) -> None:
-        """关闭HTTP客户端并清理资源"""
+    async def close_client(self) -> bool:
+        """关闭HTTP客户端并清理资源。
+
+        永不抛普通异常：调用方多半是业务的收尾路径，不应该被迫 catch。失败只记日志并
+        返回 False，同时保留 backend 引用——backend 那边也保留了会话，退出清理或下一次
+        关闭还能再试。取消仍然向上传递。
+        """
         logger.info(f"正在关闭 {self.client_type} 客户端...")
-        if self._impl:
-            impl = self._impl
-            try:
-                # aiohttp 在运行期持有原生 jar；其他 backend 的导出 hook 保持无操作。
-                if self.cookie_jar is not None:
-                    impl.export_cookie_jar(self.cookie_jar)
-            finally:
-                # 导出失败也不能跳过网络资源清理；只有成功关闭后才能丢弃 backend 引用。
-                # 关闭被取消或失败时保留引用，调用方或退出清理流程仍可再次尝试。
-                await impl.close_client()
-                self._impl = None
+        if self._impl is None:
+            return True
+        impl = self._impl
+        try:
+            # aiohttp 在运行期持有原生 jar；其他 backend 的导出 hook 保持无操作。
+            if self.cookie_jar is not None:
+                impl.export_cookie_jar(self.cookie_jar)
+        except Exception as exc:
+            # 导出失败也不能跳过网络资源清理，更不该把异常丢给调用方。
+            logger.error(f"导出 {self.client_type} Cookie 失败: {type(exc).__name__}")
+        released = await impl.close_client()
+        # backend 用 False 明确报告"会话还在"，这时丢掉引用就再也没人能关掉它。
+        if released is False:
+            logger.error(f"{self.client_type} 客户端未能释放，保留引用以便重试")
+            return False
+        self._impl = None
         logger.info("资源清理完成")
+        return True
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
         """

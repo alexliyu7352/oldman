@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, LargeBinary, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from oldman.db import DatabaseModel
 from oldman.i18n import gettext_lazy as _
+from oldman.utils.date import naive_utcnow
 from oldman.web.messages.notifications.payloads import (
     MAX_NOTIFICATION_PAYLOAD_SIZE,
 )
-
-
-def _utc_now_naive() -> datetime:
-    """Return the UTC wall-clock form stored by the framework's database models."""
-    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Notification(DatabaseModel):
@@ -55,7 +51,7 @@ class Notification(DatabaseModel):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False),
-        default=_utc_now_naive,
+        default=naive_utcnow,
         server_default=text("CURRENT_TIMESTAMP"),
         nullable=False,
     )

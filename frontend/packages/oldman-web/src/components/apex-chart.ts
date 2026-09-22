@@ -11,6 +11,10 @@ const CHART_TARGET_SELECTOR = "[data-om-chart-target]";
 export type ApexChartOptions = Record<string, unknown>;
 export type ApexChartStatus = "idle" | "loading" | "success" | "error" | "empty";
 
+const CHART_COLOR_TOKENS = ["--om-chart-1", "--om-chart-2", "--om-chart-3", "--om-chart-4", "--om-chart-5", "--om-chart-6"];
+/** Light-theme series palette; used when the stylesheet tokens are not resolvable (tests, detached roots). */
+const CHART_COLOR_FALLBACKS = ["#3b82f6", "#10b981", "#0ea5e9", "#f59e0b", "#f43f5e", "#8b5cf6"];
+
 export interface ApexChartInstance {
   destroy(): void;
   render(): Promise<void> | void;
@@ -136,18 +140,7 @@ export class ApexChart extends Component {
     }
 
     this.setStatus("loading", this.i18n.t("Loading..."));
-    // SVG/CSS resolve these tokens on theme changes without reloading the chart.
-    // Copy nested options so application-specific colors win without mutating input.
-    const chartStyle = chartOptions.chart as Record<string, unknown> | undefined;
-    const gridStyle = chartOptions.grid as Record<string, unknown> | undefined;
-    chartOptions.chart = {
-      ...chartStyle,
-      foreColor: chartStyle?.foreColor ?? "var(--om-chart-axis-text, #373d3f)"
-    };
-    chartOptions.grid = {
-      ...gridStyle,
-      borderColor: gridStyle?.borderColor ?? "var(--om-chart-grid, #e0e0e0)"
-    };
+    this.applyThemeDefaults(chartOptions);
     const chart = new ApexCharts(this.chartTarget(), chartOptions) as ApexChartInstance;
     this.chart = chart;
     await chart.render();
@@ -161,6 +154,53 @@ export class ApexChart extends Component {
     this.emit<ApexChartRenderDetail>("om:chart:render", { component: this, options: chartOptions });
     this.emitRenderComplete();
     return chart;
+  }
+
+  /**
+   * Console chart theme: no toolbar, inherited font, dashed horizontal grid only, bare axes,
+   * token palette, 22% → 0 area fill and no per-point labels. Every default yields to an explicit
+   * option, and nested objects are copied so the caller's options are never mutated.
+   */
+  private applyThemeDefaults(chartOptions: ApexChartOptions): void {
+    // SVG/CSS resolve the text and grid tokens on theme changes without reloading the chart.
+    const chartStyle = chartOptions.chart as Record<string, unknown> | undefined;
+    const gridStyle = chartOptions.grid as Record<string, unknown> | undefined;
+    const xaxisStyle = chartOptions.xaxis as Record<string, unknown> | undefined;
+    chartOptions.chart = {
+      fontFamily: "inherit",
+      ...chartStyle,
+      foreColor: chartStyle?.foreColor ?? "var(--om-chart-axis-text, #373d3f)",
+      toolbar: { show: false, ...(chartStyle?.toolbar as Record<string, unknown> | undefined) }
+    };
+    chartOptions.grid = {
+      strokeDashArray: 4,
+      xaxis: { lines: { show: false } },
+      ...gridStyle,
+      borderColor: gridStyle?.borderColor ?? "var(--om-chart-grid, #e0e0e0)"
+    };
+    chartOptions.xaxis = {
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      ...xaxisStyle
+    };
+    // Series colours must be real colour strings: ApexCharts derives gradients and legend
+    // markers from them, so tokens are read from the computed style instead of passed as var().
+    if (!Array.isArray(chartOptions.colors)) chartOptions.colors = this.paletteColors();
+    if ((chartOptions.chart as Record<string, unknown>).type === "area" && chartOptions.fill === undefined) {
+      chartOptions.fill = {
+        type: "gradient",
+        gradient: { shadeIntensity: 1, opacityFrom: 0.22, opacityTo: 0, stops: [0, 100] }
+      };
+    }
+    // ApexCharts prints every data point by default, which turns dense series
+    // into overlapping labels; dashboards opt in per chart instead.
+    const dataLabels = chartOptions.dataLabels as Record<string, unknown> | undefined;
+    chartOptions.dataLabels = { enabled: false, ...dataLabels };
+  }
+
+  private paletteColors(): string[] {
+    const style = window.getComputedStyle(this.root);
+    return CHART_COLOR_TOKENS.map((token, index) => style.getPropertyValue(token).trim() || CHART_COLOR_FALLBACKS[index]!);
   }
 
   /**

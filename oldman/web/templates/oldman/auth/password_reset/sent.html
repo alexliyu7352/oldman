@@ -1,0 +1,4 @@
+{# Card body shown after any request, whether or not the address has an account. #}
+<h1 class="oldman-auth-title">{{ _("Check your email") }}</h1>
+<p class="oldman-auth-description">{{ _("If an account uses that address, a link to choose a new password is on its way. It stays valid for %(hours)s hours; check the spam folder if it does not arrive.", hours=expiry_hours) }}</p>
+<p class="oldman-auth-links"><a class="om-link" href="{{ login_url }}">{{ _("Back to sign in") }}</a></p>

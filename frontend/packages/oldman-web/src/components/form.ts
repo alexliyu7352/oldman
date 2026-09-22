@@ -1,4 +1,4 @@
-import { isCancel } from "axios";
+import { cssEscape } from "../core/dom/helpers";
 import {
   ApiResponseAction,
   bindResponseOperationLifecycle,
@@ -6,6 +6,7 @@ import {
   showResponseActionFailure
 } from "../core/actions/response-actions";
 import { Component } from "../core/component/component";
+import { isCanceledError } from "../core/services/abort";
 import { getOldmanContext } from "../core/runtime/context";
 import { bindPasswordVisibility } from "./form-password-visibility";
 
@@ -76,7 +77,7 @@ export class Form extends Component {
       try {
         response = await this.submitByMode(form, submitter, controller.signal);
       } catch (error) {
-        if (controller.signal.aborted || isCanceled(error)) return;
+        if (controller.signal.aborted || isCanceledError(error)) return;
         this.setStatus("error", "", form);
         this.emitFormError(form, submitter, { error });
         await showResponseActionFailure(page, form, error);
@@ -97,7 +98,7 @@ export class Form extends Component {
       try {
         await page.responseActions.run(response, form, controller.signal);
       } catch (error) {
-        if (controller.signal.aborted || isCanceled(error)) return;
+        if (controller.signal.aborted || isCanceledError(error)) return;
         await showResponseActionFailure(page, form, error);
         return;
       }
@@ -285,13 +286,4 @@ export class Form extends Component {
 
 function pageContains(page: { root: HTMLElement }, source: HTMLElement): boolean {
   return page.root !== source && page.root.contains(source);
-}
-
-function isCanceled(error: unknown): boolean {
-  return isCancel(error) || (error instanceof DOMException && error.name === "AbortError");
-}
-
-function cssEscape(value: string): string {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
-  return value.replace(/["\\]/g, "\\$&");
 }

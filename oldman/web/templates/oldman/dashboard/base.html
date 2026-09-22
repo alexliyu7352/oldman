@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% block dashboard_head_meta %}{% endblock %}
+    {% block dashboard_theme_boot %}
+      {% include "oldman/dashboard/partials/theme_boot.html" %}
+    {% endblock %}
     {% block dashboard_critical_styles %}
       {% include "oldman/dashboard/partials/preloader_critical_css.html" %}
     {% endblock %}
@@ -27,6 +30,9 @@
               {% block content %}{% endblock %}
             </div>
           </div>
+        {% endblock %}
+        {% block dashboard_footer %}
+          {% include "oldman/dashboard/partials/footer.html" %}
         {% endblock %}
       </div>
     </div>

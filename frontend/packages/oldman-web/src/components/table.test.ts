@@ -190,6 +190,231 @@ describe("Table", () => {
     }
   });
 
+  it("reports the selection in the toolbar and announces changes", async () => {
+    document.body.innerHTML = toolbarTableMarkup();
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root, {
+      i18n: createI18n({ locale: "zh-CN", messages: { "{count} selected": "已选 {count} 项" } })
+    });
+    const selections: string[][] = [];
+    root.addEventListener("om:table:selection", (event) => {
+      selections.push((event as CustomEvent<{ ids: string[] }>).detail.ids);
+    });
+
+    await component.start();
+    try {
+      const count = root.querySelector<HTMLElement>("[data-om-table-selection-count]")!;
+      const bulk = root.querySelector<HTMLElement>("[data-om-table-bulk-actions]")!;
+      const rowChecks = Array.from(root.querySelectorAll<HTMLInputElement>("[data-om-table-select-row]"));
+      expect(count.hidden).toBe(true);
+      expect(bulk.hidden).toBe(true);
+
+      // Real clicks: a delegated handler that swallowed clicks would leave the box unchecked.
+      rowChecks[1]!.click();
+
+      expect(rowChecks[1]!.checked).toBe(true);
+      expect(count.hidden).toBe(false);
+      expect(count.textContent).toBe("已选 1 项");
+      expect(bulk.hidden).toBe(false);
+      expect(component.selectedIds()).toEqual(["2"]);
+      expect(selections).toEqual([["2"]]);
+
+      component.clearSelection();
+
+      expect(count.hidden).toBe(true);
+      expect(bulk.hidden).toBe(true);
+      expect(selections).toEqual([["2"], []]);
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("hides toggled-off columns and remembers the choice per table", async () => {
+    window.localStorage.clear();
+    document.body.innerHTML = toolbarTableMarkup();
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+
+    await component.start();
+    try {
+      const toggle = root.querySelector<HTMLInputElement>("[data-om-table-column-toggle][value='hits']")!;
+      toggle.click();
+
+      expect(toggle.checked).toBe(false);
+      expect(root.querySelector<HTMLElement>("th[data-om-column='hits']")!.hidden).toBe(true);
+      expect(Array.from(root.querySelectorAll<HTMLElement>("td[data-om-column='hits']"), (cell) => cell.hidden)).toEqual([true, true]);
+      expect(root.querySelector<HTMLElement>("th[data-om-column='name']")!.hidden).toBe(false);
+      expect(JSON.parse(window.localStorage.getItem("oldman:table:toolbar-table")!)).toEqual({ density: "comfortable", hiddenColumns: ["hits"] });
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+
+    document.body.innerHTML = toolbarTableMarkup();
+    const rootAgain = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const componentAgain = new Table(rootAgain);
+    await componentAgain.start();
+    try {
+      expect(rootAgain.querySelector<HTMLElement>("th[data-om-column='hits']")!.hidden).toBe(true);
+      expect(rootAgain.querySelector<HTMLInputElement>("[data-om-table-column-toggle][value='hits']")!.checked).toBe(false);
+    } finally {
+      await componentAgain.stop();
+      document.body.replaceChildren();
+      window.localStorage.clear();
+    }
+  });
+
+  it("exports the current filters and sort without a page through the toolbar button", async () => {
+    document.body.innerHTML = `
+      <section data-om-component="table" data-om-table-src="/programmes/table" data-om-table-page-size="2" data-om-filter-channel="BBC" data-om-table-initial-sort="-hits">
+        <button type="button" data-om-table-export="csv">Export</button>
+        <div data-om-table-partial></div>
+      </section>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    Object.assign(component.http, { html: vi.fn().mockResolvedValue("<div data-om-table-partial></div>") });
+    const originalLocation = window.location;
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...originalLocation, assign, href: "http://localhost/", origin: "http://localhost" } });
+
+    await component.start();
+    try {
+      expect(component.exportUrl("csv")).toBe("/programmes/table?filter.channel=BBC&sort=-hits&export=csv");
+
+      root.querySelector<HTMLButtonElement>("[data-om-table-export]")!.click();
+
+      expect(assign).toHaveBeenCalledWith("/programmes/table?filter.channel=BBC&sort=-hits&export=csv");
+    } finally {
+      await component.stop();
+      Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+      document.body.replaceChildren();
+    }
+  });
+
+  it("renders the shipped empty-state template for an empty JSON page and resets filters from it", async () => {
+    document.body.innerHTML = `
+      <form id="filters" data-om-table-target="#json-table"><input name="status" value="archived"><button type="button" data-om-filter-reset>Reset</button></form>
+      ${remoteJsonTableMarkup().replace('data-om-component="table"', 'id="json-table" data-om-component="table" data-om-filter-status="archived"')}
+      <template data-om-table-empty-template="all"><div class="om-empty" data-om-table-empty-state>Nothing yet</div></template>
+      <template data-om-table-empty-template="filtered"><div class="om-empty" data-om-table-empty-state data-om-table-empty-filtered>No match <button type="button" data-om-table-empty-reset>Reset filters</button></div></template>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    root.append(...Array.from(document.querySelectorAll("template[data-om-table-empty-template]")));
+    const component = new Table(root);
+    const getJson = vi.fn().mockResolvedValue(jsonTablePayload({ names: [], filteredTotal: 0, total: 5 }));
+    Object.assign(component.http, { getJson });
+    const formReset = document.querySelector<HTMLButtonElement>("[data-om-filter-reset]")!;
+    const resetClicks = vi.fn();
+    formReset.addEventListener("click", resetClicks);
+
+    await component.start();
+    try {
+      await component.refresh("/streams?filter.status=archived");
+
+      expect(root.querySelector("[data-om-table-empty-filtered]")?.textContent).toContain("No match");
+      expect(root.querySelector("tbody td")?.className).toBe("om-table-empty-cell");
+
+      root.querySelector<HTMLButtonElement>("[data-om-table-empty-reset]")!.click();
+      await Promise.resolve();
+
+      // The table forgets its own filters and hands the reset to the linked filter form.
+      expect(root.hasAttribute("data-om-filter-status")).toBe(false);
+      expect(resetClicks).toHaveBeenCalledTimes(1);
+      expect(getJson).toHaveBeenCalledTimes(1);
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("drops remembered hidden columns that no longer have a toggle", async () => {
+    window.localStorage.setItem("oldman:table:toolbar-table", JSON.stringify({ density: "comfortable", hiddenColumns: ["hits", "action"] }));
+    document.body.innerHTML = toolbarTableMarkup();
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    // The hits column became pinned server-side: its toggle is gone but the old preference still names it.
+    root.querySelector("[data-om-table-column-toggle][value='hits']")!.closest("label")!.remove();
+    const component = new Table(root);
+
+    await component.start();
+    try {
+      expect(root.querySelector<HTMLElement>("th[data-om-column='hits']")!.hidden).toBe(false);
+      expect(root.querySelector<HTMLElement>("th[data-om-column='name']")!.hidden).toBe(false);
+      expect(JSON.parse(window.localStorage.getItem("oldman:table:toolbar-table")!)).toEqual({ density: "comfortable", hiddenColumns: [] });
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("switches density on the component root and marks the active menu item", async () => {
+    window.localStorage.clear();
+    document.body.innerHTML = toolbarTableMarkup();
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+
+    await component.start();
+    try {
+      expect(root.getAttribute("data-om-density")).toBe("comfortable");
+
+      root.querySelector<HTMLButtonElement>("[data-om-table-density='compact']")!.click();
+
+      expect(root.getAttribute("data-om-density")).toBe("compact");
+      // The density state attribute must not turn the root into a click target of the density handler.
+      const selectAll = root.querySelector<HTMLInputElement>("[data-om-table-select-all]")!;
+      selectAll.click();
+      expect(selectAll.checked).toBe(true);
+      expect(Array.from(root.querySelectorAll<HTMLInputElement>("[data-om-table-select-row]"), (box) => box.checked)).toEqual([true, true]);
+      expect(root.querySelector<HTMLElement>("[data-om-table-density='compact']")!.getAttribute("aria-pressed")).toBe("true");
+      expect(root.querySelector<HTMLElement>("[data-om-table-density='comfortable']")!.classList.contains("active")).toBe(false);
+      expect(JSON.parse(window.localStorage.getItem("oldman:table:toolbar-table")!).density).toBe("compact");
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+      window.localStorage.clear();
+    }
+  });
+
+  it("marks a fitting scroll box so the sticky header can reach the page, and re-checks after a refresh", async () => {
+    document.body.innerHTML = `
+      <section data-om-component="table" data-om-table-src="/streams">
+        <div data-om-table-partial>
+          <div class="om-table-shell"><div class="om-table-scroll"><table><tbody><tr data-om-table-row><td>Alpha</td></tr></tbody></table></div></div>
+        </div>
+      </section>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const wideBox = (element: HTMLElement, scrollWidth: number, clientWidth: number) => {
+      Object.defineProperty(element, "scrollWidth", { configurable: true, value: scrollWidth });
+      Object.defineProperty(element, "clientWidth", { configurable: true, value: clientWidth });
+    };
+    wideBox(root.querySelector<HTMLElement>(".om-table-scroll")!, 900, 600);
+    const component = new Table(root);
+    Object.assign(component.http, {
+      html: vi.fn().mockResolvedValue(`
+        <div data-om-table-partial>
+          <div class="om-table-shell"><div class="om-table-scroll"><table><tbody><tr data-om-table-row><td>Beta</td></tr></tbody></table></div></div>
+        </div>
+      `)
+    });
+
+    await component.start();
+    try {
+      const scroll = root.querySelector<HTMLElement>(".om-table-scroll")!;
+      expect(scroll.classList.contains("is-fit")).toBe(false);
+
+      // A region refresh keeps the box; narrower content after it must be re-measured without a ResizeObserver.
+      wideBox(scroll, 600, 600);
+      await component.refresh("/streams?page=2");
+
+      expect(root.querySelector<HTMLElement>(".om-table-scroll")!.classList.contains("is-fit")).toBe(true);
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
   it("refreshes a server-rendered HTML partial", async () => {
     document.body.innerHTML = remoteTableMarkup();
     const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
@@ -802,6 +1027,31 @@ describe("Table", () => {
     }
   });
 
+  it("resetting filters also removes their parameters from the browser URL", async () => {
+    window.history.replaceState(null, "", "/records?status=archived");
+    document.body.innerHTML = remoteTableMarkup({ rootAttrs: 'data-om-table-sync-url="true" data-om-filter-status="archived"' });
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    Object.assign(component.http, { html: vi.fn().mockResolvedValue(`<div data-om-table-partial></div>`) });
+
+    await component.start();
+    try {
+      await component.refresh();
+      await vi.waitFor(() => expect(component.http.html).toHaveBeenLastCalledWith(expect.stringContaining("filter.status=archived")));
+      expect(new URLSearchParams(window.location.search).get("status")).toBe("archived");
+
+      await component.resetFilters();
+
+      // The request dropped the filter, and so must the page URL, or a refresh brings the filter back.
+      expect(component.http.html).toHaveBeenLastCalledWith(expect.not.stringContaining("filter.status"));
+      await vi.waitFor(() => expect(new URLSearchParams(window.location.search).has("status")).toBe(false));
+      expect(window.location.pathname).toBe("/records");
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
   it("restores direct table state and keeps it in the browser URL for HistoryBack", async () => {
     const turboState = { turbo: { restorationIndex: 7 } };
     window.history.replaceState(turboState, "", "/records?q=alpha&page_size=10&page=2&sort=-name&status=active");
@@ -859,6 +1109,77 @@ describe("Table", () => {
       await vi.waitFor(() => expect(component.http.html).toHaveBeenCalledWith("/streams"));
       await vi.waitFor(() => expect(root.hasAttribute("data-om-table-initial-query")).toBe(false));
       await vi.waitFor(() => expect(window.location.pathname + window.location.search).toBe("/records"));
+    } finally {
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("records the request state in the page URL before the response lands", async () => {
+    // 用户点了第 2 页就立刻去点"新增"时，Turbo 会在响应回来之前缓存快照并换页。
+    // 地址栏和根节点状态必须在发请求的那一刻就写好，否则这一页的状态就随快照一起丢了。
+    window.history.replaceState({}, "", "/records");
+    document.body.innerHTML = remoteTableMarkup({ rootAttrs: 'data-om-table-sync-url="true"' });
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    const pending = deferred<string>();
+    Object.assign(component.http, { html: vi.fn().mockReturnValue(pending.promise) });
+
+    await component.start();
+    const refresh = component.refresh("/streams?page=2&sort=-name");
+    try {
+      expect(window.location.pathname + window.location.search).toBe("/records?page=2&sort=-name");
+      expect(root.getAttribute("data-om-table-initial-page")).toBe("2");
+      expect(root.getAttribute("data-om-table-initial-sort")).toBe("-name");
+    } finally {
+      pending.resolve('<div data-om-table-partial></div>');
+      await refresh;
+      await component.stop();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("leaves a torn-down component alone when its response lands late", async () => {
+    // Turbo 渲染时 Page.setState("unmounting") 先 abort 页面信号，组件随后卸载；
+    // 赶在这之前落地的响应不能再改写已经不属于自己的 DOM。
+    window.history.replaceState({}, "", "/records");
+    document.body.innerHTML = remoteTableMarkup({ rootAttrs: 'data-om-table-sync-url="true"' });
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    const pending = deferred<string>();
+    Object.assign(component.http, { html: vi.fn().mockReturnValue(pending.promise) });
+
+    await component.start();
+    const refresh = component.refresh("/streams?page=2");
+    await component.stop();
+    pending.resolve('<div data-om-table-partial><table><tbody><tr data-om-table-row><td>Late Stream</td></tr></tbody></table></div>');
+    await refresh;
+
+    expect(root.textContent).not.toContain("Late Stream");
+    expect(root.dataset.omStatus).not.toBe("success");
+    document.body.replaceChildren();
+  });
+
+  it("does not let a stateless refresh erase the state already in the page URL", async () => {
+    // Turbo 还原之后组件可能先于服务端注入的状态挂载完成，这时它会按默认值刷新一次。
+    // syncPageUrl 用的是 replaceState，改的就是这条历史条目本身：抹掉了，用户再按取消/后退
+    // 回来的就是一个没有筛选的列表。
+    const turboState = { turbo: { restorationIndex: 4 } };
+    window.history.replaceState(turboState, "", "/records?q=alpha&sort=-name&status=active");
+    document.body.innerHTML = remoteTableMarkup({
+      rootAttrs: 'data-om-table-sync-url="true" data-om-table-default-page-size="20" data-om-table-page-size="10"'
+    });
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    Object.assign(component.http, { html: vi.fn().mockResolvedValue(`<div data-om-table-partial></div>`) });
+
+    await component.start();
+    try {
+      await component.refresh();
+      await vi.waitFor(() => expect(component.http.html).toHaveBeenCalledWith("/streams?page_size=10"));
+
+      expect(window.location.pathname + window.location.search).toBe("/records?q=alpha&sort=-name&status=active");
+      expect(window.history.state).toEqual(turboState);
     } finally {
       await component.stop();
       document.body.replaceChildren();
@@ -1525,7 +1846,8 @@ function jsonTablePayload({
   invalidRawValue = false,
   missingRowId = false,
   names = ["Alpha", "Beta"],
-  omitCell = false
+  omitCell = false,
+  total
 }: {
   component?: string;
   filteredTotal?: number;
@@ -1533,6 +1855,7 @@ function jsonTablePayload({
   missingRowId?: boolean;
   names?: string[];
   omitCell?: boolean;
+  total?: number;
 } = {}): Record<string, unknown> {
   const rows = names.map((name, index) => {
     const cells: Record<string, unknown> = {
@@ -1561,7 +1884,7 @@ function jsonTablePayload({
       has_next: (filteredTotal ?? rows.length) > 10,
       page: 1,
       page_size: 10,
-      total: filteredTotal ?? rows.length
+      total: total ?? filteredTotal ?? rows.length
     },
     rows,
     sort: ""
@@ -1796,6 +2119,34 @@ function selectableTableMarkup(): string {
         </tbody>
       </table>
       <p data-om-table-empty hidden></p>
+    </section>
+  `;
+}
+
+function toolbarTableMarkup(): string {
+  return `
+    <section id="toolbar-table" data-om-component="table">
+      <div data-om-table-toolbar>
+        <span data-om-table-selection-count hidden></span>
+        <div data-om-table-bulk-actions hidden><button type="button">Archive</button></div>
+        <label><input type="checkbox" data-om-table-column-toggle value="name" checked> Name</label>
+        <label><input type="checkbox" data-om-table-column-toggle value="hits" checked> Hits</label>
+        <button type="button" data-om-table-density="comfortable" class="active" aria-pressed="true">Comfortable</button>
+        <button type="button" data-om-table-density="compact" aria-pressed="false">Compact</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" data-om-table-select-all></th>
+            <th data-om-column="name">Name</th>
+            <th data-om-column="hits">Hits</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-om-table-row data-om-table-row-id="1"><td><input type="checkbox" data-om-table-select-row value="1"></td><td data-om-column="name">Alpha</td><td data-om-column="hits">10</td></tr>
+          <tr data-om-table-row data-om-table-row-id="2"><td><input type="checkbox" data-om-table-select-row value="2"></td><td data-om-column="name">Beta</td><td data-om-column="hits">2</td></tr>
+        </tbody>
+      </table>
     </section>
   `;
 }

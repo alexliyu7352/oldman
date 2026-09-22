@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import csv
+import datetime as dt
+import io
+import re
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any, Literal, TypedDict, cast
@@ -15,9 +19,12 @@ from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
 from oldman.i18n import gettext_lazy
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
+from oldman.web.components.data_endpoint import DataEndpointMixin
 from oldman.web.http import OldmanHTTPMethodView, resolve_response_mode
-from oldman.web.response import html_response, json_response
+from oldman.web.request import get_arg, iter_args
+from oldman.web.response import html_response, json_response, raw_response
 
+from .cells import normalize_raw_value, render_display_value
 from .columns import (
     CellDisplayValue,
     CellRawValue,
@@ -68,7 +75,7 @@ class TableValidationError(Exception):
     """表格筛选值校验失败。"""
 
 
-class BaseTableView(OldmanHTTPMethodView):
+class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
     """支持结构化数据源的无主题 Table 基类。"""
 
     require_authenticated = True
@@ -84,8 +91,17 @@ class BaseTableView(OldmanHTTPMethodView):
     max_page_size: int = 100
     sync_page_url = False
     selectable: bool = False
+    # Toolbar tools in display order; "export" only renders once export_formats is non-empty.
+    toolbar: Sequence[str] = ("columns", "density", "export")
+    # Declaring a format (only "csv" is built in) enables `?export=<format>` on the data endpoint.
+    export_formats: Sequence[str] = ()
+    max_export_rows: int = 10_000
     row_id_field: str | None = "id"
     empty_message: str = cast(str, gettext_lazy("No records found."))
+    empty_description: str = ""
+    # Shown instead when records exist but none match the search or filters; offers a reset.
+    empty_filtered_message: str = cast(str, gettext_lazy("No matching records"))
+    empty_filtered_description: str = cast(str, gettext_lazy("Adjust or reset the filters to see more records."))
     renderer_class = TableRenderer
 
     def __init__(
@@ -133,25 +149,27 @@ class BaseTableView(OldmanHTTPMethodView):
         html_id: str | None = None,
         show_search: bool = True,
         data_format: Literal["html", "json"] = "html",
+        bulk_actions_html: Markup | str | None = None,
         **route_kwargs: object,
     ) -> Markup:
-        """异步渲染表格外壳和前端挂载属性。"""
-        return await self.get_renderer().render_shell(route_kwargs=route_kwargs, html_id=html_id, show_search=show_search, data_format=data_format)
-
-    def build_data_url(self, route_kwargs: dict[str, object]) -> str:
-        """通过 Sanic url_for 生成 data endpoint 地址。"""
-        if self.request is not None and getattr(self.request, "app", None) is not None and self.route_name:
-            try:
-                return self.request.app.url_for(self.route_name, **route_kwargs)
-            except Exception:
-                return self.request.app.url_for(f"{self.request.app.name}.{self.route_name}", **route_kwargs)
-        return self.route_path
+        """异步渲染表格外壳和前端挂载属性；bulk_actions_html 放进工具条，只在有选中行时显示。"""
+        # Only forward the slot when a page fills it, so renderers with the older signature keep working.
+        extra: dict[str, Markup | str] = {"bulk_actions_html": bulk_actions_html} if bulk_actions_html else {}
+        return await self.get_renderer().render_shell(
+            route_kwargs=route_kwargs,
+            html_id=html_id,
+            show_search=show_search,
+            data_format=data_format,
+            **extra,
+        )
 
     def build_table_request(self, request: Any, *, route_kwargs: dict[str, object]) -> TableRequest:
         """从 HTTP 请求构建标准 TableRequest。"""
         args = getattr(request, "args", {}) or {}
         try:
-            page_size = parse_positive_int(get_arg(args, "page_size", self.initial_page_size or self.page_size), self.page_size, maximum=self.max_page_size)
+            page_size = parse_positive_int(
+                get_arg(args, "page_size", self.initial_page_size or self.page_size), self.page_size, maximum=self.max_page_size
+            )
             page = parse_positive_int(get_arg(args, "page", 1), 1)
         except ValueError as exc:
             raise TableInvalidRequest("Invalid table pagination parameter") from exc
@@ -175,12 +193,17 @@ class BaseTableView(OldmanHTTPMethodView):
             return await self.render_request_error_response(request, str(exc), status=400)
         if not await self.check_auth(table_request.request):
             return await self.render_permission_denied_response(request)
+        export_format = self.resolve_export_format(request)
+        if export_format and export_format not in self.supported_export_formats():
+            return await self.render_request_error_response(request, "Unsupported table export format", status=400)
         try:
-            result = await self.query_result(table_request)
+            result = await (self.query_export(table_request) if export_format else self.query_result(table_request))
         except TableInvalidRequest as exc:
             return await self.render_request_error_response(request, str(exc), status=400)
         except TableValidationError as exc:
             return await self.render_request_error_response(request, str(exc), status=422)
+        if export_format:
+            return self.render_export_response(export_format, table_request, result)
         if self.resolve_response_type(request) == "json":
             return json_response(self.render_json_payload(table_request, result))
         return html_response(await self.render_html_fragment(table_request, result))
@@ -195,16 +218,33 @@ class BaseTableView(OldmanHTTPMethodView):
 
     async def query_result(self, table_request: TableRequest) -> TableResult:
         """执行结构化数据源查询生命周期。"""
-        rows = list(await self.get_object_list())
-        total = len(rows)
-        rows = list(await self.apply_base_filters(rows, table_request))
+        rows = list(await self.apply_base_filters(list(await self.get_object_list()), table_request))
+        total = len(rows)  # like the SQL lifecycle: base filters shape the data, user filters narrow it
         rows = list(await self.apply_filters(rows, table_request))
         rows = list(await self.apply_search(rows, table_request))
         filtered_total = len(rows)
         rows = list(await self.apply_ordering(rows, table_request))
         rows = list(await self.paginate(rows, table_request))
-        row_contexts = [await self.preload_record_data(row) for row in rows]
-        return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=table_request.page, page_size=table_request.page_size)
+        row_contexts = await self.build_row_contexts(rows)
+        return TableResult(
+            rows=rows,
+            row_contexts=row_contexts,
+            total=total,
+            filtered_total=filtered_total,
+            page=table_request.page,
+            page_size=table_request.page_size,
+        )
+
+    async def query_export(self, table_request: TableRequest) -> TableResult:
+        """Run the filter, search and sort lifecycle without paging; the row count stops at max_export_rows."""
+        rows = list(await self.apply_base_filters(list(await self.get_object_list()), table_request))
+        total = len(rows)
+        rows = list(await self.apply_filters(rows, table_request))
+        rows = list(await self.apply_search(rows, table_request))
+        filtered_total = len(rows)
+        rows = list(await self.apply_ordering(rows, table_request))[: self.max_export_rows]
+        row_contexts = await self.build_row_contexts(rows)
+        return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=1, page_size=max(1, len(rows)))
 
     async def apply_base_filters(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
         """应用服务端固定限制。"""
@@ -230,19 +270,55 @@ class BaseTableView(OldmanHTTPMethodView):
             return rows
         return [row for row in rows if any(term in stringify(resolve_field_path(row, field)).lower() for field in fields)]
 
+    def resolve_sort_field(self, table_request: TableRequest) -> tuple[str, bool] | None:
+        """Resolve the ordering to apply, refusing a sort the client may not ask for.
+
+        Client-supplied `sort` and the developer's `ordering` are not the same kind of
+        value and must not share one code path. `ordering` is code: it may legitimately
+        name something that is not a visible column, such as `-updated_at`.
+        `table_request.sort` is request input, so it has to name a column this table
+        declares as sortable — the way `apply_filters` requires a declared `filter_<name>`
+        method rather than accepting any name it is handed.
+
+        The old check asked `if column is not None` before consulting `sortable`, so a
+        column that was *declared and excluded* was refused while one that was *never
+        declared at all* went straight through to ORDER BY. `?sort=password_hash` worked
+        on the framework's own user table, which puts that column in `exclude`, and an
+        undeclared dotted path could emit a JOIN nobody asked for.
+
+        Returns the field path and direction, or None when there is nothing to order by.
+        """
+        columns = {column.name: column for column in self.get_columns()}
+
+        requested = table_request.sort
+        if requested:
+            descending = requested.startswith("-")
+            name = requested[1:] if descending else requested
+            column = columns.get(name)
+            if column is None:
+                raise TableInvalidRequest(f"Unknown table sort: {name}")
+            if not column.sortable:
+                raise TableInvalidRequest(f"Table column is not sortable: {name}")
+            return str(column.field_path), descending
+
+        fallback = first_ordering(self.ordering)
+        if not fallback:
+            return None
+        descending = fallback.startswith("-")
+        name = fallback[1:] if descending else fallback
+        column = columns.get(name)
+        if column is None:
+            return name, descending
+        if not column.sortable:
+            return None
+        return str(column.field_path), descending
+
     async def apply_ordering(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
         """按 sort 参数对结构化数据排序。"""
-        sort = table_request.sort or first_ordering(self.ordering)
-        if not sort:
+        resolved = self.resolve_sort_field(table_request)
+        if resolved is None:
             return rows
-        descending = sort.startswith("-")
-        field = sort[1:] if descending else sort
-        columns = {column.name: column for column in self.get_columns()}
-        column = columns.get(field)
-        if column is not None:
-            if not column.sortable:
-                return rows
-            field = str(column.field_path)
+        field, descending = resolved
         return sorted(rows, key=lambda row: sort_key(resolve_field_path(row, field)), reverse=descending)
 
     async def paginate(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
@@ -254,6 +330,14 @@ class BaseTableView(OldmanHTTPMethodView):
     async def preload_record_data(self, row: object) -> dict[str, object]:
         """预加载当前行多个列共享的派生数据。"""
         return {}
+
+    async def build_row_contexts(self, rows: Sequence[object]) -> list[Mapping[str, object]]:
+        """Render context for every row of a page or an export; override to load extra data for all rows in one query.
+
+        The default calls `preload_record_data(row)` per row. Both `query_result()` and `query_export()` go
+        through here, so a subclass never has to duplicate the query lifecycle to enrich its rows.
+        """
+        return [await self.preload_record_data(row) for row in rows]
 
     async def render_html_fragment(self, table_request: TableRequest, result: TableResult) -> Markup:
         """渲染 HTML Table 局部片段。"""
@@ -334,13 +418,21 @@ class BaseTableView(OldmanHTTPMethodView):
             cells: dict[str, object] = {}
             raw_values: dict[str, object] = {}
             for column_index, column in enumerate(columns):
-                display_value, raw_value = self.get_cell_values(row, column, context, row_index=row_index, column_index=column_index, request=table_request.request)
+                display_value, raw_value = self.get_cell_values(
+                    row, column, context, row_index=row_index, column_index=column_index, request=table_request.request
+                )
                 cells[column.name] = None if display_value is None else str(render_display_value(display_value))
                 raw_values[column.name] = "" if raw_value is None else raw_value
             rows.append({"cells": cells, "raw_values": raw_values, "data": self.get_row_data(row)})
         return {
             "columns": [
-                {"name": column.name, "label": str(column.label or column.name), "type": column.type, "sortable": bool(column.sortable), "searchable": bool(column.searchable)}
+                {
+                    "name": column.name,
+                    "label": str(column.label or column.name),
+                    "type": column.type,
+                    "sortable": bool(column.sortable),
+                    "searchable": bool(column.searchable),
+                }
                 for column in columns
             ],
             "rows": rows,
@@ -353,6 +445,71 @@ class BaseTableView(OldmanHTTPMethodView):
             },
             "sort": table_request.sort,
         }
+
+    def resolve_export_format(self, request: Any) -> str:
+        """Return the requested export format (`?export=csv`), lowercase, or an empty string."""
+        return str(get_arg(getattr(request, "args", {}) or {}, "export", "") or "").strip().lower()
+
+    def supported_export_formats(self) -> set[str]:
+        """Return the declared export formats as lowercase names."""
+        return {str(name).lower() for name in self.export_formats}
+
+    def export_filename(self, export_format: str) -> str:
+        """Return the download name: route name (or `table`) plus today's date."""
+        return f"{self.route_name or 'table'}-{dt.date.today().isoformat()}.{export_format}"
+
+    def render_export_response(self, export_format: str, table_request: TableRequest, result: TableResult[Any]):
+        """Dispatch a declared export format to its renderer."""
+        if export_format == "csv":
+            return self.render_csv_response(table_request, result)
+        raise ValueError(f"No renderer for table export format {export_format!r}")
+
+    def render_csv_response(self, table_request: TableRequest, result: TableResult[Any]):
+        """Write the exportable columns as UTF-8 CSV with a BOM so spreadsheets open it correctly."""
+        columns = [(index, column) for index, column in enumerate(self.get_columns()) if column_is_exportable(column)]
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow([str(column.label or column.name) for _index, column in columns])
+        for row_index, (row, context) in enumerate(zip(result.rows, result.row_contexts, strict=True)):
+            writer.writerow(
+                [
+                    csv_safe_text(
+                        self.export_cell_value(row, column, context, row_index=row_index, column_index=index, request=table_request.request)
+                    )
+                    for index, column in columns
+                ]
+            )
+        body = ("\ufeff" + buffer.getvalue()).encode("utf-8")
+        return raw_response(
+            body,
+            content_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{self.export_filename("csv")}"'},
+        )
+
+    def export_cell_value(
+        self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
+    ) -> str:
+        """Numbers and booleans export their raw value; everything else exports the text the user sees.
+
+        A Markup cell whose callback also returned a raw text (`(markup, raw)`) exports that raw text: the
+        markup is presentation (a link, a title plus description) and the raw value is the data behind it.
+        """
+        display_value, raw_value, explicit_raw = self.resolve_cell_values(
+            row, column, context, row_index=row_index, column_index=column_index, request=request
+        )
+        if isinstance(raw_value, bool):
+            return "true" if raw_value else "false"
+        if isinstance(raw_value, (int, float)):
+            return str(raw_value)
+        if isinstance(display_value, Markup):
+            if explicit_raw and isinstance(raw_value, str) and raw_value.strip():
+                return raw_value
+            text = markup_text(display_value)
+        else:
+            text = "" if display_value is None else str(display_value)
+        if text.strip():
+            return "true" if display_value is True else "false" if display_value is False else text
+        return "" if raw_value is None else str(raw_value)
 
     def get_row_data(self, row: object) -> dict[str, object]:
         """返回安全的行级前端元数据。"""
@@ -368,14 +525,25 @@ class BaseTableView(OldmanHTTPMethodView):
             raise ValueError(f"Table row identity field {self.row_id_field!r} is missing")
         return normalize_raw_value(row_id)
 
-    def get_cell_values(self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]:
+    def get_cell_values(
+        self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
+    ) -> tuple[CellDisplayValue, CellRawValue]:
         """读取单元格显示值和 raw 值。"""
+        display_value, raw_value, _explicit = self.resolve_cell_values(
+            row, column, context, row_index=row_index, column_index=column_index, request=request
+        )
+        return display_value, raw_value
+
+    def resolve_cell_values(
+        self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
+    ) -> tuple[CellDisplayValue, CellRawValue, bool]:
+        """Like get_cell_values, plus whether the callback supplied the raw value itself (a `(display, raw)` tuple)."""
         default_value = resolve_field_path(row, str(column.field_path)) if column.field_path else None
         value = self.call_column_callback(row, column, context, default_value, row_index=row_index, column_index=column_index, request=request)
         if isinstance(value, tuple):
             display_value, raw_value = value
-            return display_value, normalize_raw_value(raw_value)
-        return value, normalize_raw_value(default_value if column.field_path else None)
+            return display_value, normalize_raw_value(raw_value), True
+        return value, normalize_raw_value(default_value if column.field_path else None), False
 
     def call_column_callback(
         self,
@@ -448,8 +616,30 @@ class SQLAlchemyTableView(BaseTableView):
         filtered_total = await self.get_total_count(filtered_query)
         ordered_query = await self.apply_ordering(filtered_query, table_request)
         rows = await self.paginate(ordered_query, table_request)
-        row_contexts = [await self.preload_record_data(row) for row in rows]
-        return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=table_request.page, page_size=table_request.page_size)
+        row_contexts = await self.build_row_contexts(rows)
+        return TableResult(
+            rows=rows,
+            row_contexts=row_contexts,
+            total=total,
+            filtered_total=filtered_total,
+            page=table_request.page,
+            page_size=table_request.page_size,
+        )
+
+    async def query_export(self, table_request: TableRequest) -> TableResult:
+        """Same lifecycle as query_result without OFFSET; LIMIT is max_export_rows."""
+        query = await self.get_queryset()
+        query = self.apply_loader_options(query)
+        query = await self.apply_base_filters(query, table_request)
+        total = await self.get_total_count(query)
+        filtered_query = await self.apply_filters(query, table_request)
+        filtered_query = await self.apply_search(filtered_query, table_request)
+        filtered_total = await self.get_total_count(filtered_query)
+        ordered_query = await self.apply_ordering(filtered_query, table_request)
+        executed = await self.require_db_session().execute(ordered_query.limit(self.max_export_rows))
+        rows = list(executed.scalars().all())
+        row_contexts = await self.build_row_contexts(rows)
+        return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=1, page_size=max(1, len(rows)))
 
     def apply_loader_options(self, query: Any) -> Any:
         """统一应用关系预加载配置，避免业务 get_queryset 重复手写 options。"""
@@ -472,17 +662,10 @@ class SQLAlchemyTableView(BaseTableView):
 
     async def apply_ordering(self, query: Any, table_request: TableRequest) -> Any:
         """把 sort 或默认 ordering 转换为 SQL ORDER BY。"""
-        sort = table_request.sort or first_ordering(self.ordering)
-        if not sort:
+        resolved = self.resolve_sort_field(table_request)
+        if resolved is None:
             return query
-        descending = sort.startswith("-")
-        field = sort[1:] if descending else sort
-        columns = {column.name: column for column in self.get_columns()}
-        column = columns.get(field)
-        if column is not None:
-            if not column.sortable:
-                return query
-            field = str(column.field_path)
+        field, descending = resolved
         joined_query, sql_field = self.resolve_sql_field(
             query,
             field,
@@ -492,7 +675,9 @@ class SQLAlchemyTableView(BaseTableView):
 
     async def paginate(self, query: Any, table_request: TableRequest) -> list[object]:
         """执行分页查询。"""
-        result = await self.require_db_session().execute(query.limit(table_request.page_size).offset((table_request.page - 1) * table_request.page_size))
+        result = await self.require_db_session().execute(
+            query.limit(table_request.page_size).offset((table_request.page - 1) * table_request.page_size)
+        )
         return list(result.scalars().all())
 
     async def get_total_count(self, query: Any) -> int:
@@ -506,8 +691,16 @@ class SQLAlchemyTableView(BaseTableView):
         field_path: str,
         *,
         terminal_relationship_local_key: bool = False,
+        isouter: bool = True,
     ) -> tuple[Any, Any]:
-        """解析字段路径，并为关系字段补齐显式 JOIN。"""
+        """解析字段路径，并为关系字段补齐显式 JOIN。
+
+        JOIN 在这里只为读到关联表的某一列，所以默认是 LEFT OUTER JOIN：没有关联记录的行仍然留在
+        列表里（搜索时它们匹配不到这一列，排序时排在一端）。想用 JOIN 顺带过滤掉这些行时传
+        `isouter=False`。同一个关系被多个字段路径用到时 SQLAlchemy 只会拼一次 JOIN——注意条件是"同一个
+        关系"：两个不同关系指向同一张表（`created_by` 和 `updated_by` 都指向用户表）会拼出两个不带别名的
+        JOIN，WHERE 里的列名随即有歧义，数据库直接报错。那种表需要调用方自己用 `aliased()`。
+        """
         if self.model is None:
             raise ValueError("SQLAlchemyTableView.model must be set")
         mapper: Mapper[Any] = inspect(self.model)
@@ -525,11 +718,9 @@ class SQLAlchemyTableView(BaseTableView):
                 if terminal_relationship_local_key and index == len(parts) - 1:
                     local_columns = tuple(property_.local_columns)
                     if property_.direction is not RelationshipDirection.MANYTOONE or len(local_columns) != 1:
-                        raise ValueError(
-                            f"SQLAlchemy relationship ordering requires an explicit scalar field path: {field_path}"
-                        )
+                        raise ValueError(f"SQLAlchemy relationship ordering requires an explicit scalar field path: {field_path}")
                     return query, local_columns[0]
-                query = query.join(descriptor)
+                query = query.join(descriptor, isouter=isouter)
                 current_model = property_.mapper.class_
                 current_mapper = inspect(current_model)
         return query, current_attr
@@ -555,6 +746,36 @@ class SQLAlchemyTableView(BaseTableView):
         return normalize_raw_value(row_id)
 
 
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+NUMERIC_TEXT = re.compile(r"[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?")
+
+
+BLOCK_TAG_BOUNDARY = re.compile(
+    r"<(?:/?(?:p|div|li|tr|td|th|h[1-6]|section|article|ul|ol|table|blockquote|dd|dt|pre)\b[^>]*|br\s*/?)>", re.IGNORECASE
+)
+
+
+def markup_text(value: Markup) -> str:
+    """Visible text of a fragment; block boundaries become spaces so `<a>Title</a><div>Desc</div>` reads "Title Desc"."""
+    return Markup(BLOCK_TAG_BOUNDARY.sub(" ", str(value))).striptags()
+
+
+def csv_safe_text(text: str) -> str:
+    """Neutralise spreadsheet formula triggers (OWASP CSV injection) without touching plain numbers.
+
+    A cell such as `=HYPERLINK(...)` or `-2+3+cmd|' /C calc'!A0` would run when the export is opened in
+    Excel or LibreOffice; a leading apostrophe makes the application show it as text.
+    """
+    if not text or text[0] not in CSV_FORMULA_PREFIXES or NUMERIC_TEXT.fullmatch(text):
+        return text
+    return f"'{text}"
+
+
+def column_is_exportable(column: Column) -> bool:
+    """The row-action column (named `action`, like the CSS and toolbar conventions) never exports."""
+    return bool(column.exportable) and column.name != "action"
+
+
 def callback_name_for_column(column: Column) -> str:
     """返回字段列默认回调方法名。"""
     if not column.field_path:
@@ -566,33 +787,6 @@ def callback_name_for_column(column: Column) -> str:
 def safe_method_name(value: str) -> str:
     """把字段路径转换为 Python 方法名片段。"""
     return value.replace(".", "_").replace("-", "_")
-
-
-def to_kebab_case(value: str) -> str:
-    """把筛选字段名转换为 HTML data 属性后缀。"""
-    return value.replace("_", "-").replace(".", "-")
-
-
-def get_arg(args: object, key: str, default: object = None) -> object:
-    """从 request.args 读取单值参数。"""
-    getter = getattr(args, "get", None)
-    if getter is None:
-        return default
-    return first_arg_value(getter(key, default))
-
-
-def iter_args(args: object) -> list[tuple[str, object]]:
-    """遍历 request.args 中的单值参数。"""
-    if hasattr(args, "items"):
-        return [(key, first_arg_value(value)) for key, value in cast(Any, args).items()]
-    return []
-
-
-def first_arg_value(value: object) -> object:
-    """把 Sanic 多值查询参数规范为首个值。"""
-    if isinstance(value, (list, tuple)):
-        return value[0] if value else None
-    return value
 
 
 def first_ordering(ordering: list[str] | tuple[str, ...]) -> str:
@@ -626,24 +820,6 @@ def normalize_display_value(value: object) -> CellDisplayValue:
     if isinstance(value, (str, int, float, bool, Decimal, Markup)) or value is None:
         return value
     return str(value)
-
-
-def normalize_raw_value(value: object) -> CellRawValue:
-    """把字段值规范为 raw value。"""
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, Decimal):
-        return str(value)
-    return str(value)
-
-
-def render_display_value(value: CellDisplayValue) -> Markup:
-    """把显示值转换为安全 HTML。"""
-    if isinstance(value, Markup):
-        return value
-    if value is None:
-        return Markup("")
-    return Markup(escape(value))
 
 
 def render_attrs(attrs: dict[str, object]) -> str:
