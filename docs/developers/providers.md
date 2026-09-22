@@ -249,7 +249,7 @@ graceful_timeout 是所有在途 handler **共用**的正常完成等待期，�
 
 Core 是在线事件/RPC，不持久保存离线消息，没有处理 ACK、重试队列、群体 RPC、节点目录或重放；publish 返回只表示本地发送步骤完成。需要可靠排队、延迟/周期执行和任务结果使用 [Taskiq](distributed-tasks.md)；浏览器实时投递使用 [SSE](sse.md)。
 
-原生扩展实际经 FastStream 0.7.1、fast-depends 3.0.8、nats-py 2.15.0 检验；nats-py 依赖固定版本。关闭、请求 Future 清理、TLS 防降级修补只安装到 Oldman 持有的 Client，不修改原生类/其他客户端。升级时必须复核相应私有扩展点与真实连接专项。已知原生 TLS 失败清理仍可能产生超时及旧 StreamWriter 警告；不承诺所有失败对象都可无警告优雅重用。实际验收版本及限制见[本轮报告](../internal/2026-09-11-nats-events-rpc-validation.md)。
+原生扩展实际经 FastStream 0.7.1、fast-depends 3.0.8、nats-py 2.15.0 检验；nats-py 依赖固定版本。关闭、请求 Future 清理、TLS 防降级修补只安装到 Oldman 持有的 Client，不修改原生类/其他客户端。升级时必须复核相应私有扩展点与真实连接专项。已知原生 TLS 失败清理仍可能产生超时及旧 StreamWriter 警告；不承诺所有失败对象都可无警告优雅重用。上面这些版本号和限制就是实际验收的范围。
 
 ### Shell、IDE 与独立连接
 

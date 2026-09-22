@@ -84,4 +84,4 @@ docs/                         用户、开发者与 Agent 文档
 
 Python 和 npm 包不包含独立 Demo 的业务代码与运行数据。框架仓库不是业务项目，不在根目录添加应用的 `config/`、`services/` 或数据库。
 
-产品取舍见 [PRODUCT.md](PRODUCT.md)，参与本仓库工作前请读 [AGENTS.md](AGENTS.md)。
+产品取舍见 [PRODUCT.md](PRODUCT.md)。
