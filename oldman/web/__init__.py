@@ -1,7 +1,7 @@
 """Lightweight public Web primitives for Oldman applications."""
 
-from oldman.web.exceptions import Forbidden, NotFound
-from oldman.web.http import HTTPMethodView, OldmanHTTPMethodView
+from oldman.web.exceptions import BadRequest, Forbidden, NotFound, TooManyRequests, Unauthorized
+from oldman.web.http import HTTPMethodView
 from oldman.web.request import (
     Request,
     get_arg,
@@ -22,14 +22,14 @@ from oldman.web.response import (
     stream_response,
     text_response,
 )
-from oldman.web.routing import WebApp, autodiscover, get_app, import_app_modules
+from oldman.web.routing import Router, WebApp, autodiscover, import_app_modules, router
 from oldman.web.template import render_template
 
 __all__ = [
+    "BadRequest",
     "Forbidden",
     "HTTPMethodView",
     "NotFound",
-    "OldmanHTTPMethodView",
     "Request",
     "Response",
     "StreamingResponse",
@@ -38,7 +38,8 @@ __all__ = [
     "api_response",
     "autodiscover",
     "empty_response",
-    "get_app",
+    "Router",
+    "router",
     "get_arg",
     "get_current_request",
     "html_response",
@@ -51,4 +52,6 @@ __all__ = [
     "request_accepts_json",
     "stream_response",
     "text_response",
+    "TooManyRequests",
+    "Unauthorized",
 ]

@@ -8,10 +8,10 @@ __author__ = "alex"
 
 from datetime import UTC, datetime
 from functools import lru_cache
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import oldman.conf as conf
-from oldman.utils.singleton import singleton_adv
+from oldman.utils.singleton import singleton
 
 
 @lru_cache(maxsize=100)
@@ -19,37 +19,23 @@ def _tz_for_name(tz_name: str) -> ZoneInfo:
     return ZoneInfo(tz_name)
 
 
-@singleton_adv
+@singleton
 class TimezoneManager:
-    """时区管理器单例"""
-
-    _common_timezones: dict[str, ZoneInfo] = {}
-
-    def __init__(self):
-        super().__init__()
-        # 预加载常用时区
-        self._init_common_timezones()
-
-    def _init_common_timezones(self):
-        """初始化常用时区"""
-        self._common_timezones.setdefault("UTC", ZoneInfo("UTC"))
+    """时区管理器单例：按名字取时区、把时间转到指定时区；ZoneInfo 由 _tz_for_name 缓存。"""
 
     def get_timezone(self, tz_name: str | None) -> ZoneInfo:
-        """获取时区对象"""
+        """按名字取时区；为空时用部署默认时区（``core.time_zone``）。
+
+        名字无效时回落到默认时区而不报错：Web 中间件每个请求都用它解析请求带来的时区名，不能因为客户端
+        传了一个错名字就让请求失败。默认时区本身无效是配置错误，照常抛出。
+        """
         default_name = conf.settings.core.time_zone
-        resolved_name = tz_name or default_name
         try:
-            tz = self._common_timezones.get(resolved_name)
-            if tz is None:
-                tz = _tz_for_name(resolved_name)
-                self._common_timezones[resolved_name] = tz
-            return tz
-        except Exception:
-            fallback = self._common_timezones.get(default_name)
-            if fallback is None:
-                fallback = _tz_for_name(default_name)
-                self._common_timezones[default_name] = fallback
-            return fallback
+            return _tz_for_name(tz_name or default_name)
+        except (ValueError, ZoneInfoNotFoundError, OSError):
+            # OSError: with the tzdata package installed, zoneinfo opens the name as a file
+            # inside it, and an over-long name or a directory's name fails to open.
+            return _tz_for_name(default_name)
 
     def convert_to_local(self, dt_value: datetime, tz_name: str) -> datetime:
         """转换时间到指定时区"""

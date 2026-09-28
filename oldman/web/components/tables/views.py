@@ -17,10 +17,10 @@ from sqlalchemy.orm import Mapper, RelationshipDirection, RelationshipProperty
 
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
-from oldman.i18n import gettext_lazy
+from oldman.i18n import gettext, gettext_lazy
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.components.data_endpoint import DataEndpointMixin
-from oldman.web.http import OldmanHTTPMethodView, resolve_response_mode
+from oldman.web.http import HTTPMethodView, resolve_response_mode
 from oldman.web.request import get_arg, iter_args
 from oldman.web.response import html_response, json_response, raw_response
 
@@ -75,7 +75,7 @@ class TableValidationError(Exception):
     """表格筛选值校验失败。"""
 
 
-class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
+class BaseTableView(DataEndpointMixin, HTTPMethodView):
     """支持结构化数据源的无主题 Table 基类。"""
 
     require_authenticated = True
@@ -172,7 +172,7 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
             )
             page = parse_positive_int(get_arg(args, "page", 1), 1)
         except ValueError as exc:
-            raise TableInvalidRequest("Invalid table pagination parameter") from exc
+            raise TableInvalidRequest(gettext("Invalid table pagination parameter")) from exc
         filters = {key.removeprefix("filter."): value for key, value in iter_args(args) if key.startswith("filter.") and value not in {"", None}}
         return TableRequest(
             request=request,
@@ -195,7 +195,7 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
             return await self.render_permission_denied_response(request)
         export_format = self.resolve_export_format(request)
         if export_format and export_format not in self.supported_export_formats():
-            return await self.render_request_error_response(request, "Unsupported table export format", status=400)
+            return await self.render_request_error_response(request, gettext("Unsupported table export format"), status=400)
         try:
             result = await (self.query_export(table_request) if export_format else self.query_result(table_request))
         except TableInvalidRequest as exc:
@@ -250,17 +250,17 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
         """应用服务端固定限制。"""
         return rows
 
-    async def apply_filters(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
+    async def apply_filters(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
         """按 filter_xxx 方法应用请求筛选。"""
         current: Sequence[object] = rows
         for name, value in table_request.filters.items():
             method = getattr(self, f"filter_{safe_method_name(name)}", None)
             if method is None:
-                raise TableInvalidRequest(f"Unknown table filter: {name}")
+                raise TableInvalidRequest(gettext("Unknown table filter: %(name)s", name=name))
             current = await method(current, value, table_request)
         return current
 
-    async def apply_search(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
+    async def apply_search(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
         """按 search_fields 对结构化数据做大小写不敏感搜索。"""
         term = table_request.q.strip().lower()
         if not term:
@@ -296,9 +296,9 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
             name = requested[1:] if descending else requested
             column = columns.get(name)
             if column is None:
-                raise TableInvalidRequest(f"Unknown table sort: {name}")
+                raise TableInvalidRequest(gettext("Unknown table sort: %(name)s", name=name))
             if not column.sortable:
-                raise TableInvalidRequest(f"Table column is not sortable: {name}")
+                raise TableInvalidRequest(gettext("Table column is not sortable: %(name)s", name=name))
             return str(column.field_path), descending
 
         fallback = first_ordering(self.ordering)
@@ -313,7 +313,7 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
             return None
         return str(column.field_path), descending
 
-    async def apply_ordering(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
+    async def apply_ordering(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
         """按 sort 参数对结构化数据排序。"""
         resolved = self.resolve_sort_field(table_request)
         if resolved is None:
@@ -321,7 +321,7 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
         field, descending = resolved
         return sorted(rows, key=lambda row: sort_key(resolve_field_path(row, field)), reverse=descending)
 
-    async def paginate(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
+    async def paginate(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
         """按页码和分页大小返回当前页数据。"""
         start = (table_request.page - 1) * table_request.page_size
         end = start + table_request.page_size
@@ -362,9 +362,9 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
             return json_response(response.to_dict(), status=status)
         return html_response(await self.render_error_fragment(message), status=status)
 
-    async def render_permission_denied_response(self, request: Any):
-        """按请求头把表格权限错误转换为局部 HTML 或 JSON。"""
-        message = "Permission denied"
+    async def render_permission_denied_response(self, request: Any, message: str | None = None):
+        """按请求头把表格权限错误转换为局部 HTML 或 JSON;没给消息时用通用的「没有权限」。"""
+        message = message or gettext("Permission denied", request=request)
         if self.resolve_response_type(request) == "json":
             response = DefaultApiResponse(
                 error_code=ApiErrorCode.PERMISSION_DENIED,
@@ -375,9 +375,9 @@ class BaseTableView(DataEndpointMixin, OldmanHTTPMethodView):
         return html_response(await self.render_error_fragment(message), status=403)
 
     async def on_permission_denied(self, request: Any, response_mode: str, *, message: str, method_name: str):
-        """endpoint 级权限失败复用表格局部错误协议。"""
-        del response_mode, message, method_name
-        return await self.render_permission_denied_response(request)
+        """endpoint 级权限失败复用表格局部错误协议,并带上 check_permission 给的消息(与图表、HTTPMethodView 一致)。"""
+        del response_mode, method_name
+        return await self.render_permission_denied_response(request, message)
 
     def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str:
         """渲染 HTML Table 单行。"""
@@ -647,7 +647,7 @@ class SQLAlchemyTableView(BaseTableView):
             return query
         return query.options(*self.loader_options)
 
-    async def apply_search(self, query: Any, table_request: TableRequest) -> Any:
+    async def apply_search(self, query: Any, /, table_request: TableRequest) -> Any:
         """把 search_fields 转换为 SQL LIKE 条件。"""
         term = table_request.q.strip()
         if not term or not self.search_fields:
@@ -660,7 +660,7 @@ class SQLAlchemyTableView(BaseTableView):
             expressions.append(sql_field.like(like))
         return current_query.where(or_(*expressions))
 
-    async def apply_ordering(self, query: Any, table_request: TableRequest) -> Any:
+    async def apply_ordering(self, query: Any, /, table_request: TableRequest) -> Any:
         """把 sort 或默认 ordering 转换为 SQL ORDER BY。"""
         resolved = self.resolve_sort_field(table_request)
         if resolved is None:
@@ -673,7 +673,7 @@ class SQLAlchemyTableView(BaseTableView):
         )
         return joined_query.order_by(sql_field.desc() if descending else sql_field.asc())
 
-    async def paginate(self, query: Any, table_request: TableRequest) -> list[object]:
+    async def paginate(self, query: Any, /, table_request: TableRequest) -> list[object]:
         """执行分页查询。"""
         result = await self.require_db_session().execute(
             query.limit(table_request.page_size).offset((table_request.page - 1) * table_request.page_size)

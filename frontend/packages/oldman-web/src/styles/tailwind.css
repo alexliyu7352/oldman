@@ -1810,14 +1810,23 @@
     line-height: var(--om-line-height-meta);
   }
 
-  .om-radio-group {
+  .om-radio-group,
+  .om-check-group {
     @apply flex flex-wrap items-center gap-x-6 gap-y-2;
     min-height: var(--om-control-height);
   }
 
-  .om-radio-option {
+  .om-radio-option,
+  .om-check-option {
     @apply inline-flex cursor-pointer items-center gap-2 font-medium text-content;
     font-size: var(--om-font-size-body);
+  }
+
+  /* Checkbox group with grouped choices: a 12px muted heading over each group. */
+  .om-check-group-title {
+    @apply mb-1 mt-3 text-content-muted first-of-type:mt-1;
+    font-size: var(--om-font-size-meta);
+    line-height: var(--om-line-height-meta);
   }
 
   .om-form-label {

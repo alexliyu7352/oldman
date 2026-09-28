@@ -16,10 +16,13 @@ from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 from wtforms import StringField
 
+from oldman.apps.admin.model_admin import ModelAdmin
 from oldman.apps.admin.table import AdminModelTable
 from oldman.i18n import bind_translations, gettext_lazy, reset_translations
+from oldman.i18n.catalogs import CatalogLoader
 from oldman.web.components.forms import TailwindForm
 from oldman.web.components.tables import BaseTableView, TableResult
+from oldman.web.template import template_globals
 
 
 def make_translations(messages: dict[str, str]) -> Translations:
@@ -78,6 +81,29 @@ class AdminTranslationBoundaryTest(unittest.TestCase):
         self.assertIn("框架标签", lazy_html)
         self.assertIn(">Save</button>", explicit_action_html)
         self.assertIn(">保存</button>", default_action_html)
+
+    def test_generic_model_admin_copy_uses_the_shipped_catalogs(self) -> None:
+        """Titles and buttons of a plain ModelAdmin are message ids with the model name filled in."""
+        from oldman.apps.roles.models import Role
+
+        package = Path(__file__).resolve().parents[1] / "oldman"
+        translations = CatalogLoader((package / "apps/admin/locales", package / "apps/roles/locales")).load("zh_Hans")
+        admin = ModelAdmin(Role)
+        token = bind_translations(translations)
+        try:
+            copy = [
+                str(admin.get_list_card_title()),
+                str(admin.get_add_button_label()),
+                str(admin.get_form_card_title(None)),
+                str(admin.get_form_card_title(object())),
+                str(admin.get_form_submit_label(None)),
+                str(admin.get_form_submit_label(object())),
+                str(admin.get_delete_label()),
+            ]
+        finally:
+            reset_translations(token)
+
+        self.assertEqual(["角色列表", "新建角色", "新建角色", "编辑角色", "创建", "保存更改", "删除角色"], copy)
 
     def test_api_response_does_not_reinterpret_consumer_error_as_message_id(self) -> None:
         """A caller-supplied validation error must not be translated twice."""
@@ -151,7 +177,7 @@ class AdminTranslationBoundaryTest(unittest.TestCase):
 
         templates = Path(__file__).resolve().parents[1] / "oldman" / "web" / "templates"
         environment = Environment(loader=FileSystemLoader(templates), autoescape=True)
-        environment.globals["_"] = lambda message: message
+        template_globals(environment)["_"] = lambda message: message
         html = environment.get_template("oldman/auth/partials/password_form.html").render(
             action="/admin/users/1/password",
             form=FormStub(),

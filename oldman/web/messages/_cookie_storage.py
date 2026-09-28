@@ -30,6 +30,7 @@ from oldman.web.security.keys import (
     WebSecurityPurpose,
     configured_web_security_key,
 )
+from oldman.web.template_globals import template_globals
 
 FLASH_COOKIE_NAME = "oldman_messages"
 FLASH_COOKIE_MAX_AGE = 3600
@@ -359,7 +360,7 @@ def init_app(app: Sanic) -> None:
         runtime.save_response,
         MiddlewareLocation.RESPONSE.name,
     )
-    environment.globals["messages"] = messages_proxy
+    template_globals(environment)["messages"] = messages_proxy
     setattr(app.ctx, _APP_RUNTIME_ATTRIBUTE, runtime)
 
 

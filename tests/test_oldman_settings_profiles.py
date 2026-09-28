@@ -109,8 +109,9 @@ class SettingsServiceScopeTest(unittest.TestCase):
             settings_file.write_text(
                 "web:\n"
                 "  request_timeout: 9\n"
-                "  security:\n"
-                "    token_expire_time: 42\n"
+                "  auth:\n"
+                "    jwt:\n"
+                "      access_token_ttl: 42\n"
                 "  session:\n"
                 "    enabled: true\n"
                 "    redis_alias: PRIVATE_SESSION\n"
@@ -131,7 +132,7 @@ class SettingsServiceScopeTest(unittest.TestCase):
             raw = manager.read_config()
 
         self.assertEqual(9, loaded.web.request_timeout)
-        self.assertEqual(42, loaded.web.security.token_expire_time)
+        self.assertEqual(42, loaded.web.auth.jwt.access_token_ttl)
         self.assertTrue(loaded.web.session.enabled)
         self.assertEqual("PRIVATE_SESSION", loaded.web.session.redis_alias)
         self.assertTrue(loaded.web.sse.enabled)
@@ -139,7 +140,7 @@ class SettingsServiceScopeTest(unittest.TestCase):
         self.assertEqual(
             {
                 "request_timeout": 9,
-                "security": {"token_expire_time": 42},
+                "auth": {"jwt": {"access_token_ttl": 42}},
                 "session": {
                     "enabled": True,
                     "redis_alias": "PRIVATE_SESSION",

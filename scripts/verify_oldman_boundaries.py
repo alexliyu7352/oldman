@@ -40,7 +40,6 @@ REQUIRED_FILES = (
     "oldman/db/migrations/project.py",
     "oldman/db/models.py",
     "oldman/db/schemas.py",
-    "oldman/db/services.py",
     "oldman/db/session.py",
     "oldman/processes/__init__.py",
     "oldman/providers/nats/__init__.py",

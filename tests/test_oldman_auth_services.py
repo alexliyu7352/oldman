@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import enum
 import unittest
 from typing import Any, cast
 from unittest import mock
@@ -34,7 +35,7 @@ from oldman.utils.crypto import pbkdf2_sha256
 class IndependentUser(DatabaseModel):
     """Mapped class that must not qualify as a configured User."""
 
-    __tablename__ = "test_independent_auth_user"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_independent_auth_user"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -268,6 +269,10 @@ async def exercise_user_services() -> dict[str, object]:
         await manager.close()
 
 
+class UserNumber(enum.IntEnum):
+    ONE = 1
+
+
 async def assert_non_integer_identity_rejected(
     test: unittest.TestCase,
 ) -> None:
@@ -278,7 +283,8 @@ async def assert_non_integer_identity_rejected(
         await manager.initialize()
         async with manager.engine.begin() as connection:
             await connection.run_sync(cast(Table, User.__table__).create)
-        for value in ("1", 1.0, True, None):
+        # G2-8: an int subclass was let through here while every other boundary refused it.
+        for value in ("1", 1.0, True, None, UserNumber.ONE):
             with test.subTest(value=value):
                 with test.assertRaisesRegex(TypeError, "user_id must be an int"):
                     await get_user_by_id(

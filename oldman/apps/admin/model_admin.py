@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 from urllib.parse import quote, unquote
 
@@ -20,15 +20,16 @@ from wtforms.validators import InputRequired
 
 from oldman.apps.admin.crud import coerce_value
 from oldman.apps.admin.permissions import has_admin_permission
-from oldman.auth import validate_user_model
-from oldman.db import ModelMetadata, explicit_primary_key_column, resolve_model_display_names, session_dialect
+from oldman.auth import Permission, declare_permission, get_permission, validate_user_model
+from oldman.db import APP_LABEL_INFO_KEY, ModelMetadata, explicit_primary_key_column, resolve_model_display_names, session_dialect
 from oldman.i18n import gettext, gettext_lazy
+from oldman.web.auth.permissions import has_perm
 from oldman.web.auth.tables import user_cell_value, user_row_actions
+from oldman.web.authentication import request_user
 from oldman.web.components.forms.models import model_field_for_column
 from oldman.web.components.tables import Column as WebTableColumn
 from oldman.web.components.tables import badge, date_cell
 from oldman.web.components.tables.views import normalize_display_value
-from oldman.web.session import SessionData
 
 
 class InvalidAdminObjectId(ValueError):
@@ -36,6 +37,19 @@ class InvalidAdminObjectId(ValueError):
 
 
 ENCODED_STRING_KEY_PREFIX = "~b~"
+
+# A role editor lists every model's permissions together, so each label names its model.
+_ACTION_LABELS: dict[str, Callable[[Any], Any]] = {
+    "view": lambda name: gettext_lazy("View %(name)s", name=name),
+    "add": lambda name: gettext_lazy("Add %(name)s", name=name),
+    "change": lambda name: gettext_lazy("Change %(name)s", name=name),
+    "delete": lambda name: gettext_lazy("Delete %(name)s", name=name),
+}
+MODEL_ACTIONS = tuple(_ACTION_LABELS)
+# Which model each Admin permission was declared for: a second model reaching the same name
+# must not silently share it, or a role given one model's permission would open the other.
+_PERMISSION_MODELS: dict[str, type[Any]] = {}
+
 
 class ModelAdmin:
     """SQLAlchemy/SQLModel metadata-driven Admin CRUD controller."""
@@ -64,6 +78,8 @@ class ModelAdmin:
         self.site = site
         self.mapper = sa_inspect(model)
         self._form_classes: dict[tuple[str, ...], type[Any]] = {}
+        # Filled when a site registers the model; checked when it installs its routes.
+        self._declared_permission_names: dict[str, str] = {}
 
     @property
     def model_name(self) -> str:
@@ -180,7 +196,7 @@ class ModelAdmin:
                     return value
                 existing = await form.session.get(self.model, value)
                 if existing is not None:
-                    form.add_error(field_name, f"{form._fields[field_name].label.text} already exists")
+                    form.add_error(field_name, gettext("%(field)s already exists", field=form._fields[field_name].label.text))
                 return value
 
             attributes[f"clean_{field_name}"] = clean_explicit_primary_key
@@ -202,15 +218,15 @@ class ModelAdmin:
 
     def get_list_card_title(self) -> str:
         """Return the list card title as one translatable message."""
-        return f"{self.verbose_name_plural} List"
+        return cast(str, gettext_lazy("%(name)s List", name=self.verbose_name_plural))
 
     def get_add_button_label(self) -> str:
         """Return the add button label as one translatable message."""
-        return f"New {self.verbose_name}"
+        return cast(str, gettext_lazy("New %(name)s", name=self.verbose_name))
 
     def get_delete_label(self) -> str:
         """Return the delete page action label as one translatable message."""
-        return f"Delete {self.verbose_name}"
+        return cast(str, gettext_lazy("Delete %(name)s", name=self.verbose_name))
 
     def get_form_document_title(self, instance: Any | None) -> str:
         """Return the document title for the ordinary create/edit page."""
@@ -224,11 +240,13 @@ class ModelAdmin:
 
     def get_form_card_title(self, instance: Any | None) -> str:
         """Return the optional form-card heading."""
-        return f"{'Edit' if instance is not None else 'New'} {self.verbose_name}"
+        if instance is not None:
+            return cast(str, gettext_lazy("Edit %(name)s", name=self.verbose_name))
+        return cast(str, gettext_lazy("New %(name)s", name=self.verbose_name))
 
     def get_form_submit_label(self, instance: Any | None) -> str:
         """Return the ordinary create/edit submit label."""
-        return "Save changes" if instance is not None else "Create"
+        return cast(str, gettext_lazy("Save changes")) if instance is not None else cast(str, gettext_lazy("Create"))
 
     def row_value(self, instance: Any, field_name: str) -> Any:
         """Return a display value for a list cell."""
@@ -296,21 +314,99 @@ class ModelAdmin:
         await session.delete(instance)
         await session.flush()
 
-    def has_view_permission(self, request: Any) -> bool:
-        """Return whether request may view this model."""
-        return has_admin_permission(request, require_superuser=self.require_superuser)
+    async def after_save(self, request: Any, instance: Any, *, created: bool) -> None:
+        """Called once the transaction that saved the object has committed; does nothing by default.
 
-    def has_add_permission(self, request: Any) -> bool:
-        """Return whether request may add this model."""
-        return self.has_view_permission(request)
+        For work that must only follow a committed change, such as refreshing a copy kept
+        outside the database. An exception here fails the response, though the save stands.
+        The Admin's own follow-up (ending a user's logins after their access changed) has
+        already run by then.
+        """
+        del request, instance, created
 
-    def has_change_permission(self, request: Any) -> bool:
-        """Return whether request may change this model."""
-        return self.has_view_permission(request)
+    async def after_delete(self, request: Any, instance: Any) -> None:
+        """Called once the transaction that deleted the object has committed; does nothing by default."""
+        del request, instance
 
-    def has_delete_permission(self, request: Any) -> bool:
-        """Return whether request may delete this model."""
-        return self.has_view_permission(request)
+    def permission(self, action: str) -> Permission:
+        """This model's permission for one action: ``admin.<app label>.<model>.<action>``.
+
+        Named after the model class, lowercased, under the App that defines it, as Django does
+        (``admin.examples.exampleproject.view``), not after the table: a legacy table name need
+        not make a valid name, and a class name alone can repeat across Apps. A model loaded
+        outside any App, as in a test, has no App segment. The Admin's URLs keep the table name.
+
+        Declared when the model is registered, and shared by every AdminSite that
+        registers it, so a role that holds it means the same thing everywhere. A model with
+        ``require_superuser`` declares none and never asks: roles do not open it.
+        """
+        app_label = self.mapper.local_table.info.get(APP_LABEL_INFO_KEY)
+        model = self.model.__name__.lower()
+        codename = f"{app_label}.{model}.{action}" if app_label else f"{model}.{action}"
+        name = f"admin.{codename}"
+        owner = _PERMISSION_MODELS.setdefault(name, self.model)
+        if owner is not self.model:
+            raise ValueError(f"{self.model.__qualname__} and {owner.__qualname__} would share the Admin permission {name!r}")
+        existing = get_permission(name)
+        if existing is not None:
+            return existing
+        return declare_permission("admin", codename, _ACTION_LABELS[action](self.verbose_name_plural))
+
+    def _declare_permissions(self) -> None:
+        """Declare the four permissions now, and remember their names to check them at startup."""
+        self._declared_permission_names = {action: self.permission(action).name for action in MODEL_ACTIONS}
+
+    def _check_permission_names(self) -> None:
+        """Refuse a model whose permissions changed name since it was registered.
+
+        The App label is written on the model's table when the service loads its models. A
+        model registered before that declared `admin.<model>.*`, and every check afterwards
+        asks for `admin.<app>.<model>.*`: a role given the declared ones would never pass.
+        """
+        for action, declared in self._declared_permission_names.items():
+            # permission() itself, so a subclass naming its permissions otherwise is compared by its own rule;
+            # when the name did change, the new one gets declared on the way to refusing the start.
+            current = self.permission(action).name
+            if current != declared:
+                raise RuntimeError(
+                    f"{self.model.__qualname__} was registered with the Admin before its App's models were loaded, so its "
+                    f"permissions were declared as {declared!r} but are checked as {current!r}; register it once the models "
+                    "are loaded, in the service's init() after super().init()"
+                )
+
+    async def _has_model_permission(self, request: Any, action: str) -> bool:
+        """Staff holding the model's permission for this action.
+
+        A superuser-only model, or a whole Admin site set to superusers only, admits superusers
+        alone: a staff login that reached the site some other way (a session shared with
+        another service) is still refused, whatever its roles grant.
+        """
+        superuser_only = self.require_superuser or bool(getattr(self.site, "require_superuser", False))
+        if not has_admin_permission(request, require_superuser=superuser_only):
+            return False
+        return superuser_only or await has_perm(request, self.permission(action), db_manager=getattr(self.site, "db_manager", None))
+
+    async def has_view_permission(self, request: Any, obj: Any = None) -> bool:
+        """Whether the request may view this model, or this object when one is given.
+
+        Override to add a condition on the object; the handlers pass it once it is loaded.
+        """
+        del obj
+        return await self._has_model_permission(request, "view")
+
+    async def has_add_permission(self, request: Any) -> bool:
+        """Whether the request may add rows of this model."""
+        return await self._has_model_permission(request, "add")
+
+    async def has_change_permission(self, request: Any, obj: Any = None) -> bool:
+        """Whether the request may change this model, or this object when one is given."""
+        del obj
+        return await self._has_model_permission(request, "change")
+
+    async def has_delete_permission(self, request: Any, obj: Any = None) -> bool:
+        """Whether the request may delete from this model, or this object when one is given."""
+        del obj
+        return await self._has_model_permission(request, "delete")
 
 
 class AdminUserModelAdmin(ModelAdmin):
@@ -336,6 +432,21 @@ class AdminUserModelAdmin(ModelAdmin):
     def verbose_name_plural(self) -> str:
         """Keep the source user-manager plural label independent of model class name."""
         return cast(str, gettext_lazy("Users"))
+
+    def permission(self, action: str) -> Permission:
+        """User management checks the auth App's permissions, not Admin model permissions.
+
+        They are the ones a project's own user pages check too, so a role that may change
+        users may do so wherever users are managed.
+        """
+        from oldman.auth import user_permissions
+
+        return {
+            "view": user_permissions.VIEW_USERS,
+            "add": user_permissions.ADD_USERS,
+            "change": user_permissions.CHANGE_USERS,
+            "delete": user_permissions.DELETE_USERS,
+        }[action]
 
     def get_list_card_title(self) -> str:
         """Keep the source user list card title extractable as one message."""
@@ -460,9 +571,12 @@ class AdminUserModelAdmin(ModelAdmin):
 
 
 def request_user_id(request: Any) -> int | None:
-    """Return the integer user identity stored in the current SessionData."""
-    session = getattr(getattr(request, "ctx", None), "session", None)
-    return session.user_id if isinstance(session, SessionData) else None
+    """Return the id of the request's signed-in user, however it authenticated.
+
+    The self-protection checks (no disabling or deleting yourself) compare against it, so it
+    has to answer for every caller the permission gate lets in, not only session ones.
+    """
+    return request_user(request).id
 
 
 def is_text_column(column: Column[Any]) -> bool:

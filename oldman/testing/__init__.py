@@ -33,6 +33,7 @@ from oldman.testing.gates import (
     owned_redis_server,
     owned_service,
     run_browser_child,
+    use_owned_redis,
     wait_for_service,
 )
 from oldman.testing.png_evidence import PngEvidence, PngEvidenceError, require_png
@@ -79,5 +80,6 @@ __all__ = [
     "save_screenshot",
     "tracked_popen",
     "tracked_process_tree",
+    "use_owned_redis",
     "wait_for_service",
 ]

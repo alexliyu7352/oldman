@@ -9,6 +9,7 @@ from urllib.parse import quote, urlencode
 
 from babel.support import Translations
 from markupsafe import escape
+from sanic.exceptions import ServiceUnavailable
 from sanic.response import redirect
 
 import oldman.conf as conf
@@ -18,14 +19,15 @@ from oldman.apps.admin.model_admin import (
     ModelAdmin,
     request_user_id,
 )
-from oldman.apps.admin.permissions import has_admin_permission, is_authenticated
+from oldman.apps.admin.permissions import has_admin_permission, is_authenticated, is_superuser
 from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.table import AdminModelTable, _AdminUserModelTable
 from oldman.auth import (
     AuthSettings,
     UserManagementError,
-    authenticate_user,
     has_staff_access,
+    is_ordinary_user,
+    user_access_flags,
     user_identity,
 )
 from oldman.db import DatabaseManager
@@ -50,8 +52,10 @@ from oldman.web.api import (
 from oldman.web.auth import (
     SIGN_IN_AGAIN_DELAY_MS,
     PasswordResetFlow,
+    authenticate_credentials,
+    authenticated_session,
     render_session_password_modal,
-    revoke_user_sessions,
+    revoke_user_logins,
     save_language_preference,
     session_profile,
     staff_required,
@@ -83,7 +87,6 @@ from oldman.web.request import Request
 from oldman.web.response import html_response, json_response, redirect_response
 from oldman.web.routing import WebApp
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
-from oldman.web.session import SessionData
 from oldman.web.sse import SSEStream, sse
 from oldman.web.template import render_fragment, render_template
 
@@ -117,6 +120,10 @@ class AdminSite:
         self.name = name
         self._registry: OrderedDict[type[Any], ModelAdmin] = OrderedDict()
         self._app_registry = app_registry
+        # Set from AdminSettings when the routes are installed; model pages honour it as well as the login.
+        self.require_superuser = False
+        # The database the routes are installed on: roles missing from the permission cache are read there.
+        self.db_manager: DatabaseManager | None = None
 
     def bind_app_registry(self, registry: AppRegistry) -> None:
         """Bind the current service Registry without rebuilding registered Admins."""
@@ -136,8 +143,16 @@ class AdminSite:
             raise ValueError(f"{model.__name__} is already registered")
         resolved_admin_class = admin_class or ModelAdmin
         admin = resolved_admin_class(model, self)
+        # Declared now, not on the first check, so a role can be given them before anyone opens the model.
+        # A superuser-only model declares none: no role could make them take effect.
+        if not admin.require_superuser:
+            admin._declare_permissions()
         self._registry[model] = admin
         return admin
+
+    def is_registered(self, model: type[Any]) -> bool:
+        """Whether the model has a ModelAdmin on this site."""
+        return model in self._registry
 
     def unregister(self, model: type[Any]) -> None:
         """Unregister a model."""
@@ -164,11 +179,13 @@ class AdminSite:
         """Return registered admins in menu order."""
         return [RegisteredModelAdmin(model=model, admin=admin) for model, admin in self._registry.items()]
 
-    def menu_items(self, prefix: str = "/admin") -> list[dict[str, Any]]:
-        """Return neutral menu metadata from model registry."""
+    async def menu_items(self, request: Any, prefix: str = "/admin") -> list[dict[str, Any]]:
+        """Return neutral menu metadata for the models this request may view."""
         resolved_prefix = prefix.rstrip("/") or "/admin"
         items: list[dict[str, Any]] = []
         for registered in self.each_model_admin():
+            if not await registered.admin.has_view_permission(request):
+                continue
             metadata = registered.admin.get_model_metadata()
             app_config = self._app_registry.get_by_label(metadata.app_label) if self._app_registry is not None and metadata is not None else None
             items.append(
@@ -183,10 +200,10 @@ class AdminSite:
             )
         return items
 
-    def menu_groups(self, prefix: str = "/admin") -> list[dict[str, Any]]:
-        """Group registered models under their owning App for sidebar rendering."""
+    async def menu_groups(self, request: Any, prefix: str = "/admin") -> list[dict[str, Any]]:
+        """Group the models this request may view under their owning App for sidebar rendering."""
         groups: dict[str, dict[str, Any]] = {}
-        for item in self.menu_items(prefix):
+        for item in await self.menu_items(request, prefix):
             app_label = str(item["app_label"] or "models")
             group = groups.setdefault(
                 app_label,
@@ -214,8 +231,11 @@ class AdminSite:
         login_rate_limit: LoginRateLimit | None = None,
     ) -> str | None:
         """Install neutral Admin CRUD routes into a Sanic app."""
+        for registered in self.each_model_admin():
+            registered.admin._check_permission_names()
         prefix = prefix.rstrip("/") or "/admin"
         manager = db_manager if db_manager is not None else default_db_manager
+        self.db_manager = manager
         if auth_settings is None:
             from oldman.auth.apps import app as auth_app
 
@@ -225,7 +245,28 @@ class AdminSite:
 
             admin_settings = admin_app.settings
         login_path = f"{prefix}/login"
+        self.require_superuser = admin_settings.require_superuser
         permission_required = superuser_required if admin_settings.require_superuser else staff_required
+
+        async def run_after_save(current_admin: ModelAdmin, request: Request, instance: Any, *, created: bool) -> Any:
+            """The project's hook once the save committed; a store it needs being down is answered, not raised.
+
+            Raised, the 503 reaches the browser as Sanic's own error body, which has no error_code,
+            so the Admin could only say "Request failed" (a role saved while the permission store
+            was down, say). The framework's envelope carries the translated message instead. The
+            save stands either way. A page request keeps Sanic's error page.
+            """
+            try:
+                await current_admin.after_save(request, instance, created=created)
+            except ServiceUnavailable as exc:
+                if resolve_response_mode(request) != "json":
+                    raise
+                return form_error_response(str(exc), error_code=ApiErrorCode.SERVICE_UNAVAILABLE, status=503)
+            return None
+
+        def admitted(request: Request) -> bool:
+            """Whether the request may use the Admin at all; model pages add their own permission on top."""
+            return has_admin_permission(request, require_superuser=self.require_superuser)
 
         sign_in_limit = login_rate_limit if login_rate_limit is not None else LoginRateLimit(auth_settings=auth_settings)
 
@@ -236,7 +277,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=self.menu_items(prefix),
+                menu_items=await self.menu_items(request, prefix),
                 login_form=LoginForm(request=request),
                 login_error=login_error_message(error),
                 next_url=next_url,
@@ -245,7 +286,8 @@ class AdminSite:
         @add_csrf_token()
         async def login_page(request: Request):
             next_url = safe_next_url(request.args.get("next"), prefix)
-            if has_admin_permission(request):
+            # A staff login on a site for superusers stays here: the pages it would go on to refuse it.
+            if admitted(request):
                 return redirect_response(next_url)
             return await render_login_page(request, error=str(request.args.get("error") or ""), next_url=next_url)
 
@@ -261,9 +303,10 @@ class AdminSite:
                 response.status = 429
                 response.headers["Retry-After"] = str(retry_after)
                 return response
-            user = await authenticate_user(
-                username,
-                form_value(request, "password"),
+            user = await authenticate_credentials(
+                request,
+                username=username,
+                password=form_value(request, "password"),
                 auth_settings=auth_settings,
                 db_manager=manager,
             )
@@ -304,7 +347,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=self.menu_items(prefix),
+                menu_items=await self.menu_items(request, prefix),
                 **context,
             )
 
@@ -346,17 +389,15 @@ class AdminSite:
 
         @add_csrf_token()
         async def user_session_page(request: Request):
-            if not has_admin_permission(request):
+            if not admitted(request):
                 return await admin_access_denied_response(request, login_path)
-            request_session = getattr(request.ctx, "session", None)
-            if not isinstance(request_session, SessionData):
-                raise RuntimeError("Oldman Admin requires Session middleware")
+            request_session = authenticated_session(request)
             return await render_admin_template(
                 "admin/user_session.html",
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=self.menu_items(prefix),
+                menu_items=await self.menu_items(request, prefix),
                 session_profile=session_profile(request_session),
                 session_path=f"{prefix}/user-session",
                 password_modal_path=f"{prefix}/user-session/password-modal",
@@ -365,7 +406,7 @@ class AdminSite:
 
         @add_csrf_token()
         async def user_session_password_modal(request: Request):
-            if not has_admin_permission(request):
+            if not admitted(request):
                 return await admin_access_denied_response(request, login_path)
             return await render_session_password_modal(
                 request,
@@ -377,11 +418,8 @@ class AdminSite:
         @csrf_protect()
         @add_csrf_token()
         async def user_session_password_submit(request: Request):
-            if not has_admin_permission(request):
+            if not admitted(request):
                 return await admin_access_denied_response(request, login_path)
-            request_session = getattr(request.ctx, "session", None)
-            if not isinstance(request_session, SessionData):
-                raise RuntimeError("Oldman Admin requires Session middleware")
             # No activity entry: the change signs this browser out, so anything added to the
             # dashboard's transient menu would be replaced by the login page before it is read.
             return await update_session_password(
@@ -392,14 +430,14 @@ class AdminSite:
             )
 
         async def index(request: Request):
-            if not has_admin_permission(request):
+            if not admitted(request):
                 return await admin_access_denied_response(request, login_path)
             return await render_admin_template(
                 "admin/index.html",
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=self.menu_items(prefix),
+                menu_items=await self.menu_items(request, prefix),
             )
 
         app.add_route(cast(Any, index), prefix, methods=["GET"], name=f"{self.name}_index")
@@ -424,7 +462,7 @@ class AdminSite:
             model_prefix = f"{prefix}/{admin.model_path}"
 
             async def list_view(request: Request, current_admin: ModelAdmin = admin):
-                if not current_admin.has_view_permission(request):
+                if not await current_admin.has_view_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 table = _admin_table_class(current_admin)(request, model_admin=current_admin, db_manager=manager, admin_prefix=prefix)
                 table_id = f"admin-{current_admin.model_path}-table"
@@ -442,8 +480,9 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=self.menu_items(prefix),
+                    menu_items=await self.menu_items(request, prefix),
                     model_admin=current_admin,
+                    can_add=await current_admin.has_add_permission(request),
                     admin_user_management=user_admin is not None,
                     filter_form_html=filter_form_html,
                     table_html=await table.render_shell(html_id=table_id, show_search=filter_form is None),
@@ -461,7 +500,7 @@ class AdminSite:
 
             @add_csrf_token()
             async def create_form(request: Request, current_admin: ModelAdmin = admin):
-                if not current_admin.has_add_permission(request):
+                if not await current_admin.has_add_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 cancel_url = f"{prefix}/{current_admin.model_path}"
@@ -483,7 +522,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=self.menu_items(prefix),
+                    menu_items=await self.menu_items(request, prefix),
                     model_admin=current_admin,
                     admin_user_management=user_admin is not None,
                     form_html=form_html,
@@ -493,7 +532,7 @@ class AdminSite:
             @csrf_protect()
             @add_csrf_token()
             async def create_submit(request: Request, current_admin: ModelAdmin = admin):
-                if not current_admin.has_add_permission(request):
+                if not await current_admin.has_add_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_session() as session:
@@ -518,7 +557,7 @@ class AdminSite:
                             request,
                             admin_prefix=prefix,
                             site=self,
-                            menu_items=self.menu_items(prefix),
+                            menu_items=await self.menu_items(request, prefix),
                             model_admin=current_admin,
                             admin_user_management=user_admin is not None,
                             form_html=form_html,
@@ -528,6 +567,12 @@ class AdminSite:
                         return response
                     instance = await form.save()
                     await current_admin.save_model(session, instance)
+                    if user_admin is not None:
+                        # A new user has an id only now; the roles go in with it.
+                        await form.save_roles(session, instance)
+                failed = await run_after_save(current_admin, request, instance, created=True)
+                if failed is not None:
+                    return failed
                 if user_admin is not None:
                     success = user_admin.get_form_success_payload(instance, created=True, admin_prefix=prefix)
                     if resolve_response_mode(request) == "json":
@@ -537,7 +582,7 @@ class AdminSite:
 
             @add_csrf_token()
             async def edit_form(request: Request, object_id: str, current_admin: ModelAdmin = admin):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_read_session() as session:
@@ -545,7 +590,9 @@ class AdminSite:
                     if instance is None:
                         if user_admin is not None:
                             return redirect_response(f"{prefix}/{current_admin.model_path}")
-                        raise NotFound(f"{current_admin.verbose_name} {object_id} was not found")
+                        raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
+                    if not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                     form = current_admin.build_form(request, instance=instance, session=session)
                     action = current_admin.get_object_url(instance, admin_prefix=prefix, action="edit")
                     form_html = await form.render(
@@ -564,18 +611,19 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=self.menu_items(prefix),
+                    menu_items=await self.menu_items(request, prefix),
                     model_admin=current_admin,
                     admin_user_management=user_admin is not None,
                     form_html=form_html,
                     object=instance,
+                    can_delete=await current_admin.has_delete_permission(request, instance),
                     show_delete_action=user_admin is None,
                 )
 
             @csrf_protect()
             @add_csrf_token()
             async def edit_submit(request: Request, object_id: str, current_admin: ModelAdmin = admin):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_session() as session:
@@ -586,7 +634,9 @@ class AdminSite:
                                 gettext("User not found", request=request),
                                 status=404,
                             )
-                        raise NotFound(f"{current_admin.verbose_name} {object_id} was not found")
+                        raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
+                    if not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                     form = current_admin.build_form(request, instance=instance, session=session)
                     if not await form.validate():
                         if resolve_response_mode(request) == "json" if user_admin is not None else accepts_json_form_response(request):
@@ -609,19 +659,32 @@ class AdminSite:
                             request,
                             admin_prefix=prefix,
                             site=self,
-                            menu_items=self.menu_items(prefix),
+                            menu_items=await self.menu_items(request, prefix),
                             model_admin=current_admin,
                             admin_user_management=user_admin is not None,
                             form_html=form_html,
                             object=instance,
+                            can_delete=await current_admin.has_delete_permission(request, instance),
                             show_delete_action=user_admin is None,
                         )
                         response.status = 422
                         return response
+                    access_before = user_access_flags(instance) if user_admin is not None else None
                     # 统一经过 ModelForm.save()，保留 User 等专用表单的
                     # 归一化与安全边界；instance 已在 build_form 时绑定。
                     instance = await form.save()
                     await current_admin.save_model(session, instance)
+                    roles_changed = await form.save_roles(session, instance) if user_admin is not None else False
+                    access_changed = user_admin is not None and (user_access_flags(instance) != access_before or roles_changed)
+                if user_admin is not None and access_changed:
+                    # Sessions and access tokens carry the flags and role ids they were opened with. The
+                    # operator's own row can only gain access here (the form refuses taking
+                    # it away); that ends the operator's session too, and the redirect below
+                    # then lands on the login page. It runs before the project's hook, which may fail.
+                    await revoke_user_logins(request, user_identity(instance))
+                failed = await run_after_save(current_admin, request, instance, created=False)
+                if failed is not None:
+                    return failed
                 if user_admin is not None:
                     success = user_admin.get_form_success_payload(instance, created=False, admin_prefix=prefix)
                     if resolve_response_mode(request) == "json":
@@ -635,10 +698,12 @@ class AdminSite:
                 object_id: str,
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
-                if not current_admin.has_delete_permission(request):
+                if not await current_admin.has_delete_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
+                    if instance is not None and not await current_admin.has_delete_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                     return await user_delete_modal_response(
                         request,
                         instance,
@@ -647,18 +712,20 @@ class AdminSite:
 
             @add_csrf_token()
             async def delete_form(request: Request, object_id: str, current_admin: ModelAdmin = admin):
-                if not current_admin.has_delete_permission(request):
+                if not await current_admin.has_delete_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
-                        raise NotFound(f"{current_admin.verbose_name} {object_id} was not found")
+                        raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
+                    if not await current_admin.has_delete_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                 return await render_admin_template(
                     "admin/model/confirm_delete.html",
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=self.menu_items(prefix),
+                    menu_items=await self.menu_items(request, prefix),
                     model_admin=current_admin,
                     object=instance,
                 )
@@ -666,10 +733,11 @@ class AdminSite:
             @csrf_protect()
             @add_csrf_token()
             async def delete_submit(request: Request, object_id: str, current_admin: ModelAdmin = admin):
-                if not current_admin.has_delete_permission(request):
+                if not await current_admin.has_delete_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 username: str | None = None
+                target_user_id: int | None = None
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
@@ -678,15 +746,26 @@ class AdminSite:
                                 gettext("User not found", request=request),
                                 status=404,
                             )
-                        raise NotFound(f"{current_admin.verbose_name} {object_id} was not found")
+                        raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
+                    if not await current_admin.has_delete_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                     if user_admin is not None:
+                        # Staff and superuser accounts are managed by superusers only.
+                        if not is_superuser(request) and not is_ordinary_user(instance):
+                            return form_error_response(gettext("Permission denied", request=request))
                         try:
                             user_admin.validate_delete(instance, current_user_id=request_user_id(request))
                         except UserManagementError as exc:
                             message = gettext(str(exc), request=request)
                             return form_error_response(message)
                         username = str(getattr(instance, "username", current_admin.verbose_name))
+                        target_user_id = user_identity(instance)
                     await current_admin.delete_model(session, instance)
+                if user_admin is not None:
+                    # The deleted user's logins end before the project's hook, which may fail.
+                    assert target_user_id is not None
+                    await revoke_user_logins(request, target_user_id)
+                await current_admin.after_delete(request, instance)
                 if user_admin is not None:
                     assert username is not None
                     return admin_modal_success_response(
@@ -713,7 +792,7 @@ class AdminSite:
                 object_id: str,
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
@@ -722,6 +801,8 @@ class AdminSite:
                             gettext("Change Password", request=request),
                             gettext("User not found.", request=request),
                         )
+                    if not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                     form = current_admin.build_password_form(request, session=session)
                     modal_html = await render_fragment(
                         request,
@@ -740,7 +821,7 @@ class AdminSite:
                 object_id: str,
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
@@ -749,6 +830,10 @@ class AdminSite:
                             gettext("User not found", request=request),
                             status=404,
                         )
+                    if not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
+                    if not is_superuser(request) and not is_ordinary_user(instance):
+                        return form_error_response(gettext("Permission denied", request=request))
                     form = current_admin.build_password_form(request, session=session)
                     if not await form.validate():
                         return json_response(form.to_api_response().to_dict())
@@ -758,7 +843,8 @@ class AdminSite:
                     target_user_id = user_identity(instance)
                 # The same rule as every other password path: the sessions opened under the old
                 # password end with it. An operator who changed their own row ends their own.
-                signed_self_out = await revoke_user_sessions(request, target_user_id)
+                signed_self_out = await revoke_user_logins(request, target_user_id)
+                await current_admin.after_save(request, instance, created=False)
                 if signed_self_out:
                     return form_response(
                         gettext("Password changed", request=request),
@@ -794,10 +880,12 @@ class AdminSite:
                 object_id: str,
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
+                    if instance is not None and not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
                 return await user_status_modal_response(
                     request,
                     instance,
@@ -811,7 +899,7 @@ class AdminSite:
                 object_id: str,
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
-                if not current_admin.has_change_permission(request):
+                if not await current_admin.has_change_permission(request):
                     return await admin_access_denied_response(request, login_path)
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
@@ -820,6 +908,10 @@ class AdminSite:
                             gettext("User not found", request=request),
                             status=404,
                         )
+                    if not await current_admin.has_change_permission(request, instance):
+                        return await admin_access_denied_response(request, login_path)
+                    if not is_superuser(request) and not is_ordinary_user(instance):
+                        return form_error_response(gettext("Permission denied", request=request))
                     target_active = form_value(request, "is_active").strip().lower() in {"1", "true", "yes", "on"}
                     try:
                         current_admin.set_active(instance, target_active, current_user_id=request_user_id(request))
@@ -828,6 +920,12 @@ class AdminSite:
                         return form_error_response(message)
                     await current_admin.save_model(session, instance)
                     username = str(getattr(instance, "username", current_admin.verbose_name))
+                    target_user_id = user_identity(instance)
+                if not target_active:
+                    # Also when the user was disabled already: one disabled before disabling
+                    # ended logins may still hold some.
+                    await revoke_user_logins(request, target_user_id)
+                await current_admin.after_save(request, instance, created=False)
                 return admin_modal_success_response(
                     gettext("User status updated", request=request),
                     table_target=f"#admin-{current_admin.model_path}-table",
@@ -897,7 +995,7 @@ class AdminSite:
         app.add_route(cast(Any, login_page), login_path, methods=["GET"], name=f"{self.name}_login")
         app.add_route(cast(Any, login_submit), login_path, methods=["POST"], name=f"{self.name}_login_submit")
         app.add_route(cast(Any, sign_out), f"{prefix}/sign-out", methods=["GET"], name=f"{self.name}_sign_out")
-        reset_flow.register_routes(app, render=render_password_reset, is_authenticated=has_admin_permission, name_prefix=f"{self.name}_")
+        reset_flow.register_routes(app, render=render_password_reset, is_authenticated=admitted, name_prefix=f"{self.name}_")
         app.add_route(
             cast(Any, user_session_page),
             f"{prefix}/user-session",
@@ -945,7 +1043,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=self.menu_items(prefix),
+                    menu_items=await self.menu_items(request, prefix),
                     notification_center_content=content,
                 )
 
@@ -982,19 +1080,19 @@ class AdminSite:
 
 async def render_admin_template(template_name: str, request: Request, **context: Any):
     """Render Admin template with common neutral context."""
-    is_authenticated = has_admin_permission(request)
+    site = context.get("site")
+    is_authenticated = has_admin_permission(request, require_superuser=isinstance(site, AdminSite) and site.require_superuser)
     context.setdefault("admin_bundle_name", "oldman:admin")
     context.setdefault("admin_is_authenticated", is_authenticated)
     context.setdefault("admin_prefix", "/admin")
-    site = context.get("site")
     if isinstance(site, AdminSite):
         context.setdefault(
             "menu_groups",
-            site.menu_groups(str(context["admin_prefix"])),
+            await site.menu_groups(request, str(context["admin_prefix"])),
         )
     context.setdefault(
         "admin_extension_bundle_name",
-        getattr(request.app.ctx, "oldman_admin_extension_bundle_name", None),
+        getattr(request.app.ctx, "admin_extension_bundle_name", None),
     )
     context.setdefault("dashboard_body_classes", "" if is_authenticated else " oldman-auth-page")
     i18n_bootstrap = admin_i18n_bootstrap(request, str(context["admin_prefix"]))
@@ -1004,7 +1102,7 @@ async def render_admin_template(template_name: str, request: Request, **context:
     context.setdefault("request", request)
     notification_routes = getattr(
         request.app.ctx,
-        "oldman_admin_notification_routes",
+        "admin_notification_routes",
         None,
     )
     context.setdefault(
@@ -1020,7 +1118,7 @@ async def render_admin_template(template_name: str, request: Request, **context:
     )
     context.setdefault(
         "admin_user_events_url",
-        getattr(request.app.ctx, "oldman_admin_user_events_url", None),
+        getattr(request.app.ctx, "admin_user_events_url", None),
     )
     return await render_template(template_name, context=context)
 
@@ -1030,7 +1128,7 @@ async def load_admin_object(model_admin: ModelAdmin, session: Any, object_id: An
     try:
         return await model_admin.get_object(session, object_id)
     except InvalidAdminObjectId:
-        raise NotFound(f"{model_admin.verbose_name} {object_id} was not found") from None
+        raise NotFound(gettext("%(name)s %(id)s was not found", name=model_admin.verbose_name, id=object_id)) from None
 
 
 def admin_form_success_response(success: dict[str, Any]):

@@ -12,7 +12,8 @@ from sanic.cookies.response import SameSite
 from sanic.response import BaseHTTPResponse
 
 from oldman.logging import logger
-from oldman.providers.redis import redis_client
+from oldman.providers.redis import redis_client, redis_key
+from oldman.security import require_user_id
 from oldman.serializers import MsgspecModel
 
 _LOGIN_LUA = """
@@ -232,6 +233,7 @@ class SessionData(MsgspecModel, kw_only=True):
     is_active: bool = False
     is_staff: bool = False
     is_superuser: bool = False
+    role_ids: tuple[int, ...] = ()
 
     def is_authenticated(self) -> bool:
         """Return whether this model represents an authenticated user."""
@@ -263,8 +265,8 @@ class DefaultSessionInterface:
     def __init__(
         self,
         expiry: int = 2592000,
-        prefix: str = "session:",
-        user_prefix: str = "user_session:",
+        prefix: str | None = None,
+        user_prefix: str | None = None,
         cookie_name: str = "session_id",
         domain: str | None = None,
         httponly: bool = True,
@@ -283,8 +285,10 @@ class DefaultSessionInterface:
             raise TypeError("session_model must be a SessionData subclass")
 
         self.expiry = expiry
-        self.prefix = prefix
-        self.user_prefix = user_prefix
+        # None: the service namespace's session keys, resolved when a key is built, not here —
+        # an interface is constructed before settings exist in tests and scripts.
+        self._prefix = prefix
+        self._user_prefix = user_prefix
         self.cookie_name = cookie_name
         self.domain = domain
         self.httponly = httponly
@@ -478,6 +482,29 @@ class DefaultSessionInterface:
         assert state is not None
         return state.sid
 
+    def opened_session_id(self, request: Request) -> str | None:
+        """The SID the middleware captured, or None when it did not open this request's session."""
+        state = self._request_state(request, required=False)
+        return None if state is None else state.sid
+
+    def write_policy_cookie(self, response: BaseHTTPResponse, name: str, value: str, *, max_age: int) -> None:
+        """Write another cookie the way the session cookie travels: its Domain, Secure and SameSite, HttpOnly.
+
+        A cookie the handler already set under this name is left alone, as the session cookie is.
+        """
+        if response.cookies.has_cookie(name, domain=self.domain):
+            return
+        response.add_cookie(
+            name,
+            value,
+            httponly=True,
+            expires=self._calculate_expires(max_age),
+            max_age=max_age,
+            domain=self.domain,
+            samesite=self.samesite,
+            secure=self.secure,
+        )
+
     async def _logout_request(self, request: Request) -> None:
         """Delete the current request SID and mark its response cookie for removal."""
         state = self._request_state(request, required=False)
@@ -529,6 +556,16 @@ class DefaultSessionInterface:
             keys=[self._get_session_key(session_id), self._get_user_key(user_id)],
             args=[session_id],
         )
+
+    @property
+    def prefix(self) -> str:
+        """The session key prefix: the one given, or ``<namespace>:session:``."""
+        return self._prefix if self._prefix is not None else redis_key("session") + ":"
+
+    @property
+    def user_prefix(self) -> str:
+        """The user-to-sessions index prefix: the one given, or ``<namespace>:user_session:``."""
+        return self._user_prefix if self._user_prefix is not None else redis_key("user_session") + ":"
 
     async def _get_redis(self) -> Any:
         """Return the registry-owned binary connection for the configured alias."""
@@ -599,8 +636,9 @@ class DefaultSessionInterface:
         if data.user_id is not None:
             raise ValueError("An anonymous session cannot contain a user_id")
         # Callers may check role flags directly, so anonymous models must never
-        # carry authorization claims even when their user_id is absent.
-        if data.is_staff or data.is_superuser:
+        # carry authorization claims even when their user_id is absent. Role ids are
+        # such a claim too: they are what has_perm reads the permissions from.
+        if data.is_staff or data.is_superuser or data.role_ids:
             raise ValueError("An anonymous session cannot contain privileges")
         return None
 
@@ -649,14 +687,7 @@ class DefaultSessionInterface:
 
     def _get_user_key(self, user_id: int) -> str:
         """Build the Redis key for a user's active-session index."""
-        return self.user_prefix + str(self._require_user_id(user_id))
-
-    @staticmethod
-    def _require_user_id(user_id: object) -> int:
-        """Reject non-integer identities before crossing the Redis boundary."""
-        if type(user_id) is not int:
-            raise TypeError("user_id must be an int")
-        return cast(int, user_id)
+        return self.user_prefix + str(require_user_id(user_id))
 
     def _get_session_key(self, session_id: str) -> str:
         """Build the Redis key for one persisted session value."""

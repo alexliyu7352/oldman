@@ -51,7 +51,7 @@ def read_i18n_contract(
     registry = LanguageRegistry(i18n.languages)
     if not registry:
         raise ValueError(f"{settings_file} 中的 i18n.languages 不能为空")
-    languages = [
+    languages: list[dict[str, object]] = [
         {
             "aliases": list(definition.aliases),
             "babel_locale": definition.babel_locale,

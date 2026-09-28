@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import builtins
 import unittest
+import warnings
 from typing import Any
 from unittest.mock import patch
 
 import msgspec
 
+import oldman.conf as conf
 from oldman.conf.containers import RedisSettings
+from oldman.conf.schemas import DefaultSettings
 
 
 class FakeBinarySettingsConnection:
@@ -55,7 +59,7 @@ class FakeBinarySettingsConnection:
         members.remove(value)
         return 1
 
-    async def smembers(self, key: str) -> set[bytes]:
+    async def smembers(self, key: str) -> builtins.set[bytes]:  # `set` here is the method above
         """Return a copy of every raw set member."""
         return set(self.sets.get(key, set()))
 
@@ -111,8 +115,24 @@ class FakeRedisSettingsClient:
         return self.connection
 
 
-class RedisSettingsScalarTest(unittest.IsolatedAsyncioTestCase):
+class LegacyRedisSettingsTestCase(unittest.IsolatedAsyncioTestCase):
+    """RedisSettings is deprecated: these tests silence its warning and configure the service namespace themselves."""
+
+    def setUp(self) -> None:
+        self.enterContext(warnings.catch_warnings())
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # Without a namespace the keys go through redis_key(); configure it here, not in an earlier test.
+        settings = DefaultSettings()
+        settings.core.namespace = "redis_settings_test"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
+
+
+class RedisSettingsScalarTest(LegacyRedisSettingsTestCase):
     """Verify scalar settings typing, validation, and lazy client binding."""
+
+    def test_construction_warns_that_it_is_deprecated(self) -> None:
+        with self.assertWarnsRegex(DeprecationWarning, "RedisStore"):
+            RedisSettings(FakeRedisSettingsClient())
 
     async def test_scalar_values_round_trip_without_losing_falsey_types(self) -> None:
         """MsgPack must preserve every supported scalar type and falsey value."""
@@ -190,7 +210,7 @@ class RedisSettingsScalarTest(unittest.IsolatedAsyncioTestCase):
                 RedisSettings(namespace=namespace)  # type: ignore[arg-type]
 
 
-class RedisSettingsCollectionTest(unittest.IsolatedAsyncioTestCase):
+class RedisSettingsCollectionTest(LegacyRedisSettingsTestCase):
     """Verify configuration-oriented Set and List behavior."""
 
     async def test_set_members_keep_python_types_and_change_results(self) -> None:

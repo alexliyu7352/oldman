@@ -65,12 +65,11 @@ class NotificationRedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.apps: list[Sanic] = []
         self.extensions: list[SSEExtension] = []
         self.writer_tasks: list[asyncio.Task[None]] = []
-        self.config = SSEConfig(
-            enabled=True,
-            redis_alias="SSE",
-            channel_prefix=f"tests:notifications:{time.time_ns()}",
-            heartbeat_interval=60,
-        )
+        self.config = SSEConfig(enabled=True, redis_alias="SSE", heartbeat_interval=60)
+        # Publishers and workers meet on <namespace>:events:v1; each test gets its own namespace.
+        self.namespace = f"tests_notifications_{time.time_ns()}"
+        settings = DefaultSettings.model_validate({"core": {"namespace": self.namespace}, "web": WebConfig(sse=self.config).model_dump()})
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
         redis_config = RedisConfig.model_validate(
             {
                 "SSE": {
@@ -104,8 +103,8 @@ class NotificationRedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
         connection = await self.registry.using("SSE").async_get_bin_conn()
         pubsub = connection.pubsub()
-        generic_channel = f"{self.config.channel_prefix}:events:v1"
-        private_channel = f"{self.config.channel_prefix}:notifications:v1"
+        generic_channel = f"{self.namespace}:events:v1"
+        private_channel = f"{self.namespace}:notifications:v1"
         await pubsub.subscribe(generic_channel, private_channel)
         await self._wait_for_subscription_messages(pubsub, count=2)
 
@@ -171,11 +170,7 @@ class NotificationRedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
         """Initialize one Web worker without creating another Redis registry."""
         app = Sanic(f"oldman-notifications-{name}-{time.time_ns()}")
         extension = SSEExtension()
-        settings = DefaultSettings.model_validate({"web": WebConfig(sse=self.config).model_dump()})
-        with (
-            patch.dict(conf.__dict__, {"settings": settings}),
-            patch("oldman.web.sse.extension.redis_client", self.registry),
-        ):
+        with patch("oldman.web.sse.extension.redis_client", self.registry):
             extension.init_app(app)
         self.apps.append(app)
         self.extensions.append(extension)

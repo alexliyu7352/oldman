@@ -1,4 +1,5 @@
 import { cssEscape } from "../core/dom/helpers";
+import { httpErrorMessage } from "../core/http/client";
 import { relativeUrl } from "../core/http/urls";
 import { Component } from "../core/component/component";
 import { isCanceledError } from "../core/services/abort";
@@ -290,7 +291,7 @@ export class Table extends Component {
       // 旧请求失败时不覆盖较新请求的成功状态，也避免事件回调产生无意义的未处理异常。
       if (!this.isCurrentRefresh(refreshSerial)) return;
 
-      const message = this.errorMessage(error);
+      const message = httpErrorMessage(error, this.i18n);
       this.setStatus("error", message);
       this.emit<TableRefreshErrorDetail>("om:table:error", { component: this, error, message, url });
       throw error;
@@ -926,13 +927,6 @@ export class Table extends Component {
   /**
    * 将同源 URL 压缩为相对地址，避免测试和模板输出受域名影响。
    */
-  /**
-   * 将未知错误转换为可显示的错误消息。
-   */
-  private errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : this.i18n.t("Request failed");
-  }
-
   /**
    * 返回当前表格管理的本地行集合。
    */

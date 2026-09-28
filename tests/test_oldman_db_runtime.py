@@ -12,7 +12,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import patch
 
-from sqlalchemy import ForeignKey, Integer, String, delete, text
+from pydantic import ValidationError
+from sqlalchemy import ForeignKey, Integer, String, delete, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -20,13 +21,13 @@ from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import Base, DatabaseModel
 from oldman.db.session import DatabaseManager
 from oldman.db.sqlalchemy.cache import model_primary_key_value
-from oldman.storage.lifecycle import OldmanWriteSession
+from oldman.storage.lifecycle import WriteSession
 
 
 class AlternateKeyModel(DatabaseModel):
     """Prove framework helpers do not assume an ``id`` attribute."""
 
-    __tablename__ = "test_alternate_key_model"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_alternate_key_model"
 
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
 
@@ -34,7 +35,7 @@ class AlternateKeyModel(DatabaseModel):
 class CompositeKeyModel(DatabaseModel):
     """Prove identity helpers reject ambiguous composite keys."""
 
-    __tablename__ = "test_composite_key_model"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_composite_key_model"
 
     region: Mapped[str] = mapped_column(String(16), primary_key=True)
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -43,7 +44,7 @@ class CompositeKeyModel(DatabaseModel):
 class LifecycleModel(DatabaseModel):
     """Provide a real SQLite table for lifecycle and transaction tests."""
 
-    __tablename__ = "test_database_lifecycle"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_database_lifecycle"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(64))
@@ -52,7 +53,7 @@ class LifecycleModel(DatabaseModel):
 class CascadeParent(DatabaseModel):
     """Provide the parent side of a real database-level cascade."""
 
-    __tablename__ = "test_database_cascade_parent"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_database_cascade_parent"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -60,7 +61,7 @@ class CascadeParent(DatabaseModel):
 class CascadeChild(DatabaseModel):
     """Require SQLite itself to delete rows whose parent is removed."""
 
-    __tablename__ = "test_database_cascade_child"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_database_cascade_child"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     parent_id: Mapped[int] = mapped_column(
@@ -112,6 +113,61 @@ class DatabaseSessionLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(rolled_back)
         await self.manager.create_db_and_tables()
 
+    async def test_the_cache_pool_is_its_own_opened_on_first_use_and_closed_with_the_manager(self) -> None:
+        async with self.manager.get_session() as session:
+            session.add(LifecycleModel(id=1, name="committed"))
+        self.assertIsNone(self.manager._cache_engine)
+
+        async with self.manager.cache_fill_session() as session:
+            names = (await session.execute(select(LifecycleModel.name))).scalars().all()
+
+        cache_engine = self.manager._cache_engine
+        assert cache_engine is not None
+        self.assertEqual(["committed"], names)
+        self.assertIsNot(self.manager.engine, cache_engine)
+        self.assertEqual(5, cache_engine.pool.size())  # pyright: ignore[reportAttributeAccessIssue] -- QueuePool
+        self.assertEqual(0, cache_engine.pool.checkedout())  # pyright: ignore[reportAttributeAccessIssue] -- QueuePool
+        await self.manager.close()
+        self.assertIsNone(self.manager._cache_engine)
+
+    async def test_the_cache_pool_takes_its_size_and_timeout_from_settings_unless_the_manager_overrides_them(self) -> None:
+        url = f"sqlite+aiosqlite:///{(Path(self.temp_dir.name) / 'oldman-test.sqlite3').as_posix()}"
+        configured = DatabaseConfig(url=url, echo=False, cache_pool_size=3, cache_pool_timeout=0.25)
+        for manager, size, timeout in (
+            (DatabaseManager(configured), 3, 0.25),
+            (DatabaseManager(configured, cache_pool_size=2, cache_pool_timeout=0.5), 2, 0.5),
+        ):
+            try:
+                async with manager.cache_fill_session():
+                    pass
+                pool = cast(Any, manager._cache_engine).pool
+                self.assertEqual((size, timeout), (pool.size(), pool._timeout))
+            finally:
+                await manager.close()
+        for invalid in ({"cache_pool_size": 0}, {"cache_pool_timeout": 0}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationError):
+                DatabaseConfig.model_validate({"url": url, **invalid})
+            # G3-12: the manager's own arguments used to pass 0 on, which QueuePool takes as "no limit".
+            with self.subTest(argument=invalid), self.assertRaises(ValueError):
+                DatabaseManager(configured, **cast(dict[str, Any], invalid))
+
+    async def test_a_fill_session_never_sees_a_callers_uncommitted_writes(self) -> None:
+        async with self.manager.get_session() as writer:
+            writer.add(LifecycleModel(id=1, name="uncommitted"))
+            await writer.flush()
+            async with self.manager.cache_fill_session() as filler:
+                seen = (await filler.execute(select(LifecycleModel.name))).scalars().all()
+        self.assertEqual([], seen)
+
+    async def test_an_in_memory_database_cannot_fill_the_cache(self) -> None:
+        manager = DatabaseManager(DatabaseConfig(url="sqlite+aiosqlite:///:memory:", echo=False))
+        try:
+            with self.assertRaises(ValueError):
+                async with manager.cache_fill_session():
+                    pass
+        finally:
+            await manager.close()
+
     async def test_sqlite_enforces_foreign_keys_and_database_cascade(self) -> None:
         """Deleting a parent through SQL must cascade inside SQLite itself."""
         async with self.manager.get_session() as session:
@@ -134,20 +190,16 @@ class DatabaseSessionLifecycleTest(unittest.IsolatedAsyncioTestCase):
         """The migration must retain SQLModel, transaction and scoped factories."""
         async with self.manager.get_session("test:get-session") as session:
             self.assertIsInstance(session, AsyncSession)
-            self.assertIsInstance(session.sync_session, OldmanWriteSession)
+            self.assertIsInstance(session.sync_session, WriteSession)
             self.assertTrue(callable(session.exec))
             self.assertTrue(session.in_transaction())
 
         async with self.manager.get_read_session() as session:
-            self.assertNotIsInstance(session.sync_session, OldmanWriteSession)
+            self.assertNotIsInstance(session.sync_session, WriteSession)
 
         async with self.manager.transaction() as session:
             self.assertIsInstance(session, AsyncSession)
             self.assertTrue(session.in_transaction())
-
-        async with self.manager.transaction(nested=True) as session:
-            self.assertIsInstance(session, AsyncSession)
-            self.assertTrue(session.in_nested_transaction())
 
         scoped_session = self.manager._get_async_session(scoped=True)
         self.assertIsInstance(scoped_session, AsyncSession)

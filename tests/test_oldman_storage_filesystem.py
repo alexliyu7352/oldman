@@ -22,7 +22,7 @@ from tests.storage_contract import StorageContractMixin
 
 
 class FileSystemStorageContractTest(StorageContractMixin, unittest.IsolatedAsyncioTestCase):
-    storage: FileSystemStorage
+    storage: FileSystemStorage  # pyrefly: ignore[bad-override-mutable-attribute] -- the contract runs against this backend and reaches its internals
 
     async def asyncSetUp(self) -> None:
         temporary_directory = tempfile.TemporaryDirectory()

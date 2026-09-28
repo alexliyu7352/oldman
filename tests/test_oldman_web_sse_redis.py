@@ -90,12 +90,12 @@ class SSERedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.registries: list[RedisClientRegistry] = []
         self.extensions: list[SSEExtension] = []
         self.writer_tasks: list[asyncio.Task[None]] = []
-        self.config = SSEConfig(
-            enabled=True,
-            redis_alias="SSE",
-            channel_prefix=f"tests:sse:{time.time_ns()}",
-            heartbeat_interval=60,
+        self.config = SSEConfig(enabled=True, redis_alias="SSE", heartbeat_interval=60)
+        # Publishers and subscribers meet on <namespace>:events:v1; each test gets its own namespace.
+        self.settings = DefaultSettings.model_validate(
+            {"core": {"namespace": f"tests_sse_{time.time_ns()}"}, "web": WebConfig(sse=self.config).model_dump()}
         )
+        self.enterContext(patch.dict(conf.__dict__, {"settings": self.settings}))
 
     async def asyncTearDown(self) -> None:
         for extension, app in zip(self.extensions, self.apps, strict=False):
@@ -245,13 +245,7 @@ class SSERedisIntegrationTest(unittest.IsolatedAsyncioTestCase):
         """Initialize one simulated Web worker without touching Redis."""
         app = Sanic(f"oldman-sse-redis-{name}-{time.time_ns()}")
         extension = SSEExtension()
-        settings = DefaultSettings.model_validate(
-            {"web": WebConfig(sse=self.config).model_dump()}
-        )
-        with (
-            patch.dict(conf.__dict__, {"settings": settings}),
-            patch("oldman.web.sse.extension.redis_client", registry),
-        ):
+        with patch("oldman.web.sse.extension.redis_client", registry):
             extension.init_app(app)
         self.apps.append(app)
         self.extensions.append(extension)

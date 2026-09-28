@@ -49,6 +49,7 @@ class AppConfig[T_AppSettings]:
     models_module = "models"
     migrations_module = "migrations"
     web_module = "views"
+    permissions_module = "permissions"
     commands_module = "commands"
     tasks_module = "tasks"
     events_module = "events"
@@ -78,6 +79,7 @@ class AppConfig[T_AppSettings]:
             "models_module",
             "migrations_module",
             "web_module",
+            "permissions_module",
             "commands_module",
             "tasks_module",
             "events_module",

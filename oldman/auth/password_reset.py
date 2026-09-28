@@ -23,6 +23,7 @@ from oldman.auth.registry import get_user_model
 from oldman.auth.services import _auth_settings, _db_manager, normalize_email
 from oldman.auth.settings import AuthSettings, PasswordResetSettings
 from oldman.db import DatabaseManager
+from oldman.utils.crypto import constant_time_equals
 
 _KEY_SALT = "oldman.auth.password_reset"
 _BASE36_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -108,7 +109,7 @@ class PasswordResetTokenGenerator:
             issued = int(timestamp_part, 36)
         except ValueError:
             return False
-        if not hmac.compare_digest(self._make_token_with_timestamp(user, issued), token):
+        if not constant_time_equals(self._make_token_with_timestamp(user, issued), token):
             return False
         return 0 <= self._seconds_now() - issued <= self.expiry
 

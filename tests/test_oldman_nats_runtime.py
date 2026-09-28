@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shutil
 import signal
 import socket
 import subprocess
@@ -17,10 +16,10 @@ from pathlib import Path
 
 from oldman.providers.nats import NATSConnection
 from oldman.serializers import MsgspecModel
+from tests.nats_support import require_nats_server
+from tests.redis_support import require_redis_server
 
 ROOT = Path(__file__).resolve().parents[1]
-NATS_SERVER = os.environ.get("NATS_SERVER") or shutil.which("nats-server")
-REDIS_SERVER = os.environ.get("REDIS_SERVER") or shutil.which("redis-server")
 
 
 class Number(MsgspecModel):
@@ -229,8 +228,8 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
         '''
         files["example/views.py"] = '''
             from sanic.response import text
-            from oldman.web.routing import get_app
-            @get_app().get("/probe")
+            from oldman.web.routing import router
+            @router.get("/probe")
             async def probe(request):
                 return text("ready")
         '''
@@ -373,7 +372,6 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
         (root / relative).write_text(textwrap.dedent(content), encoding="utf-8")
 
 
-@unittest.skipUnless(NATS_SERVER, "Set NATS_SERVER to an executable, not an existing endpoint")
 class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
     """One local server at a time; actual CLI processes own their resource lifecycle."""
 
@@ -387,7 +385,7 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         self.url = f"nats://127.0.0.1:{port}"
-        self.server = subprocess.Popen([str(NATS_SERVER), "-a", "127.0.0.1", "-p", str(port),
+        self.server = subprocess.Popen([require_nats_server(), "-a", "127.0.0.1", "-p", str(port),
                                         "-js", "-sd", str(self.root / "jetstream")],
                                        stdout=self.log, stderr=self.log, start_new_session=True)
         self.addAsyncCleanup(self.stop_process, self.server)
@@ -648,7 +646,9 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                     await self.wait_trace(mode, "manager-ready", process)
                     process.send_signal(signal.SIGTERM)
                 lines = await self.finish(mode, process, success=None if enabled else True, web=True)
-                self.assertEqual(lines.count("nats-closed"), int(enabled))
+                # The stop wrapper runs with every configuration, since it also waits for the model
+                # cache's invalidations; with the bus disabled its NATS close returns at once.
+                self.assertEqual(lines.count("nats-closed"), 1)
                 self.assertEqual("events-import" in lines, enabled)
                 self.assertEqual("after-stop" in lines, mode in ("after-stop-fail", "web-disabled"))
         with socket.socket() as sock:
@@ -658,13 +658,12 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("before-start", lines)
             self.assertIn("nats-closed", lines)
 
-    @unittest.skipUnless(REDIS_SERVER, "Dedicated Taskiq entrypoints require an owned Redis executable")
     async def test_taskiq_worker_scheduler_and_native_hooks(self) -> None:
         """Actual child/task and scheduler hooks can RPC without becoming Core receivers."""
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
-        redis = subprocess.Popen([str(REDIS_SERVER), "--bind", "127.0.0.1", "--port", str(port),
+        redis = subprocess.Popen([require_redis_server(), "--bind", "127.0.0.1", "--port", str(port),
                                   "--save", "", "--appendonly", "no", "--dir", str(self.root)],
                                  stdout=self.log, stderr=self.log, start_new_session=True)
         self.addAsyncCleanup(self.stop_process, redis)

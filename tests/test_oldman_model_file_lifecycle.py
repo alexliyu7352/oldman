@@ -18,14 +18,14 @@ from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import DatabaseModel, ModelMetadata
 from oldman.db.session import DatabaseManager
 from oldman.storage import InMemoryStorage, file_column
-from oldman.storage.lifecycle import OldmanWriteSession, install_model_file_lifecycle
+from oldman.storage.lifecycle import WriteSession, install_model_file_lifecycle
 from oldman.storage.models import register_created_file
 
 
 class LifecycleFileModel(DatabaseModel):
     """提供两个独立 Storage 文件列和一个普通热路径字段。"""
 
-    __tablename__ = "task6_file_lifecycle"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "task6_file_lifecycle"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(64))
@@ -36,7 +36,7 @@ class LifecycleFileModel(DatabaseModel):
 class LifecyclePlainModel(DatabaseModel):
     """验证普通模型写入不承担文件查询。"""
 
-    __tablename__ = "task6_plain_lifecycle"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "task6_plain_lifecycle"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(64))
@@ -465,9 +465,9 @@ class ModelFileLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_only_framework_write_session_uses_internal_sync_session(self) -> None:
         async with self.manager.get_session() as write_session:
-            self.assertIsInstance(write_session.sync_session, OldmanWriteSession)
+            self.assertIsInstance(write_session.sync_session, WriteSession)
         async with self.manager.get_read_session() as read_session:
-            self.assertNotIsInstance(read_session.sync_session, OldmanWriteSession)
+            self.assertNotIsInstance(read_session.sync_session, WriteSession)
 
     async def test_user_created_async_session_does_not_run_file_cleanup(self) -> None:
         original = "avatars/original.png"
@@ -477,7 +477,7 @@ class ModelFileLifecycleTest(unittest.IsolatedAsyncioTestCase):
         session_maker = async_sessionmaker(self.manager.engine, class_=AsyncSession, expire_on_commit=False)
 
         async with session_maker.begin() as session:
-            self.assertNotIsInstance(session.sync_session, OldmanWriteSession)
+            self.assertNotIsInstance(session.sync_session, WriteSession)
             instance = await session.get(LifecycleFileModel, 1)
             assert instance is not None
             instance.avatar = replacement

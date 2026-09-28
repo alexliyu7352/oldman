@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import base64
+import errno
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import patch
 
 from pydantic import ValidationError
@@ -96,6 +97,49 @@ class WebSecuritySettingsTest(unittest.TestCase):
                 len(base64.b64decode(security["fingerprint"]["aes_secret_key"], validate=True)),
             )
             self.assertEqual(0o640, manager.config_file.stat().st_mode & 0o777)
+
+    def test_a_write_that_fails_midway_leaves_the_settings_file_intact(self) -> None:
+        """The settings file holds the service's secrets; a failed write must not cost them.
+
+        The file used to be truncated first and then written: a full disk or a killed process
+        in between left it empty or cut short. It is now written beside it and swapped in whole.
+        """
+        root_secret = "existing-web-security-root-secret-value"
+        original = f"web:\n  security:\n    secret_key: {root_secret}\n    fingerprint:\n      aes_secret_key:\n"
+        real_fdopen = os.fdopen
+
+        class FullDisk:
+            """A file object whose writes fail as on a full disk."""
+
+            def __init__(self, handle: Any) -> None:
+                self._handle = handle
+
+            def write(self, data: Any) -> int:
+                raise OSError(errno.ENOSPC, "No space left on device")
+
+            def __enter__(self) -> FullDisk:
+                return self
+
+            def __exit__(self, *exc_info: object) -> None:
+                self._handle.close()
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(self._handle, name)
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            manager = _manager(Path(temporary_directory), "web", "web")
+            manager.config_file.write_text(original, encoding="utf-8")
+            manager.config_file.chmod(0o600)
+
+            with (
+                patch("os.fdopen", lambda descriptor, *args, **kwargs: FullDisk(real_fdopen(descriptor, *args, **kwargs))),
+                self.assertRaises(OSError),
+            ):
+                manager.sync_config()
+
+            self.assertEqual(original, manager.config_file.read_text(encoding="utf-8"))
+            self.assertEqual(0o600, manager.config_file.stat().st_mode & 0o777)
+            self.assertEqual([manager.config_file.name], [path.name for path in Path(temporary_directory).iterdir()])
 
     def test_runtime_requires_secrets_in_yaml_and_ignores_environment(self) -> None:
         aes_secret = base64.b64encode(bytes(range(32))).decode("ascii")

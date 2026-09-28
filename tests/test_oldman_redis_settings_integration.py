@@ -6,6 +6,7 @@ import asyncio
 import tempfile
 import unittest
 import uuid
+import warnings
 from pathlib import Path
 
 from redis.exceptions import ResponseError
@@ -32,6 +33,9 @@ class RedisSettingsIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self) -> None:
         """Create an isolated namespace on the owned DEFAULT Redis database."""
+        # RedisSettings is deprecated; its own tests keep running without the warning.
+        self.enterContext(warnings.catch_warnings())
+        warnings.simplefilter("ignore", DeprecationWarning)
         self.registry = RedisClientRegistry(owned_redis_config(self.redis_process.socket_path, {"DEFAULT": 3}))
         self.client = self.registry.using("DEFAULT")
         self.namespace = f"oldman-test:settings:{uuid.uuid4().hex}"

@@ -229,7 +229,11 @@ def cache_response(
                     logger.warning("Failed to read response cache key %s: %s", cache_key, error)
 
                 result = await func(*args, **kwargs)
-                attributes = _cacheable_response_attributes(result)
+                # A page carrying a CSRF token belongs to one visitor or one session; served to
+                # anyone else, its forms would fail. The token's cookie is added by response
+                # middleware after this wrapper, so the cookie-free check below cannot see it.
+                issued_csrf = getattr(getattr(request, "ctx", None), "csrf_token_issued", False)
+                attributes = None if issued_csrf else _cacheable_response_attributes(result)
                 if attributes is not None:
                     try:
                         dumps_fn = pickle.dumps if use_pickle else orjson.dumps

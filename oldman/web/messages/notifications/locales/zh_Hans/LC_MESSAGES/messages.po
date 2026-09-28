@@ -66,3 +66,9 @@ msgstr "下一页"
 
 msgid "Open"
 msgstr "打开"
+
+msgid "Notification was not found"
+msgstr "找不到通知"
+
+msgid "Notification target was not found"
+msgstr "找不到通知指向的页面"

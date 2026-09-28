@@ -3,14 +3,12 @@ import signal
 from abc import abstractmethod
 from typing import Any
 
-from oldman.cache import memory_cache
-from oldman.db import db_manager
 from oldman.logging import logger
-from oldman.providers.redis import redis_client
 from oldman.runtime.base import BaseApplication
 from oldman.runtime.bootstrap import ServiceBootstrapContext
 from oldman.storage import storages
 from oldman.tasks.simple import BackgroundTaskManager
+from oldman.utils.asyncio_utils import new_event_loop
 
 
 class SimpleApplication(BaseApplication):
@@ -59,12 +57,9 @@ class SimpleApplication(BaseApplication):
             self.prepare()
             logger.info(f"Starting {self.app_name} service")
 
-            # 获取或创建事件循环
-            try:
-                self.loop = asyncio.get_event_loop()
-            except RuntimeError:
-                self.loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(self.loop)
+            # 服务自己的事件循环：装了 uvloop 就用它
+            self.loop = new_event_loop()
+            asyncio.set_event_loop(self.loop)
 
             # 设置信号处理
             self._setup_signal_handlers()
@@ -112,14 +107,15 @@ class SimpleApplication(BaseApplication):
                     await self._stop_nats_consuming(failure)
                 finally:
                     # Hooks keep their original order and exception behavior. They
-                    # may release dependencies only after Core handlers have left.
+                    # may release dependencies only after Core handlers have left,
+                    # and run while taskiq and NATS are still open.
                     await self.before_stop()
                     await self.after_stop()
             except BaseException as error:
                 failure = error
                 raise
             finally:
-                await self._close_publishers(failure)
+                await self._close_services(failure)
 
     @abstractmethod
     async def main(self, *args: Any, **kwargs: Any) -> None:
@@ -142,27 +138,8 @@ class SimpleApplication(BaseApplication):
         logger.info(f"{self.app_name} 停止前清理完成")
 
     async def after_stop(self) -> None:
-        """服务停止后钩子"""
-        await self._close_shared_resources()
-        logger.info(f"{self.app_name} 停止后清理完成")
-
-    async def after_command(self, command_name: str, *args: Any, **kwargs: Any) -> None:
-        """一次性命令执行后的轻量生命周期钩子。"""
-        await self._close_shared_resources()
-        logger.info(f"{self.app_name} 命令 {command_name} 执行后清理完成")
-
-    async def _close_shared_resources(self) -> None:
-        """关闭进程共享的缓存、Redis 和数据库引擎。
-
-        每个都要关：留着数据库连接不放，下一次启动或者重启会看到连接数不降。
-        """
-        try:
-            await memory_cache.close()
-        finally:
-            try:
-                await redis_client.close()
-            finally:
-                await db_manager.close()
+        """服务停止后钩子，运行时 taskiq/NATS 仍开着；框架在它之后关闭它们和缓存、Redis、数据库，覆盖时不必调用 super()。"""
+        return None
 
     def _setup_signal_handlers(self) -> None:
         """设置信号处理器"""

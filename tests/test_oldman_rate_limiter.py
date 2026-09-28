@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 from redis.exceptions import RedisError
 
-from oldman.conf.schemas import FingerprintSecurityConfig
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings, FingerprintSecurityConfig
 from oldman.security.rate_limiter import (
     TokenBucketRateLimiter,
     TokenBucketRateLimiterRegistry,
@@ -174,6 +175,12 @@ class TokenBucketRateLimiterTest(unittest.IsolatedAsyncioTestCase):
 class FingerprintIPRateLimiterTest(unittest.IsolatedAsyncioTestCase):
     """Verify result mapping, initialization, and degradation."""
 
+    def setUp(self) -> None:
+        # The limiter's keys are built under the service namespace, which comes from settings.
+        settings = DefaultSettings()
+        settings.core.namespace = "svc"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
+
     async def test_result_mapping_decodes_text_and_uses_default_endpoint_rule(self) -> None:
         """Lua output should map to semantic fields with the default endpoint config."""
         script = AsyncMock(return_value=[1, b"allowed", 3, 5, b"multi_fingerprint_per_ip"])
@@ -200,6 +207,7 @@ class FingerprintIPRateLimiterTest(unittest.IsolatedAsyncioTestCase):
         await_args = script.await_args
         assert await_args is not None
         args = await_args.kwargs["args"]
+        self.assertEqual("svc:fingerprint:rate:fp:fp", await_args.kwargs["keys"][0])
         default_rule = DEFAULT_FINGERPRINT_CONFIG.rate_limits["default"]
         self.assertEqual(default_rule.window, args[1])
         self.assertEqual(default_rule.fp_max, args[2])

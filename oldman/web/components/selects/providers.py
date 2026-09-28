@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
+from oldman.i18n import gettext
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.request import get_arg, iter_args
 
@@ -97,7 +98,7 @@ class SelectProvider:
                 continue
             name = key.removeprefix("depends[").removesuffix("]")
             if name not in context.dependent_fields:
-                raise SelectInvalidRequest(f"Unexpected dependent field: {name}")
+                raise SelectInvalidRequest(gettext("Unexpected dependent field: %(name)s", name=name))
             if value in {"", None}:
                 continue
             depends[name] = str(value)
@@ -273,9 +274,9 @@ def read_positive_int_arg(args: object, key: str, *, default: int, maximum: int 
     try:
         number = int(str(value))
     except (TypeError, ValueError):
-        raise SelectInvalidRequest(f"Invalid integer parameter: {key}") from None
+        raise SelectInvalidRequest(gettext("Invalid integer parameter: %(name)s", name=key)) from None
     if number < 1:
-        raise SelectInvalidRequest(f"Invalid positive integer parameter: {key}")
+        raise SelectInvalidRequest(gettext("Invalid positive integer parameter: %(name)s", name=key))
     if maximum is not None and number > maximum:
-        raise SelectInvalidRequest(f"Parameter exceeds maximum: {key}")
+        raise SelectInvalidRequest(gettext("Parameter exceeds maximum: %(name)s", name=key))
     return number

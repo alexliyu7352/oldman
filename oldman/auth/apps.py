@@ -12,6 +12,8 @@ class AuthAppConfig(AppConfig[AuthSettings]):
     display_name = _("Authentication")
     icon = "ri-shield-user-line"
     settings_model = AuthSettings
+    # oldman.auth.permissions is the declaration machinery every service imports.
+    permissions_module = "user_permissions"
 
 
 app = AuthAppConfig()

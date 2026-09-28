@@ -93,13 +93,20 @@ def distributed_config(*, max_message_size: int = 65536) -> SSEConfig:
     return SSEConfig(
         enabled=True,
         redis_alias="SSE",
-        channel_prefix="tests:sse",
         max_message_size=max_message_size,
     )
 
 
+def namespaced_settings(namespace: str) -> DefaultSettings:
+    settings = DefaultSettings()
+    settings.core.namespace = namespace
+    return settings
+
+
 class SSEPublisherTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        # The channel is the service namespace's: <namespace>:events:v1.
+        self.enterContext(configured_settings(namespaced_settings("tests_sse")))
         self.connection = FakeRedisConnection()
         self.alias = FakeRedisAlias(self.connection)
         self.registry = FakeRedisRegistry(self.alias)
@@ -145,7 +152,7 @@ class SSEPublisherTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, self.alias.connection_requests)
         channel, raw = self.connection.calls[0]
         envelope = SSEPublishedMessage.from_msgpack(raw)
-        self.assertEqual("tests:sse:events:v1", channel)
+        self.assertEqual("tests_sse:events:v1", channel)
         self.assertEqual(SSETargetType.USER, envelope.target_type)
         self.assertEqual("42", envelope.target)
         self.assertEqual("status", envelope.event)

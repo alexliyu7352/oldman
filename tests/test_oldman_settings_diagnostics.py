@@ -39,7 +39,7 @@ def run_fresh_python(
 class SettingsDiagnosticsTest(unittest.TestCase):
     """Separate non-fatal migration advice from invalid YAML."""
 
-    def test_manager_collects_deprecated_key_advice_without_global_output(self) -> None:
+    def test_manager_collects_advice_without_global_output(self) -> None:
         completed = run_fresh_python(
             """
             import contextlib
@@ -54,9 +54,9 @@ class SettingsDiagnosticsTest(unittest.TestCase):
             definition = ServiceDefinition("worker", Path("services/worker.py"), "simple")
             with contextlib.redirect_stderr(stderr):
                 manager = SettingsManager(DefaultSettings, definition, "worker_settings.yaml")
-                diagnostics = manager.inspect_diagnostics({"DEBUG": True})
+                diagnostics = manager.inspect_diagnostics({"web": {"sesion": {"expiry": 60}}})
 
-            assert diagnostics == ("deprecated settings key 'DEBUG'; use 'web.debug'",)
+            assert diagnostics == ("unknown settings key 'web.sesion'",)
             assert stderr.getvalue() == "", stderr.getvalue()
             """
         )
@@ -149,6 +149,33 @@ class SettingsDiagnosticsTest(unittest.TestCase):
                     assert "mystery" in str(exc)
                 else:
                     raise AssertionError("unknown settings key was ignored")
+            """
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+
+    def test_unknown_keys_below_the_top_are_reported(self) -> None:
+        """G4-5: nested sections ignore keys they do not declare, so a removed or misspelt key was silently dropped."""
+        completed = run_fresh_python(
+            """
+            import tempfile
+            from pathlib import Path
+
+            from oldman.conf.manager import SettingsManager
+            from oldman.conf.schemas import DefaultSettings
+            from oldman.runtime import ServiceDefinition
+
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path = root / "worker_settings.yaml"
+                path.write_text("web:\\n  debug: true\\n  sesion:\\n    expiry: 60\\n", encoding="utf-8")
+                definition = ServiceDefinition("worker", root / "services/worker.py", "simple")
+                manager = SettingsManager(DefaultSettings, definition, path)
+                manager.load()
+                assert manager.diagnostics == (
+                    "unknown settings key 'web.debug'",
+                    "unknown settings key 'web.sesion'",
+                ), manager.diagnostics
             """
         )
 

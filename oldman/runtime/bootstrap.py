@@ -76,6 +76,9 @@ def bootstrap_service(
         # Registered model modules are ordinary project code and may consume the
         # validated global and App settings during import.
         manager.registry.load_models()
+        # Every kind of service, not only the Web one: a command or a worker that creates
+        # roles checks their permission names against these declarations.
+        manager.registry.load_permissions()
         conf._log_settings_diagnostics(manager.diagnostics)
 
         context = ServiceBootstrapContext(

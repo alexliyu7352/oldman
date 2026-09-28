@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import shutil
 import socket
 import subprocess
 import sys
@@ -22,8 +20,7 @@ from oldman.providers.nats import NATSConnection
 from oldman.providers.nats.bus import _ConfiguredNATSConnection
 from oldman.runtime import ServiceDefinition
 from oldman.serializers import MsgspecModel
-
-NATS_SERVER = os.environ.get("NATS_SERVER") or shutil.which("nats-server")
+from tests.nats_support import require_nats_server
 
 
 class Query(MsgspecModel):
@@ -120,7 +117,6 @@ with patch("socket.socket", side_effect=AssertionError("import opened socket")):
         with patch.dict(conf.__dict__, settings=DefaultSettings()):
             asyncio.run(check())
 
-    @unittest.skipUnless(NATS_SERVER, "Set NATS_SERVER to a local executable")
     def test_typed_context_concurrency_and_cross_loop_reopen(self) -> None:
         """Late-bound native declarations survive both codecs and fresh event loops."""
         with tempfile.TemporaryDirectory(prefix="oldman-bus-live-", dir="/tmp") as directory:
@@ -129,7 +125,7 @@ with patch("socket.socket", side_effect=AssertionError("import opened socket")):
                 port = sock.getsockname()[1]
             url = f"nats://127.0.0.1:{port}"
             with open(Path(directory) / "server.log", "wb") as log:
-                server = subprocess.Popen([str(NATS_SERVER), "-a", "127.0.0.1", "-p", str(port)], stdout=log, stderr=log)
+                server = subprocess.Popen([require_nats_server(), "-a", "127.0.0.1", "-p", str(port)], stdout=log, stderr=log)
                 try:
                     for codec in ("msgpack", "msgspec_json"):
                         settings = DefaultSettings.model_validate({

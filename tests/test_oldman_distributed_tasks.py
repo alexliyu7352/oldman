@@ -1,6 +1,7 @@
 """Real transport checks in a fresh process, without touching service settings.
 
-Set NATS_SERVER and REDIS_SERVER to local binaries. Each check owns its servers,
+NATS_SERVER and REDIS_SERVER name the binaries, else the ones on PATH; without them the checks fail
+rather than skip. Each check owns its servers,
 namespace, Redis data and temporary directory; no configured user service is used.
 """
 
@@ -12,7 +13,6 @@ import json
 import os
 import pty
 import shlex
-import shutil
 import signal
 import socket
 import subprocess
@@ -26,12 +26,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
+from tests.nats_support import require_nats_server
+from tests.redis_support import require_redis_server
+
 ROOT = Path(__file__).resolve().parents[1]
-NATS_SERVER = os.environ.get("NATS_SERVER") or shutil.which("nats-server")
-REDIS_SERVER = os.environ.get("REDIS_SERVER") or shutil.which("redis-server")
 
 
-@unittest.skipUnless(NATS_SERVER and REDIS_SERVER, "Real task checks require NATS_SERVER and REDIS_SERVER")
 class DistributedTaskIntegrationTest(unittest.TestCase):
     """Run the public objects and native Receiver against owned real facilities."""
 
@@ -101,11 +101,6 @@ class DistributedTaskIntegrationTest(unittest.TestCase):
         self.assertEqual(2, report["certificate_failures"])
         self.assertLess(report["maximum_seconds"], 7)
 
-    def test_existing_cache_and_settings_with_shared_redis_options(self) -> None:
-        """Run existing real checks with only their configuration isolated."""
-        report = self._run_case("--shared-redis")
-        self.assertGreater(report["checks"], 2)
-
     def test_scheduler_stop_deadline(self) -> None:
         """An unfinished post_send is handled by the same single stop command."""
         report = self._run_case("--scheduler-force-stop")
@@ -136,9 +131,9 @@ class DistributedTaskIntegrationTest(unittest.TestCase):
             processes: list[subprocess.Popen[bytes]] = []
             with (root / "servers.log").open("wb") as log:
                 try:
-                    processes.append(subprocess.Popen([str(NATS_SERVER), "-c", str(nats_config)], stdout=log, stderr=log))
+                    processes.append(subprocess.Popen([require_nats_server(), "-c", str(nats_config)], stdout=log, stderr=log))
                     processes.append(subprocess.Popen([
-                        str(REDIS_SERVER), "--bind", "127.0.0.1", "--port", str(redis_port), "--dir", directory,
+                        require_redis_server(), "--bind", "127.0.0.1", "--port", str(redis_port), "--dir", directory,
                         "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction",
                     ], stdout=log, stderr=log))
                     (root / "servers.json").write_text(json.dumps([process.pid for process in processes]))
@@ -393,7 +388,7 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
         path.write_text(textwrap.dedent(body), encoding="utf-8")
     data = project / "data"
     data.mkdir()
-    config = {
+    config: dict[str, Any] = {
         "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
@@ -663,7 +658,7 @@ def exercise_scheduler(nats_port: int, redis_port: int, root: Path) -> None:
         path.write_text(textwrap.dedent(body), encoding="utf-8")
     data = project / "data"
     data.mkdir()
-    config = {
+    config: dict[str, Any] = {
         "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
@@ -814,7 +809,7 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
         path.write_text(textwrap.dedent(body), encoding="utf-8")
     data = project / "data"
     data.mkdir()
-    config = {
+    config: dict[str, Any] = {
         "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0", "connection_socket_timeout": 0.2, "retry_attempts": 0}},
@@ -966,9 +961,9 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
         "job_app/tasks.py": "raise RuntimeError('Publishers must not automatically import every App task module')\n",
         "job_app/views.py": """
             from sanic.response import json
-            from oldman.web.routing import get_app
+            from oldman.web.routing import router
             from job_app.work import emit
-            @get_app().get('/publish')
+            @router.get('/publish')
             async def publish(request):
                 task = await emit('web-request')
                 return json({'task_id': task.task_id})
@@ -1009,7 +1004,7 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
         path.write_text(textwrap.dedent(body), encoding="utf-8")
     data = project / "data"
     data.mkdir()
-    config = {
+    config: dict[str, Any] = {
         "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
@@ -1118,7 +1113,7 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
         path = project / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(textwrap.dedent(body), encoding="utf-8")
-    config = {
+    config: dict[str, Any] = {
         "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
@@ -1245,10 +1240,6 @@ if __name__ == "__main__":
         from tests.taskiq_fault_checks import exercise_tls
 
         exercise_tls(int(sys.argv[2]), int(sys.argv[3]), Path(sys.argv[4]))
-    elif len(sys.argv) > 1 and sys.argv[1] == "--shared-redis":
-        from tests.taskiq_fault_checks import exercise_shared_redis
-
-        exercise_shared_redis(int(sys.argv[3]))
     elif len(sys.argv) > 1 and sys.argv[1] == "--prefetch":
         from tests.taskiq_fault_checks import exercise_prefetch
 

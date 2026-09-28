@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import os
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any, ClassVar, TypeVar
+from pathlib import Path
+from typing import Any, ClassVar, Self
 
 import msgspec
 import orjson
 from pydantic import BaseModel
 
-T = TypeVar("T")
+from oldman.utils.files import atomic_write
 
 
 class MsgspecModel(msgspec.Struct):
@@ -41,8 +44,8 @@ class MsgspecModel(msgspec.Struct):
         return self._mp_encoder.encode(self)
 
     @classmethod
-    def from_msgpack(cls: type[T], data: bytes) -> T:
-        return cls._get_mp_decoder().decode(data)  # pyright: ignore[reportAttributeAccessIssue] -- decoder exists on MsgspecModel subclasses
+    def from_msgpack(cls, data: bytes) -> Self:
+        return cls._get_mp_decoder().decode(data)
 
     # ---- JSON（字节/字符串）----
     def to_json_bytes(self) -> bytes:
@@ -52,26 +55,27 @@ class MsgspecModel(msgspec.Struct):
         return self.to_json_bytes().decode("utf-8")
 
     @classmethod
-    def from_json_bytes(cls: type[T], data: bytes) -> T:
-        return cls._get_json_decoder().decode(data)  # pyright: ignore[reportAttributeAccessIssue] -- decoder exists on MsgspecModel subclasses
+    def from_json_bytes(cls, data: bytes) -> Self:
+        return cls._get_json_decoder().decode(data)
 
     @classmethod
-    def from_json_str(cls: type[T], s: str) -> T:
-        return cls.from_json_bytes(s.encode("utf-8"))  # pyright: ignore[reportAttributeAccessIssue] -- method exists on MsgspecModel subclasses
+    def from_json_str(cls, s: str) -> Self:
+        return cls.from_json_bytes(s.encode("utf-8"))
 
     # ---- Python 内建结构 ----
     def to_dict(self) -> dict[str, Any]:
         return msgspec.to_builtins(self)
 
     @classmethod
-    def from_dict(cls: type[T], data: dict[str, Any]) -> T:
+    def from_dict(cls, data: dict[str, Any]) -> Self:
         return msgspec.convert(data, type=cls)
 
 
 class DataclassModelMixin:
     """
-    给 dataclass 提供一致的编解码 API。
-    JSON 用 orjson；MsgPack 走 msgspec 对内建类型的快速编解码。
+    给 dataclass 提供一致的编解码 API，以及 JSON 文件读写。
+    编码：JSON 用 orjson，MsgPack 用 msgspec。解码与 MsgspecModel 一致，由 msgspec 按字段类型还原
+    （枚举、时间、嵌套 dataclass 都还原成原类型）；多余的键忽略，类型不符抛 msgspec.ValidationError。
     """
 
     # ---- MsgPack ----
@@ -79,9 +83,8 @@ class DataclassModelMixin:
         return msgspec.msgpack.encode(asdict(self))  # type: ignore[arg-type]
 
     @classmethod
-    def from_msgpack(cls: type[T], data: bytes) -> T:
-        d = msgspec.msgpack.decode(data, type=dict)
-        return cls(**d)  # type: ignore[arg-type]
+    def from_msgpack(cls, data: bytes) -> Self:
+        return msgspec.msgpack.decode(data, type=cls)
 
     # ---- JSON（字节/字符串）----
     def to_json_bytes(self) -> bytes:
@@ -91,21 +94,42 @@ class DataclassModelMixin:
         return self.to_json_bytes().decode("utf-8")
 
     @classmethod
-    def from_json_bytes(cls: type[T], data: bytes) -> T:
-        d = orjson.loads(data)
-        return cls(**d)  # type: ignore[arg-type]
+    def from_json_bytes(cls, data: bytes) -> Self:
+        return msgspec.json.decode(data, type=cls)
 
     @classmethod
-    def from_json_str(cls: type[T], s: str) -> T:
-        return cls.from_json_bytes(s.encode("utf-8"))  # pyright: ignore[reportAttributeAccessIssue] -- method exists on DataclassModelMixin subclasses
+    def from_json_str(cls, s: str) -> Self:
+        return cls.from_json_bytes(s.encode("utf-8"))
 
     # ---- 内建结构（dict）----
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)  # type: ignore[arg-type]
 
     @classmethod
-    def from_dict(cls: type[T], data: dict[str, Any]) -> T:
-        return cls(**data)  # type: ignore[arg-type]
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return msgspec.convert(data, type=cls)
+
+    # ---- JSON 文件 ----
+    def to_json_file(self, path: str | os.PathLike[str]) -> None:
+        """写成缩进两格的 UTF-8 JSON，整体替换原文件（见 atomic_write）；父目录不存在时创建，失败抛异常。"""
+        payload = orjson.dumps(asdict(self), option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE)  # type: ignore[arg-type]
+        atomic_write(path, payload, follow_symlinks=True)
+
+    async def to_json_file_async(self, path: str | os.PathLike[str]) -> None:
+        await asyncio.to_thread(self.to_json_file, path)
+
+    @classmethod
+    def from_json_file(cls, path: str | os.PathLike[str]) -> Self:
+        """从 JSON 文件读取。
+
+        文件不存在抛 FileNotFoundError，要不要用默认值由调用方决定；内容不是合法 JSON 抛
+        msgspec.DecodeError，字段类型不符抛 msgspec.ValidationError（它是 DecodeError 的子类）。
+        """
+        return msgspec.json.decode(Path(path).read_bytes(), type=cls)
+
+    @classmethod
+    async def from_json_file_async(cls, path: str | os.PathLike[str]) -> Self:
+        return await asyncio.to_thread(cls.from_json_file, path)
 
 
 class ModelSerializer:

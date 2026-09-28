@@ -21,7 +21,7 @@ import oldman.conf as conf
 from oldman.conf.schemas import DefaultSettings
 from oldman.web import messages
 from oldman.web.messages._cookie_storage import FLASH_COOKIE_NAME
-from oldman.web.template import build_template_loader, install_template_loaders, register_component_filters
+from oldman.web.template import build_template_loader, install_template_loaders, register_component_filters, template_globals
 
 _ROOT_SECRET = "oldman-web-message-template-test-secret"
 _PAGE_TEMPLATE = """\
@@ -125,7 +125,7 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             self.app.ext.environment,
             self.project_templates,
         )
-        environment.globals["_"] = lambda value: value
+        template_globals(environment)["_"] = lambda value: value
         with patch.dict(conf.__dict__, {"settings": self.settings}):
             messages.init_app(self.app)
         self._register_routes()
@@ -300,7 +300,7 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             autoescape=select_autoescape(["html", "xml"]),
             enable_async=True,
         )
-        environment.globals["_"] = lambda value: value
+        template_globals(environment)["_"] = lambda value: value
         # The shared base needs only the component globals (`_`, `current_year`), never the messages extension.
         register_component_filters(environment)
 

@@ -1,5 +1,6 @@
 import { maxTimeListMs } from "../core/services/transitions";
 import { showResponseActionFailure } from "../core/actions/response-actions";
+import { httpErrorMessage } from "../core/http/client";
 import { Component, type ComponentOptions } from "../core/component/component";
 import { setHidden } from "../core/dom/helpers";
 import { isCanceledError } from "../core/services/abort";
@@ -294,7 +295,7 @@ export class Modal extends Component {
       this.emit<ModalPartsDetail>("om:modal:parts", { component: this, parts, url });
       return parts;
     } catch (error) {
-      const message = this.errorMessage(error);
+      const message = httpErrorMessage(error, this.i18n);
       this.setStatus("error", message);
       this.emit<ModalErrorDetail>("om:modal:error", { component: this, error, message, url });
       throw error;
@@ -316,7 +317,7 @@ export class Modal extends Component {
       this.emit<ModalContentDetail>("om:modal:content", { component: this, html, url });
       return html;
     } catch (error) {
-      const message = this.errorMessage(error);
+      const message = httpErrorMessage(error, this.i18n);
       this.setStatus("error", message);
       this.emit<ModalErrorDetail>("om:modal:error", { component: this, error, message, url });
       throw error;
@@ -791,12 +792,5 @@ export class Modal extends Component {
       maxTimeListMs(style.animationDuration, style.animationDelay)
     );
     return durationMs > 0 ? durationMs : this.transitionFallbackMs;
-  }
-
-  /**
-   * 将未知错误转换为可展示的错误文案。
-   */
-  private errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : this.i18n.t("Request failed");
   }
 }

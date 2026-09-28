@@ -227,6 +227,22 @@ class SelectSigningContractTest(unittest.TestCase):
         with self.assertRaises(SelectBindError):
             verify_select_context(bind, secret_key="secret-b")
 
+    def test_non_ascii_signature_is_rejected_rather_than_raising(self) -> None:
+        """bind 来自请求;签名部分带非 ASCII 字符时应当是 SelectBindError,而不是 TypeError 变成 500。"""
+        context = SelectContext(
+            provider="channels",
+            field_name="channel_id",
+            multiple=False,
+            dependent_fields=(),
+            page_size=20,
+            value_field="id",
+            label_mode="text",
+        )
+        payload = sign_select_context(context, secret_key="secret").rsplit(".", 1)[0]
+
+        with self.assertRaises(SelectBindError):
+            verify_select_context(f"{payload}.签名", secret_key="secret")
+
     def test_signed_context_rejects_unknown_label_mode(self) -> None:
         """签名正确也不能绕过候选显示模式白名单。"""
         context = SelectContext(

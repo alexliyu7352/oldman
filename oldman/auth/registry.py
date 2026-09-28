@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any, cast
 
 from oldman.auth.base import AbstractUser
@@ -11,15 +10,12 @@ from oldman.auth.contracts import (
     validate_user_table_contract,
 )
 from oldman.auth.settings import AuthSettings
+from oldman.utils.module_loading import import_string
 
 
 def import_user_model(path: str) -> Any:
     """Import one configured dotted User model path."""
-    module_name, separator, attribute = path.rpartition(".")
-    if not separator or not module_name or not attribute:
-        raise ImportError(f"Invalid User model import path: {path}")
-    module = importlib.import_module(module_name)
-    return getattr(module, attribute)
+    return import_string(path)
 
 
 def validate_user_model(model: Any) -> type[AbstractUser]:

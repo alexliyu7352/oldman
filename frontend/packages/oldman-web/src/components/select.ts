@@ -1,11 +1,11 @@
 import { cssEscape } from "../core/dom/helpers";
+import { httpErrorMessage } from "../core/http/client";
 import { relativeUrl } from "../core/http/urls";
 import {
   REMOTE_SEARCH_DELAY_MS,
   dependentValues,
   deduplicateOptions,
-  isProviderResponse,
-  providerErrorMessage
+  isProviderResponse
 } from "./select-provider";
 import "./select.scss";
 import { Component } from "../core/component/component";
@@ -212,7 +212,7 @@ export class Select extends Component {
       this.emit<SelectErrorDetail>("om:select:error", {
         component: this,
         error,
-        message: providerErrorMessage(error, this.i18n),
+        message: httpErrorMessage(error, this.i18n),
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: requestUrl
       });
@@ -627,7 +627,7 @@ export class Select extends Component {
 
     // 候选标签走 innerHTML 是**显式 opt-in**:服务端 `label_mode` 默认 "text"
     // (`forms/widgets.py:176`),只有模板写了 data-om-select-label-mode="html" 才装这个
-    // 模板回调,docs/developers/forms.md 也写明了"普通 html 字符串会被转义,不是直接执行"。
+    // 模板回调,docs/public/zh/developers/forms.md 也写明了"普通 html 字符串会被转义,不是直接执行"。
     // 框架不在这里清洗:带图标、带头像的候选项是正常需求,清洗等于替使用者定业务规则。
     if (this.attribute("data-om-select-label-mode") === "html") {
       const defaultChoice = Choices.defaults.templates.choice;

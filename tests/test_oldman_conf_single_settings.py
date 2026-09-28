@@ -103,6 +103,22 @@ class ConfSingleSettingsTest(unittest.TestCase):
             self.assertEqual(settings.project_name, "operator")
             self.assertEqual([settings_file], list(config_dir.iterdir()))
 
+    def test_writing_a_linked_settings_file_keeps_the_link(self) -> None:
+        """G4-9: services that share one settings file by linking to it were split by the next sync."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            shared = Path(temporary_directory) / "shared" / "worker_settings.yaml"
+            shared.parent.mkdir()
+            shared.write_text("project_name: shared\n", encoding="utf-8")
+            settings_file = Path(temporary_directory) / "service" / "worker_settings.yaml"
+            settings_file.parent.mkdir()
+            settings_file.symlink_to(shared)
+
+            _manager(ProjectSettings, settings_file).sync_config()
+
+            self.assertTrue(settings_file.is_symlink())
+            self.assertIn("project_name: shared", shared.read_text(encoding="utf-8"))
+            self.assertIn("apps:", shared.read_text(encoding="utf-8"))
+
     def test_init_creates_private_simple_service_yaml_without_schema_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             settings_file = Path(temporary_directory) / "worker_settings.yaml"

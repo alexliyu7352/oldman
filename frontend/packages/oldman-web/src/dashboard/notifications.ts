@@ -4,7 +4,7 @@ import type {
   FeedbackResult,
   FeedbackToastOptions
 } from "../components/feedback";
-import { normalizeHttpError, type Logger } from "../core/index";
+import { httpErrorMessage, normalizeHttpError, type Logger } from "../core/index";
 import {
   type EventStreamClient,
   type StopEventStreamHandler
@@ -405,7 +405,7 @@ export class DashboardNotifications {
     this.services.logger.error("User notification operation failed", error);
     await this.feedback.alert({
       icon: "error",
-      text: error instanceof Error ? error.message : this.services.i18n.t("Request failed"),
+      text: httpErrorMessage(error, this.services.i18n),
       title: this.services.i18n.t("Request failed")
     });
   }

@@ -15,10 +15,11 @@ from oldman.i18n.catalogs import CatalogLoader
 from oldman.i18n.registry import LanguageDefinition, LanguageRegistry
 from oldman.i18n.translations import gettext, ngettext, pgettext
 from oldman.logging import logger
-from oldman.utils.singleton import singleton_adv
+from oldman.utils.singleton import singleton
 from oldman.web.i18n.assets import direct_flag_url
 from oldman.web.request import Request, get_current_request
 from oldman.web.routing import WebApp
+from oldman.web.template_globals import template_globals
 
 
 class I18nSettings(Protocol):
@@ -40,7 +41,7 @@ class I18nSettings(Protocol):
         ...
 
 
-@singleton_adv
+@singleton
 class TranslationService:
     """Own one project's immutable language registry and lazy catalog cache."""
 
@@ -89,10 +90,10 @@ class TranslationService:
             environment.add_extension(I18nExtension)
 
         # Request middleware binds the catalog ContextVar used by these helpers.
-        environment.globals["_"] = gettext
-        environment.globals["gettext"] = gettext
-        environment.globals["ngettext"] = ngettext
-        environment.globals["pgettext"] = pgettext
+        template_globals(environment)["_"] = gettext
+        template_globals(environment)["gettext"] = gettext
+        template_globals(environment)["ngettext"] = ngettext
+        template_globals(environment)["pgettext"] = pgettext
 
         @pass_context
         def get_current_locale(context: Mapping[str, Any]) -> str:
@@ -101,7 +102,7 @@ class TranslationService:
             request_context = getattr(request, "ctx", None)
             return str(getattr(request_context, "locale", "") or default_language)
 
-        environment.globals["get_locale"] = get_current_locale
+        template_globals(environment)["get_locale"] = get_current_locale
 
         # Publish state only after every initialization step succeeds.
         self.registry = registry

@@ -1,0 +1,5 @@
+/* 站点自定义样式。目前只调了中文正文的行高——Infima 默认值按拉丁字母设计，
+   中文字形更满，同样的行高读起来更挤。 */
+html[lang="zh-Hans"] .markdown {
+  line-height: 1.8;
+}

@@ -50,7 +50,7 @@ class OldmanPackageBoundariesTest(unittest.TestCase):
         self.assertFalse(any("Sanic" in name for name in runtime_exports))
 
     def test_simple_application_preserves_cache_lifecycle(self) -> None:
-        """Service 和 command 钩子必须按所有权顺序关闭 Cache 资源。"""
+        """服务和命令的钩子不关资源；框架自己的收尾按所有权顺序关闭 Cache 资源（先内存缓存，后 Redis）。"""
         import oldman.conf as conf
 
         with patch.object(conf, "legacy_settings", SimpleNamespace(), create=True):
@@ -67,15 +67,18 @@ class OldmanPackageBoundariesTest(unittest.TestCase):
         application.app_name = "cache-command-lifecycle"
         order: list[str] = []
         with (
-            patch.object(simple.memory_cache, "close", new=AsyncMock(side_effect=lambda: order.append("memory"))),
-            patch.object(simple.redis_client, "close", new=AsyncMock(side_effect=lambda: order.append("redis"))),
+            patch("oldman.cache.memory_cache.close", new=AsyncMock(side_effect=lambda: order.append("memory"))),
+            patch("oldman.providers.redis.redis_client.close", new=AsyncMock(side_effect=lambda: order.append("redis"))),
+            patch("oldman.db.db_manager.close", new=AsyncMock()),
         ):
             asyncio.run(application.before_start())
             asyncio.run(application.before_command("probe"))
             asyncio.run(application.after_stop())
             asyncio.run(application.after_command("probe"))
+            self.assertEqual([], order)
+            asyncio.run(application._close_shared_resources())
 
-        self.assertEqual(["memory", "redis", "memory", "redis"], order)
+        self.assertEqual(["memory", "redis"], order)
 
     def test_cli_discovery_uses_services_convention(self) -> None:
         """公开 inspection helper 必须委托正式 CLI 使用的冷 discovery。"""
@@ -250,12 +253,6 @@ class OldmanPackageBoundariesTest(unittest.TestCase):
             self.assertFalse((verify_oldman_boundaries.ROOT / relative).exists(), relative)
             self.assertNotIn(relative, verify_oldman_boundaries.REQUIRED_FILES)
 
-    def test_db_services_is_only_an_alias_to_the_migrated_service(self) -> None:
-        from oldman.db.services import BaseModelService
-        from oldman.db.sqlalchemy.services import BaseModelService as MigratedBaseModelService
-
-        self.assertIs(BaseModelService, MigratedBaseModelService)
-
     def test_db_schemas_keeps_the_symbols_that_have_consumers(self) -> None:
         """Replaces a migration-completeness guard whose migration finished long ago.
 
@@ -270,11 +267,16 @@ class OldmanPackageBoundariesTest(unittest.TestCase):
         """
         from oldman.db import schemas
 
-        for name in ("PageResult", "TimezoneModel", "UTCDatetimeMixin", "TokenBlacklistBase", "tz_manager"):
+        for name in ("PageResult", "TimezoneModel", "UTCDatetimeMixin", "tz_manager"):
             self.assertTrue(hasattr(schemas, name), name)
 
         for removed in ("RateLimit", "RateLimitBase", "RateLimitCreate", "RateLimitDelete"):
             self.assertFalse(hasattr(schemas, removed), f"{removed} duplicates the real rate limiter")
+
+        # Token schemas nothing ever used. The blacklist was keyed on the token string, which a
+        # base64 re-spelling of the same token slips past; access tokens are revoked by jti instead.
+        for removed in ("Token", "TokenData", "TokenBlacklistBase", "TokenBlacklistRead", "TokenBlacklistCreate", "TokenBlacklistUpdate"):
+            self.assertFalse(hasattr(schemas, removed), f"{removed} was never wired to anything")
 
         self.assertFalse(hasattr(schemas, "Page"))
         self.assertFalse((verify_oldman_boundaries.OLDMAN_ROOT / "db" / "foundation_schemas.py").exists())

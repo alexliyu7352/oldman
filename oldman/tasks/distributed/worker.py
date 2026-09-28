@@ -125,17 +125,23 @@ async def close_worker_resources() -> None:
     from oldman.cache import memory_cache
     from oldman.conf import settings
     from oldman.db import db_manager
+    from oldman.db.sqlalchemy.cache import wait_for_invalidations
     from oldman.providers.redis import redis_client
 
-    closing = [db_manager.close(), memory_cache.close(), redis_client.close()]
-    if settings.nats_bus.enabled:
-        from oldman.providers.nats import bus
+    try:
+        # The tasks' last commits still invalidate the model cache, which needs Redis open.
+        await wait_for_invalidations()
+    finally:
+        # Closed even when the wait is cancelled.
+        closing = [db_manager.close(), memory_cache.close(), redis_client.close()]
+        if settings.nats_bus.enabled:
+            from oldman.providers.nats import bus
 
-        closing.append(bus.stop())
-    results = await asyncio.gather(*closing, return_exceptions=True)
-    failures = [result for result in results if isinstance(result, BaseException)]
-    if failures:
-        raise BaseExceptionGroup("Taskiq worker shared resource cleanup failed", failures)
+            closing.append(bus.stop())
+        results = await asyncio.gather(*closing, return_exceptions=True)
+        failures = [result for result in results if isinstance(result, BaseException)]
+        if failures:
+            raise BaseExceptionGroup("Taskiq worker shared resource cleanup failed", failures)
 
 
 def report_worker_ready(reports: Any, phase: Any) -> None:

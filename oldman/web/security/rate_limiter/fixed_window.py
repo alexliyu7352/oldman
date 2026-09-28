@@ -72,17 +72,17 @@ def window_retry_after(period: int) -> int:
 def redis_rate_limiter(alias: str | None = None, namespace: str | None = None) -> RedisFixedWindowRateLimiter:
     """The default limiter: a Redis fixed window on the session connection (the one a login site must have).
 
-    The namespace carries `core.app_name`, so two services sharing one Redis keep separate counters.
-    Pass a namespace per purpose as well, so that one feature's counters cannot spend another's budget.
+    Without a namespace the counters live under ``<service namespace>:ratelimit``. Pass one per
+    purpose as well — ``redis_key("ratelimit", "login")`` — so that one feature's counters cannot
+    spend another's budget.
 
     The concrete class comes back rather than a Protocol, so a caller can pick whichever of
     `RateLimiter` and `WindowCounter` describes the way it means to use the window.
     """
-    from oldman.conf import settings
-    from oldman.providers.redis import redis_client
+    from oldman.providers.redis import redis_client, redis_key
     from oldman.web.security.store import security_redis_alias
 
     return RedisFixedWindowRateLimiter(
         redis_client.using(alias or security_redis_alias()),
-        namespace=namespace or f"{settings.core.app_name}:ratelimit",
+        namespace=namespace or redis_key("ratelimit"),
     )

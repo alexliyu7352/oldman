@@ -8,7 +8,6 @@ from oldman.logging import ChildLoggingContext, logger, resolve_child_logging_co
 from oldman.tasks.base import TaskType
 from oldman.tasks.messages import MessageType, TaskMessage
 from oldman.tasks.worker import BaseWorker
-from oldman.utils.loop_utls import safe_cancellable_sleep
 
 
 class WorkerInfo:
@@ -110,10 +109,8 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         # 启动监控任务
         self._monitor_task = asyncio.create_task(self._monitor_workers())
 
-        # 等待worker启动
-        if not await safe_cancellable_sleep(3):
-            logger.warning("管理器启动被取消")
-            return
+        # 等待worker启动；被取消时取消照常抛给调用方，由它在 finally 里调用 shutdown() 收尾
+        await asyncio.sleep(3)
         logger.info("管理器启动完成")
 
     async def _start_worker(self, worker_id: int) -> bool:
@@ -242,13 +239,11 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
                 healthy_workers = sum(1 for w in self.workers.values() if w.is_healthy and w.process.is_alive())
                 logger.info(f"健康worker数量: {healthy_workers}/{self.num_workers}")
 
-                if not await safe_cancellable_sleep(self.monitor_interval):
-                    logger.warning("Worker监控任务被取消")
+                await asyncio.sleep(self.monitor_interval)
 
             except Exception as e:
                 logger.error(f"Worker监控出错: {e}")
-                if not await safe_cancellable_sleep(self.monitor_interval):
-                    logger.warning("Worker监控任务被取消")
+                await asyncio.sleep(self.monitor_interval)
 
     def _select_worker(self) -> int | None:
         """选择健康的worker"""

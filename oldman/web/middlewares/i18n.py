@@ -50,7 +50,8 @@ async def cleanup_i18n(request: Request, response: Response) -> None:
         if isinstance(response, ResponseStream):
             catalog = getattr(request.ctx, "translations", None)
             if catalog is not None:
-                response.streaming_fn = _stream_with_translations(
+                # Sanic declares streaming_fn through __slots__ and an unannotated __init__ assignment, which Pyrefly reads as Never.
+                response.streaming_fn = _stream_with_translations(  # pyrefly: ignore[bad-assignment]
                     response.streaming_fn,
                     cast(TranslationCatalog, catalog),
                 )

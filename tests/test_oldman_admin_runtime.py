@@ -6,10 +6,12 @@ import asyncio
 import json
 import unittest
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from urllib.parse import urlencode
 
 from jinja2 import DictLoader, Environment
@@ -47,7 +49,7 @@ from oldman.web.staticfiles import StaticBundleRegistry
 class RuntimeAdminRecord(DatabaseModel):
     """Mapped model used to verify Admin route installation."""
 
-    __tablename__ = "test_oldman_admin_runtime_record"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_oldman_admin_runtime_record"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -55,7 +57,7 @@ class RuntimeAdminRecord(DatabaseModel):
 class RuntimeRestrictedRecord(DatabaseModel):
     """Mapped model whose Admin requires a superuser."""
 
-    __tablename__ = "test_oldman_admin_runtime_restricted_record"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_oldman_admin_runtime_restricted_record"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -63,7 +65,7 @@ class RuntimeRestrictedRecord(DatabaseModel):
 class RuntimeNaturalKeyRecord(DatabaseModel):
     """Mapped model whose string key may equal a static route segment."""
 
-    __tablename__ = "test_oldman_admin_runtime_natural_key_record"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_oldman_admin_runtime_natural_key_record"
 
     slug: Mapped[str] = mapped_column(String(32), primary_key=True)
 
@@ -71,7 +73,7 @@ class RuntimeNaturalKeyRecord(DatabaseModel):
 class RuntimeUUIDRecord(DatabaseModel):
     """Mapped model used to verify malformed UUID route handling."""
 
-    __tablename__ = "test_oldman_admin_runtime_uuid_record"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_oldman_admin_runtime_uuid_record"
 
     record_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
 
@@ -134,7 +136,7 @@ class ExistingObjectSession:
 
     def add(self, instance) -> None:
         if isinstance(instance, User) and instance.id is None:
-            instance.id = 13
+            cast(Any, instance).id = 13  # the database would assign it
         self.added.append(instance)
         self.instance = instance
 
@@ -499,7 +501,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         handler = app.route_handlers[("/control/login", ("POST",))]
 
         with (
-            patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=user)),
+            patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=user)),
             patch("oldman.web.auth.login.touch_last_login", AsyncMock()) as touch_last_login_mock,
         ):
             response = asyncio.run(handler(request))  # type: ignore[operator]
@@ -550,7 +552,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             return asyncio.run(handler(request))  # type: ignore[operator]
 
         with (
-            patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=None)) as authenticate,
+            patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=None)) as authenticate,
             # The refusal renders the login page again; this unit test is about the decision, not the template.
             patch("oldman.apps.admin.site.render_admin_template", AsyncMock(side_effect=lambda *_a, **_k: sanic_html("login"))),
         ):
@@ -628,7 +630,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
                 request.ip = "127.0.0.1"
                 request.client_ip = None
                 with (
-                    patch("oldman.apps.admin.site.authenticate_user", AsyncMock(return_value=user)),
+                    patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=user)),
                     patch("oldman.web.auth.login.touch_last_login", AsyncMock()),
                 ):
                     response = asyncio.run(handler(request))  # type: ignore[operator]
@@ -809,7 +811,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn('data-om-form-field-name="current_password"', modal_payload["html"])
 
         # Changing your own password ends every session you had, this browser's included.
-        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=()), _logout_request=AsyncMock())
+        session_interface = SimpleNamespace(
+            force_logout_user=AsyncMock(return_value=()), _logout_request=AsyncMock(), opened_session_id=Mock(return_value=None)
+        )
         session_manager = Session()
         session_manager.interface = cast(Any, session_interface)
         app.ctx.session = session_manager
@@ -1100,6 +1104,72 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(b"<span>New User</span>", response.body)
         self.assertNotIn(b"Admin User", response.body)
 
+    def test_staff_reach_a_model_only_through_the_permissions_their_roles_grant(self) -> None:
+        app, model_path = install_user_admin(make_admin_user())
+        list_path, new_path = f"/control/{model_path}", f"/control/{model_path}/new"
+
+        def get(path: str, session: FakeSession) -> Any:
+            request = make_request(app, path=path, session=session)
+            request.headers = {"accept": "text/html"}
+            with patch("oldman.apps.admin.site.render_template", side_effect=render_with_request_environment):
+                return asyncio.run(app.route_handlers[(path, ("GET",))](request))  # type: ignore[operator]
+
+        without_roles = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False)
+        self.assertEqual(403, get(list_path, without_roles).status)
+
+        viewer = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False, role_ids=(1,))
+        with grants("auth.users.view"):
+            listed = get(list_path, viewer)
+            refused = get(new_path, viewer)
+        self.assertEqual(200, listed.status)
+        self.assertNotIn(b"<span>New User</span>", listed.body)
+        self.assertEqual(403, refused.status)
+
+    def test_a_site_for_superusers_only_refuses_staff_on_model_pages_whatever_their_roles(self) -> None:
+        # A staff login can reach the Admin without its sign-in page: a session shared with another service.
+        self.enterContext(grants(*USER_MANAGEMENT))
+        app, model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(require_superuser=True))
+        list_path = f"/control/{model_path}"
+
+        def get(session: FakeSession) -> Any:
+            request = make_request(app, path=list_path, session=session)
+            request.headers = {"accept": "text/html"}
+            with patch("oldman.apps.admin.site.render_template", side_effect=render_with_request_environment):
+                return asyncio.run(app.route_handlers[(list_path, ("GET",))](request))  # type: ignore[operator]
+
+        staff_with_role = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False, role_ids=(1,))
+        superuser = FakeSession(user_id=98, is_active=True, is_staff=True, is_superuser=True)
+        self.assertEqual(403, get(staff_with_role).status)
+        self.assertEqual(200, get(superuser).status)
+
+    def test_a_site_for_superusers_only_refuses_staff_on_every_admin_page(self) -> None:
+        """G6-1: only model pages checked the site-wide switch; staff reached the index, their session page and their password form."""
+        app, _model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(require_superuser=True))
+        staff = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False)
+        superuser = FakeSession(user_id=98, is_active=True, is_staff=True, is_superuser=True)
+
+        def get(path: str, session: FakeSession) -> Any:
+            request = make_request(app, path=path, session=session)
+            request.headers = {"accept": "text/html"}
+            with patch("oldman.apps.admin.site.render_template", side_effect=render_with_request_environment):
+                return asyncio.run(app.route_handlers[(path, ("GET",))](request))  # type: ignore[operator]
+
+        for path in ("/control", "/control/user-session", "/control/user-session/password-modal"):
+            with self.subTest(path=path):
+                self.assertEqual(403, get(path, staff).status)
+        for path in ("/control", "/control/user-session"):
+            with self.subTest(path=path, session="superuser"):
+                self.assertEqual(200, get(path, superuser).status)
+        # The sign-in page lets a staff login sign in again instead of sending it on to pages that refuse it.
+        self.assertEqual(200, get("/control/login", staff).status)
+
+        password_path = "/control/user-session/password"
+        request = make_post_request(
+            app, path=password_path, session=staff, accept="application/json", form={"current_password": "x", "password": "New-Pass!2026"}
+        )
+        response = asyncio.run(app.route_handlers[(password_path, ("POST",))](request))  # type: ignore[operator]
+        self.assertEqual(403, response.status)
+
     def test_user_create_route_preserves_shared_form_json_and_html_contracts(self) -> None:
         """Create pages mount shared Form validation/feedback and return source payloads."""
         app, model_path = install_user_admin(make_admin_user())
@@ -1247,6 +1317,8 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertEqual(route_path, payload["actions"][2]["url"])
         self.assertEqual(1200, payload["actions"][2]["delay_ms"])
         self.assertEqual("alice-updated", user.username)
+        # Only the profile changed: the user's logins still carry the right access.
+        app.ctx.session.interface.force_logout_user.assert_not_awaited()
 
         html_user = make_admin_user()
         html_app, html_model_path = install_user_admin(html_user)
@@ -1305,6 +1377,29 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertEqual("User deleted", payload["actions"][0]["title"])
         self.assertEqual(f"#admin-{model_path}-table", payload["actions"][3]["target"])
         self.assertEqual([user], app.ctx.test_admin_db_manager.session.deleted)
+        app.ctx.session.interface.force_logout_user.assert_awaited_once_with(12)
+
+    def test_a_failing_project_hook_does_not_skip_ending_the_users_logins(self) -> None:
+        class HookFailingUserAdmin(AdminUserModelAdmin):
+            async def after_save(self, request: Any, instance: Any, *, created: bool) -> None:
+                raise RuntimeError("project hook failed")
+
+            async def after_delete(self, request: Any, instance: Any) -> None:
+                raise RuntimeError("project hook failed")
+
+        superuser = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
+        for action, form in (
+            ("edit", {"username": "alice", "email": "alice@example.test", "display_name": "Alice", "is_active": "y"}),
+            ("delete", {}),
+        ):
+            with self.subTest(action=action):
+                app, model_path = install_user_admin(make_admin_user(), admin_class=HookFailingUserAdmin)
+                route_path = f"/control/{model_path}/<object_id>/{action}"
+                request = make_post_request(app, path=route_path, session=superuser, accept="application/json", form=form)
+                with self.assertRaisesRegex(RuntimeError, "project hook failed"):
+                    asyncio.run(app.route_handlers[(route_path, ("POST",))](request, object_id="12"))  # type: ignore[operator]
+                # Editing took away staff access, deleting removed the account: either way the logins end first.
+                app.ctx.session.interface.force_logout_user.assert_awaited_once_with(12)
 
     def test_user_password_routes_use_source_modal_and_post_contract(self) -> None:
         """Password exposes exactly the source ``-modal`` GET and submit POST."""
@@ -1315,7 +1410,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         post_handler = app.route_handlers[(route_pattern, ("POST",))]
         self.assertNotIn((route_pattern, ("GET",)), app.route_handlers)
         session = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
-        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock())
+        session_interface = SimpleNamespace(
+            force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock(), opened_session_id=Mock(return_value=None)
+        )
         session_manager = Session()
         session_manager.interface = cast(Any, session_interface)
         app.ctx.session = session_manager
@@ -1380,7 +1477,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         user = make_admin_user()
         app, model_path = install_user_admin(user)
         post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/password", ("POST",))]
-        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock())
+        session_interface = SimpleNamespace(
+            force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock(), opened_session_id=Mock(return_value=None)
+        )
         session_manager = Session()
         session_manager.interface = cast(Any, session_interface)
         app.ctx.session = session_manager
@@ -1441,6 +1540,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertEqual("cannot disable current user", payload["message"])
         self.assertEqual({}, payload["errors"])
         self.assertTrue(user.is_active)
+        app.ctx.session.interface.force_logout_user.assert_not_awaited()
 
         other_session = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
         valid_request = make_post_request(
@@ -1460,6 +1560,130 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         )
         self.assertEqual(f"#admin-{model_path}-table", payload["actions"][3]["target"])
         self.assertFalse(user.is_active)
+        app.ctx.session.interface.force_logout_user.assert_awaited_once_with(12)
+
+    def test_enabling_a_user_leaves_logins_alone(self) -> None:
+        user = make_admin_user()
+        user.is_active = False
+        app, model_path = install_user_admin(user)
+        post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/status", ("POST",))]
+        request = make_post_request(
+            app,
+            path=f"/control/{model_path}/12/status",
+            session=FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True),
+            accept="application/json",
+            form={"is_active": "true"},
+        )
+        response = asyncio.run(post_handler(request, object_id="12"))  # type: ignore[operator]
+
+        self.assertEqual(0, json.loads(response.body)["error_code"])
+        self.assertTrue(user.is_active)
+        app.ctx.session.interface.force_logout_user.assert_not_awaited()
+
+    def test_staff_cannot_delete_disable_or_reset_a_staff_account(self) -> None:
+        """Staff and superuser accounts are managed by superusers only, whatever the staff member's roles grant."""
+        staff_operator = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False, role_ids=(1,))
+        self.enterContext(grants(*USER_MANAGEMENT))
+        for action, form in (
+            ("delete", {}),
+            ("status", {"is_active": "false"}),
+            ("password", {"password": "NewPass!2026", "confirm_password": "NewPass!2026"}),
+        ):
+            with self.subTest(action):
+                user = make_admin_user()
+                app, model_path = install_user_admin(user)
+                post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/{action}", ("POST",))]
+                request = make_post_request(
+                    app, path=f"/control/{model_path}/12/{action}", session=staff_operator, accept="application/json", form=form
+                )
+                payload = json.loads(asyncio.run(post_handler(request, object_id="12")).body)  # type: ignore[operator]
+
+                self.assertEqual((1100, "Permission denied"), (payload["error_code"], payload["message"]))
+                self.assertEqual([], app.ctx.test_admin_db_manager.session.deleted)
+                self.assertTrue(user.is_active)
+                self.assertTrue(user.check_password("OldPass!2026"))
+                app.ctx.session.interface.force_logout_user.assert_not_awaited()
+
+    def test_status_and_password_changes_run_the_after_save_hook(self) -> None:
+        """G6-4: the hook runs after every committed save; these two routes save the user row and skipped it."""
+        saved: list[tuple[int, bool]] = []
+
+        class RecordingUserAdmin(AdminUserModelAdmin):
+            async def after_save(self, request: Any, instance: Any, *, created: bool) -> None:
+                del request
+                saved.append((instance.id, created))
+
+        superuser = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
+        for action, form in (
+            ("status", {"is_active": "false"}),
+            ("password", {"password": "NewPass!2026", "confirm_password": "NewPass!2026"}),
+        ):
+            with self.subTest(action):
+                saved.clear()
+                app, model_path = install_user_admin(make_admin_user(), admin_class=RecordingUserAdmin)
+                path = f"/control/{model_path}/12/{action}"
+                request = make_post_request(app, path=path, session=superuser, accept="application/json", form=form)
+                handler = app.route_handlers[(f"/control/{model_path}/<object_id>/{action}", ("POST",))]
+                payload = json.loads(asyncio.run(handler(request, object_id="12")).body)  # type: ignore[operator]
+
+                self.assertEqual(0, payload["error_code"], payload)
+                self.assertEqual([(12, False)], saved)
+
+    def test_staff_still_manage_ordinary_accounts(self) -> None:
+        self.enterContext(grants(*USER_MANAGEMENT))
+        user = make_admin_user()
+        user.is_staff = False
+        app, model_path = install_user_admin(user)
+        post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/password", ("POST",))]
+        request = make_post_request(
+            app,
+            path=f"/control/{model_path}/12/password",
+            session=FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False, role_ids=(1,)),
+            accept="application/json",
+            form={"password": "NewPass!2026", "confirm_password": "NewPass!2026"},
+        )
+        payload = json.loads(asyncio.run(post_handler(request, object_id="12")).body)  # type: ignore[operator]
+
+        self.assertEqual(0, payload["error_code"])
+        self.assertTrue(user.check_password("NewPass!2026"))
+
+    def test_changing_a_users_access_flags_ends_their_logins(self) -> None:
+        """Sessions and access tokens carry the flags they opened with; a changed flag outdates them."""
+        profile = {"username": "alice", "email": "alice@example.test", "display_name": "Alice"}
+        operator = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
+        for label, flags in (
+            ("demoted", {"is_active": "y"}),
+            ("disabled", {"is_staff": "y"}),
+            ("promoted", {"is_active": "y", "is_staff": "y", "is_superuser": "y"}),
+        ):
+            with self.subTest(label):
+                user = make_admin_user()
+                app, model_path = install_user_admin(user)
+                post_handler = app.route_handlers[(f"/control/{model_path}/<object_id>/edit", ("POST",))]
+                request = make_post_request(
+                    app,
+                    path=f"/control/{model_path}/12/edit",
+                    session=operator,
+                    accept="application/json",
+                    form={**profile, **flags},
+                )
+                response = asyncio.run(post_handler(request, object_id="12"))  # type: ignore[operator]
+
+                self.assertEqual(0, json.loads(response.body)["error_code"])
+                app.ctx.session.interface.force_logout_user.assert_awaited_once_with(12)
+
+
+USER_MANAGEMENT = tuple(f"auth.users.{action}" for action in ("view", "add", "change", "delete"))
+
+
+@contextmanager
+def grants(*names: str) -> Iterator[None]:
+    """Install the roles App, as far as permission checks can tell, and make every role grant these names."""
+    with (
+        patch("oldman.web.auth.permissions.roles_installed", return_value=True),
+        patch("oldman.apps.roles.store.role_permissions", AsyncMock(return_value=frozenset(names))),
+    ):
+        yield
 
 
 def make_admin_user() -> User:
@@ -1478,21 +1702,33 @@ def make_admin_user() -> User:
     return user
 
 
-def install_user_admin(user: Any) -> tuple[FakeApp, str]:
+def install_user_admin(
+    user: Any,
+    *,
+    admin_settings: AdminSettings | None = None,
+    admin_class: type[AdminUserModelAdmin] = AdminUserModelAdmin,
+) -> tuple[FakeApp, str]:
     """Install the built-in user admin against an in-memory object manager."""
     app = FakeApp()
     site = AdminSite("runtime_user_modal_admin")
     user_model = type(user)
     auth_settings = AuthSettings(user_model=f"{user_model.__module__}.{user_model.__name__}")
-    site.register(user_model, AdminUserModelAdmin)
+    site.register(user_model, admin_class)
     manager = ExistingObjectDatabaseManager(user)
     app.ctx.test_admin_db_manager = manager
+    # Disabling, demoting and deleting end the target's logins through the session store.
+    session_manager = Session()
+    session_manager.interface = cast(
+        Any, SimpleNamespace(force_logout_user=AsyncMock(return_value=()), _logout_request=AsyncMock(), opened_session_id=Mock(return_value=None))
+    )
+    app.ctx.session = session_manager
     install_admin(
         app,
         db_manager=manager,  # type: ignore[arg-type]
         admin_site=site,
         prefix="/control",
         auth_settings=auth_settings,
+        admin_settings=admin_settings,
     )
     return app, site.get_model_admin(user_model).model_path
 

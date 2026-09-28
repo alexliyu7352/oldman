@@ -12,13 +12,14 @@ from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 
 from oldman.web.components import render_modal, render_modal_sync
+from oldman.web.template import template_globals
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "oldman" / "web" / "templates"
 
 
 def make_environment(*, is_async: bool) -> Environment:
     environment = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=True, enable_async=is_async)
-    environment.globals["_"] = lambda message: message
+    template_globals(environment)["_"] = lambda message: message
     return environment
 
 

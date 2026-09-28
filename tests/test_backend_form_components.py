@@ -19,18 +19,19 @@ from oldman.web.components.forms import (
     AjaxAutocompleteWidget,
     AjaxSelectMultipleField,
     AjaxSelectWidget,
+    CheckboxGroupField,
     CheckboxWidget,
     ColorPickerField,
     DateTimePickerWidget,
     EmailField,
     FieldGroup,
     FieldLayout,
+    Form,
     FormLayout,
     FormStep,
     InputSpinnerWidget,
     ModelChoice,
     ModelChoiceField,
-    OldmanForm,
     RichTextField,
     Row,
     SanicFormData,
@@ -260,12 +261,12 @@ class BackendFormComponentTest(unittest.TestCase):
         events: list[str] = []
 
         class PreparedField(StringField):
-            async def prepare_choices(self, form: OldmanForm) -> None:
+            async def prepare_choices(self, form: Form) -> None:
                 """记录异步字段准备是否被错误调用。"""
                 del form
                 events.append("prepare")
 
-        def validate_name(form: OldmanForm, field: StringField) -> None:
+        def validate_name(form: Form, field: StringField) -> None:
             """记录 WTForms validator 是否被错误调用。"""
             del form, field
             events.append("validator")
@@ -406,12 +407,12 @@ class BackendFormComponentTest(unittest.TestCase):
     def test_to_api_response_uses_project_default_api_form_response(self) -> None:
         """响应只暴露每个真实字段的第一条错误和统一顶部消息。"""
 
-        def first_error(form: OldmanForm, field: StringField) -> None:
+        def first_error(form: Form, field: StringField) -> None:
             """添加第一条字段错误。"""
             del form, field
             raise ValidationError("First error")
 
-        def second_error(form: OldmanForm, field: StringField) -> None:
+        def second_error(form: Form, field: StringField) -> None:
             """添加第二条字段错误。"""
             del form, field
             raise ValidationError("Second error")
@@ -536,6 +537,45 @@ class BackendFormComponentTest(unittest.TestCase):
         self.assertIn("<fieldset data-om-radio-group", html)
         self.assertEqual(2, html.count('class="om-radio"'))
         self.assertIn('class="om-select om-select-multiple"', html)
+
+    def test_checkbox_group_renders_each_choice_group_under_its_heading(self) -> None:
+        """CheckboxGroupField: native checkboxes, one heading per choice group, required never lands on each box."""
+
+        class PermissionForm(TailwindForm):
+            permissions = CheckboxGroupField(
+                "Permissions",
+                choices={
+                    "Reports": [("reports.view", "View reports"), ("reports.export", "Export reports")],
+                    "Users": [("auth.users.view", "View users")],
+                },
+                validators=[DataRequired()],
+            )
+
+        html = str(asyncio.run(PermissionForm(data={"permissions": ["reports.export"]}).render()))
+
+        self.assertIn("<fieldset data-om-checkbox-group", html)
+        self.assertEqual(3, html.count('type="checkbox"'))
+        self.assertEqual(3, html.count('class="om-check"'))
+        self.assertNotIn(" required ", html)
+        self.assertEqual(1, html.count(" checked "))
+        self.assertLess(html.index(">Reports</p>"), html.index('value="reports.view"'))
+        self.assertLess(html.index('value="reports.export"'), html.index(">Users</p>"))
+        self.assertLess(html.index(">Users</p>"), html.index('value="auth.users.view"'))
+
+    def test_checkbox_group_submits_the_checked_values_and_only_offered_ones(self) -> None:
+        class PermissionForm(TailwindForm):
+            permissions = CheckboxGroupField("Permissions", choices=[("reports.view", "View"), ("reports.export", "Export")])
+
+        checked = PermissionForm(formdata=SanicFormData({"permissions": ["reports.view", "reports.export"]}))
+        self.assertTrue(asyncio.run(checked.validate()))
+        self.assertEqual(["reports.view", "reports.export"], checked.permissions.data)
+
+        none_checked = PermissionForm(formdata=SanicFormData({}))
+        self.assertTrue(asyncio.run(none_checked.validate()))
+        self.assertEqual([], none_checked.permissions.data)
+
+        forged = PermissionForm(formdata=SanicFormData({"permissions": ["auth.users.delete"]}))
+        self.assertFalse(asyncio.run(forged.validate()))
 
     def test_render_keeps_message_and_transient_status_separate(self) -> None:
         """服务器 message 与前端瞬时状态必须使用两个独立节点。"""
@@ -664,7 +704,7 @@ class BackendFormComponentTest(unittest.TestCase):
 
         self.assertIs(forms.TailwindForm, TailwindForm)
         self.assertIs(forms.TailwindTableFilterForm, TailwindTableFilterForm)
-        self.assertIs(forms.OldmanForm, OldmanForm)
+        self.assertIs(forms.Form, Form)
         self.assertFalse(hasattr(ui, "TailwindForm"))
         self.assertFalse(hasattr(ui, "BootstrapForm"))
         self.assertFalse(hasattr(ui, "BootstrapTableFilterForm"))
@@ -933,7 +973,7 @@ class FormLifecycleContractTest(unittest.TestCase):
         """A HiddenField carries data; skipping it made the field unusable."""
         from wtforms.fields import HiddenField, StringField
 
-        class RecordForm(OldmanForm):
+        class RecordForm(Form):
             record_id = HiddenField("id")
             title = StringField("title")
 
@@ -947,7 +987,7 @@ class FormLifecycleContractTest(unittest.TestCase):
         """Replacing meant `return {"extra": 1}` silently discarded every field."""
         from wtforms.fields import StringField
 
-        class AddingForm(OldmanForm):
+        class AddingForm(Form):
             title = StringField("title")
 
             async def clean(self) -> dict[str, Any] | None:
@@ -963,7 +1003,7 @@ class FormLifecycleContractTest(unittest.TestCase):
         """Merging must not take away the ability to replace a value."""
         from wtforms.fields import StringField
 
-        class OverridingForm(OldmanForm):
+        class OverridingForm(Form):
             title = StringField("title")
 
             async def clean(self) -> dict[str, Any] | None:

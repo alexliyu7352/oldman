@@ -13,65 +13,47 @@ import binascii
 import hashlib
 import hmac
 import os
-import secrets
 import string
 
-from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from oldman.utils.strings_utils import random_string
+
 
 def pad_pkcs7(data: bytes, block_size: int = 128) -> bytes:
-    """
-    使用PKCS7进行数据填充
-    128 bits = 16 bytes
-    :param data:
-    :param block_size:
-    :return:
-    """
-    padder = padding.PKCS7(block_size).padder()  # 128 bits = 16 bytes
+    """PKCS7 填充到 block_size 的整数倍。block_size 的单位是**比特**（cryptography 的约定），AES 为 128。"""
+    padder = padding.PKCS7(block_size).padder()
     return padder.update(data) + padder.finalize()
 
 
 def unpad_pkcs7(data: bytes, block_size: int = 128) -> bytes:
+    """去掉 PKCS7 填充；填充不合法时抛 ValueError。block_size 的单位是比特，AES 为 128。"""
     unpadder = padding.PKCS7(block_size).unpadder()
     return unpadder.update(data) + unpadder.finalize()
 
 
 def aes_encrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, plaintext: bytes) -> bytes:
-    """
-    使用 cryptography 实现 AES-CBC + PKCS7 填充加密
-    """
-    # PKCS7 填充，block size 为 128 bit（16 字节）
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(plaintext) + padder.finalize()
+    """AES-CBC + PKCS7 加密，只为与已有协议互通。
 
-    cipher = Cipher(
-        algorithms.AES(key_bytes),
-        modes.CBC(iv_bytes),
-        backend=default_backend(),
-    )
-    encryptor = cipher.encryptor()
-    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
-    return ciphertext
+    **CBC 不带认证**：密文被篡改时解密不会发现，只会得到错乱的明文或填充错误；如果对方能看出
+    “填充错误”与“其他错误”的区别，就能借此逐字节解出明文（padding oracle）。新协议用
+    aes_gcm_encrypt；必须用 CBC 时，在密文外另加 HMAC 并先验 HMAC 再解密，失败一律返回同一个错误。
+    同一密钥下 IV 必须每次随机。
+    """
+    encryptor = Cipher(algorithms.AES(key_bytes), modes.CBC(iv_bytes)).encryptor()
+    return encryptor.update(pad_pkcs7(plaintext)) + encryptor.finalize()
 
 
 def aes_decrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, ciphertext: bytes) -> bytes:
-    """
-    使用 cryptography 实现 AES-CBC + PKCS7 填充解密
-    """
-    cipher = Cipher(
-        algorithms.AES(key_bytes),
-        modes.CBC(iv_bytes),
-        backend=default_backend(),
-    )
-    decryptor = cipher.decryptor()
-    padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+    """AES-CBC + PKCS7 解密，只为与已有协议互通；填充不合法时抛 ValueError。
 
-    unpadder = padding.PKCS7(128).unpadder()
-    plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
-    return plaintext
+    不带认证，风险见 aes_encrypt_cbc_pkcs7：不要把解密失败的具体原因返回给请求方。
+    """
+    decryptor = Cipher(algorithms.AES(key_bytes), modes.CBC(iv_bytes)).decryptor()
+    return unpad_pkcs7(decryptor.update(ciphertext) + decryptor.finalize())
 
 
 AES_GCM_IV_BYTES = 12
@@ -104,13 +86,13 @@ def aes_gcm_decrypt(payload: bytes, key: bytes) -> tuple[bool, str, bytes]:
         return False, "data_too_short", b""
     iv, ciphertext_with_tag = payload[:AES_GCM_IV_BYTES], payload[AES_GCM_IV_BYTES:]
     try:
-        return True, "success", AESGCM(key).decrypt(iv, ciphertext_with_tag, None)
+        plaintext = AESGCM(key).decrypt(iv, ciphertext_with_tag, None)
+    except InvalidTag:
+        # InvalidTag stringifies to "", so its type name stands in for the message.
+        return False, "authentication_failed:InvalidTag", b""
     except Exception as error:
-        # InvalidTag stringifies to "", which would leave a message ending in a colon.
-        message = str(error) or type(error).__name__
-        if "tag" in message.lower() or "authentication" in message.lower():
-            return False, f"authentication_failed:{message}", b""
-        return False, f"decryption_error:{message}", b""
+        return False, f"decryption_error:{str(error) or type(error).__name__}", b""
+    return True, "success", plaintext
 
 
 def pbkdf2_sha256(raw_password: str, salt: str, iterations: int) -> str:
@@ -126,28 +108,31 @@ def pbkdf2_sha256(raw_password: str, salt: str, iterations: int) -> str:
     ).hex()
 
 
-def constant_time_equals(left: str, right: str) -> bool:
-    """Compare two digests without leaking where they first differ."""
-    return hmac.compare_digest(left, right)
+def constant_time_equals(left: str | bytes, right: str | bytes) -> bool:
+    """Compare two secrets or digests without leaking where they first differ.
+
+    Text is compared by its UTF-8 bytes. ``hmac.compare_digest`` refuses a ``str`` holding
+    non-ASCII characters, and the values compared here often come straight from a request:
+    a query parameter or token of "密钥" must be a mismatch, not a TypeError and a 500.
+    """
+    return hmac.compare_digest(_utf8(left), _utf8(right))
 
 
-def generate_token(length=10):
-    while True:
-        token = base64.b32encode(secrets.token_bytes(length)).decode("utf-8").rstrip("=")[:10]
-        # 修正易混淆字符替换
-        for c in ["I", "L", "O", "1", "0"]:
-            token = token.replace(c, "")
-        if len(token) < 8:  # 长度不够重来
-            continue
-        return token
+def _utf8(value: str | bytes) -> bytes:
+    # surrogatepass: a lone surrogate from a lenient decoder still becomes bytes instead of raising.
+    return value.encode("utf-8", "surrogatepass") if isinstance(value, str) else value
 
 
 def generate_secure_token(length: int = 10) -> str:
     """Generate a token of exactly `length` characters, drawn from a look-alike-free alphabet.
 
     I, L, O, 0 and 1 are excluded so that a token can be read aloud or retyped without
-    ambiguity. Characters are chosen one at a time with `secrets.choice`, so the length is
-    exact by construction.
+    ambiguity. Characters are chosen one at a time with `secrets.choice` (by `random_string`), so the
+    length is exact by construction.
+
+    Each character carries about 4.95 bits (31 symbols), so ten characters are about 49 bits:
+    enough for invitation, activation or verification codes that expire or are rate-limited.
+    For session tokens, API keys and other long-lived secrets use `secrets.token_urlsafe`.
 
     The previous implementation encoded random bytes, truncated to ten characters, then
     filtered — which made `length` control neither the output length (always at most ten)
@@ -156,10 +141,10 @@ def generate_secure_token(length: int = 10) -> str:
     """
     if length < 1:
         raise ValueError("length must be at least 1")
-    return "".join(secrets.choice(_TOKEN_ALPHABET) for _ in range(length))
+    return random_string(length, _TOKEN_ALPHABET)
 
 
-_TOKEN_ALPHABET = tuple(c for c in string.ascii_uppercase + string.digits if c not in {"I", "L", "O", "0", "1"})
+_TOKEN_ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in {"I", "L", "O", "0", "1"})
 
 SEAL_TAG_BYTES = 8
 
@@ -176,6 +161,10 @@ class UrlSealer:
     The token grows by a constant 11 characters regardless of input length: 8 tag bytes
     through base64url. The caller owns the key; see `oldman.web.security.keys` for the
     purpose-separated derivation.
+
+    This is a hand-built construction; the standard with the same properties (deterministic,
+    authenticated) is AES-SIV (`cryptography`'s `AESSIV`). Switching to it would change every
+    token's format and break URLs already handed out, so it is noted here rather than done.
     """
 
     __slots__ = ("_stream_seed", "_tag_proto")
@@ -230,7 +219,6 @@ __all__ = [
     "aes_gcm_encrypt",
     "constant_time_equals",
     "generate_secure_token",
-    "generate_token",
     "pad_pkcs7",
     "pbkdf2_sha256",
     "unpad_pkcs7",

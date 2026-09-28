@@ -10,7 +10,7 @@ from typing import Any, Protocol
 
 from oldman.cache.base import BaseCache
 from oldman.conf.schemas import RedisCacheConfig
-from oldman.providers.redis import redis_client
+from oldman.providers.redis import redis_client, redis_key
 from oldman.serializers.cache import (
     BaseSerializer,
     PickleSerializer,
@@ -123,7 +123,7 @@ class RedisCache(BaseCache):
             raise RuntimeError("RedisCache has no settings source")
 
         config = self._settings_source()
-        self._bind_namespace(config.namespace)
+        self._bind_namespace(redis_key("cache"))
         self.serializer = create_cache_serializer(config.serializer)
         self._client = redis_client.using(config.client)
 

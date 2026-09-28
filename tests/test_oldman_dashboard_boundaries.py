@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from oldman.conf.schemas import I18nConfig
+from oldman.web.template import template_globals
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_DASHBOARD = ROOT / "frontend" / "packages" / "oldman-web" / "src" / "dashboard"
@@ -117,7 +118,7 @@ class OldmanDashboardBoundaryTest(unittest.TestCase):
 
         environment = Environment(autoescape=True)
         register_component_filters(environment)
-        year = environment.globals["current_year"]
+        year = template_globals(environment)["current_year"]
         self.assertTrue(callable(year))
         self.assertEqual(datetime.now().year, year())
 

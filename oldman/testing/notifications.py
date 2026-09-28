@@ -138,8 +138,6 @@ async def main():
             config = settings.web.session
             interface = DefaultSessionInterface(
                 expiry=config.expiry,
-                prefix=config.prefix,
-                user_prefix=config.user_prefix,
                 cookie_name=config.cookie_name,
                 domain=config.cookie_domain,
                 httponly=config.cookie_httponly,

@@ -12,7 +12,7 @@ uv sync
 ./run.sh {{ service_name }} settings check
 ```
 
-以上安装需要 `pyproject.toml` 中的 Oldman 版本在包索引可用。使用框架源码开发时，改用自己的 `.venv` 和 editable 安装，见 [服务创建指南](https://github.com/alexliyu7352/oldman/blob/master/docs/agents/create-service.md#新项目的命令流程)。
+以上安装需要 `pyproject.toml` 中的 Oldman 版本在包索引可用。使用框架源码开发时，改用自己的 `.venv` 和 editable 安装，见 [服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md#新项目的命令流程)。
 
 脚手架已经生成最小 YAML，因此先用 `sync` 补字段及密钥。只有文件不存在时才用 `settings init`。真实配置包含秘密，不提交到公开仓库。
 
@@ -42,6 +42,6 @@ uv sync
 ./run.sh db migrate
 ```
 
-前者交互生成 App 的迁移文件，后者执行；服务启动不自动建表。未使用数据库时不用运行这些命令。完整步骤见 [Demo 数据教程](https://github.com/alexliyu7352/oldman/blob/master/docs/users/tutorial-tasks.md)。
+前者交互生成 App 的迁移文件，后者执行；服务启动不自动建表。未使用数据库时不用运行这些命令。完整步骤见 [Demo 数据教程](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-tasks.md)。
 
 项目翻译命令在项目根执行：`./run.sh i18n extract`、`./run.sh i18n init <locale>`、`./run.sh i18n update`、`./run.sh i18n compile`。

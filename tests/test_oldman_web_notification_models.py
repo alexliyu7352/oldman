@@ -214,7 +214,7 @@ class NotificationAppAndPayloadTest(unittest.TestCase):
                 NotificationCreatedPayload(**values)  # pyright: ignore[reportArgumentType] -- exercise runtime validation
 
         with self.assertRaises(TypeError):
-            NotificationPushPayload(notification=object())  # pyright: ignore[reportArgumentType] -- exercise runtime validation
+            cast(Any, NotificationPushPayload)(notification=object())  # exercise runtime validation
         for changed_count in (True, -1):
             with self.subTest(changed_count=changed_count), self.assertRaises(TypeError):
                 NotificationSyncPayload(changed_count=changed_count)  # pyright: ignore[reportArgumentType] -- exercise runtime validation

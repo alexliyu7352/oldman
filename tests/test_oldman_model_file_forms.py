@@ -16,7 +16,7 @@ from wtforms.validators import DataRequired
 from oldman.storage import InMemoryStorage, InvalidStorageName, StorageBackendError, file_column, storages
 from oldman.storage.base import StorageContent
 from oldman.storage.models import _CREATED_FILES_KEY, _get_model_file_config
-from oldman.web.components.forms import FileExtension, FileSize, OldmanForm, OldmanModelForm, SanicFormData, UploadField
+from oldman.web.components.forms import FileExtension, FileSize, Form, ModelForm, SanicFormData, UploadField
 
 
 def upload_to_owner(instance: Any, filename: str) -> str:
@@ -48,10 +48,10 @@ class ModelFileAsset(ModelFileTestBase):
     contract: Mapped[str | None] = file_column(upload_to="contracts", storage="documents", nullable=True)
 
 
-class AssetForm(OldmanModelForm):
+class AssetForm(ModelForm):
     """由模型文件元数据自动生成上传字段。"""
 
-    class Meta:
+    class Meta(ModelForm.Meta):
         model = ModelFileAsset
         fields = ("owner", "avatar", "contract")
 
@@ -159,7 +159,7 @@ class UploadFieldTest(unittest.IsolatedAsyncioTestCase):
     """验证 Sanic 文件绑定、validator 和 multipart 输出。"""
 
     async def test_request_files_bind_to_upload_field_and_cleaned_data(self) -> None:
-        class UploadForm(OldmanForm):
+        class UploadForm(Form):
             title = StringField("Title")
             attachment = UploadField("Attachment", validators=[DataRequired()])
 
@@ -183,7 +183,7 @@ class UploadFieldTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(await file_only.validate())
 
     async def test_file_validators_check_size_and_final_suffix(self) -> None:
-        class UploadForm(OldmanForm):
+        class UploadForm(Form):
             attachment = UploadField(
                 "Attachment",
                 validators=[FileSize(4), FileExtension((".txt", "PDF"))],
@@ -215,10 +215,10 @@ class UploadFieldTest(unittest.IsolatedAsyncioTestCase):
                     FileExtension(extensions)  # type: ignore[arg-type]
 
     async def test_renderer_only_adds_multipart_for_upload_fields(self) -> None:
-        class PlainForm(OldmanForm):
+        class PlainForm(Form):
             title = StringField("Title")
 
-        class UploadForm(OldmanForm):
+        class UploadForm(Form):
             attachment = UploadField("Attachment")
 
         self.assertNotIn("multipart/form-data", str(await PlainForm().render()))
@@ -250,10 +250,10 @@ class ModelFileFormTest(unittest.IsolatedAsyncioTestCase):
     async def test_explicit_upload_field_keeps_its_own_validators_and_the_not_null_rule(self) -> None:
         """显式声明只接管字段本身，不会取消“非空列新建必传、编辑可沿用”。"""
 
-        class ExplicitAssetForm(OldmanModelForm):
+        class ExplicitAssetForm(ModelForm):
             avatar = UploadField("Custom avatar")
 
-            class Meta:
+            class Meta(ModelForm.Meta):
                 model = ModelFileAsset
                 fields = ("owner", "avatar")
 
@@ -396,8 +396,8 @@ class ModelFileFormTest(unittest.IsolatedAsyncioTestCase):
             id: Mapped[int] = mapped_column(primary_key=True)
             file: Mapped[str] = file_column(upload_to=lambda _instance, filename: f"../{filename}")
 
-        class UnsafeForm(OldmanModelForm):
-            class Meta:
+        class UnsafeForm(ModelForm):
+            class Meta(ModelForm.Meta):
                 model = UnsafeAsset
                 fields = ("file",)
 

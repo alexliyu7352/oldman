@@ -1,3 +1,4 @@
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createI18n } from "../core/i18n";
 import { Component } from "../core/component/component";
@@ -1546,6 +1547,29 @@ describe("Table", () => {
       await component.stop();
       document.body.replaceChildren();
     }
+  });
+
+  it("shows a refused refresh as the denial, not as the transport's English", async () => {
+    document.body.innerHTML = remoteTableMarkup();
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    const denial = new AxiosError("Request failed with status code 403", "ERR_BAD_REQUEST", config, {}, {
+      data: "<tr><td>Permission denied</td></tr>",
+      status: 403,
+      statusText: "Forbidden",
+      headers: {},
+      config,
+      request: {}
+    });
+    Object.assign(component.http, { html: vi.fn().mockRejectedValue(denial) });
+
+    await component.start();
+
+    await expect(component.refresh("/streams")).rejects.toBe(denial);
+    expect(root.querySelector<HTMLElement>("[data-om-table-error]")!.textContent).toBe("Permission denied");
+
+    await component.stop();
   });
 
   it("shows loading and error states when remote refresh fails", async () => {

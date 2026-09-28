@@ -29,7 +29,7 @@ _SESSION_CHANGED_STATES_KEY = "oldman_model_file_changed_states"
 _SESSION_PENDING_RECORDS_KEY = "oldman_model_file_pending_records"
 
 
-class OldmanWriteSession(Session):
+class WriteSession(Session):
     """只供 DatabaseManager 写会话使用的内部同步 Session。"""
 
 
@@ -89,8 +89,8 @@ def install_model_file_lifecycle(models: Iterable[ModelMetadata]) -> None:
             _INSTALLED_ATTRIBUTES.add(attribute)
 
     if found_file_field and not _SESSION_EVENTS_INSTALLED:
-        event.listen(OldmanWriteSession, "after_attach", _transfer_detached_marker)
-        event.listen(OldmanWriteSession, "before_flush", _capture_database_originals)
+        event.listen(WriteSession, "after_attach", _transfer_detached_marker)
+        event.listen(WriteSession, "before_flush", _capture_database_originals)
         _SESSION_EVENTS_INSTALLED = True
 
 
@@ -116,19 +116,19 @@ def _mark_file_assignment(instance: Any, value: Any, _old_value: Any, initiator:
     state = cast(InstanceState[Any], inspect(instance))
     state.info.setdefault(_STATE_CHANGED_FIELDS_KEY, set()).add(str(initiator.key))
     session = state.session
-    if isinstance(session, OldmanWriteSession):
+    if isinstance(session, WriteSession):
         session.info.setdefault(_SESSION_CHANGED_STATES_KEY, set()).add(state)
     return value
 
 
-def _transfer_detached_marker(session: OldmanWriteSession, instance: Any) -> None:
+def _transfer_detached_marker(session: WriteSession, instance: Any) -> None:
     """对象重新挂入写 Session 时转入其 detached 文件变化标记。"""
     state = cast(InstanceState[Any], inspect(instance))
     if state.info.get(_STATE_CHANGED_FIELDS_KEY):
         session.info.setdefault(_SESSION_CHANGED_STATES_KEY, set()).add(state)
 
 
-def _capture_database_originals(session: OldmanWriteSession, _flush_context: Any, _instances: Any) -> None:
+def _capture_database_originals(session: WriteSession, _flush_context: Any, _instances: Any) -> None:
     """第一次真实文件变化或删除前通过当前 Connection 读取数据库原值。"""
     marked_states = cast(set[InstanceState[Any]] | None, session.info.get(_SESSION_CHANGED_STATES_KEY))
     if not marked_states and not session.deleted:
@@ -159,7 +159,7 @@ def _capture_database_originals(session: OldmanWriteSession, _flush_context: Any
 
 
 def _ensure_original_snapshot(
-    session: OldmanWriteSession,
+    session: WriteSession,
     pending: dict[InstanceState[Any], _PendingRecord],
     state: InstanceState[Any],
     fields: tuple[_FileField, ...],
@@ -226,7 +226,8 @@ async def finalize_model_files(manager: DatabaseManager, records: tuple[_Cleanup
                         item.name: None if row is None else cast(str | None, row._mapping[item.column]) for item in record.fields
                     }
         for record in records:
-            final_values.setdefault(id(record), {item.name: None for item in record.fields})
+            unknown: dict[str, str | None] = {item.name: None for item in record.fields}
+            final_values.setdefault(id(record), unknown)
     except Exception as error:
         logger.error("Could not query final database state for model file cleanup: %s", error, exc_info=True)
         return
@@ -258,4 +259,4 @@ async def finalize_model_files(manager: DatabaseManager, records: tuple[_Cleanup
                     )
 
 
-__all__ = ("OldmanWriteSession", "finalize_model_files", "install_model_file_lifecycle", "take_file_cleanup_records")
+__all__ = ("WriteSession", "finalize_model_files", "install_model_file_lifecycle", "take_file_cleanup_records")

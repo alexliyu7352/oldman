@@ -6,6 +6,7 @@
 
 __author__ = "alex"
 
+import asyncio
 import inspect
 import multiprocessing as mp
 from collections.abc import Awaitable, Callable
@@ -14,7 +15,6 @@ from typing import Any
 from oldman.logging import logger
 from oldman.tasks.messages import MessageType, TaskMessage
 from oldman.tasks.queue import AsyncQueue
-from oldman.utils.loop_utls import safe_cancellable_sleep
 
 Handler = Callable[[TaskMessage], Awaitable[Any]]
 
@@ -84,9 +84,7 @@ class CommunicationManager:
                     logger.warning(f"未找到消息处理器: {message.type.value}")
             except Exception as e:
                 logger.error(f"消息循环出错: {e}")
-                if not await safe_cancellable_sleep(0.1):
-                    logger.warning("CommunicationManager - 任务被取消，message loop退出循环")
-                    break
+                await asyncio.sleep(0.1)
 
     def stop(self) -> None:
         """停止消息循环"""

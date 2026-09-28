@@ -12,6 +12,7 @@ from sanic.exceptions import BadRequest, NotFound
 
 import oldman.conf as conf
 from oldman.apps.config import AppNotInstalledError
+from oldman.i18n import gettext
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.auth import api_login_required, login_required
 from oldman.web.messages.notifications.payloads import NotificationPayload
@@ -68,9 +69,9 @@ def _route_name(prefix: str, action: str) -> str:
 
 def _validate_dependencies(app: Sanic) -> None:
     """Fail before route registration when the host runtime is incomplete."""
-    registry = getattr(app.ctx, "oldman_app_registry", None)
+    registry = getattr(app.ctx, "app_registry", None)
     if registry is None:
-        raise RuntimeError("Notification Web routes require app.ctx.oldman_app_registry")
+        raise RuntimeError("Notification Web routes require app.ctx.app_registry")
     try:
         registry.get_by_package(_NOTIFICATIONS_PACKAGE)
     except (AppNotInstalledError, LookupError) as exc:
@@ -185,10 +186,10 @@ def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
         del request
         notification = await notifications.get_for_user(user_id, notification_id)
         if notification is None:
-            raise NotFound("Notification was not found")
+            raise NotFound(gettext("Notification was not found"))
         payload = NotificationPayload.from_msgpack(notification.payload)
         if payload.href is not None and not is_same_site_path(payload.href):
-            raise NotFound("Notification target was not found")
+            raise NotFound(gettext("Notification target was not found"))
         await notifications.mark_read(user_id, (notification_id,))
         return redirect_response(payload.href or routes.center_url, status=303)
 

@@ -8,10 +8,13 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+import oldman.conf as conf
 from oldman.conf.schemas import (
+    DefaultSettings,
     FingerprintRateLimitConfig,
     FingerprintSecurityConfig,
 )
+from oldman.providers.redis import redis_key
 from oldman.providers.redis.client import RedisClientRegistry
 from oldman.web.security.rate_limiter import (
     FingerprintIPRateLimiter,
@@ -38,6 +41,10 @@ class RedisRateLimiterIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self) -> None:
         """Open a test-owned DEFAULT Redis registry and exact-key ledger."""
+        # The limiters name their keys under core.namespace; configure it here, not in an earlier test.
+        settings = DefaultSettings()
+        settings.core.namespace = "rate_limiter_test"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
         self.registry = RedisClientRegistry(owned_redis_config(self.redis_process.socket_path, {"DEFAULT": 3}))
         self.client = self.registry.using("DEFAULT")
         self.connection = await self.client.async_get_conn()
@@ -52,14 +59,14 @@ class RedisRateLimiterIntegrationTest(unittest.IsolatedAsyncioTestCase):
     def fingerprint_keys(self, fingerprint: str, ip: str) -> set[str]:
         """Return and record the eight exact keys used by one Lua decision."""
         keys = {
-            f"rate:fp:{fingerprint}",
-            f"rate:ip:{ip}",
-            f"relation:fp_ip:{fingerprint}",
-            f"relation:ip_fp:{ip}",
-            f"blacklist:fp:{fingerprint}",
-            f"blacklist:ip:{ip}",
-            f"violations:fp:{fingerprint}",
-            f"violations:ip:{ip}",
+            redis_key("fingerprint", "rate", "fp", fingerprint),
+            redis_key("fingerprint", "rate", "ip", ip),
+            redis_key("fingerprint", "relation", "fp_ip", fingerprint),
+            redis_key("fingerprint", "relation", "ip_fp", ip),
+            redis_key("fingerprint", "blacklist", "fp", fingerprint),
+            redis_key("fingerprint", "blacklist", "ip", ip),
+            redis_key("fingerprint", "violations", "fp", fingerprint),
+            redis_key("fingerprint", "violations", "ip", ip),
         }
         self.keys.update(keys)
         return keys
@@ -142,6 +149,8 @@ class RedisRateLimiterIntegrationTest(unittest.IsolatedAsyncioTestCase):
         )
 
         first = await limiter.check(fingerprint, ip, "/demo", limit_config)
+        rate_keys = [redis_key("fingerprint", "rate", "fp", fingerprint), redis_key("fingerprint", "rate", "ip", ip)]
+        self.assertEqual(2, await self.connection.exists(*rate_keys), "the cleanup ledger names the keys the limiter writes")
         second = await limiter.check(fingerprint, ip, "/demo", limit_config)
         third = await limiter.check(fingerprint, ip, "/demo", limit_config)
         fourth = await limiter.check(fingerprint, ip, "/demo", limit_config)

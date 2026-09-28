@@ -2,21 +2,49 @@
 
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import subprocess
 import time
 from collections.abc import Callable, Mapping
+from functools import cache
 from pathlib import Path
 
 from oldman.conf.schemas import RedisConfig
 
+# taskiq-redis reads results and schedules with GETDEL, which Redis added in 6.2.
+MINIMUM_REDIS_VERSION = (6, 2)
 
-def require_redis_server(resolver: Callable[[str], str | None] = shutil.which) -> str:
-    """Fail the Linux integration gate instead of silently skipping Redis."""
-    executable = resolver("redis-server")
+
+def require_redis_server(
+    resolver: Callable[[str], str | None] = shutil.which,
+    environ: Mapping[str, str] = os.environ,
+) -> str:
+    """The redis-server the integration gate runs: ``$REDIS_SERVER``, else the one on PATH.
+
+    A missing or too old server fails the gate instead of skipping its checks.
+    """
+    executable = environ.get("REDIS_SERVER") or resolver("redis-server")
     if executable is None:
-        raise RuntimeError("redis-server is required for the Linux integration gate")
+        raise RuntimeError("redis-server is required for the Linux integration gate; set REDIS_SERVER or put it on PATH")
+    version = redis_server_version(executable)
+    if version < MINIMUM_REDIS_VERSION:
+        found = ".".join(map(str, version))
+        needed = ".".join(map(str, MINIMUM_REDIS_VERSION))
+        raise RuntimeError(f"redis-server {found} at {executable} is older than {needed}; set REDIS_SERVER to a newer one")
     return executable
+
+
+@cache
+def redis_server_version(executable: str) -> tuple[int, int, int]:
+    """The version ``redis-server --version`` reports, as numbers."""
+    output = subprocess.run([executable, "--version"], capture_output=True, text=True, check=True, timeout=10).stdout
+    match = re.search(r"v=(\d+)\.(\d+)\.(\d+)", output)
+    if match is None:
+        raise RuntimeError(f"cannot read the version of {executable}: {output!r}")
+    major, minor, patch = (int(part) for part in match.groups())
+    return major, minor, patch
 
 
 class RedisProcess:

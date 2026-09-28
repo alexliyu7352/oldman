@@ -21,7 +21,7 @@ from typing import Any, BinaryIO
 from PIL import Image, ImageOps
 
 from oldman.logging import logger
-from oldman.providers.redis import redis_client
+from oldman.providers.redis import redis_client, redis_key
 from oldman.storage import (
     FileSystemStorage,
     InvalidStorageName,
@@ -47,7 +47,7 @@ class ImageCache:
         self.max_cache_size = 10000
         self.cache_timeout = 30
         self.resize_percent = 30
-        self.cache_set_key = "image_cache_zset"
+        self.cache_set_key = redis_key("image_cache")
         self.cache_formats = {"original": "", "webp": ".webp"}
 
     async def _connection(self) -> Any:
@@ -246,7 +246,9 @@ class ImageCache:
         create: bool,
     ) -> int | None:
         """Walk from the filesystem anchor without following any symlinks."""
-        descriptor: int | None = os.open(location.anchor, _DIRECTORY_OPEN_FLAGS)
+        descriptor = os.open(location.anchor, _DIRECTORY_OPEN_FLAGS)
+        # The descriptor this function still has to close if it leaves early; None once handed out.
+        owned: int | None = descriptor
         try:
             components = (*location.parts[1:], self.cache_prefix)
             for component in components:
@@ -262,13 +264,12 @@ class ImageCache:
                 except BaseException:
                     os.close(next_descriptor)
                     raise
-                descriptor = next_descriptor
-            result = descriptor
-            descriptor = None
-            return result
+                descriptor = owned = next_descriptor
+            owned = None
+            return descriptor
         finally:
-            if descriptor is not None:
-                os.close(descriptor)
+            if owned is not None:
+                os.close(owned)
 
     def _open_directory_component(
         self,

@@ -22,6 +22,7 @@ from oldman.contrib.http.schemas import HttpMethod
 from oldman.contrib.proxy.base import BaseStreamProxy, _sanic_response_headers
 from oldman.contrib.proxy.sealing import UrlSealingMixin
 from oldman.logging import logger
+from oldman.providers.redis import redis_key
 from oldman.utils import strings_utils
 from oldman.utils.strings_utils import escape_url_for_xml
 
@@ -276,7 +277,7 @@ class SimpleStreamProxy(BaseStreamProxy):
         local_proxy = local_proxy or self.local_proxy
         try:
             conn = await self._redis_connection()
-            lock_name = f"redis_m3u8_lock:{self.CACHE_PREFIX}:{self.proxy_name}_{cached_id}"
+            lock_name = redis_key("lock", self.CACHE_PREFIX, "m3u8", self.proxy_name, cached_id)
             # 使用分布式锁防止缓存雪崩
             async with conn.lock(lock_name, timeout=30, blocking_timeout=10):
                 logger.debug(f"从远程获取m3u8: url={play_url}")

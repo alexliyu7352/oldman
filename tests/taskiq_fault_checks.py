@@ -164,27 +164,6 @@ def exercise_confirmations(nats_port: int, redis_port: int, root: Path) -> None:
     print(json.dumps(asyncio.run(run())))
 
 
-def exercise_shared_redis(redis_port: int) -> None:
-    """Reuse real acceptance checks; replace only their default config factory."""
-    import unittest
-    from unittest.mock import patch
-
-    from oldman.conf.schemas import DefaultSettings
-    from tests import test_oldman_redis_cache_integration, test_oldman_redis_settings_integration
-
-    settings = DefaultSettings.model_validate({
-        "redis": {alias: {"redis_url": f"redis://127.0.0.1:{redis_port}/{number}"}
-                  for number, alias in enumerate(("DEFAULT", "CACHE"))},
-    })
-    checks = 0
-    for module in (test_oldman_redis_settings_integration, test_oldman_redis_cache_integration):
-        with patch.object(module, "DefaultSettings", return_value=settings):
-            result = unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromModule(module))
-            assert result.wasSuccessful() and not result.skipped
-            checks += result.testsRun
-    print(json.dumps({"checks": checks}))
-
-
 def exercise_prefetch(nats_port: int, redis_port: int) -> None:
     """Hold real executions while measuring native admission plus merger buffers."""
     from oldman import conf

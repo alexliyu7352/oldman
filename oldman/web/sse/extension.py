@@ -16,9 +16,10 @@ from sanic.exceptions import Unauthorized
 from sanic.response import HTTPResponse
 
 from oldman.conf.schemas import SSEConfig
+from oldman.i18n import gettext
 from oldman.i18n.serialization import _decode_translatable_msgpack
 from oldman.logging import get_logger
-from oldman.providers.redis import RedisAliasClient, redis_client
+from oldman.providers.redis import RedisAliasClient, redis_client, redis_key
 from oldman.web.session import Session, SessionData, get_session_data
 from oldman.web.sse.connection import (
     SSEConnection,
@@ -81,7 +82,7 @@ class SSEExtension:
         if config.enabled:
             # Alias lookup validates configuration but remains network-lazy.
             redis_alias = redis_client.using(config.redis_alias)
-            channel = f"{config.channel_prefix}:events:v1"
+            channel = redis_key("events", "v1")
 
         self._app = app
         self._config = config
@@ -217,7 +218,7 @@ class SSEExtension:
         """Capture trusted Session identity and build the writer's periodic check."""
         data = get_session_data(request, SessionData)
         if not data.is_authenticated() or data.user_id is None:
-            raise Unauthorized("Authentication required")
+            raise Unauthorized(gettext("Authentication required", request=request))
         user_id = validate_user_id(data.user_id)
         manager = Session.get_session_manager(request)
         session_id = manager.get_session_id(request)

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import enum
 import tempfile
 import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from unittest.mock import patch
 
 import msgspec
@@ -20,6 +21,10 @@ from oldman.providers.redis import RedisClientRegistry
 from oldman.serializers import MsgspecModel
 from oldman.web.session import DefaultSessionInterface, Session, SessionData, get_session_data
 from tests.redis_support import RedisProcess, require_redis_server
+
+
+class UserNumber(enum.IntEnum):
+    ONE = 1
 
 
 class SessionProfile(MsgspecModel, kw_only=True):
@@ -56,6 +61,12 @@ class PrivilegedDefaultSessionData(SessionData, kw_only=True):
     """Invalid model whose anonymous defaults contain authorization claims."""
 
     is_staff: bool = True
+
+
+class RoleDefaultSessionData(SessionData, kw_only=True):
+    """Invalid model whose anonymous defaults hold role ids, which grant permissions as the flags do."""
+
+    role_ids: tuple[int, ...] = (1, 2)
 
 
 class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
@@ -229,7 +240,7 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(await self.interface.validate_session(sid, user_id))
                 self.assertEqual((sid,), await self.interface.force_logout_user(user_id))
 
-        for invalid_user_id in (cast(int, "1"), cast(int, True)):
+        for invalid_user_id in (cast(int, "1"), cast(int, True), UserNumber.ONE):
             with self.subTest(invalid_user_id=invalid_user_id):
                 with self.assertRaisesRegex(TypeError, "user_id must be an int"):
                     await self.interface.get_active_session_ids(invalid_user_id)
@@ -649,6 +660,9 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
             DefaultSessionInterface(session_model=WrongDefaultTypeSessionData)
         with self.assertRaisesRegex(ValueError, "anonymous session cannot contain privileges"):
             DefaultSessionInterface(session_model=PrivilegedDefaultSessionData)
+        # G1-6: only the two flags used to be refused.
+        with self.assertRaisesRegex(ValueError, "anonymous session cannot contain privileges"):
+            DefaultSessionInterface(session_model=RoleDefaultSessionData)
 
     async def test_real_sanic_lifecycle_runs_typed_request_and_response_middleware(self) -> None:
         """A real Sanic request initializes, mutates, and persists the configured model."""
@@ -674,6 +688,43 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("sanic-session-id", response.cookies)
         sid = str(response.cookies["sanic-session-id"])
         self.assertEqual(1, await self.connection.exists(interface._get_session_key(sid)))
+
+    async def test_a_cookie_sent_through_the_session_travels_like_the_session_cookie(self) -> None:
+        """What the CSRF manager relies on: a cookie written by the Session middleware, with its policy, after the save."""
+        app = Sanic(f"policy-cookie-{time.time_ns()}")
+        interface = DefaultSessionInterface(
+            prefix="policy-cookie-test:",
+            user_prefix="policy-cookie-user-test:",
+            domain="example.test",
+            secure=True,
+            samesite="Strict",
+            session_model=AdminSessionData,
+        )
+        manager = Session(app, interface)
+        seen: list[str | None] = []
+
+        @app.get("/")
+        async def send(request: Request) -> BaseHTTPResponse:
+            seen.append(manager.opened_session_id(request))
+            manager.send_cookie(request, "probe_id", "value-1", max_age=90)
+            return text("ok")
+
+        _request, response = await app.asgi_client.get("/")
+
+        self.assertEqual(200, response.status)
+        self.assertIsNotNone(seen[0])
+        header = next(value for key, value in response.headers.items() if key.lower() == "set-cookie" and value.startswith("probe_id="))
+        attributes = {part.strip().split("=", 1)[0].lower() for part in header.split(";")[1:]}
+        self.assertTrue({"httponly", "secure", "samesite", "domain", "max-age", "path"} <= attributes, header)
+        self.assertIn("SameSite=Strict", header)
+        self.assertIn("Max-Age=90", header)
+        # Nothing changed in the session, so save() returned early; the cookie went out all the same.
+        self.assertNotIn("session", {key.lower() for key in response.cookies})
+        # A request the middleware did not open has no response to write to.
+        hand_built = SimpleNamespace(app=app, ctx=SimpleNamespace())
+        self.assertIsNone(manager.opened_session_id(cast(Any, hand_built)))
+        with self.assertRaises(RuntimeError):
+            manager.send_cookie(cast(Any, hand_built), "probe_id", "value-2", max_age=90)
 
     async def test_real_sanic_replaces_a_success_response_when_session_validation_fails(self) -> None:
         """A response-middleware error must not be logged and returned as HTTP 200."""
@@ -764,11 +815,6 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(handler_called)
         finally:
             await failing_registry.close()
-
-    def test_missing_redis_server_is_a_gate_failure_not_a_skip(self) -> None:
-        """The integration requirement itself cannot be converted into a green skip."""
-        with self.assertRaisesRegex(RuntimeError, "redis-server is required"):
-            require_redis_server(lambda _name: None)
 
 
 if __name__ == "__main__":

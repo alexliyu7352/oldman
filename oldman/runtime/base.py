@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from contextlib import contextmanager
 from signal import SIG_IGN
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from oldman.i18n import gettext_noop
 from oldman.logging import (
@@ -25,11 +25,16 @@ from oldman.runtime.bootstrap import (
     _get_bootstrap_context,
 )
 from oldman.storage import storages
+from oldman.utils.asyncio_utils import new_event_loop
 
 if TYPE_CHECKING:
     from oldman.cli import Command
+    from oldman.web.routing import WebApp
 
 PublicCommandEntry = tuple[Callable, str]
+
+#: The service this process runs; read it through ``BaseApplication.current()``.
+_current_service: "BaseApplication | None" = None
 
 
 class BaseApplication(ABC):
@@ -79,7 +84,8 @@ class BaseApplication(ABC):
                     bound_func,
                     *args,
                     **kwargs,
-                )
+                ),
+                loop_factory=new_event_loop,
             )
         return cls._run_sync_command(bound_func, *args, **kwargs)
 
@@ -115,7 +121,8 @@ class BaseApplication(ABC):
                 command.handle,
                 *args,
                 **kwargs,
-            )
+            ),
+            loop_factory=new_event_loop,
         )
 
     @classmethod
@@ -239,23 +246,17 @@ class BaseApplication(ABC):
             command_error = exc
             raise
         finally:
-            # 先关 taskiq/NATS：它们的 shutdown 钩子可能还要用数据库，而 after_command 会关掉引擎，
-            # 那时 get_session() 只会惰性再建一个没人关的新引擎。
+            # after_command 在 taskiq/NATS 仍开着时运行，可以发消息、投任务；框架自己的收尾在它之后。
             try:
-                await self._close_publishers(command_error)
+                await self.after_command(command_name, *args, **kwargs)
             except BaseException as error:
                 if command_error is None:
                     command_error = error
                     raise
-                logger.exception("%s 异步命令 %s 关闭 publisher 失败，保留命令原始异常", self.app_name, command_name)
+                logger.exception("%s 异步命令 %s 清理失败，保留命令原始异常", self.app_name, command_name)
             finally:
                 try:
-                    await self.after_command(command_name, *args, **kwargs)
-                except BaseException as error:
-                    if command_error is None:
-                        command_error = error
-                        raise
-                    logger.exception("%s 异步命令 %s 清理失败，保留命令原始异常", self.app_name, command_name)
+                    await self._close_services(command_error)
                 finally:
                     self._close_logging()
 
@@ -324,6 +325,50 @@ class BaseApplication(ABC):
         finally:
             await self._close_nats(original_error)
 
+    async def _close_services(self, original_error: BaseException | None = None) -> None:
+        """The framework's own cleanup, after the service's stop hook, on every entry point and outcome.
+
+        Taskiq and NATS close first: their shutdown hooks may still publish or write through the
+        database. Then the model cache's pending invalidations, which need Redis. Last the memory
+        cache, the Redis clients and the database engine: closing them any earlier lets a later
+        ``get_session()`` build an engine nobody closes. The service's own stop hook runs before all
+        of this, so it can still publish, enqueue tasks and use the database.
+
+        Every step runs whatever failed before it. With ``original_error`` the failures are logged;
+        without one the first is raised once every step has run.
+        """
+        from oldman.db.sqlalchemy.cache import wait_for_invalidations
+
+        first_error: BaseException | None = None
+        for step in (lambda: self._close_publishers(original_error), wait_for_invalidations, self._close_shared_resources):
+            try:
+                await step()
+            except BaseException as error:
+                if original_error is None and first_error is None:
+                    first_error = error
+                else:
+                    logger.exception("%s 收尾失败，保留最先出现的异常", self.app_name)
+        if first_error is not None:
+            raise first_error
+
+    async def _close_shared_resources(self) -> None:
+        """关闭进程共享的缓存、Redis 和数据库引擎。
+
+        每个都要关：留着数据库连接不放，下一次启动或者重启会看到连接数不降。
+        """
+        from oldman.cache import memory_cache
+        from oldman.db import db_manager
+        from oldman.providers.redis import redis_client
+
+        try:
+            await memory_cache.close()
+        finally:
+            try:
+                await redis_client.close()
+            finally:
+                await db_manager.close()
+        logger.info("%s 的缓存、Redis 与数据库连接已关闭", self.app_name)
+
     async def _start_taskiq(self) -> None:
         """Manage publication only; task discovery belongs to Worker/Scheduler."""
         if not self.bootstrap_context.settings.taskiq.enabled:
@@ -388,7 +433,10 @@ class BaseApplication(ABC):
         return None
 
     async def after_command(self, command_name: str, *args: Any, **kwargs: Any) -> None:
-        """异步一次性命令结束后的生命周期钩子，命令异常时也会执行。"""
+        """异步一次性命令结束后的生命周期钩子，命令异常时也会执行。
+
+        运行时 taskiq/NATS 仍开着；框架在它之后关闭它们和缓存、Redis、数据库，覆盖时不必调用 super()。
+        """
         return None
 
     @classmethod
@@ -449,7 +497,7 @@ class BaseApplication(ABC):
         else:
             self.pid_file_path = os.path.join(application_settings.process.pid_dir, f"{file_name}.pid")
 
-        self.logger_level = application_settings.logging.level
+        self.logger_level = application_settings.logging.resolved_level(debug=application_settings.core.debug)
         if not self.log_file_path:
             self.log_file_path = application_settings.logging.dir
         self._logging_closed = False
@@ -475,6 +523,42 @@ class BaseApplication(ABC):
         if os.getppid() == 1:
             self._pid_cleanup_callback = self.delete_pid_file
             atexit.register(self._pid_cleanup_callback)
+
+        # bootstrap_service() refuses a second service in one process, so a later instance
+        # is always the same service again and simply takes the place of the earlier one.
+        global _current_service
+        _current_service = self
+
+    @classmethod
+    def current(cls) -> Self | None:
+        """Return the service this process runs if it is a ``cls``, otherwise None.
+
+        It only looks the service up and never constructs one. Every process that runs a
+        service constructs one instance of it before anything else: the command line does
+        for service and App commands, and each Sanic worker does for itself. A shell, a
+        script that only calls bootstrap_service(), and Taskiq worker processes construct
+        none, so the answer there is None.
+
+        Call it inside functions. A module-level ``svc = WebService.current()`` is fixed
+        when the module is imported, and the command line imports App commands and the
+        service module's own imports before it constructs the service — those modules
+        would keep None after the service runs.
+
+        Reusable Apps do not know the project's service class; they ask
+        ``BaseApplication.current()`` or ``WebApplication.current()``.
+        """
+        running = _current_service
+        return running if isinstance(running, cls) else None
+
+    @property
+    def runtime_app(self) -> "WebApp | None":
+        """The Web server application this service created, or None when it has none.
+
+        WebApplication overrides this. It is defined here as well so that code holding
+        ``BaseApplication.current()`` can ask any service without a cast: a service that
+        serves no HTTP answers None.
+        """
+        return None
 
     @abstractmethod
     def init(self) -> None:

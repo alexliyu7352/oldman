@@ -17,7 +17,7 @@ from typing import Any
 
 from oldman.logging import logger
 from oldman.tasks.base import TaskStatus, TaskType
-from oldman.utils.singleton import singleton_adv
+from oldman.utils.singleton import singleton
 
 CoroutineFunction = Callable[..., Coroutine[Any, Any, Any]]
 
@@ -43,7 +43,7 @@ class TaskInfo:
     restart_task_ref: asyncio.Task[Any] | None = None
 
 
-@singleton_adv
+@singleton
 class BackgroundTaskManager:
     """Supervise coroutines in this process: named tasks with restart policies, plus fire-and-forget spawns."""
 

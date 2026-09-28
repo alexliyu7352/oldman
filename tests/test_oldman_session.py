@@ -147,8 +147,6 @@ class SessionPublicBehaviorTest(unittest.IsolatedAsyncioTestCase):
             enabled=True,
             redis_alias="ADMIN_SESSION",
             expiry=120,
-            prefix="admin-session:",
-            user_prefix="admin-user-session:",
             cookie_name="admin_session_id",
             cookie_domain="example.test",
             cookie_httponly=False,
@@ -156,19 +154,20 @@ class SessionPublicBehaviorTest(unittest.IsolatedAsyncioTestCase):
             cookie_samesite="Strict",
         )
         settings = DefaultSettings.model_validate(
-            {"web": WebConfig(session=session_config).model_dump()}
+            {"core": {"namespace": "admin"}, "web": WebConfig(session=session_config).model_dump()}
         )
 
-        with patch.dict(conf.__dict__, {"settings": settings}):
-            manager.init_app(cast(Sanic, app), session_model=AdminSessionData)
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
+        manager.init_app(cast(Sanic, app), session_model=AdminSessionData)
 
         interface = manager.interface
         self.assertIsInstance(interface, DefaultSessionInterface)
         assert interface is not None
         self.assertEqual("ADMIN_SESSION", interface.redis_alias)
         self.assertEqual(120, interface.expiry)
-        self.assertEqual("admin-session:", interface.prefix)
-        self.assertEqual("admin-user-session:", interface.user_prefix)
+        # Session keys live under the service namespace.
+        self.assertEqual("admin:session:", interface.prefix)
+        self.assertEqual("admin:user_session:", interface.user_prefix)
         self.assertEqual("admin_session_id", interface.cookie_name)
         self.assertEqual("example.test", interface.domain)
         self.assertFalse(interface.httponly)

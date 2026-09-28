@@ -24,11 +24,9 @@ from sanic_ext.extensions.templating.extension import TemplatingExtension
 
 import oldman.conf as conf
 import oldman.web.messages as messages
-from oldman.cache import memory_cache
+from oldman.auth.backends import resolve_login_backends
 from oldman.conf.constants import _find_project_root
-from oldman.db import db_manager
 from oldman.logging import ChildLoggingContext, logger
-from oldman.providers.redis import redis_client
 from oldman.runtime.base import BaseApplication
 from oldman.runtime.bootstrap import (
     ServiceBootstrapContext,
@@ -37,10 +35,12 @@ from oldman.runtime.bootstrap import (
 from oldman.runtime.discovery import get_service_definition, load_service_class
 from oldman.storage import storages
 from oldman.tasks.simple import BackgroundTaskManager
-from oldman.web.errors import OldmanErrorHandler
-from oldman.web.routing import WebApp
+from oldman.web.authentication import install_authentication, resolve_authenticators
+from oldman.web.errors import ErrorPageHandler
+from oldman.web.routing import WebApp, _register_pending_routes
 from oldman.web.session import SessionData, session
 from oldman.web.sse import sse
+from oldman.web.template_globals import template_globals
 
 
 def prepare_process_context() -> None:
@@ -146,10 +146,10 @@ class WebApplication(BaseApplication):
             app_options["request_class"] = request_class
         self._app = Sanic(
             self.app_name,
-            error_handler=OldmanErrorHandler(),
+            error_handler=ErrorPageHandler(),
             **app_options,
         )
-        self._app.ctx.oldman_app_registry = self.bootstrap_context.apps
+        self._app.ctx.app_registry = self.bootstrap_context.apps
         # Handlers spawn fire-and-forget work here; the worker cancels it in before_server_stop.
         self._app.ctx.tasks = self.task_manager
 
@@ -187,6 +187,16 @@ class WebApplication(BaseApplication):
         # Sanic must not pre-color records that may also reach plain file sinks.
         self._app.update_config({"NO_COLOR": True})
 
+        if settings.i18n.use_i18n:
+            # First among the request middleware: what the session, messages and authentication
+            # refuse with (a store that is down answers 503) is then in the request's language.
+            # The language comes from the path, the query, cookies and Accept-Language, never
+            # from the login, so it does not need to run after them. Response middleware runs
+            # in reverse, so the catalog also stays bound until the others have finished.
+            from oldman.web.middlewares.i18n import cleanup_i18n, install_i18n
+
+            self._app.register_middleware(install_i18n, "request")
+            self._app.register_middleware(cast(Any, cleanup_i18n), "response")
         if settings.web.messages.enabled:
             messages.init_app(self._app)
         if settings.web.session.enabled:
@@ -194,12 +204,27 @@ class WebApplication(BaseApplication):
                 self._app,
                 session_model=self.SESSION_MODEL,
             )
+        # Right behind the Session middleware, whose session the session method reads. Every
+        # request leaves here with request.ctx.user set — anonymous when nothing matched.
+        install_authentication(
+            self._app,
+            resolve_authenticators(settings.web.auth.authenticators, session_enabled=settings.web.session.enabled),
+        )
+        # Sign-in resolves these on demand; building them now reports a misnamed backend at
+        # startup instead of at the first login.
+        resolve_login_backends(tuple(settings.web.auth.login_backends))
         storages.init_app(self._app)
         # SSE route decorators are loaded with application views, so bind their
         # process-local extension before importing registered application modules.
         sse.init_app(self._app)
 
         self.bootstrap_context.apps.load_models()
+        # Modules imported before this application existed — App commands, the service
+        # module's own imports — registered through router as well; their routes join
+        # here, where the views' routes would, ahead of the views themselves.
+        _register_pending_routes(self._app)
+        # Views check permissions by the declared objects; the whole catalog exists before them.
+        self.bootstrap_context.apps.load_permissions()
         self.bootstrap_context.apps.load_views()
         if settings.nats_bus.enabled and settings.nats_bus.consume:
             self.bootstrap_context.apps.load_events()
@@ -215,10 +240,8 @@ class WebApplication(BaseApplication):
             self._services_after_server_start if settings.nats_bus.enabled else self.after_server_start,
             "after_server_start",
         )
-        self._app.register_listener(
-            self._services_after_server_stop if settings.taskiq.enabled or settings.nats_bus.enabled else self.after_server_stop,
-            "after_server_stop",
-        )
+        # Always the wrapper: it also waits for the model cache's invalidations before Redis closes.
+        self._app.register_listener(self._services_after_server_stop, "after_server_stop")
         self._app.register_listener(
             self._services_before_server_stop if settings.nats_bus.enabled else self.before_server_stop,
             "before_server_stop",
@@ -227,12 +250,6 @@ class WebApplication(BaseApplication):
             self.main_process_ready,
             ListenerEvent.MAIN_PROCESS_READY,
         )
-        if settings.i18n.use_i18n:
-            from oldman.web.middlewares.i18n import cleanup_i18n, install_i18n
-
-            self._app.register_middleware(install_i18n, "request")
-            self._app.register_middleware(cast(Any, cleanup_i18n), "response")
-
         logger.info("Registered routes:")
         for _key, route in self._app.router.routes_all.items():
             logger.info(
@@ -266,7 +283,7 @@ class WebApplication(BaseApplication):
             )
 
             if settings.i18n.use_i18n_path and hasattr(app.ext, "environment"):
-                app.ext.environment.globals["url_for"] = build_i18n_url_with_request
+                template_globals(app.ext.environment)["url_for"] = build_i18n_url_with_request
 
     async def after_server_start(self, app: WebApp) -> None:
         """Run after one Sanic server worker starts."""
@@ -292,33 +309,30 @@ class WebApplication(BaseApplication):
             raise
 
     async def _services_before_server_stop(self, app: WebApp) -> None:
-        """End handlers before user cleanup; a failed hook may prevent Sanic's next phase."""
+        """End handlers before user cleanup; a failed hook may prevent Sanic's next phase.
+
+        Sanic then skips after_server_stop, so the framework's cleanup runs here instead.
+        """
         try:
             await self._stop_nats_consuming()
             await self.before_server_stop(app)
         except BaseException as error:
-            await self._close_publishers(error)
+            await self._close_services(error)
             raise
 
     async def _services_after_server_stop(self, app: WebApp) -> None:
-        """Close taskiq and NATS first, then the resources their shutdown hooks may still use.
+        """Run after_server_stop while taskiq and NATS are still open, then the framework's cleanup.
 
-        Taskiq 的 shutdown 钩子可能还要写一条收尾记录：`after_server_stop` 已经关掉数据库引擎的话，
-        `get_session()` 会惰性重建一个新引擎，而那一个到进程退出都没人关——正好是这段清理想消灭的东西。
+        Registered with every configuration; without taskiq or NATS, closing the publishers does nothing.
         """
         failure: BaseException | None = None
         try:
-            await self._close_publishers()
+            await self.after_server_stop(app)
         except BaseException as error:
             failure = error
             raise
         finally:
-            try:
-                await self.after_server_stop(app)
-            except BaseException:
-                if failure is None:
-                    raise
-                logger.exception("Worker resource cleanup failed; preserving the publisher error")
+            await self._close_services(failure)
 
     async def before_server_stop(self, app: WebApp) -> None:
         """Cancel worker-owned background tasks before resources are closed."""
@@ -326,17 +340,12 @@ class WebApplication(BaseApplication):
         await self.task_manager.stop_all()
 
     async def after_server_stop(self, app: WebApp) -> None:
-        """Close worker resources while preserving Sanic's final log records."""
-        try:
-            await memory_cache.close()
-        finally:
-            try:
-                await redis_client.close()
-            finally:
-                # The engine belongs to the worker too: leaving it open keeps database
-                # connections until the process dies, which a reload or a restart notices.
-                await db_manager.close()
-        logger.info("%s server worker resources closed", self.app_name)
+        """Hook after the server stopped, while taskiq and NATS are still open.
+
+        The framework closes them, the memory cache, Redis and the database engine after it, so an
+        override need not call super().
+        """
+        return None
 
     def create_app(self) -> WebApp:
         """Initialize and return this service's Sanic application."""
@@ -358,7 +367,7 @@ class WebApplication(BaseApplication):
         app.prepare(
             host=web.listen_host,
             port=web.listen_port,
-            debug=web.debug,
+            debug=conf.settings.core.debug,
             motd=False,
             auto_reload=web.auto_reload,
             workers=web.workers,

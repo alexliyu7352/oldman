@@ -1,4 +1,5 @@
 import { cssEscape } from "../core/dom/helpers";
+import { httpErrorMessage } from "../core/http/client";
 import { relativeUrl } from "../core/http/urls";
 import { Component } from "../core/component/component";
 import { SelectProviderResponseError, normalizeSelectOptions, type SelectOption } from "./select";
@@ -6,8 +7,7 @@ import {
   REMOTE_SEARCH_DELAY_MS,
   dependentValues,
   deduplicateOptions,
-  isProviderResponse,
-  providerErrorMessage
+  isProviderResponse
 } from "./select-provider";
 
 const AUTOCOMPLETE_EMPTY_SELECTOR = "[data-om-autocomplete-empty]";
@@ -128,7 +128,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: providerErrorMessage(error, this.i18n),
+        message: httpErrorMessage(error, this.i18n),
         query,
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         ...(source ? { url: source } : {})
@@ -172,7 +172,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: providerErrorMessage(error, this.i18n),
+        message: httpErrorMessage(error, this.i18n),
         query: state.query,
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: state.source
@@ -287,7 +287,7 @@ export class Autocomplete extends Component {
       this.emit<AutocompleteErrorDetail>("om:autocomplete:error", {
         component: this,
         error,
-        message: providerErrorMessage(error, this.i18n),
+        message: httpErrorMessage(error, this.i18n),
         query: "",
         ...(error instanceof SelectProviderResponseError ? { response: error.response } : {}),
         url: source

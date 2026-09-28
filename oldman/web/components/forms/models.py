@@ -27,7 +27,7 @@ from wtforms.validators import InputRequired
 from oldman.storage.models import _get_model_file_config, _resolve_upload_name, register_created_file
 from oldman.storage.registry import storages
 
-from .base import OldmanForm, SanicFormData
+from .base import Form, SanicFormData
 from .choices import ModelChoice
 from .fields import JSONListField, ModelChoiceField, UploadField
 
@@ -171,7 +171,7 @@ def coerce_boolean_choice(value: Any) -> bool:
     raise ValueError(f"Invalid boolean choice: {value!r}")
 
 
-class OldmanModelForm(OldmanForm):
+class ModelForm(Form):
     """Oldman 无主题模型表单基类。"""
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -379,4 +379,4 @@ class OldmanModelForm(OldmanForm):
         del instance
 
 
-__all__ = ["OldmanModelForm", "humanize_model_field_name", "model_field_for_column"]
+__all__ = ["ModelForm", "humanize_model_field_name", "model_field_for_column"]

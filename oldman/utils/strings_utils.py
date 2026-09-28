@@ -1,61 +1,69 @@
 import os
 import secrets
 import string
+import unicodedata
+from collections import defaultdict
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlparse
 from xml.sax.saxutils import escape
 
 import orjson
 from slugify import slugify
 
-
-def filter_bytes(byte_string: bytes) -> str:
-    """
-    过滤字符串中的非法字符, 以及乱码
-    :param byte_string: bytes
-    :return: str
-    """
-    # Decode bytes to string_tpl
-    string_tpl = byte_string.decode(errors="ignore")
-
-    # Filter out the garbled text
-    string_tpl = string_tpl.replace("\n", "").replace("\r", "").replace("\t", "")
-    string_tpl = string_tpl.replace("\u200b", "").replace("\xa0", "")
-    string_tpl = string_tpl.replace("\u3000", "").replace("\u2028", "")
-    string_tpl = string_tpl.replace("\u200e", "").replace("\u202a", "")
-    string_tpl = string_tpl.replace("\u200f", "").replace("\u2061", "")
-    string_tpl = string_tpl.replace("\u3000", "").replace("\ufeff", "")
-    string_tpl = string_tpl.replace("\u202c", "").replace("\u2060", "")
-    string_tpl = string_tpl.replace("\u2063", "").replace("\x1a", "")
-    string_tpl = string_tpl.replace("\x00", "").replace("\x01", "")
-    string_tpl = string_tpl.replace("\x02", "").replace("\x03", "")
-    string_tpl = string_tpl.replace("\x04", "").replace("\x05", "")
-    string_tpl = string_tpl.replace("\x06", "").replace("\x07", "")
-    string_tpl = string_tpl.replace("\x08", "").replace("\x09", "")
-    string_tpl = string_tpl.replace("\x0a", "").replace("\x0b", "")
-    string_tpl = string_tpl.replace("\x0c", "").replace("\x0d", "")
-    string_tpl = string_tpl.replace("\x0e", "").replace("\x0f", "")
-    string_tpl = string_tpl.replace("\x10", "").replace("\x11", "")
-    string_tpl = string_tpl.replace("\x12", "").replace("\x13", "")
-    string_tpl = string_tpl.replace("\x14", "").replace("\x15", "")
-    string_tpl = string_tpl.replace("\x16", "").replace("\x17", "")
-    string_tpl = string_tpl.replace("\x18", "").replace("\x19", "")
-    string_tpl = string_tpl.replace("\x1b", "").replace("\x1c", "")
-    string_tpl = string_tpl.replace("\x1d", "").replace("\x1e", "")
-    string_tpl = string_tpl.replace("\x1f", "")
-    return string_tpl.strip()
+# clean_text 删除的格式字符（Unicode Cf）：只影响方向、断行，或者根本不显示。其余的 Cf 保留：ZWJ、ZWNJ、
+# 蒙古文元音分隔符、埃及象形文字的组合符等决定相邻字符怎么拼（删掉 ZWJ 会把 emoji 家庭拆成三个人，删掉 ZWNJ
+# 会改变波斯文的字形），阿拉伯文的数字符号、经文结束符本身就显示出来。
+_INVISIBLE_FORMAT_CHARACTERS = frozenset(
+    "\u00ad"  # 软连字符
+    "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"  # 方向标记、嵌入与隔离
+    "\u200b\u2060\ufeff"  # 零宽空格、词连接符、BOM
+    "\u2061\u2062\u2063\u2064"  # 不可见的数学运算符
+    "\u206a\u206b\u206c\u206d\u206e\u206f"  # 已弃用的格式符
+    "\ufff9\ufffa\ufffb"  # 行间注释标记
+    "\U000e0001"  # 语言标签（已弃用）
+)
+_BLACK_FLAG = "\U0001f3f4"
+_CANCEL_TAG = "\U000e007f"
 
 
-def json_dumps(data: dict, **kwargs: Any) -> str:
+def _is_tag(char: str) -> bool:
+    return "\U000e0020" <= char <= _CANCEL_TAG
+
+
+def clean_text(value: bytes | str) -> str:
+    """把外部来的文本（抓取的标题、M3U 里的频道名等）清洗成干净的单行文本。
+
+    - bytes 按 UTF-8 解码，无法解码的字节丢弃；
+    - 各种空白（换行、制表、不换行空格 ``\\xa0``、全角空格 ``\\u3000``、行分隔符等）换成普通空格，
+      连续的合并成一个，首尾去掉——不会把两边的词粘在一起；
+    - 控制字符删除；不显示的格式字符（零宽空格、BOM、方向标记与嵌入、软连字符、词连接符等）删除。决定相邻字符
+      怎么拼的格式字符（emoji 序列的 ZWJ、波斯文的 ZWNJ、地区旗帜的标签序列）和本身显示的（阿拉伯数字符号）保留。
+
+    >>> clean_text("第一行\\n第二行\\tA\\xa0B\\u3000C\\u200bD".encode())
+    '第一行 第二行 A B CD'
     """
-    将dict转换为json字符串
-    :param data:
-    :param kwargs:
-    :return:
+    text = value.decode(errors="ignore") if isinstance(value, bytes) else value
+    kept: list[str] = []
+    for char in text:
+        if char.isspace():
+            kept.append(" ")
+        elif _is_tag(char):
+            # 标签字符只在 🏴 后面拼成地区旗帜（英格兰、苏格兰、威尔士）时保留，到取消标签为止；
+            # 单独出现的删除：它们不显示，能在文本里藏一段看不见的话。
+            if kept and (kept[-1] == _BLACK_FLAG or (_is_tag(kept[-1]) and kept[-1] != _CANCEL_TAG)):
+                kept.append(char)
+        elif unicodedata.category(char) != "Cc" and char not in _INVISIBLE_FORMAT_CHARACTERS:
+            kept.append(char)
+    return " ".join("".join(kept).split())
+
+
+def json_dumps(data: Any, *, option: int | None = None) -> str:
+    """把数据编码成 JSON 字符串（orjson 只返回 bytes）。
+
+    ``option`` 原样传给 ``orjson.dumps``，例如 ``orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS``。
+    非 ASCII 字符原样输出，不转义成 ``\\uXXXX``。
     """
-    if kwargs:
-        raise TypeError("json_dumps does not forward options; call orjson.dumps directly for them")
-    return orjson.dumps(data).decode("utf-8")
+    return orjson.dumps(data, option=option).decode("utf-8")
 
 
 def get_ext_from_filename(filename: str) -> str:
@@ -82,50 +90,37 @@ def get_ext_from_filename(filename: str) -> str:
     if not filename or not isinstance(filename, str):
         return ""
 
-    clean_filename = filename.strip()
-
-    # 1. 判断是否为URL
-    parsed = urlparse(clean_filename)
-    if parsed.scheme:  # 是URL
-        # 提取路径部分,移除查询参数和片段
-        path = parsed.path.rstrip("/")
-        if not path or path == "/":
-            return ""  # 无路径或根路径,无扩展名
-        clean_filename = path
-    else:
-        # 2. 非URL的普通文件名,移除查询参数
-        for delimiter in ["?", "#", "$"]:
-            if delimiter in clean_filename:
-                clean_filename = clean_filename.split(delimiter)[0]
-        clean_filename = clean_filename.rstrip("/")
-
-    # 3. 提取扩展名
-    _, ext = os.path.splitext(clean_filename)
-
-    # 4. 标准化处理
+    _, ext = os.path.splitext(_name_part(filename))
     ext = ext.lower().strip()
 
-    # 5. 验证扩展名合法性
-    if ext and len(ext) > 1:
-        # 检查是否只包含字母数字和点
-        if all(c.isalnum() or c == "." for c in ext):
-            return ext
-
+    # 只认字母数字组成的扩展名
+    if len(ext) > 1 and all(c.isalnum() or c == "." for c in ext):
+        return ext
     return ""
 
 
-# 若需支持复合扩展名(如 .tar.gz)
-def get_full_ext_from_filename(filename: str) -> str:
-    """提取复合扩展名"""
-    base_ext = get_ext_from_filename(filename)
-    if base_ext in [".gz", ".bz2", ".xz"]:
-        # 使用urlparse处理URL
-        parsed = urlparse(filename)
-        clean_filename = parsed.path if parsed.scheme else filename
+def _name_part(filename: str) -> str:
+    """取出带扩展名的那部分：URL 取路径（不含查询参数和片段），普通文件名去掉 ? 与 # 之后的内容；结尾的 / 去掉。"""
+    clean_filename = filename.strip()
+    parsed = urlparse(clean_filename)
+    if parsed.scheme:
+        return parsed.path.rstrip("/")
+    for delimiter in ("?", "#"):
+        clean_filename = clean_filename.split(delimiter)[0]
+    return clean_filename.rstrip("/")
 
-        parts = clean_filename.rsplit(".", 2)
-        if len(parts) == 3:
-            return f".{parts[1]}{base_ext}"
+
+def get_full_ext_from_filename(filename: str) -> str:
+    """提取扩展名；``.tar.gz``、``.tar.bz2``、``.tar.xz`` 这类打包再压缩的复合扩展名整体返回。
+
+    只有压缩扩展名前面紧跟 ``.tar`` 才算复合：``backup.tar.gz`` 返回 ``.tar.gz``，
+    ``report.2024.gz`` 返回 ``.gz``。
+    """
+    base_ext = get_ext_from_filename(filename)
+    if base_ext in (".gz", ".bz2", ".xz"):
+        stem, _ = os.path.splitext(_name_part(filename))
+        if stem.lower().endswith(".tar"):
+            return f".tar{base_ext}"
     return base_ext
 
 
@@ -155,109 +150,37 @@ def match_url(url: str, pattern: str) -> bool:
     return bool(re.match(regex_pattern, url))
 
 
-def get_url_from_params(base_url: str, params: dict, function_params: list[str], doseq: bool = True) -> str:
-    """
-    构建完整的代理URL
-    :param doseq:
-    :param function_params:
-    :param base_url: 基础URL
-    :param params: URL参数字典
-    :return: 完整的代理URL
-    """
-    # 过滤掉函数使用的参数，剩余的都是url的参数
-    url_params = {}
-    for key, value in params.items():
-        if key not in function_params:
-            url_params[key] = value
-    if url_params:
-        # 检查base_url是否已包含参数
-        if "?" in base_url:
-            return f"{base_url}&{urlencode(url_params, doseq=doseq)}"
-        else:
-            return f"{base_url}?{urlencode(url_params, doseq=doseq)}"
-    return base_url
-
-
-def get_url_from_query_string(base_url: str, query_string: str, function_params: list[str], doseq: bool = True) -> str:
-    """
-    构建完整的代理URL
-    :param doseq:
-    :param function_params:
-    :param base_url: 基础URL
-    :param query_string: URL参数字符串
-    :return: 完整的代理URL
-    """
-    # 过滤掉函数使用的参数，剩余的都是url的参数
-    url_params = {}
-    query_items = parse_qs(query_string, keep_blank_values=True)
-    for key, value in query_items.items():
-        if key not in function_params:
-            url_params[key] = value
-    if url_params:
-        # 检查base_url是否已包含参数
-        params_strings = urlencode(url_params, doseq)
-        # 取消转义
-        # params_strings = unquote(params_strings)
-        if "?" in base_url:
-            return f"{base_url}&{params_strings}"
-        else:
-            return f"{base_url}?{params_strings}"
-    return base_url
-
-
 def escape_url_for_xml(url: str) -> str:
     # 将 & < > " ' 等转义为 XML 实体（例如 & -> &amp;）
     return escape(url, {'"': "&quot;", "'": "&apos;"})
 
 
-def generate_unique_slugs(
-    names: list[str],
-) -> tuple[dict[str, str], dict[str, int]]:
+def unique_slugs(names: list[str]) -> list[str]:
+    """为一组名称逐个生成 slug，返回与 names 一一对应的列表；重名或 slugify 后相同的自动加 -1、-2……
+
+    同名输入各自得到自己的 slug，调用方按位置配对（``zip(items, unique_slugs(names))``）::
+
+        >>> unique_slugs(["HBO", "HBO", "HBO Max", "hbo-max"])
+        ['hbo', 'hbo-1', 'hbo-max', 'hbo-max-1']
+
+    先出现的保留原始 slug，所以同一份输入在顺序不变时结果稳定。slugify 后为空的名称（如 "!!!"）
+    同样参与编号：第一个得到 ""，之后依次是 "-1"、"-2"。
     """
-    为一组名称生成唯一的 slug,自动处理冲突
-
-    Args:
-        names: 名称列表
-
-    Returns:
-        tuple: (name_to_slug 映射, slug_counter 计数器)
-            - name_to_slug: {原始名称: 唯一slug}
-            - slug_counter: {base_slug: 当前计数} (可用于调试)
-
-    Example:
-        >>> names = ["HBO", "HBO", "HBO Max"]
-        >>> name_to_slug, _ = generate_unique_slugs(names)
-        >>> print(name_to_slug)
-        {'HBO': 'hbo', 'HBO': 'hbo-1', 'HBO Max': 'hbo-max'}
-    """
-    slug_counter: dict[str, int] = {}
+    # 每个 base_slug 上次用到的编号，冲突时从它的下一个接着试
+    last_suffix: defaultdict[str, int] = defaultdict(int)
     used_slugs: set[str] = set()
-    name_to_slug: dict[str, str] = {}
+    slugs: list[str] = []
 
     for name in names:
         base_slug = slugify(name)
-
-        # 生成唯一 slug
-        if base_slug not in used_slugs:
-            unique_slug = base_slug
-            slug_counter[base_slug] = 0
-        else:
-            # 使用 .get() 防止 KeyError
-            counter: int = slug_counter.get(base_slug, 0)
-            counter += 1
-            unique_slug = f"{base_slug}-{counter}"
-
-            # 处理连续冲突
-            while unique_slug in used_slugs:
-                counter += 1
-                unique_slug = f"{base_slug}-{counter}"
-
-            slug_counter[base_slug] = counter
-
+        unique_slug = base_slug
+        while unique_slug in used_slugs:
+            last_suffix[base_slug] += 1
+            unique_slug = f"{base_slug}-{last_suffix[base_slug]}"
         used_slugs.add(unique_slug)
-        name_to_slug[name] = unique_slug
+        slugs.append(unique_slug)
 
-    return name_to_slug, slug_counter
+    return slugs
 
 
 def random_string(length: int, chars: str | None = None) -> str:

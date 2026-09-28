@@ -18,7 +18,7 @@ from oldman.web.components.tables import TableRequest, TableResult
 class AdminTableRecord(DatabaseModel):
     """Small mapped record used by the Admin table adapter tests."""
 
-    __tablename__ = "test_oldman_admin_table_record"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_oldman_admin_table_record"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)

@@ -1,5 +1,6 @@
 import ApexCharts from "apexcharts";
 import { Component } from "../core/component/component";
+import { httpErrorMessage } from "../core/http/client";
 
 const CHART_EMPTY_SELECTOR = "[data-om-chart-empty]";
 const CHART_ERROR_SELECTOR = "[data-om-chart-error]";
@@ -90,7 +91,7 @@ export class ApexChart extends Component {
       return options;
     } catch (error) {
       if (controller.signal.aborted || sequence !== this.requestSequence) return null;
-      this.setStatus("error", this.errorMessage(error));
+      this.setStatus("error", httpErrorMessage(error, this.i18n));
       this.emitRenderError(error);
       throw error;
     } finally {
@@ -310,10 +311,6 @@ export class ApexChart extends Component {
     return scope?.dataset.omPreloaderStatus === "loading";
   }
 
-  private errorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : this.i18n.t("Request failed");
-  }
-
   private startInitialLoad(url: string): void {
     void this.load(url).catch((error: unknown) => {
       this.logger.error("Oldman chart initial load failed", error);
@@ -322,7 +319,7 @@ export class ApexChart extends Component {
 
   private startInitialRender(options: ApexChartOptions): void {
     void this.renderChart(options).catch((error: unknown) => {
-      this.setStatus("error", this.errorMessage(error));
+      this.setStatus("error", httpErrorMessage(error, this.i18n));
       this.emitRenderError(error);
       this.logger.error("Oldman chart initial render failed", error);
     });

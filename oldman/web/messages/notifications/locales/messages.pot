@@ -64,3 +64,9 @@ msgstr ""
 
 msgid "Open"
 msgstr ""
+
+msgid "Notification was not found"
+msgstr ""
+
+msgid "Notification target was not found"
+msgstr ""

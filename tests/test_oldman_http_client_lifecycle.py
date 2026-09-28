@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import gc
 import unittest
 import weakref
@@ -127,6 +128,32 @@ class BackendLifecycleTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(hasattr(backend, backend.session_attribute))
                 self.assertNotEqual("HTTP", backend.backend_label, "label should name the backend")
                 await client.close_client()
+
+
+class ExitCleanupTest(unittest.TestCase):
+    """The interpreter-exit hook runs its own event loop, so it is called outside one here."""
+
+    def test_only_clients_still_holding_a_backend_are_closed_and_reported(self) -> None:
+        """A client that never opened was reported too, as a log line on stdout after a script's own output."""
+        self.addCleanup(asyncio.set_event_loop, None)
+        unused = MultiHttpClient(ClientType.HTTPX, retry_count=0)
+        opened = MultiHttpClient(ClientType.HTTPX, retry_count=0)
+        asyncio.run(opened.init_client())
+
+        with (
+            patch.object(MultiHttpClient, "_instances", weakref.WeakSet([unused])),
+            patch("oldman.contrib.http.multi_client.logger") as logger,
+        ):
+            MultiHttpClient._cleanup_all_instances()
+        logger.info.assert_not_called()
+
+        with (
+            patch.object(MultiHttpClient, "_instances", weakref.WeakSet([unused, opened])),
+            patch("oldman.contrib.http.multi_client.logger") as logger,
+        ):
+            MultiHttpClient._cleanup_all_instances()
+        logger.info.assert_any_call("程序退出时清理 1 个HTTP客户端实例")
+        self.assertIsNone(opened._impl)
 
 
 if __name__ == "__main__":

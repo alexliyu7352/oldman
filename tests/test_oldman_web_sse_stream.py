@@ -692,9 +692,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         registry.using.return_value = alias
         settings = DefaultSettings.model_validate(
             {
-                "web": WebConfig(
-                    sse=SSEConfig(enabled=True, channel_prefix="project:test:sse")
-                ).model_dump()
+                "web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()
             }
         )
         try:
@@ -719,9 +717,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         registry.using.side_effect = RedisAliasNotConfiguredError("missing SSE")
         settings = DefaultSettings.model_validate(
             {
-                "web": WebConfig(
-                    sse=SSEConfig(enabled=True, channel_prefix="project:test:sse")
-                ).model_dump()
+                "web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()
             }
         )
         try:

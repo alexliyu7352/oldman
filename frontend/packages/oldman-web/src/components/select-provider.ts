@@ -12,7 +12,6 @@
  */
 
 import { cssEscape } from "../core/dom/helpers";
-import type { I18nRuntime } from "../core/i18n";
 import type { SelectOption } from "./select";
 
 /** 连续输入合并成一次远程查询的延迟。 */
@@ -23,16 +22,6 @@ export function isProviderResponse(input: unknown): input is { more: boolean; re
   if (typeof input !== "object" || input === null) return false;
   const candidate = input as { more?: unknown; results?: unknown };
   return Array.isArray(candidate.results) && typeof candidate.more === "boolean";
-}
-
-/**
- * 把异常转成可展示的消息。
- *
- * 走 i18n：组件其余十几条文案都走了，只有出错时会蹦出一句英文。沿用 `table.ts` 已经
- * 在用的 "Request failed"，不为同一件事再引入一个新 msgid。
- */
-export function providerErrorMessage(error: unknown, i18n: I18nRuntime): string {
-  return error instanceof Error ? error.message : i18n.t("Request failed");
 }
 
 /**

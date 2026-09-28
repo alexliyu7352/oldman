@@ -95,6 +95,6 @@ pnpm 的 prebuild/predev/pretypecheck 自动生成项目图标；前两个还生
 
 ## 下一步
 
-参阅 Oldman 的 [Dashboard 教程](https://github.com/alexliyu7352/oldman/blob/master/docs/users/tutorial-dashboard.md)、[Form/Table 与浏览器参考](https://github.com/alexliyu7352/oldman/blob/master/docs/developers/README.md)和 [Agent CRUD 指南](https://github.com/alexliyu7352/oldman/blob/master/docs/agents/dashboard-crud.md)。安装旧版本时，应选择与其匹配的文档版本。
+参阅 Oldman 的 [Dashboard 教程](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-dashboard.md)、[Form/Table 与浏览器参考](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/README.md)和 [Agent CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/dashboard-crud.md)。安装旧版本时，应选择与其匹配的文档版本。
 
 项目自行定义数据访问范围、部署配置和业务行为；不要把脚手架展示记录当真实数据或完整业务验收。

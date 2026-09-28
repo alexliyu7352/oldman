@@ -9,9 +9,12 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from slugify import slugify
-from wtforms import FieldList, FileField, Form, FormField, SelectField, SelectMultipleField, StringField, TextAreaField, ValidationError
+from wtforms import FieldList, FileField, FormField, SelectField, SelectMultipleField, StringField, TextAreaField, ValidationError
+from wtforms import Form as WTForm
 from wtforms.fields import EmailField as HTML5EmailField
+from wtforms.form import BaseForm
 from wtforms.utils import unset_value
+from wtforms.widgets import CheckboxInput
 
 from oldman.i18n import LazyTranslation
 
@@ -45,7 +48,7 @@ class EmailField(HTML5EmailField):
         if self.data:
             self.data = normalize_email_text(self.data)
 
-    def pre_validate(self, form: Form) -> None:
+    def pre_validate(self, form: BaseForm) -> None:
         """Reject a malformed or oversized address; emptiness is left to DataRequired/Optional."""
         super().pre_validate(form)
         if not self.data:
@@ -75,7 +78,7 @@ class ColorPickerField(StringField):
         if self.data:
             self.data = str(self.data).strip().lower()
 
-    def pre_validate(self, form: Form) -> None:
+    def pre_validate(self, form: BaseForm) -> None:
         """拒绝浏览器或客户端提交的非 HEX 值。"""
         super().pre_validate(form)
         if not self.data:
@@ -105,7 +108,7 @@ class SlugField(StringField):
         if self.data:
             self.data = slugify(str(self.data), allow_unicode=self.allow_unicode)
 
-    def validate(self, form: Form, extra_validators: Any = ()) -> bool:
+    def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
         """空值可从指定源字段生成；用户已填写时始终保留其语义。"""
         if not self.data and self.source_field:
             source = form._fields.get(self.source_field)
@@ -182,7 +185,7 @@ class JSONListField(FieldList):
         self.list_errors = list(self._process_list_errors)
         super().process(formdata, decoded, extra_filters=extra_filters)
 
-    def validate(self, form: Form, extra_validators: Any = ()) -> bool:
+    def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
         """保留子字段错误，并把列表级失败交给表单顶部消息。"""
         valid = super().validate(form, extra_validators=extra_validators)
         self.list_errors = list(self._process_list_errors)
@@ -271,7 +274,7 @@ class FileSize:
         self.max_bytes = max_bytes
         self.message = message
 
-    def __call__(self, form: Form, field: UploadField) -> None:
+    def __call__(self, form: WTForm, field: UploadField) -> None:
         del form
         file = field.data
         if file is None:
@@ -300,7 +303,7 @@ class FileExtension:
         self.extensions = frozenset(normalized)
         self.message = message
 
-    def __call__(self, form: Form, field: UploadField) -> None:
+    def __call__(self, form: WTForm, field: UploadField) -> None:
         del form
         file = field.data
         if file is None:
@@ -309,6 +312,18 @@ class FileExtension:
         if suffix not in self.extensions:
             message = self.message if self.message is not None else field.gettext("File extension is not allowed.")
             raise ValidationError(cast(str, message))
+
+
+class CheckboxGroupField(SelectMultipleField):
+    """Several values from fixed choices, shown as a list of checkboxes instead of a list box.
+
+    Choices may be grouped the WTForms way, a dict of group label to choices; each group
+    gets its own small heading. It submits like any multiple select: the checked values.
+    Render it through the form (``await form.render()`` / ``render_field``), which lays the
+    checkboxes out; calling the field directly still gives the multiple select.
+    """
+
+    option_widget = CheckboxInput()
 
 
 class ModelChoiceField(SelectField):
@@ -340,7 +355,7 @@ class ModelChoiceField(SelectField):
         self._choice_values = {self.coerce(value) for value, _label in choices if value != ""}
         self._choices_prepared = True
 
-    def pre_validate(self, form: Form) -> None:
+    def pre_validate(self, form: BaseForm) -> None:
         """校验提交值必须来自当前可见 choices。"""
         if self.data in {None, ""}:
             return
@@ -419,7 +434,7 @@ class RemoteChoiceValidationMixin:
             return []
         return [str(data)]
 
-    def pre_validate(self, form: Form) -> None:
+    def pre_validate(self, form: BaseForm) -> None:
         """Refuse a value the declared source did not return."""
         allowed = getattr(self, "_allowed", None)
         if allowed is None:
@@ -590,6 +605,7 @@ __all__ = [
     "AjaxAutocompleteField",
     "AjaxSelectField",
     "AjaxSelectMultipleField",
+    "CheckboxGroupField",
     "ColorPickerField",
     "EmailField",
     "FileExtension",

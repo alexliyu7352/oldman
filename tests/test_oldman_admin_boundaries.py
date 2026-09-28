@@ -94,7 +94,8 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         source = (ROOT / "oldman" / "apps" / "admin" / "site.py").read_text(encoding="utf-8")
 
         self.assertIn('login_path = f"{prefix}/login"', source)
-        self.assertIn("authenticate_user(", source)
+        # Credentials go through the configured login backends, the user table by default.
+        self.assertIn("authenticate_credentials(", source)
         self.assertIn("has_staff_access(", source)
         # The session steps themselves belong to the framework's login helpers, which the Admin calls.
         self.assertIn("login_user(", source)

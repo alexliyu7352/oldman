@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class AdminAltUser(DatabaseModel):
     """Custom Admin user with a non-id primary key."""
 
-    __tablename__ = "test_admin_alt_user"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_admin_alt_user"
 
     uid: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -117,7 +117,7 @@ class OldmanAdminDefaultUserTest(unittest.TestCase):
         self.assertEqual("ri-add-line", neutral_admin.add_button_icon)
         self.assertEqual("max-w-3xl", neutral_admin.form_card_classes)
         self.assertTrue(neutral_admin.show_form_card_header)
-        self.assertEqual("Create", neutral_admin.get_form_submit_label(None))
+        self.assertEqual("Create", str(neutral_admin.get_form_submit_label(None)))
 
     def test_superuser_implies_staff_normalization(self) -> None:
         """超级用户归一化后必须自动拥有 staff 权限。"""

@@ -20,7 +20,7 @@
       {% if form_title is defined or model_admin.show_form_card_header %}
         <div class="om-card-header">
           <h2 class="om-card-title">{{ form_title|default(model_admin.get_form_card_title(object)) }}</h2>
-          {% if object and show_delete_action|default(true) and model_admin.has_delete_permission(request) %}
+          {% if object and show_delete_action|default(true) and can_delete %}
             <a class="om-button om-button-outline-danger om-button-sm" href="{{ model_admin.get_object_url(object, admin_prefix=admin_prefix, action='delete') }}">{{ _("Delete") }}</a>
           {% endif %}
         </div>

@@ -51,15 +51,12 @@ def convert_to_utc(dt: datetime | str, from_tz: str | ZoneInfo, dt_format: str =
     return convert_timezone(dt, from_tz, "UTC", dt_format)
 
 
-def convert_cst_to_utc(dt: datetime | str, dt_format: str = "%Y-%m-%d %H:%M:%S") -> datetime:
-    """将东八区时间转换为UTC时间"""
-    return convert_timezone(dt, "Asia/Shanghai", "UTC", dt_format)
+def convert_to_utc_text(dt: datetime | str, from_tz: str | ZoneInfo, dt_format: str = "%Y-%m-%d %H:%M:%S") -> str:
+    """将指定时区的时间转换为UTC时间字符串；输入是字符串时按同一个 dt_format 解析。
 
-
-def convert_cst_to_utc_text(dt: datetime | str, dt_format: str = "%Y-%m-%d %H:%M:%S") -> str:
-    """将东八区时间转换为UTC时间字符串"""
-    utc_dt = convert_cst_to_utc(dt, dt_format)
-    return utc_dt.strftime(dt_format)
+    例如北京时间：``convert_to_utc_text("2026-09-26 08:00:00", "Asia/Shanghai")`` 得到 ``"2026-09-26 00:00:00"``。
+    """
+    return convert_to_utc(dt, from_tz, dt_format).strftime(dt_format)
 
 
 def get_current_time_in_timezone(tz: str | ZoneInfo) -> datetime:
@@ -69,27 +66,46 @@ def get_current_time_in_timezone(tz: str | ZoneInfo) -> datetime:
 
 
 class ElapsedType(enum.StrEnum):
-    """
-    定义时间间隔类型
-    """
+    """ElapsedTimer.stop() 返回耗时所用的单位。"""
 
+    MILLISECONDS = "milliseconds"
     SECONDS = "seconds"
     MINUTES = "minutes"
     HOURS = "hours"
     DAYS = "days"
 
 
+_SECONDS_PER_UNIT = {
+    ElapsedType.MILLISECONDS: 0.001,
+    ElapsedType.SECONDS: 1.0,
+    ElapsedType.MINUTES: 60.0,
+    ElapsedType.HOURS: 3600.0,
+    ElapsedType.DAYS: 86400.0,
+}
+
+
 class ElapsedTimer:
+    """计时器：创建时即开始计时，stop() 按指定单位和精度返回经过的时间。
+
+    用 ``time.perf_counter()``：单调递增、分辨率远高于毫秒，不受系统校时影响；``time.time()`` 会随校时跳变，
+    算出的耗时可能偏大、偏小甚至为负。
+    """
+
     def __init__(self) -> None:
-        self.start_time: float | None = time.time()
+        self.start_time: float | None = time.perf_counter()
 
     def start(self) -> None:
-        self.start_time = time.time()
+        """重新开始计时。"""
+        self.start_time = time.perf_counter()
 
-    def stop(self) -> float:
+    def stop(self, unit: ElapsedType = ElapsedType.SECONDS, ndigits: int = 3) -> float:
+        """停止计时，返回经过的时间：换算成 unit，保留 ndigits 位小数。
+
+        默认是秒、3 位小数，即精确到毫秒；``stop(ElapsedType.MILLISECONDS, 1)`` 得到毫秒、精确到 0.1 毫秒。
+        停止后要再计时先调用 start()。
+        """
         if self.start_time is None:
             raise ValueError("Timer has not been started.")
-        elapsed_time = time.time() - self.start_time
+        elapsed_seconds = time.perf_counter() - self.start_time
         self.start_time = None
-        # 保留2位小数
-        return round(elapsed_time, 2)
+        return round(elapsed_seconds / _SECONDS_PER_UNIT[unit], ndigits)

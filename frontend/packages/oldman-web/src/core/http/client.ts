@@ -196,6 +196,25 @@ export function normalizeHttpError(error: unknown): HttpErrorInfo {
   };
 }
 
+/**
+ * 把一次失败换成给用户看的一句话。
+ *
+ * 请求错误：框架自己的 API 响应（带数字 `error_code`）里有 `message` 就用它，那是写给用户、已按
+ * 请求语言翻译过的；Sanic 生成的错误体（`{description, status, message}`）是英文诊断，不用。其余
+ * 按状态码落到本地文案，403 是 "Permission denied"，其余是 "Request failed"。Axios 自己的英文
+ * （"Request failed with status code 403"、"Network Error"）从不展示。
+ * 不是请求的错误（组件自己抛的、已经带好文案的异常）照旧用它的 message。
+ */
+export function httpErrorMessage(error: unknown, i18n: { t(message: string): string }): string {
+  const info = normalizeHttpError(error);
+  if (!info.isAxiosError) return error instanceof Error ? error.message : i18n.t("Request failed");
+  const payload = typeof info.data === "object" && info.data !== null ? (info.data as { error_code?: unknown; message?: unknown }) : undefined;
+  if (payload && typeof payload.error_code === "number" && typeof payload.message === "string" && payload.message.trim().length > 0) {
+    return payload.message;
+  }
+  return info.status === 403 ? i18n.t("Permission denied") : i18n.t("Request failed");
+}
+
 function handleAuthRedirect(
   error: unknown,
   onAuthRedirect: ((url: string) => void) | undefined,

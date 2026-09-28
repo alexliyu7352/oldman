@@ -32,11 +32,13 @@ from oldman.db import DatabaseManager
 from oldman.i18n import gettext_lazy
 from oldman.logging import get_logger
 from oldman.mail import send_templated_mail
+from oldman.providers.redis import redis_key
 from oldman.web.auth.forms import UserPasswordForm
-from oldman.web.auth.session import revoke_user_sessions
+from oldman.web.auth.session import revoke_user_logins
 from oldman.web.components.forms import EmailField, TailwindForm
 from oldman.web.request import client_ip
 from oldman.web.response import redirect_response
+from oldman.web.routing import Router, router
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
 from oldman.web.security.rate_limiter import RateLimiter, redis_rate_limiter
 from oldman.web.session import SessionData
@@ -121,7 +123,7 @@ class PasswordResetFlow:
 
     def limiter(self) -> RateLimiter:
         if self.rate_limiter is None:
-            self.rate_limiter = redis_rate_limiter(namespace=f"{conf.settings.core.app_name}:{RATE_LIMIT_PATH}")
+            self.rate_limiter = redis_rate_limiter(namespace=redis_key("ratelimit", RATE_LIMIT_PATH))
         return self.rate_limiter
 
     async def request_reset(self, request: Any, email: str, *, language: str | None = None) -> RequestOutcome:
@@ -191,11 +193,11 @@ class PasswordResetFlow:
         """Store the new password and end the user's sessions; the used link dies with the hash."""
         user_id = user_identity(user)
         await change_user_password(user_id, raw_password, auth_settings=self.auth_settings, db_manager=self.db_manager)
-        await revoke_user_sessions(request, user_id)
+        await revoke_user_logins(request, user_id)
 
     def register_routes(
         self,
-        app: Sanic,
+        app: Sanic | Router | None = None,
         *,
         render: PageRenderer | None = None,
         template_prefix: str | None = None,
@@ -203,6 +205,9 @@ class PasswordResetFlow:
         name_prefix: str = "",
     ) -> None:
         """Install the six views: request page and submit, sent, confirm page and submit, done.
+
+        `app` 省略时用 `oldman.web.router` 注册——应用没有、也不需要取得服务器实例的途径。
+        显式传入仍然支持:Admin 传它自己安装时拿到的那个,测试传自己的替身做隔离。
 
         Pages render through `render(request, page, **context)` or, without one, through
         `render_template("<template_prefix>/<page>.html")`. Either way the context carries `csrf_token`,
@@ -288,12 +293,13 @@ class PasswordResetFlow:
             return await page(request, "done")
 
         confirm_route = self.confirm_path("<uidb64:str>", "<token:str>")
-        app.add_route(cast(Any, request_page), self.request_path, methods=["GET"], name=f"{name_prefix}password_reset")
-        app.add_route(cast(Any, request_submit), self.request_path, methods=["POST"], name=f"{name_prefix}password_reset_submit")
-        app.add_route(cast(Any, sent_page), self.sent_path, methods=["GET"], name=f"{name_prefix}password_reset_sent")
-        app.add_route(cast(Any, confirm_page), confirm_route, methods=["GET"], name=f"{name_prefix}password_reset_confirm")
-        app.add_route(cast(Any, confirm_submit), confirm_route, methods=["POST"], name=f"{name_prefix}password_reset_confirm_submit")
-        app.add_route(cast(Any, done_page), self.done_path, methods=["GET"], name=f"{name_prefix}password_reset_done")
+        target = app if app is not None else router
+        target.add_route(cast(Any, request_page), self.request_path, methods=["GET"], name=f"{name_prefix}password_reset")
+        target.add_route(cast(Any, request_submit), self.request_path, methods=["POST"], name=f"{name_prefix}password_reset_submit")
+        target.add_route(cast(Any, sent_page), self.sent_path, methods=["GET"], name=f"{name_prefix}password_reset_sent")
+        target.add_route(cast(Any, confirm_page), confirm_route, methods=["GET"], name=f"{name_prefix}password_reset_confirm")
+        target.add_route(cast(Any, confirm_submit), confirm_route, methods=["POST"], name=f"{name_prefix}password_reset_confirm_submit")
+        target.add_route(cast(Any, done_page), self.done_path, methods=["GET"], name=f"{name_prefix}password_reset_done")
 
 
 __all__ = [

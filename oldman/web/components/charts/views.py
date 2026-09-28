@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from markupsafe import Markup
 
+from oldman.i18n import gettext
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.components.data_endpoint import DataEndpointMixin
-from oldman.web.http import OldmanHTTPMethodView
+from oldman.web.http import HTTPMethodView
 from oldman.web.request import get_arg, iter_args
 from oldman.web.response import json_response
 
@@ -18,7 +19,7 @@ from .request import ChartRequest
 from .results import ChartResult
 
 
-class BaseChartView(DataEndpointMixin, OldmanHTTPMethodView):
+class BaseChartView(DataEndpointMixin, HTTPMethodView):
     """支持独立 endpoint 的无主题 Chart 基类。"""
 
     require_authenticated = True
@@ -59,7 +60,8 @@ class BaseChartView(DataEndpointMixin, OldmanHTTPMethodView):
         self.request = request
         chart_request = self.build_chart_request(request, route_kwargs=route_kwargs)
         if not await self.check_auth(chart_request.request):
-            return self.render_error_response("Permission denied", status=403, error_code=ApiErrorCode.PERMISSION_DENIED)
+            denied = gettext("Permission denied", request=request)
+            return self.render_error_response(denied, status=403, error_code=ApiErrorCode.PERMISSION_DENIED)
         try:
             await self.validate_filters(chart_request)
             result = await self.get_result(chart_request)
@@ -79,14 +81,14 @@ class BaseChartView(DataEndpointMixin, OldmanHTTPMethodView):
         self.validate_allowed_parameter("chart_type", chart_request.chart_type, self.allowed_chart_types, default=self.chart_type)
         for name in chart_request.filters:
             if getattr(self, f"filter_{safe_method_name(name)}", None) is None:
-                raise ChartInvalidRequest(f"Unknown chart filter: {name}")
+                raise ChartInvalidRequest(gettext("Unknown chart filter: %(name)s", name=name))
 
     def validate_allowed_parameter(self, name: str, value: str, allowed: tuple[str, ...], *, default: str) -> None:
         """按业务图表声明的白名单校验单个请求参数。"""
         effective_allowed = allowed or (default,)
         if value in effective_allowed:
             return
-        raise ChartInvalidRequest(f"Invalid chart parameter: {name}")
+        raise ChartInvalidRequest(gettext("Invalid chart parameter: %(name)s", name=name))
 
     def render_error_response(self, message: str, *, status: int, error_code: ApiErrorCode = ApiErrorCode.INVALID_REQUEST):
         """把图表请求错误转换为统一 JSON 响应。"""
@@ -96,7 +98,7 @@ class BaseChartView(DataEndpointMixin, OldmanHTTPMethodView):
         )
         return json_response(response.to_dict(), status=status)
 
-    def on_permission_denied(self, request: Any, response_mode: str, *, message: str, method_name: str):
+    async def on_permission_denied(self, request: Any, response_mode: Literal["html", "json"], *, message: str, method_name: str):
         """endpoint 级权限失败复用 Chart JSON 错误协议。"""
         del request, response_mode, method_name
         return self.render_error_response(message, status=403, error_code=ApiErrorCode.PERMISSION_DENIED)

@@ -7,11 +7,15 @@ from typing import Any
 from urllib.parse import urlencode
 
 import oldman.conf as conf
-from oldman.auth import touch_last_login, user_identity
+from oldman.auth import AbstractUser, touch_last_login, user_identity
+from oldman.auth.backends import authenticate_with, resolve_login_backends
 from oldman.auth.settings import AuthSettings, LoginSettings
 from oldman.db import DatabaseManager
 from oldman.i18n import gettext
+from oldman.providers.redis import redis_key
+from oldman.web.auth.permissions import role_ids_for_login
 from oldman.web.auth.session import session_data_for_user
+from oldman.web.authentication import forget_session_authentication, record_authentication, session_authentication
 from oldman.web.request import client_ip, get_arg
 from oldman.web.response import redirect_response
 from oldman.web.security.rate_limiter import WindowCounter, redis_rate_limiter, window_retry_after
@@ -50,7 +54,7 @@ class LoginRateLimit:
     def window_counter(self) -> WindowCounter:
         """The Redis fixed window, under this service's own sign-in namespace."""
         if self.counter is None:
-            self.counter = redis_rate_limiter(namespace=f"{conf.settings.core.app_name}:{LOGIN_RATE_LIMIT_PATH}")
+            self.counter = redis_rate_limiter(namespace=redis_key("ratelimit", LOGIN_RATE_LIMIT_PATH))
         return self.counter
 
     async def retry_after(self, request: Any, username: str) -> int | None:
@@ -121,6 +125,17 @@ def login_error_message(error_code: object) -> str:
     return messages.get(str(code or ""), "")
 
 
+async def authenticate_credentials(request: Any, **credentials: Any) -> AbstractUser | None:
+    """Return the User a sign-in credential belongs to, asking the configured login backends.
+
+    The backends named in ``web.auth.login_backends`` are tried in order and the first to
+    accept the credential decides. Pass the credential as keyword arguments —
+    ``username=`` and ``password=`` for the built-in ``users`` backend.
+    """
+    backends = resolve_login_backends(tuple(conf.settings.web.auth.login_backends))
+    return await authenticate_with(backends, request, **credentials)
+
+
 async def login_user(
     request: Any,
     user: Any,
@@ -140,24 +155,29 @@ async def login_user(
         raise RuntimeError("Login requires the Session middleware")
     session_settings = conf.settings.web.session
     expiry = session_settings.remember_expiry if remember else session_settings.expiry
-    session_data = session_data_for_user(type(request_session), user, expiry=expiry, login_ip=client_ip(request))
+    role_ids = await role_ids_for_login(request, user_identity(user), db_manager=db_manager)
+    session_data = session_data_for_user(type(request_session), user, expiry=expiry, login_ip=client_ip(request), role_ids=role_ids)
     session_manager = getattr(request.app.ctx, "session", None)
     if session_manager is None:
         raise RuntimeError("Login requires the Session extension on the application")
     new_session_id = await session_manager.exclusive_login(session_data)
     await touch_last_login(user_identity(user), auth_settings=auth_settings, db_manager=db_manager)
     session_manager.update_session_id_to_cookie(response, new_session_id, session_data)
+    # From here on the request is the user who just signed in, as Django's login() makes it.
+    record_authentication(request, session_authentication(session_data))
     return response
 
 
 async def logout_user(request: Any, redirect_to: str) -> Any:
     """End the current session, schedule the cookie removal and redirect."""
     await Session.logout_session(request)
+    forget_session_authentication(request)
     return redirect_response(redirect_to)
 
 
 __all__ = [
     "INVALID_CREDENTIALS",
+    "authenticate_credentials",
     "LOGIN_RATE_LIMIT_PATH",
     "RATE_LIMITED",
     "LoginRateLimit",

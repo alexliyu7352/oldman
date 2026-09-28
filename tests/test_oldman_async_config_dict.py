@@ -5,7 +5,11 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
+from unittest.mock import patch
+
+from ruamel.yaml.representer import RepresenterError
 
 from oldman.conf.base import yaml
 from oldman.conf.containers import AsyncConfigDict
@@ -41,6 +45,15 @@ def write_yaml(path: Path, data: dict) -> None:
 
 class OldmanAsyncConfigDictTest(unittest.TestCase):
     """Verify first-load, hot-path, reload and write serialization."""
+
+    def setUp(self) -> None:
+        # AsyncConfigDict is deprecated; its own tests keep running without the warning.
+        self.enterContext(warnings.catch_warnings())
+        warnings.simplefilter("ignore", DeprecationWarning)
+
+    def test_construction_warns_that_it_is_deprecated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, self.assertWarnsRegex(DeprecationWarning, "YamlStore"):
+            AsyncConfigDict(Path(tmp) / "streams.yaml")
 
     def test_concurrent_initial_reads_wait_for_one_load(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +125,58 @@ class OldmanAsyncConfigDictTest(unittest.TestCase):
         self.assertEqual(0, saved.load_count)
         self.assertTrue(all(result == {"streams": {}} for result in missing_results))
         self.assertTrue(missing_exists)
+
+    def test_config_file_never_disappears_while_a_save_replaces_it(self) -> None:
+        """An instance that finds the file missing writes empty data over it.
+
+        So another process's instance checking at the wrong moment wiped the configuration:
+        the save deleted the file before moving the new one into place. The move replaces
+        the target atomically on its own; the file has to exist throughout.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "streams.yaml"
+            write_yaml(path, {"streams": {"one": {"name": "One"}}})
+            config = AsyncConfigDict(path)
+            present_when_replaced: list[bool] = []
+            real_replace = Path.replace
+
+            def observing_replace(source: Path, target: Path) -> Path:
+                present_when_replaced.append(path.exists())
+                return real_replace(source, target)
+
+            with patch.object(Path, "replace", observing_replace):
+                asyncio.run(config.save_data({"streams": {"two": {"name": "Two"}}}))
+
+            saved = yaml.load(path.read_text(encoding="utf-8"))
+
+        self.assertEqual([True], present_when_replaced)
+        self.assertEqual({"streams": {"two": {"name": "Two"}}}, saved)
+
+    def test_a_failed_save_leaves_the_file_and_later_saves_intact(self) -> None:
+        """One unrepresentable value used to empty the config file on the next successful save.
+
+        ruamel's shared YAML object keeps its serializer state after a dump fails, and every later
+        dump through it writes an empty string. The failed save had also already swapped the value
+        into memory. A failed save must leave both the file and what get_data returns as they were.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "streams.yaml"
+            write_yaml(path, {"streams": {"one": {"name": "One"}}})
+            config = AsyncConfigDict(path)
+
+            async def run_case() -> dict:
+                await config.get_data()
+                with self.assertRaises(RepresenterError):
+                    await config.save_data({"streams": {"bad": object()}})
+                after_failure = dict(await config.get_data())
+                await config.save_data({"streams": {"two": {"name": "Two"}}})
+                return after_failure
+
+            after_failure = asyncio.run(run_case())
+            saved = yaml.load(path.read_text(encoding="utf-8"))
+
+        self.assertEqual({"streams": {"one": {"name": "One"}}}, after_failure)
+        self.assertEqual({"streams": {"two": {"name": "Two"}}}, saved)
 
 
 if __name__ == "__main__":

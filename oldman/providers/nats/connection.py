@@ -314,7 +314,8 @@ class NATSConnection:
                 ):
                     raise ConnectionClosedError
                 # Keep native PING, heartbeat and reconnect behavior unchanged.
-                await connection.flush(timeout=self.startup_timeout)  # pyright: ignore[reportArgumentType]
+                # nats-py annotates timeout as int but hands it to asyncio.wait_for; rounding 0.5 s down to 0 would break startup.
+                await connection.flush(timeout=self.startup_timeout)  # pyright: ignore[reportArgumentType]  # pyrefly: ignore[bad-argument-type]
         except BaseException:
             await self._cleanup_failed_start()
             raise

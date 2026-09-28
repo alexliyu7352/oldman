@@ -6,12 +6,14 @@
 
 __author__ = "alex"
 
+import functools
 import uuid as uuid_pkg
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
-from sqlalchemy import TIMESTAMP, Boolean, DateTime, Select, Uuid, func, inspect, select
+import orjson
+from sqlalchemy import TIMESTAMP, Boolean, Column, DateTime, Select, Uuid, func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.declarative import declared_attr
@@ -21,7 +23,7 @@ from sqlalchemy.sql.functions import FunctionElement
 from uuid6 import uuid7
 
 from oldman.db.schemas import PageResult
-from oldman.serializers.base import ModelSerializer
+from oldman.db.sqlalchemy.codec import column_codec
 from oldman.utils.date import naive_utcnow
 
 # 时间戳的 server_default 必须按方言分发：「取当前时间」在 MySQL、PostgreSQL、SQLite 上
@@ -152,10 +154,17 @@ class SoftDeleteMixin:
 class Base(DeclarativeBase):
     """Base class for all database models"""
 
-    @declared_attr.directive
-    @classmethod
-    def __tablename__(cls) -> str:
-        return cls.__name__.lower()
+    if TYPE_CHECKING:
+        # Type checkers see the plain string every model assigns. Declaring the descriptor
+        # below to them made each model's `__tablename__ = "..."` an incompatible override
+        # (pyright reportAssignmentType, Pyrefly bad-override); at runtime nothing changes.
+        __tablename__: str
+    else:
+
+        @declared_attr.directive
+        @classmethod
+        def __tablename__(cls) -> str:
+            return cls.__name__.lower()
 
     # @declared_attr
     # def __table_args__(cls):
@@ -166,28 +175,53 @@ class Base(DeclarativeBase):
     # updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=server_default, onupdate=server_default, nullable=False)
 
 
+@functools.cache
+def _json_column_codecs(model: type) -> dict[str, tuple[Callable[[Any], Any], Callable[[Any], Any]]]:
+    """Attribute key to the JSON encode and decode functions of each of the model's table columns."""
+    codecs: dict[str, tuple[Callable[[Any], Any], Callable[[Any], Any]]] = {}
+    for key, column in inspect(model).columns.items():
+        if isinstance(column, Column):
+            _, encode, decode = column_codec(column)
+            codecs[key] = (encode, decode)
+    return codecs
+
+
 class DatabaseModel(Base):
     """Abstract base class for all models with common CRUD operations"""
 
     __abstract__ = True
 
-    def model_dump_json(self) -> str:
-        # serialize(..., False) returns orjson bytes; str() on bytes yields its repr
-        # ("b'{...}'"), which model_validate_json then cannot parse. Decode to real JSON
-        # text so the round trip the ORM cache depends on actually holds.
-        payload = ModelSerializer.serialize(self, False)
-        if isinstance(payload, bytes):
-            return payload.decode("utf-8")
-        return str(payload)
+    def model_dump_dict(self) -> dict[str, Any]:
+        """This row's loaded columns as JSON values, each encoded by its column type.
 
-    def model_dump_dict(self) -> dict:
-        return ModelSerializer.serialize(self, True)  # type: ignore[return-value]
+        Dates and times become ISO strings, Decimal and UUID strings, enum members their
+        names, bytes base64, intervals ``[days, seconds, microseconds]``; ``model_validate_json``
+        turns each back into its own type. Columns not loaded are left out, and relationships
+        are never included. A column of a type without a verified JSON round trip (a project's
+        own TypeDecorator, ARRAY) raises TypeError.
+        """
+        loaded = self.__dict__
+        return {
+            key: None if loaded[key] is None else encode(loaded[key]) for key, (encode, _) in _json_column_codecs(type(self)).items() if key in loaded
+        }
+
+    def model_dump_json(self) -> str:
+        """``model_dump_dict()`` as JSON text."""
+        return orjson.dumps(self.model_dump_dict()).decode("utf-8")
 
     @classmethod
-    def model_validate_json(cls, data: str | bytes | dict) -> Self:
-        if isinstance(data, str):
-            data = data.encode()
-        return ModelSerializer.deserialize(data, cls)
+    def model_validate_json(cls, data: str | bytes | dict[str, Any]) -> Self:
+        """A new, unsaved instance from what ``model_dump_json`` / ``model_dump_dict`` produced.
+
+        Each value is decoded by its column's type, so a date reads back as a date. A key that
+        is not a column of this model raises TypeError, as the constructor does.
+        """
+        values = orjson.loads(data) if isinstance(data, str | bytes) else dict(data)
+        codecs = _json_column_codecs(cls)
+        unknown = sorted(set(values) - codecs.keys())
+        if unknown:
+            raise TypeError(f"{cls.__name__} has no column(s) {unknown}")
+        return cls(**{key: None if value is None else codecs[key][1](value) for key, value in values.items()})
 
     @classmethod
     async def get_by_id(cls, session: AsyncSession, pk: Any) -> Self | None:
@@ -306,7 +340,7 @@ class DatabaseModel(Base):
 
         拼错的字段名会直接报错，不会被悄悄忽略：原来的实现用 `if hasattr(self, key)` 跳过不认识的
         名字，于是 `row.update(session, titel="x")` 什么也没改、也什么都没说，调用方还以为成功了。
-        同一个仓库的 `OldmanForm.add_error()` 对拼错的字段名就是显式报错的。
+        框架表单的 `Form.add_error()` 对拼错的字段名就是显式报错的。
 
         和 `save()` 一样会提交调用方的事务，事务内更新请直接赋值。
         """

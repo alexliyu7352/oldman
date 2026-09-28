@@ -1,6 +1,6 @@
 {
   "name": "oldman",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "build:python": "pnpm verify:version && pnpm --filter oldman-admin build && SOURCE_DATE_EPOCH=1580601600 uv build --package oldman",
     "pack:web": "pnpm verify:version && pnpm -C frontend/packages/oldman-web pack",
     "verify": "pnpm verify:static && pnpm verify:python && pnpm verify:frontend && pnpm verify:web-boundaries && pnpm verify:packages && pnpm verify:scaffold-matrix",
-    "verify:static": "pnpm lint && uv run pyright",
+    "verify:static": "pnpm lint && uv run pyright && uv run pyrefly check",
     "verify:python": "uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .",
     "verify:frontend": "pnpm --filter oldman-web test && pnpm --filter oldman-web typecheck && pnpm --filter oldman-admin test && pnpm --filter oldman-admin typecheck",
     "verify:packages": "pnpm verify:web-package && pnpm verify:python-package",

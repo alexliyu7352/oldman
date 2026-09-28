@@ -93,6 +93,13 @@ class PasswordResetTokenTest(unittest.TestCase):
         future = PasswordResetTokenGenerator(SECRET, expiry=3600, now=lambda: self.clock + dt.timedelta(hours=2)).make_token(user)
         self.assertFalse(self.generator.check_token(user, future))
 
+    def test_a_non_ascii_token_is_rejected_rather_than_raising(self) -> None:
+        """The token comes from the link's URL; "密钥" in it must be an invalid link, not a 500."""
+        user = make_user()
+        stamp, _digest = self.generator.make_token(user).split("-")
+
+        self.assertFalse(self.generator.check_token(user, f"{stamp}-密钥"))
+
     def test_user_id_encoding_round_trips_and_rejects_garbage(self) -> None:
         for user_id in (1, 7, 123456789):
             encoded = encode_user_id(user_id)
@@ -110,9 +117,9 @@ class PasswordResetSettingsTest(unittest.TestCase):
 
     def test_windows_must_be_positive(self) -> None:
         with self.assertRaises(ValidationError):
-            PasswordResetSettings(ip_window=0)
+            PasswordResetSettings.model_validate({"ip_window": 0})
         with self.assertRaises(ValidationError):
-            PasswordResetSettings(expiry=-1)
+            PasswordResetSettings.model_validate({"expiry": -1})
 
 
 class UserByEmailTest(unittest.TestCase):

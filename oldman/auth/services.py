@@ -14,6 +14,7 @@ from oldman.auth.security import run_dummy_verification
 from oldman.auth.settings import AuthSettings
 from oldman.db.session import DatabaseManager
 from oldman.db.session import db_manager as default_db_manager
+from oldman.security import require_user_id
 from oldman.utils.date import naive_utcnow
 
 
@@ -34,13 +35,6 @@ def _auth_settings(auth_settings: AuthSettings | None) -> AuthSettings:
 def _db_manager(db_manager: DatabaseManager | None) -> DatabaseManager:
     """Resolve the process database singleton unless a manager was supplied."""
     return db_manager if db_manager is not None else default_db_manager
-
-
-def _require_user_id(user_id: int) -> int:
-    """Enforce the integer-only Python boundary without restricting its range."""
-    if isinstance(user_id, bool) or not isinstance(user_id, int):
-        raise TypeError("user_id must be an int")
-    return user_id
 
 
 async def get_user_by_username(
@@ -68,7 +62,7 @@ async def get_user_by_id(
     db_manager: DatabaseManager | None = None,
 ) -> AbstractUser | None:
     """Return the configured User for one integer database identity."""
-    identity = _require_user_id(user_id)
+    identity = require_user_id(user_id)
     user_model = get_user_model(_auth_settings(auth_settings))
 
     manager = _db_manager(db_manager)
@@ -117,7 +111,7 @@ async def change_user_password(
     db_manager: DatabaseManager | None = None,
 ) -> AbstractUser | None:
     """Change one configured User password in a single write transaction."""
-    identity = _require_user_id(user_id)
+    identity = require_user_id(user_id)
     user_model = get_user_model(_auth_settings(auth_settings))
 
     manager = _db_manager(db_manager)
@@ -155,7 +149,7 @@ async def touch_last_login(
     db_manager: DatabaseManager | None = None,
 ) -> None:
     """Persist the current UTC time for one configured User identity."""
-    identity = _require_user_id(user_id)
+    identity = require_user_id(user_id)
     user_model = get_user_model(_auth_settings(auth_settings))
 
     manager = _db_manager(db_manager)
@@ -196,11 +190,28 @@ def user_identity_matches(user: Any, user_id: int | None) -> bool:
     return identity == user_id
 
 
+def is_ordinary_user(user: Any) -> bool:
+    """Neither staff nor superuser: the only accounts someone who is not a superuser may manage."""
+    return not (bool(user.is_staff) or bool(user.is_superuser))
+
+
 def set_user_active(user: Any, is_active: bool, *, current_user_id: int | None) -> None:
     """Change the active state without letting the current User disable itself."""
     if not is_active and user_identity_matches(user, current_user_id):
         raise UserManagementError("cannot disable current user")
     user.is_active = bool(is_active)
+
+
+_ACCESS_FLAGS = ("is_active", "is_staff", "is_superuser")
+
+
+def user_access_flags(user: Any) -> tuple[bool, ...]:
+    """The flags a login copies when it opens: sessions and access tokens carry them.
+
+    Once any of them changes, every login the user holds carries stale access. Code that
+    saves a user compares this before and after, and ends the user's logins when it differs.
+    """
+    return tuple(bool(getattr(user, name)) for name in _ACCESS_FLAGS)
 
 
 def validate_user_delete(user: Any, *, current_user_id: int | None) -> None:
@@ -267,6 +278,8 @@ __all__ = [
     "get_user_by_id",
     "get_user_by_username",
     "has_staff_access",
+    "is_ordinary_user",
     "touch_last_login",
+    "user_access_flags",
     "user_identity",
 ]

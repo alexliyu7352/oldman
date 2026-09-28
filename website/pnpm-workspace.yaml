@@ -1,0 +1,3 @@
+# 故意为空:让 website 成为自己的 pnpm 根,不并进框架的 workspace。
+# Docusaurus 及其 React 依赖只有文档站需要，框架贡献者的 pnpm install 不该背上它们。
+packages: []

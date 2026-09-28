@@ -163,6 +163,32 @@ class ServiceBootstrapTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
 
+    def test_every_service_declares_the_apps_permissions_at_bootstrap(self) -> None:
+        """G2-6: only the Web service loaded permission modules; a command creating roles found every name undeclared."""
+        completed = _run_project(
+            """
+            import sys
+
+            from oldman import bootstrap_service
+            from oldman.auth.permissions import get_permission
+
+            bootstrap_service("worker")
+
+            assert get_permission("reports.export") is not None
+            assert "reports_app.views" not in sys.modules
+            """,
+            extra_files={
+                "reports_app/permissions.py": """
+                    from oldman.auth import Permission, PermissionSet
+
+                    class ReportPermissions(PermissionSet, namespace="reports"):
+                        export = Permission("Export reports")
+                """,
+            },
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+
     def test_explicit_config_path_is_used_for_ide_and_diagnostics(self) -> None:
         completed = _run_project(
             """

@@ -11,7 +11,7 @@ from jinja2 import DictLoader, Environment, nodes
 from jinja2.ext import Extension
 
 from oldman.web.package_data import package_template_dir
-from oldman.web.template import build_template_loader, install_template_loaders, render_component_template_sync
+from oldman.web.template import build_template_loader, install_template_loaders, render_component_template_sync, template_globals
 
 
 class MarkerExtension(Extension):
@@ -41,7 +41,7 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
             loader=build_template_loader(),
             autoescape=True,
         )
-        environment.globals["_"] = lambda value: value
+        template_globals(environment)["_"] = lambda value: value
         rendered = environment.from_string(
             """
             {% from "oldman/dashboard/partials/topbar.html" import dashboard_topbar with context %}
@@ -140,7 +140,7 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
             enable_async=True,
             extensions=[MarkerExtension],
         )
-        environment.globals["app_global"] = "CUSTOM"
+        template_globals(environment)["app_global"] = "CUSTOM"
         environment.filters["app_filter"] = suffix
         owner = SimpleNamespace(request=SimpleNamespace(app=SimpleNamespace(ext=SimpleNamespace(environment=environment))))
 

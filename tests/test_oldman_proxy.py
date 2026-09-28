@@ -36,9 +36,9 @@ def _settings(*, connect_timeout: int = 5, read_timeout: int = 10, debug: bool =
     """Build the configured Settings fields consumed by Proxy construction."""
 
     return SimpleNamespace(
+        core=SimpleNamespace(app_name="oldman", namespace="svc", debug=debug),
         proxy=SimpleNamespace(connect_timeout=connect_timeout, read_timeout=read_timeout),
         web=SimpleNamespace(
-            debug=debug,
             security=SimpleNamespace(secret_key="proxy-test-root-secret-0123456789abcdef"),
         ),
         http_client=SimpleNamespace(max_connections=10, user_agent="oldman-proxy-test"),
@@ -353,6 +353,29 @@ class ProxyRealUrlTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(("https://cdn.test/live.ts", None), result)
         client.stream.assert_not_called()
         self.redis.set.assert_awaited_once()
+
+    async def test_every_lookup_lock_lives_under_the_service_namespace(self) -> None:
+        """G4-6: three lock names skipped core.namespace, so two services sharing a Redis waited on each other's locks."""
+
+        class Taken(Exception):
+            """Stops each lookup at its lock; only the lock's name is of interest here."""
+
+        self.redis.get = AsyncMock(return_value=None)
+        self.redis.lock = Mock(side_effect=Taken)
+        lookups = (
+            lambda: self.proxy.fetch_remote_manifest(Mock(), "channel-1", "https://origin.test/live.m3u8", ttl=0),
+            lambda: self.proxy.get_real_url(Mock(), "https://origin.test/live.ts", 60, http_method=HttpMethod.HEAD),
+            lambda: self.proxy.get_real_url_with_sub(Mock(), "https://origin.test/live.m3u8", 60),
+        )
+        for lookup in lookups:
+            with suppress(Taken):
+                await lookup()
+
+        names = [call.args[0] for call in self.redis.lock.call_args_list]
+        self.assertEqual(3, len(set(names)), names)
+        for name in names:
+            with self.subTest(name=name):
+                self.assertTrue(name.startswith("svc:lock:"), name)
 
     async def test_failed_head_falls_back_to_get_headers_and_closes_without_body_read(self) -> None:
         """The GET fallback captures metadata then immediately exits its stream context."""

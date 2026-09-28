@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Table, event, func
 from sqlalchemy.orm import Mapped, Session, declared_attr, mapped_column
@@ -27,11 +27,16 @@ class AbstractUser(DatabaseModel):
 
     __abstract__ = True
 
-    @declared_attr.directive
-    @classmethod
-    def __tablename__(cls) -> str:
-        """Fix every concrete User to the framework-owned table."""
-        return USER_TABLE_NAME
+    if TYPE_CHECKING:
+        # A plain string to type checkers, as on Base (see there); the descriptor below at runtime.
+        __tablename__: str
+    else:
+
+        @declared_attr.directive
+        @classmethod
+        def __tablename__(cls) -> str:
+            """Fix every concrete User to the framework-owned table."""
+            return USER_TABLE_NAME
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Validate the stable table once SQLAlchemy maps a concrete subclass."""

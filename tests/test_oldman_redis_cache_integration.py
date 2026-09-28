@@ -9,12 +9,14 @@ import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+import oldman.conf as conf
 from oldman.cache.backends.memory import MemoryCache
 from oldman.cache.backends.redis import RedisCache
 from oldman.cache.base import SENTINEL, CacheKey
 from oldman.cache.two_level import TwoLevelCache
-from oldman.conf.schemas import RedisCacheConfig
+from oldman.conf.schemas import DefaultSettings, RedisCacheConfig
 from oldman.providers.redis.client import RedisClientRegistry
 from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
@@ -183,11 +185,11 @@ class RealRedisCacheTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_settings_source_binds_once_under_concurrent_first_access(self) -> None:
         source_calls = 0
-        config = RedisCacheConfig(
-            client="CACHE",
-            namespace=f"{self.namespace}:settings",
-            serializer="msgpack",
-        )
+        config = RedisCacheConfig(client="CACHE", serializer="msgpack")
+        # The settings-driven cache binds <core.namespace>:cache; give it this test's own namespace.
+        settings = DefaultSettings()
+        settings.core.namespace = f"oldman-test-{uuid.uuid4().hex}"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
 
         def settings_source() -> RedisCacheConfig:
             nonlocal source_calls
@@ -202,7 +204,7 @@ class RealRedisCacheTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*(cache.set(f"key-{index}", {"index": index}) for index in range(20)))
             self.assertEqual({"index": 7}, await cache.get("key-7"))
             self.assertEqual(1, source_calls)
-            self.assertEqual(config.namespace, cache.namespace)
+            self.assertEqual(f"{settings.core.namespace}:cache", cache.namespace)
             self.assertEqual("msgpack", cache.serializer.__class__.__name__.removesuffix("Serializer").casefold())
         finally:
             try:

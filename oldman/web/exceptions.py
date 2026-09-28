@@ -1,6 +1,6 @@
 """Web exceptions the framework raises, named so handlers can match on them."""
 
-from sanic.exceptions import Forbidden, NotFound, SanicException
+from sanic.exceptions import BadRequest, Forbidden, NotFound, SanicException, Unauthorized
 
 
 class TooManyRequests(SanicException):
@@ -9,4 +9,4 @@ class TooManyRequests(SanicException):
     status_code = 429
 
 
-__all__ = ["Forbidden", "NotFound", "TooManyRequests"]
+__all__ = ["BadRequest", "Forbidden", "NotFound", "TooManyRequests", "Unauthorized"]

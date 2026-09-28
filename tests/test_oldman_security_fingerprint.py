@@ -12,7 +12,13 @@ from unittest.mock import patch
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+import oldman.conf as conf
 from oldman.web.security import AESGcmDecrypt, fingerprint, get_stats
+
+
+def namespaced(namespace: str) -> SimpleNamespace:
+    """Settings carrying only what the fingerprint keys read."""
+    return SimpleNamespace(core=SimpleNamespace(app_name="oldman", namespace=namespace))
 
 
 class FakeFingerprintRedis:
@@ -30,6 +36,10 @@ class FakeFingerprintRedis:
 
 
 class FingerprintSecurityTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # Fingerprint keys live under the service namespace.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": namespaced("svc")}))
+
     def test_web_crypto_decryptor_preserves_json_and_invalid_json_results(self) -> None:
         """The moved decryptor must retain the fixed JSON error distinction."""
         key = bytes(range(32))
@@ -80,7 +90,7 @@ class FingerprintSecurityTest(unittest.TestCase):
         self.assertEqual(0, payload["error_code"])
         self.assertEqual(["127.0.0.1"], payload["data"]["associated_ips"])
         self.assertTrue(payload["data"]["is_blocked"])
-        self.assertEqual("relation:fp_ip:fingerprint-1", connection.last_members_key)
+        self.assertEqual("svc:fingerprint:relation:fp_ip:fingerprint-1", connection.last_members_key)
         self.assertEqual("application/json", response.content_type)
 
     def test_stats_preserves_standard_json_decode_errors(self) -> None:
@@ -178,10 +188,14 @@ class SecurityStateConnectionTest(unittest.TestCase):
         async def shared() -> RecordingRedis:
             return recording
 
-        with patch.object(fingerprint, "security_redis_connection", shared):
+        with (
+            patch.object(fingerprint, "security_redis_connection", shared),
+            patch.dict(conf.__dict__, {"settings": namespaced("svc")}),
+        ):
             asyncio.run(fingerprint.log_fake_fingerprint_attempt("10.0.0.1", "forged"))
 
-        self.assertIn("blacklist:ip:10.0.0.1", recording.keys)
+        # The blacklist lives under the service namespace, where the rate limiter's Lua reads it.
+        self.assertIn("svc:fingerprint:blacklist:ip:10.0.0.1", recording.keys)
 
 
 class FingerprintPayloadTypeTest(unittest.TestCase):

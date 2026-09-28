@@ -19,6 +19,7 @@ from oldman.runtime._taskiq_process import GroupIdentity, service_process_group,
 from oldman.runtime.base import BaseApplication
 from oldman.runtime.bootstrap import bootstrap_service
 from oldman.runtime.simple import SimpleApplication
+from oldman.utils.asyncio_utils import new_event_loop
 
 if TYPE_CHECKING:
     from taskiq.cli.worker.args import WorkerArgs
@@ -230,7 +231,7 @@ class TaskiqSchedulerApplication(_TaskiqServiceLifecycle, SimpleApplication):
         """Reuse Simple's initialization, not its loop.stop or cancel-all cleanup."""
         self.init()
         self.prepare()
-        self.loop = asyncio.new_event_loop()
+        self.loop = new_event_loop()
         asyncio.set_event_loop(self.loop)
         self._scheduler_stop = asyncio.Event()
         previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}

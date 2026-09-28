@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock, Mock, patch
 
 from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, Table, select
 from sqlalchemy.dialects import oracle
@@ -15,8 +17,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from oldman.apps.admin import crud
 from oldman.apps.admin.model_admin import ModelAdmin
 from oldman.apps.admin.site import AdminSite
-from oldman.db.models import DatabaseModel, ModelMetadata
+from oldman.auth import declared_permissions
+from oldman.db.models import APP_LABEL_INFO_KEY, DatabaseModel, ModelMetadata
 from oldman.i18n import gettext_lazy
+from oldman.web.authentication import RequestUser
 from oldman.web.components.forms import TailwindModelForm
 from oldman.web.components.forms.models import model_column_requires_input
 
@@ -24,7 +28,7 @@ from oldman.web.components.forms.models import model_column_requires_input
 class AdminTestArticle(DatabaseModel):
     """Test model for ModelAdmin metadata inference."""
 
-    __tablename__ = "test_admin_article"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_admin_article"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -35,7 +39,7 @@ class AdminTestArticle(DatabaseModel):
 class AdminNaturalKeyArticle(DatabaseModel):
     """Test model whose primary key must be supplied by the create form."""
 
-    __tablename__ = "test_admin_natural_key_article"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_natural_key_article"
 
     slug: Mapped[str] = mapped_column(String(64), primary_key=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -44,7 +48,7 @@ class AdminNaturalKeyArticle(DatabaseModel):
 class AdminNaturalKeyOnlyRecord(DatabaseModel):
     """Test model proving a primary-key-only create form is not empty."""
 
-    __tablename__ = "test_admin_natural_key_only"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_natural_key_only"
 
     slug: Mapped[str] = mapped_column(String(64), primary_key=True)
 
@@ -52,7 +56,7 @@ class AdminNaturalKeyOnlyRecord(DatabaseModel):
 class AdminRequiredBooleanRecord(DatabaseModel):
     """Test model whose unchecked non-null Boolean must remain a legal False."""
 
-    __tablename__ = "test_admin_required_boolean"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_required_boolean"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -61,7 +65,7 @@ class AdminRequiredBooleanRecord(DatabaseModel):
 class AdminBigIntegerRecord(DatabaseModel):
     """Generic Admin model whose SQLite BigInteger key must be submitted."""
 
-    __tablename__ = "test_admin_big_integer"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_big_integer"
 
     record_key: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -70,7 +74,7 @@ class AdminBigIntegerRecord(DatabaseModel):
 class AdminBooleanKeyRecord(DatabaseModel):
     """Generic Admin model whose unchecked Boolean primary key is valid False."""
 
-    __tablename__ = "test_admin_boolean_key"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_boolean_key"
 
     flag: Mapped[bool] = mapped_column(Boolean, primary_key=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -79,7 +83,7 @@ class AdminBooleanKeyRecord(DatabaseModel):
 class AdminBooleanForeignRecord(DatabaseModel):
     """Generic Admin model selecting a Boolean foreign-key value."""
 
-    __tablename__ = "test_admin_boolean_foreign"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_admin_boolean_foreign"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     flag: Mapped[bool] = mapped_column(Boolean, ForeignKey("test_admin_boolean_key.flag"), nullable=False)
@@ -88,7 +92,7 @@ class AdminBooleanForeignRecord(DatabaseModel):
 class AdminMetaReport(DatabaseModel):
     """Model with explicit singular and irregular plural display names."""
 
-    __tablename__ = "test_admin_meta_report"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_admin_meta_report"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -97,10 +101,34 @@ class AdminMetaReport(DatabaseModel):
         verbose_name_plural = "Status reports"
 
 
+class AdminLegacyOrder(DatabaseModel):
+    """Model on a table whose legacy name is not a valid permission name."""
+
+    __tablename__ = "LegacyOrders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+class AdminShopItem(DatabaseModel):
+    """Model whose table the test labels as belonging to an App."""
+
+    __tablename__ = "test_admin_shop_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+class AdminSuperuserOnlyRecord(DatabaseModel):
+    """Model registered only with a superuser-only ModelAdmin."""
+
+    __tablename__ = "test_admin_superuser_only_record"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
 class AdminLazyEvent(DatabaseModel):
     """Model whose display names must remain lazy until request rendering."""
 
-    __tablename__ = "test_admin_lazy_event"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "test_admin_lazy_event"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -136,7 +164,7 @@ class OldmanModelAdminTest(unittest.TestCase):
         form_class = admin.get_form_class()
         self.assertTrue(issubclass(form_class, TailwindModelForm))
         self.assertEqual({"title", "slug", "is_public"}, set(form_class()._fields))
-        self.assertEqual(["InputRequired"], [type(validator).__name__ for validator in form_class().title.validators])
+        self.assertEqual(["InputRequired"], [type(validator).__name__ for validator in form_class()["title"].validators])
 
     def test_manual_primary_key_create_and_edit_use_real_sqlite(self) -> None:
         """通用 CRUD 必须收集显式主键、拒绝重复值且不允许编辑身份。"""
@@ -163,6 +191,19 @@ class OldmanModelAdminTest(unittest.TestCase):
         self.assertEqual("first", result.updated_slug)
         self.assertFalse(result.duplicate_valid)
         self.assertEqual(["Slug already exists"], result.duplicate_errors["slug"])
+
+    def test_a_duplicate_manual_key_is_reported_in_the_request_language(self) -> None:
+        from babel.support import Translations
+
+        from oldman.i18n import bind_translations, reset_translations
+
+        locales = Path(__file__).resolve().parents[1] / "oldman/apps/admin/locales"
+        token = bind_translations(Translations.load(str(locales), ["zh_Hans"]))
+        try:
+            result = asyncio.run(round_trip_natural_key_admin())
+        finally:
+            reset_translations(token)
+        self.assertEqual(["Slug 已存在"], result.duplicate_errors["slug"])
 
     def test_boolean_false_and_autoincrement_primary_key_keep_source_semantics(self) -> None:
         """必要必填改进不得让 checkbox=False 非法或要求提交数据库生成主键。"""
@@ -255,10 +296,90 @@ class OldmanModelAdminTest(unittest.TestCase):
                     "icon": "ri-database-2-line",
                 }
             ],
-            site.menu_items(),
+            asyncio.run(site.menu_items(as_user(is_superuser=True))),
         )
         with self.assertRaises(ValueError):
             site.register(AdminTestArticle)
+
+    def test_the_menu_lists_only_what_the_user_may_view(self) -> None:
+        site = AdminSite()
+        admin = site.register(AdminTestArticle)
+        # Registering declares the model's permissions, so roles can be given them at once.
+        self.assertEqual(
+            ["add", "change", "delete", "view"],
+            [p.codename.rsplit(".", 1)[1] for p in declared_permissions() if p.codename.startswith("admintestarticle.")],
+        )
+        # Named after the model class; this test model is loaded outside any App, so there is no App segment.
+        self.assertEqual("admin.admintestarticle.view", admin.permission("view").name)
+        # A role editor lists every model's permissions together, so the label names the model.
+        self.assertEqual("Delete Admin Test Articles", str(admin.permission("delete").label))
+
+        self.assertEqual([], asyncio.run(site.menu_items(as_user())))
+        with patch("oldman.apps.roles.store.role_permissions", AsyncMock(return_value=frozenset({"admin.admintestarticle.view"}))):
+            items = asyncio.run(site.menu_items(as_user(role_ids=(1,))))
+        self.assertEqual(["test_admin_article"], [item["path"] for item in items])
+
+    def test_a_superuser_only_model_declares_no_permissions(self) -> None:
+        class SuperuserOnlyAdmin(ModelAdmin):
+            require_superuser = True
+
+        admin = AdminSite().register(AdminSuperuserOnlyRecord, SuperuserOnlyAdmin)
+        self.assertEqual([], [p.name for p in declared_permissions() if p.name.startswith("admin.adminsuperuseronlyrecord.")])
+        # Superusers still open it; nobody else does, whatever their roles.
+        self.assertTrue(asyncio.run(admin.has_view_permission(as_user(is_superuser=True))))
+        self.assertFalse(asyncio.run(admin.has_view_permission(as_user(role_ids=(1,)))))
+
+    def test_user_management_checks_the_auth_apps_permissions(self) -> None:
+        from oldman.auth import user_permissions
+        from oldman.auth.models import User
+
+        admin = AdminSite().register_user_model(User)
+        self.assertIs(user_permissions.CHANGE_USERS, admin.permission("change"))
+        self.assertEqual("auth.users.delete", admin.permission("delete").name)
+        self.assertEqual([], [p.name for p in declared_permissions() if p.namespace == "admin" and ".user." in f".{p.codename}"])
+
+    def test_permission_names_follow_the_app_and_class_not_the_table(self) -> None:
+        # A legacy table name need not make a valid permission name; the class name always does.
+        self.assertEqual("admin.adminlegacyorder.view", AdminSite().register(AdminLegacyOrder).permission("view").name)
+
+        # A model loaded through its App carries the App's label, as Django's app_label.view_model.
+        table = cast(Table, AdminShopItem.__table__)
+        table.info[APP_LABEL_INFO_KEY] = "shop"
+        self.addCleanup(table.info.pop, APP_LABEL_INFO_KEY)
+        self.assertEqual("admin.shop.adminshopitem.change", ModelAdmin(AdminShopItem).permission("change").name)
+
+    def test_a_model_registered_before_its_app_was_loaded_stops_the_admin_from_starting(self) -> None:
+        """G6-2: registered before load_models(), its permissions were declared without the App and checked with it."""
+        early = type(
+            "EarlyItem",
+            (DatabaseModel,),
+            {"__tablename__": "test_admin_early_item", "__module__": "tests.early_app.models", "id": mapped_column(Integer, primary_key=True)},
+        )
+        site = AdminSite()
+        site.register(early)
+        # What load_models() assigns once the App is loaded.
+        table = cast(Table, cast(Any, early).__table__)
+        table.info[APP_LABEL_INFO_KEY] = "early"
+        self.addCleanup(table.info.pop, APP_LABEL_INFO_KEY)
+
+        with self.assertRaisesRegex(RuntimeError, "before its App's models were loaded"):
+            site.register_routes(Mock(), prefix="/control")
+
+    def test_two_models_never_share_one_admin_permission(self) -> None:
+        # Two Apps may both define a Twin; loaded without their Apps the names would meet.
+        first = type(
+            "Twin",
+            (DatabaseModel,),
+            {"__tablename__": "test_admin_twin_a", "__module__": "tests.twins_a", "id": mapped_column(Integer, primary_key=True)},
+        )
+        second = type(
+            "Twin",
+            (DatabaseModel,),
+            {"__tablename__": "test_admin_twin_b", "__module__": "tests.twins_b", "id": mapped_column(Integer, primary_key=True)},
+        )
+        ModelAdmin(first).permission("view")
+        with self.assertRaisesRegex(ValueError, "would share the Admin permission 'admin.twin.view'"):
+            ModelAdmin(second).permission("view")
 
     def test_model_meta_and_model_admin_override_drive_display_names(self) -> None:
         """Display labels use ModelAdmin, then Model.Meta, then class-name fallback."""
@@ -313,8 +434,9 @@ class OldmanModelAdminTest(unittest.TestCase):
         site.register(AdminTestArticle)
         site.register(AdminMetaReport)
 
-        items = site.menu_items()
-        groups = site.menu_groups()
+        superuser = as_user(is_superuser=True)
+        items = asyncio.run(site.menu_items(superuser))
+        groups = asyncio.run(site.menu_groups(superuser))
 
         self.assertEqual(["ri-newspaper-line", "ri-newspaper-line"], [item["icon"] for item in items])
         self.assertEqual([app_config.display_name, app_config.display_name], [item["app_display_name"] for item in items])
@@ -499,3 +621,10 @@ async def round_trip_boolean_foreign_admin() -> SimpleNamespace:
             )
     finally:
         await engine.dispose()
+
+
+def as_user(*, is_superuser: bool = False, role_ids: tuple[int, ...] = ()) -> Any:
+    """A request from a staff user, as the Admin permission checks read it."""
+    user = RequestUser(id=5, username="staff", is_staff=True, is_superuser=is_superuser, role_ids=role_ids)
+    app = SimpleNamespace(ctx=SimpleNamespace(app_registry=SimpleNamespace(labels=("auth", "admin", "roles"))))
+    return SimpleNamespace(ctx=SimpleNamespace(user=user), app=app)

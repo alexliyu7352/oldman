@@ -134,6 +134,26 @@ class LoginUserTest(unittest.TestCase):
         )
         stamp.assert_awaited_once_with(self.user.id, auth_settings=None, db_manager=None)
         self.manager.update_session_id_to_cookie.assert_called_once_with(response, "new-session-id", session_data)
+        # The rest of this request sees the user who just signed in, as after Django's login().
+        self.assertEqual((self.user.id, "alice"), (request.ctx.user.id, request.ctx.user.username))
+        self.assertEqual("session", request.ctx.auth.method)
+
+    def test_a_login_carries_the_roles_the_user_holds_where_roles_are_installed(self) -> None:
+        self.app.ctx.app_registry = SimpleNamespace(labels=("auth", "roles"))
+        request = make_request(self.app, path="/login", session=FakeSession())
+        request.client_ip = "198.51.100.7"
+        request.ip = "10.0.0.1"
+
+        with (
+            patch("oldman.web.auth.login.touch_last_login", AsyncMock()),
+            patch("oldman.apps.roles.store.user_role_ids", AsyncMock(return_value=(2, 5))) as lookup,
+        ):
+            asyncio.run(login_user(request, self.user, response=redirect_response("/dash")))
+
+        lookup.assert_awaited_once_with(self.user.id, db_manager=None)
+        # Permission checks read the role ids from the session for as long as it lives.
+        self.assertEqual((2, 5), self.manager.exclusive_login.await_args.args[0].role_ids)
+        self.assertEqual((2, 5), request.ctx.user.role_ids)
 
     def test_login_user_needs_the_session_middleware(self) -> None:
         request = make_request(self.app, path="/login", session=FakeSession())
@@ -147,6 +167,18 @@ class LoginUserTest(unittest.TestCase):
             response = asyncio.run(logout_user(request, "/login"))
         logout.assert_awaited_once_with(request)
         self.assertEqual((302, "/login"), (response.status, response.headers["Location"]))
+
+    def test_logout_user_leaves_the_request_anonymous_only_when_it_came_by_session(self) -> None:
+        from oldman.web.authentication import ANONYMOUS_USER, Authentication, RequestUser, record_authentication
+
+        signed_in = RequestUser(id=12, username="alice")
+        for method, expected in (("session", ANONYMOUS_USER), ("bearer", signed_in)):
+            with self.subTest(method=method):
+                request = make_request(self.app, path="/logout", session=FakeSession())
+                record_authentication(request, Authentication(method=method, user=signed_in, ambient=method == "session"))
+                with patch("oldman.web.auth.login.Session.logout_session", AsyncMock()):
+                    asyncio.run(logout_user(request, "/login"))
+                self.assertIs(expected, request.ctx.user)
 
 
 if __name__ == "__main__":

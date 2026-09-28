@@ -1,3 +1,11 @@
+"""Encode and verify HMAC-signed JSON Web Tokens (HS256, HS384, HS512).
+
+This is the codec only. It checks what a token says about itself — signature, algorithm,
+`exp`, `nbf`, and `aud` / `iss` when the caller names what it expects — and nothing about
+whom it was issued to. A token without `exp` never expires here; an authentication layer
+that issues tokens must require `exp` itself.
+"""
+
 import base64
 import hashlib
 import hmac
@@ -65,8 +73,15 @@ def jwt_decode(
     algorithms: Sequence[str] | None = None,
     verify_exp: bool = True,
     leeway: int | float | timedelta = 0,
+    audience: str | None = None,
+    issuer: str | None = None,
 ) -> dict[str, Any]:
-    """Decode and verify a JSON Web Token signed by :func:`jwt_encode`."""
+    """Decode and verify a JSON Web Token signed by :func:`jwt_encode`.
+
+    `nbf` is always checked when present. `audience` and `issuer` name what this caller
+    expects. A token that carries `aud` is refused when no audience is expected, because a
+    service that does not say who it is would otherwise accept tokens meant for another.
+    """
     header_segment, payload_segment, signature_segment = _split_token(token)
     header = _decode_json_segment(header_segment)
     payload = _decode_json_segment(payload_segment)
@@ -82,8 +97,13 @@ def jwt_decode(
     if not hmac.compare_digest(actual_signature, expected_signature):
         raise InvalidTokenError("Invalid JWT signature")
 
+    leeway_seconds = leeway.total_seconds() if isinstance(leeway, timedelta) else float(leeway)
+    now = datetime.now(UTC).timestamp()
     if verify_exp:
-        _verify_exp(payload, leeway)
+        _verify_exp(payload, now, leeway_seconds)
+    _verify_nbf(payload, now, leeway_seconds)
+    _verify_audience(payload, audience)
+    _verify_issuer(payload, issuer)
 
     return payload
 
@@ -137,16 +157,47 @@ def _json_default(value: Any) -> int | NoReturn:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
-def _verify_exp(payload: Mapping[str, Any], leeway: int | float | timedelta) -> None:
-    exp = payload.get("exp")
-    if exp is None:
-        return
-    if not isinstance(exp, int | float):
-        raise InvalidTokenError("Invalid JWT exp claim")
+def _numeric_date(payload: Mapping[str, Any], claim: str) -> float | None:
+    """Read one NumericDate claim; a bool is not a number here, whatever Python says."""
+    value = payload.get(claim)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise InvalidTokenError(f"Invalid JWT {claim} claim")
+    return float(value)
 
-    leeway_seconds = leeway.total_seconds() if isinstance(leeway, timedelta) else float(leeway)
-    if datetime.now(UTC).timestamp() > exp + leeway_seconds:
+
+def _verify_exp(payload: Mapping[str, Any], now: float, leeway: float) -> None:
+    exp = _numeric_date(payload, "exp")
+    if exp is not None and now > exp + leeway:
         raise ExpiredTokenError("JWT has expired")
+
+
+def _verify_nbf(payload: Mapping[str, Any], now: float, leeway: float) -> None:
+    nbf = _numeric_date(payload, "nbf")
+    if nbf is not None and now + leeway < nbf:
+        raise InvalidTokenError("JWT is not valid yet")
+
+
+def _verify_audience(payload: Mapping[str, Any], audience: str | None) -> None:
+    claimed = payload.get("aud")
+    if audience is None:
+        if claimed is not None:
+            raise InvalidTokenError("JWT names an audience but none is expected")
+        return
+    if isinstance(claimed, str):
+        accepted = claimed == audience
+    elif isinstance(claimed, list):
+        accepted = audience in claimed
+    else:
+        accepted = False
+    if not accepted:
+        raise InvalidTokenError("JWT audience does not match")
+
+
+def _verify_issuer(payload: Mapping[str, Any], issuer: str | None) -> None:
+    if issuer is not None and payload.get("iss") != issuer:
+        raise InvalidTokenError("JWT issuer does not match")
 
 
 __all__ = [

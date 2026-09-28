@@ -18,8 +18,23 @@ from pydantic_settings import (
 )
 from ruamel.yaml import YAML
 
-yaml = YAML()
-yaml.indent(mapping=2, sequence=4, offset=2)
+
+def new_yaml() -> YAML:
+    """A round-trip YAML object with the project's formatting: comments kept, block style, 2/4/2 indent.
+
+    Build a fresh one for every dump. After a dump fails (a value YAML cannot represent), ruamel
+    keeps that serializer state on the object and every later dump through it writes an empty
+    string — a config file saved that way comes out empty. Loading recovers after a failure, so
+    the shared ``yaml`` below is for reading only.
+    """
+    instance = YAML(typ="rt")
+    instance.default_flow_style = False
+    instance.indent(mapping=2, sequence=4, offset=2)
+    return instance
+
+
+# 只用于读取；输出（dump）每次用 new_yaml() 新建，原因见上。
+yaml = new_yaml()
 
 
 class SettingsFileMissingError(RuntimeError):

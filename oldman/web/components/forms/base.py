@@ -6,8 +6,11 @@ from collections.abc import Iterable, Mapping
 from typing import Any, Self, cast
 
 from markupsafe import Markup
-from wtforms import Field, Form
+from wtforms import Field
+from wtforms import Form as WTForm
 from wtforms.fields import HiddenField
+from wtforms.form import BaseForm
+from wtforms.i18n import DummyTranslations
 from wtforms.meta import DefaultMeta
 from wtforms.validators import ValidationError
 
@@ -72,37 +75,38 @@ class SanicFormData:
         return key in self.files or key in self.data
 
 
-class OldmanFormMeta(DefaultMeta):
-    """Oldman 表单字段绑定策略。"""
-
-    auto_id = "id_%s"
-
-    def get_translations(self, form: Any):
-        """Return the request catalog through WTForms' native i18n hook."""
-        request_context = getattr(getattr(form, "request", None), "ctx", None)
-        request_catalog = getattr(request_context, "translations", None)
-        return request_catalog if request_catalog is not None else current_translations.get()
-
-    def bind_field(self, form, unbound_field, options):
-        """在 WTForms 字段绑定源头生成 Django 风格 id。"""
-        field_options = dict(options)
-        render_kw = unbound_field.kwargs.get("render_kw") or {}
-        explicit_id = unbound_field.kwargs.get("id") or render_kw.get("id")
-
-        if explicit_id:
-            field_options["id"] = str(explicit_id)
-        elif self.auto_id:
-            html_name = f"{field_options.get('prefix', '')}{field_options['name']}"
-            field_options["id"] = self.auto_id % html_name
-
-        return super().bind_field(form, unbound_field, field_options)
-
-
-class OldmanForm(Form):
+class Form(WTForm):
     """Oldman 后端渲染表单基类。"""
 
-    class Meta(OldmanFormMeta):
-        """WTForms Meta 配置。"""
+    class Meta(DefaultMeta):
+        """WTForms 的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
+
+        auto_id = "id_%s"
+
+        def get_translations(self, form: BaseForm) -> Any:
+            """Return the request catalog through WTForms' native i18n hook.
+
+            Without one, WTForms' own untranslated messages - what its fields fall back to when
+            this returns None, as ``DefaultMeta`` itself does with ``locales = False``.
+            """
+            request_context = getattr(getattr(form, "request", None), "ctx", None)
+            request_catalog = getattr(request_context, "translations", None)
+            catalog = request_catalog if request_catalog is not None else current_translations.get()
+            return catalog if catalog is not None else DummyTranslations()
+
+        def bind_field(self, form, unbound_field, options):
+            """在 WTForms 字段绑定源头生成 Django 风格 id。"""
+            field_options = dict(options)
+            render_kw = unbound_field.kwargs.get("render_kw") or {}
+            explicit_id = unbound_field.kwargs.get("id") or render_kw.get("id")
+
+            if explicit_id:
+                field_options["id"] = str(explicit_id)
+            elif self.auto_id:
+                html_name = f"{field_options.get('prefix', '')}{field_options['name']}"
+                field_options["id"] = self.auto_id % html_name
+
+            return super().bind_field(form, unbound_field, field_options)
 
     field_layout: tuple[FieldLayout | str, ...] = ()
     layout: FormLayout | None = None
@@ -126,7 +130,7 @@ class OldmanForm(Form):
         """初始化表单并保存请求、数据库 session 和 CSRF token。"""
         formdata = kwargs.pop("formdata", None)
         if data is not None and formdata is not None:
-            raise TypeError("OldmanForm accepts either data= or formdata=, not both")
+            raise TypeError("Form accepts either data= or formdata=, not both")
         if isinstance(data, SanicFormData):
             bound_formdata = data
         elif data is not None:
@@ -208,7 +212,7 @@ class OldmanForm(Form):
     @classmethod
     def from_query(
         cls, request, *, obj: Any = None, session: Any = None, initial: dict[str, Any] | None = None, prefix: str = "", **kwargs: Any
-    ) -> OldmanForm:
+    ) -> Form:
         """从 Sanic 查询参数创建 GET 筛选表单实例。"""
         return cls(
             formdata=SanicFormData(getattr(request, "args", None)),
@@ -377,7 +381,8 @@ class OldmanForm(Form):
         """执行异步表单校验并返回是否通过。"""
         return await self.validate()
 
-    async def validate(self, extra_validators: dict[str, Any] | None = None) -> bool:
+    # Asynchronous by design - clean() may query the database - where WTForms' is synchronous.
+    async def validate(self, extra_validators: dict[str, Any] | None = None) -> bool:  # pyrefly: ignore[bad-override]
         """执行 WTForms 同步校验和 Oldman 异步 clean 生命周期。"""
         self._cleaned_data = {}
         self._error_message = None
@@ -453,7 +458,8 @@ class OldmanForm(Form):
             setattr(obj, field_name, value)
 
     @property
-    def errors(self) -> dict[str, list[str | LazyTranslation]]:
+    # Messages may still be lazy translations, rendered in the request's language; WTForms types them as str.
+    def errors(self) -> dict[str, list[str | LazyTranslation]]:  # pyrefly: ignore[bad-override]
         """返回每个真实字段的完整错误列表。"""
         errors: dict[str, list[str | LazyTranslation]] = {}
         for name, field in self._fields.items():
@@ -509,7 +515,7 @@ def _validation_error_message(error: ValidationError) -> str | LazyTranslation:
     return message if isinstance(message, (str, LazyTranslation)) else str(message)
 
 
-class TableFilterForm(OldmanForm):
+class TableFilterForm(Form):
     """专门用于驱动 Table API 的筛选表单。
 
     ``layout_style``: ``"inline"``（默认，一行、标签嵌在控件左侧、``advanced`` 字段收进"更多筛选"）
@@ -518,7 +524,8 @@ class TableFilterForm(OldmanForm):
 
     layout_style: str = "inline"
 
-    async def render(
+    # Renders only as a table's filter bar: the general form options (form_mode, target, validate...) do not apply.
+    async def render(  # pyrefly: ignore[bad-override]
         self,
         *,
         table_target: str = "",

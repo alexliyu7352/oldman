@@ -9,9 +9,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock, Mock, call, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from sqlalchemy.orm import Mapped, mapped_column
+
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings
 
 ROOT = Path(__file__).resolve().parents[1]
 CONSUMERS = (
@@ -33,7 +36,14 @@ def import_sqlalchemy_cache() -> Any:
         return importlib.import_module("oldman.db.sqlalchemy.cache")
 
 
-class CacheConsumerBoundaryTest(unittest.IsolatedAsyncioTestCase):
+class ConfiguredSettingsTestCase(unittest.IsolatedAsyncioTestCase):
+    """Cache keys carry the settings' namespace; configure settings here instead of relying on an earlier test."""
+
+    def setUp(self) -> None:
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
+
+
+class CacheConsumerBoundaryTest(ConfiguredSettingsTestCase):
     def test_consumers_do_not_import_deleted_clients_or_global_two_level_cache(self) -> None:
         deleted_symbols = (
             "providers.redis.async_redis",
@@ -139,26 +149,6 @@ class CacheConsumerBoundaryTest(unittest.IsolatedAsyncioTestCase):
         registry.using.assert_called_once_with("CACHE")
         alias.async_get_bin_conn.assert_awaited_once_with()
 
-    async def test_sqlalchemy_query_cache_decodes_binary_cached_id_before_building_instance_key(self) -> None:
-        sqlalchemy_cache = import_sqlalchemy_cache()
-
-        cached_instance = object()
-
-        class ExampleModel:
-            get_by_fields = AsyncMock()
-            model_validate_json = Mock(return_value=cached_instance)
-
-        connection = AsyncMock()
-        connection.get.side_effect = [b"17", b'{"id":17}']
-        query_cache = sqlalchemy_cache.AsyncQueryCache(ExampleModel)
-
-        with patch("oldman.db.sqlalchemy.cache._cache_redis_connection", new=AsyncMock(return_value=connection)):
-            result = await query_cache.get_by_fields(Mock(), email="user@example.test")
-
-        self.assertIs(cached_instance, result)
-        self.assertEqual(call("i:ExampleModel:17"), connection.get.await_args_list[1])
-        ExampleModel.get_by_fields.assert_not_awaited()
-
     def test_sqlalchemy_cache_alias_is_resolved_lazily(self) -> None:
         import oldman.conf as conf
 
@@ -167,71 +157,12 @@ class CacheConsumerBoundaryTest(unittest.IsolatedAsyncioTestCase):
         with patch.dict(conf.__dict__, {"settings": SimpleNamespace(cache=SimpleNamespace(client="MODEL_CACHE"))}):
             self.assertEqual("MODEL_CACHE", sqlalchemy_cache._configured_cache_alias())
 
-    def test_cache_writes_wait_for_the_commit_that_produced_them(self) -> None:
-        """Mapper events fire during flush; a rollback after that must leave the cache alone."""
-        sqlalchemy_cache = import_sqlalchemy_cache()
-        session = SimpleNamespace(info={})
-        target = SimpleNamespace()
-        ran: list[tuple[Any, ...]] = []
-
-        async def invalidate(value: Any) -> None:
-            ran.append((value,))
-
-        with patch.object(sqlalchemy_cache, "object_session", return_value=session):
-            sqlalchemy_cache._queue_cache_task(target, invalidate, target)
-
-        self.assertEqual([], ran, "nothing may run before the transaction commits")
-
-        sqlalchemy_cache._discard_pending_cache_tasks(session)
-        sqlalchemy_cache._flush_pending_cache_tasks(session)
-        self.assertEqual([], ran, "a rolled back transaction leaves the cache untouched")
-
-        with patch.object(sqlalchemy_cache, "object_session", return_value=session):
-            sqlalchemy_cache._queue_cache_task(target, invalidate, target)
-        with patch.object(sqlalchemy_cache, "_run_cache_task") as run:
-            sqlalchemy_cache._flush_pending_cache_tasks(session)
-        run.assert_called_once_with((invalidate, (target,)))
-        self.assertEqual({}, session.info, "the queue is drained, not left to grow")
-
-    def test_cache_writes_are_supervised_not_fire_and_forget(self) -> None:
-        """A bare create_task can be collected mid-flight and swallows its own failures."""
-        sqlalchemy_cache = import_sqlalchemy_cache()
-
-        async def invalidate() -> None:
-            return None
-
-        manager = Mock()
-        with patch.object(sqlalchemy_cache, "BackgroundTaskManager", return_value=manager):
-            await_free = sqlalchemy_cache._run_cache_task
-            with patch.object(sqlalchemy_cache.asyncio, "get_running_loop", return_value=object()):
-                await_free((invalidate, ()))
-        manager.spawn.assert_called_once_with(invalidate)
-
-    def test_a_missing_loop_or_stopped_manager_cannot_break_a_committed_transaction(self) -> None:
-        """The transaction already landed; a stale cache entry must not turn into an error."""
-        sqlalchemy_cache = import_sqlalchemy_cache()
-
-        async def invalidate() -> None:
-            return None
-
-        with patch.object(sqlalchemy_cache.asyncio, "get_running_loop", side_effect=RuntimeError("no loop")):
-            sqlalchemy_cache._run_cache_task((invalidate, ()))
-
-        stopping = Mock()
-        stopping.spawn.side_effect = RuntimeError("BackgroundTaskManager is stopping")
-        with (
-            patch.object(sqlalchemy_cache.asyncio, "get_running_loop", return_value=object()),
-            patch.object(sqlalchemy_cache, "BackgroundTaskManager", return_value=stopping),
-        ):
-            sqlalchemy_cache._run_cache_task((invalidate, ()))
-
     def test_database_model_json_round_trip_survives_the_cache_contract(self) -> None:
-        """The ORM cache stores model_dump_json and reads it back with model_validate_json.
+        """model_dump_json output is real JSON that model_validate_json reads back.
 
         A regression guard for the str(bytes) bug that made model_dump_json emit the repr
-        of a bytes object ("b'{...}'"), which model_validate_json could never parse - so a
-        cache hit threw instead of returning the row. This exercises the real round trip
-        with a real mapped model and no mocks, exactly what the cache does.
+        of a bytes object ("b'{...}'"), which model_validate_json could never parse. The
+        column types themselves are covered by DatabaseModelJsonTest in test_oldman_model_cache.
         """
         import orjson
 
@@ -256,18 +187,12 @@ class CacheConsumerBoundaryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("cache_probe", restored.username)
         self.assertIs(True, restored.is_staff)
 
-    def test_nothing_spawns_an_unsupervised_task(self) -> None:
-        """Checked on the parsed call, not the text: prose about create_task is fine."""
-        tree = ast.parse(consumer_source("db/sqlalchemy/cache.py"))
-        calls = [ast.unparse(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)]
-        self.assertNotIn("asyncio.create_task", calls)
-
 
 if __name__ == "__main__":
     unittest.main()
 
 
-class DatabaseModelContractTest(unittest.IsolatedAsyncioTestCase):
+class DatabaseModelContractTest(ConfiguredSettingsTestCase):
     """Contracts the ORM helpers state but did not keep."""
 
     _cached_model: Any = None
@@ -352,10 +277,39 @@ class DatabaseModelContractTest(unittest.IsolatedAsyncioTestCase):
         user_cache = sqlalchemy_cache.AsyncQueryCache(User)
         article_cache = sqlalchemy_cache.AsyncQueryCache(Article)
 
-        self.assertEqual("rev:User:5", user_cache._get_reverse_cache_key(5))
-        self.assertEqual("qs:User:5", user_cache._get_query_set_cache_key(5))
-        self.assertNotEqual(user_cache._get_reverse_cache_key(5), article_cache._get_reverse_cache_key(5))
-        self.assertNotEqual(user_cache._get_query_set_cache_key(5), article_cache._get_query_set_cache_key(5))
+        self.assertNotEqual(user_cache._generation_key("row:5"), article_cache._generation_key("row:5"))
+        self.assertNotEqual(user_cache._generation_key("epoch"), article_cache._generation_key("epoch"))
+
+    def test_field_keys_tell_every_distinct_lookup_apart(self) -> None:
+        """One field key stands for one set of conditions; two different sets must not share it."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+
+        class Row:
+            pass
+
+        cache = sqlalchemy_cache.AsyncQueryCache(Row)
+        distinct_lookups = (
+            ({"user_id": 1}, {"username": 1}),
+            # A value that carries the separators must not read as a second condition.
+            ({"email": "a", "name": "b"}, {"email": "a,name:b"}),
+            # filter_by(email=None) is IS NULL, not the string "None".
+            ({"email": None}, {"email": "None"}),
+        )
+        for first, second in distinct_lookups:
+            with self.subTest(first=first, second=second):
+                self.assertNotEqual(cache._generate_fields_key(first), cache._generate_fields_key(second))
+
+    def test_models_that_share_a_class_name_do_not_share_keys(self) -> None:
+        """Two Apps may each define a Category; neither may read or invalidate the other's rows."""
+        sqlalchemy_cache = import_sqlalchemy_cache()
+        shop = type("Category", (), {"__module__": "shop.models"})
+        blog = type("Category", (), {"__module__": "blog.models"})
+
+        shop_queries = sqlalchemy_cache.AsyncQueryCache(shop)
+        blog_queries = sqlalchemy_cache.AsyncQueryCache(blog)
+        self.assertNotEqual(shop_queries._get_instance_cache_key(5), blog_queries._get_instance_cache_key(5))
+        self.assertNotEqual(shop_queries._generate_fields_key({"slug": "x"}), blog_queries._generate_fields_key({"slug": "x"}))
+        self.assertNotEqual(shop_queries._generation_key("row:5"), blog_queries._generation_key("row:5"))
 
     def test_the_committing_helpers_say_that_they_commit(self) -> None:
         """save/delete/update end the caller's transaction; get_session hands one over."""

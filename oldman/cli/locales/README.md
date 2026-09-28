@@ -1,6 +1,6 @@
 # 框架 CLI 翻译维护
 
-CLI 使用统一的 gettext `messages` domain，不使用独立 cli domain。本目录是框架 CLI 的后备词典；运行项目时，项目与已安装 App 的 messages 参与合并，项目覆盖优先。语言选择及 App 命令见[CLI 参考](../../../docs/developers/cli.md)，全链路见[资源与翻译](../../../docs/developers/assets.md)。
+CLI 使用统一的 gettext `messages` domain，不使用独立 cli domain。本目录是框架 CLI 的后备词典；运行项目时，项目与已安装 App 的 messages 参与合并，项目覆盖优先。语言选择及 App 命令见[CLI 参考](../../../docs/public/zh/developers/cli.md)，全链路见[资源与翻译](../../../docs/public/zh/developers/assets.md)。
 
 `oldman/cli/babel.cfg` 的输入根是 `oldman/`，只提取 `cli/**/*.py` 和 `runtime/base.py`。后者提供默认服务命令描述。Typer 自己产生的帮助文案通过 CLI 中显式可提取词条纳入，不扫描第三方包源码。
 

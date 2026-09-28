@@ -14,6 +14,7 @@ from oldman.utils.crypto import (
     AES_GCM_TAG_BYTES,
     aes_gcm_decrypt,
     aes_gcm_encrypt,
+    constant_time_equals,
     generate_secure_token,
 )
 
@@ -85,6 +86,23 @@ class SecureTokenTest(unittest.TestCase):
 
     def test_tokens_do_not_repeat(self) -> None:
         self.assertEqual(500, len({generate_secure_token(16) for _ in range(500)}))
+
+
+class ConstantTimeEqualsTest(unittest.TestCase):
+    """Request input reaches this comparison, and hmac.compare_digest refuses non-ASCII str.
+
+    Handing it a query parameter or header holding "密钥" raised TypeError, which every caller
+    turned into a 500 instead of a refusal.
+    """
+
+    def test_non_ascii_text_is_compared_rather_than_raising(self) -> None:
+        self.assertFalse(constant_time_equals("密钥", "secret-key"))
+        self.assertTrue(constant_time_equals("密钥", "密钥"))
+
+    def test_bytes_and_text_compare_by_their_utf8_encoding(self) -> None:
+        self.assertTrue(constant_time_equals(b"secret", "secret"))
+        self.assertTrue(constant_time_equals("密钥".encode(), "密钥"))
+        self.assertFalse(constant_time_equals(b"secret", "secreT"))
 
 
 class DecryptorBoundaryTest(unittest.TestCase):

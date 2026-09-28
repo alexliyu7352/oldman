@@ -17,7 +17,7 @@ from oldman.conf.schemas import DefaultSettings
 from oldman.contrib.http import HttpHeaders, MultiHttpClient, ReconnectStreamResponse
 from oldman.contrib.http.schemas import ClientType, HttpMethod
 from oldman.logging import logger
-from oldman.providers.redis import redis_client
+from oldman.providers.redis import redis_client, redis_key
 from oldman.utils import strings_utils
 
 """
@@ -115,17 +115,18 @@ class BaseStreamProxy:
         """
         configured = _configured_settings()
         self.proxy_name = proxy_name
-        # 缓存键定义
-        self.CACHED_URL_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_url:{{channel_id}}"
-        self.M3U8_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_m3u8_content:{{channel_id}}"
-        self.M3U_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_m3u_cache:{{play_list_key}}"
-        self.REAL_URL_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_real_url:{{channel_id}}"
-        self.TS_URL_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_ts_url:{{channel_id}}:{{hash_url}}"
-        self.SUB_M3U8_URL_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_sub_m3u8_url:{{channel_id}}:{{hash_url}}"
-        self.REDIRECT_URL_CACHE_KEY = f"{self.CACHE_PREFIX}_{proxy_name}_cache_redirect_url:{{hash_url}}"
+        # 缓存键定义:都在服务命名空间之下,<命名空间>:<CACHE_PREFIX>:<代理名>:...
+        key_prefix = redis_key(self.CACHE_PREFIX, proxy_name)
+        self.CACHED_URL_KEY = f"{key_prefix}:cache_url:{{channel_id}}"
+        self.M3U8_CACHE_KEY = f"{key_prefix}:cache_m3u8_content:{{channel_id}}"
+        self.M3U_CACHE_KEY = f"{key_prefix}:cache_m3u_cache:{{play_list_key}}"
+        self.REAL_URL_CACHE_KEY = f"{key_prefix}:cache_real_url:{{channel_id}}"
+        self.TS_URL_CACHE_KEY = f"{key_prefix}:cache_ts_url:{{channel_id}}:{{hash_url}}"
+        self.SUB_M3U8_URL_CACHE_KEY = f"{key_prefix}:cache_sub_m3u8_url:{{channel_id}}:{{hash_url}}"
+        self.REDIRECT_URL_CACHE_KEY = f"{key_prefix}:cache_redirect_url:{{hash_url}}"
         self.connect_timeout = configured.proxy.connect_timeout  # 连接超时设置
         self.read_timeout = configured.proxy.read_timeout
-        self._debug = configured.web.debug
+        self._debug = configured.core.debug
         self._cache = TwoLevelCache(MemoryCache(), redis_cache)
         self._http_clients: dict[str, MultiHttpClient] = {}
         self._client_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
@@ -508,7 +509,7 @@ class BaseStreamProxy:
 
         try:
             conn = await self._redis_connection()
-            lock_name = f"redis_m3u8_lock:{self.CACHE_PREFIX}:{self.proxy_name}_{cached_id}"
+            lock_name = redis_key("lock", self.CACHE_PREFIX, "m3u8", self.proxy_name, cached_id)
 
             # 使用分布式锁防止缓存雪崩
             async with conn.lock(lock_name, timeout=30, blocking_timeout=10):
@@ -1021,7 +1022,7 @@ class BaseStreamProxy:
             if real_url:
                 return real_url, None
 
-            lock_name = f"redis_redirect_lock:{self.CACHE_PREFIX}:{channel_id}"
+            lock_name = redis_key("lock", self.CACHE_PREFIX, "redirect", channel_id)
             lock_timeout = 15  # 锁持有时间缩短到15秒
             blocking_timeout = 5  # 等待锁时间缩短到5秒
             try:
@@ -1138,7 +1139,7 @@ class BaseStreamProxy:
             if real_url:
                 return real_url, None
 
-            lock_name = f"redis_sub_redirect_lock:{self.CACHE_PREFIX}:{channel_id}"
+            lock_name = redis_key("lock", self.CACHE_PREFIX, "sub_redirect", channel_id)
             lock_timeout = 15  # 锁持有时间缩短到15秒
             blocking_timeout = 5  # 等待锁时间缩短到5秒
             try:

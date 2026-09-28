@@ -7,7 +7,7 @@ from typing import Final
 
 from oldman.conf.schemas import SSEConfig
 from oldman.logging import get_logger
-from oldman.providers.redis import RedisAliasClient, RedisClientRegistry, redis_client
+from oldman.providers.redis import RedisAliasClient, RedisClientRegistry, redis_client, redis_key
 from oldman.serializers import MsgspecModel
 from oldman.web.sse.messages import SSEPublishedMessage, SSETargetType
 
@@ -67,7 +67,6 @@ class SSEPublisher:
         self.config = config
         self._logger = get_logger("default.sse.publisher")
         self._failure_active = False
-        self._channel = f"{config.channel_prefix}:events:v1" if config.enabled else ""
         self._redis: RedisAliasClient | None = None
         if config.enabled:
             selected_registry = redis_client if registry is None else registry
@@ -141,7 +140,8 @@ class SSEPublisher:
 
         try:
             connection = await redis_alias.async_get_bin_conn()
-            await connection.publish(self._channel, encoded)
+            # The channel is named when publishing: a publisher is built before settings exist.
+            await connection.publish(redis_key("events", "v1"), encoded)
         except Exception as error:
             if not self._failure_active:
                 self._logger.error("SSE Redis publish failed: %s", error)

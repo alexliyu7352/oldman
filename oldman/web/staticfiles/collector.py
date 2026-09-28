@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from oldman.utils.files import atomic_write
 from oldman.web.staticfiles.finders import (
     StaticSource,
     StaticSourceFile,
@@ -385,7 +386,7 @@ def _apply_collection_plan(
         ):
             unchanged += 1
         else:
-            _atomic_write(output_file, planned_file.payload)
+            atomic_write(output_file, planned_file.payload, follow_symlinks=False)
             copied += 1
         next_manifest[logical_path.as_posix()] = {
             "digest": planned_file.digest,
@@ -618,25 +619,7 @@ def _write_manifest(
     # 而 orjson 永远输出原样 UTF-8 且没有这个选项。清单是发布产物并受打包门禁比对，
     # 换了会改变文件内容。
     serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-    _atomic_write(path, serialized.encode("utf-8"))
-
-
-def _atomic_write(path: Path, payload: bytes) -> None:
-    """Replace one output only after its complete payload reaches disk."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            delete=False,
-        ) as temporary:
-            temporary.write(payload)
-            temporary_path = Path(temporary.name)
-        temporary_path.replace(path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    atomic_write(path, serialized.encode("utf-8"), follow_symlinks=False)
 
 
 def _digest(payload: bytes) -> str:

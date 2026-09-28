@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from oldman.conf.schemas import RedisConfig
 from oldman.testing.gates import (
     BrowserGateError,
     FirstUseInteraction,
@@ -23,6 +24,7 @@ from oldman.testing.gates import (
     redis_database_url,
     run_browser_child,
     service_command,
+    use_owned_redis,
     wait_for_service,
 )
 
@@ -111,7 +113,60 @@ class PortAndProcessTest(unittest.TestCase):
             wait_for_service(process, find_free_port(), timeout=1, name="probe")
 
 
+class UseOwnedRedisTest(unittest.TestCase):
+    def test_every_alias_moves_to_the_owned_redis_and_nothing_else_changes(self) -> None:
+        payload = {
+            "database": {"url": "sqlite+aiosqlite:///data/app.db"},
+            "redis": {
+                "SESSION": {"redis_url": "redis://127.0.0.1:6379/5", "health_check_interval": 30},
+                "CACHE": {"redis_url": "redis://localhost:6379/2"},
+            },
+        }
+
+        use_owned_redis(payload, "redis://127.0.0.1:6399")
+
+        self.assertEqual("redis://127.0.0.1:6399/0", payload["redis"]["CACHE"]["redis_url"])
+        self.assertEqual("redis://127.0.0.1:6399/1", payload["redis"]["SESSION"]["redis_url"])
+        self.assertEqual(30, payload["redis"]["SESSION"]["health_check_interval"])
+        self.assertEqual("sqlite+aiosqlite:///data/app.db", payload["database"]["url"])
+        # G4-3: the built-in DEFAULT alias was not written here, so it kept pointing at localhost:6379.
+        urls = {alias: connection.redis_url for alias, connection in RedisConfig.model_validate(payload["redis"]).items()}
+        self.assertEqual({"CACHE", "DEFAULT", "SESSION"}, set(urls))
+        self.assertTrue(all(url.startswith("redis://127.0.0.1:6399/") for url in urls.values()), urls)
+        self.assertEqual(len(urls), len(set(urls.values())), urls)
+
+    def test_a_payload_without_a_redis_section_gets_the_built_in_aliases(self) -> None:
+        payload: dict = {"database": {"url": "sqlite+aiosqlite:///data/app.db"}}
+
+        use_owned_redis(payload, "redis://127.0.0.1:6399")
+
+        urls = {alias: connection.redis_url for alias, connection in RedisConfig.model_validate(payload["redis"]).items()}
+        self.assertEqual({"CACHE", "DEFAULT", "SESSION"}, set(urls))
+        self.assertTrue(all(url.startswith("redis://127.0.0.1:6399/") for url in urls.values()), urls)
+
+
 class GateSettingsTest(unittest.TestCase):
+    def test_an_example_that_leaves_a_section_to_its_defaults_still_gets_the_gate_paths(self) -> None:
+        """Both demos' examples now omit `logging` (its level follows core.debug); the gate assumed the section was there."""
+        with tempfile.TemporaryDirectory(prefix="oldman-gate-settings-") as directory:
+            state_root = Path(directory)
+            example = state_root / "web_settings.example.yaml"
+            example.write_text(EXAMPLE_SETTINGS.replace("logging:\n  dir: ./logs\n", ""), encoding="utf-8")
+
+            config_file = gate_settings(
+                example,
+                state_root,
+                service_port=18999,
+                redis_url="redis://127.0.0.1:6399",
+                namespace="oldman_probe_gate",
+                database_name="probe.sqlite3",
+            )
+
+            from ruamel.yaml import YAML
+
+            payload = YAML(typ="safe", pure=True).load(config_file.read_text(encoding="utf-8"))
+            self.assertEqual(str(state_root / "logs"), payload["logging"]["dir"])
+
     def test_every_path_points_into_the_gate_state_root(self) -> None:
         with tempfile.TemporaryDirectory(prefix="oldman-gate-settings-") as directory:
             state_root = Path(directory)
@@ -135,18 +190,22 @@ class GateSettingsTest(unittest.TestCase):
             self.assertEqual(str(state_root / "data"), payload["core"]["data_dir"])
             self.assertEqual(f"sqlite+aiosqlite:///{state_root / 'probe.sqlite3'}", payload["database"]["url"])
             # 每一个别名都要落到门禁自己那台 Redis 的一个独立 database：漏掉一个就会写开发机的真实 Redis。
+            # 示例没写的内置别名 DEFAULT 也在内（G4-3），排在写出来的别名后面，已有的编号不变。
             self.assertEqual(
                 {
                     "CACHE": "redis://127.0.0.1:6399/0",
                     "SESSION": "redis://127.0.0.1:6399/1",
                     "SSE": "redis://127.0.0.1:6399/2",
                     "TASKIQ": "redis://127.0.0.1:6399/3",
+                    "DEFAULT": "redis://127.0.0.1:6399/4",
                 },
                 {alias: entry["redis_url"] for alias, entry in payload["redis"].items()},
             )
             self.assertEqual(18999, payload["web"]["listen_port"])
             self.assertEqual(1, payload["web"]["workers"])
             self.assertEqual("oldman_probe_gate_sid", payload["web"]["session"]["cookie_name"])
+            # The gate's namespace is the service's: every Redis key it writes starts with it.
+            self.assertEqual("oldman_probe_gate", payload["core"]["namespace"])
             self.assertEqual(str(state_root / "media"), payload["storages"]["default"]["options"]["location"])
             self.assertEqual("127.0.0.1", payload["web"]["listen_host"])
             self.assertNotEqual("example-only", payload["web"]["security"]["fingerprint"]["aes_secret_key"])
@@ -227,7 +286,7 @@ class OwnedResourceTest(unittest.TestCase):
     def test_an_owned_redis_starts_and_leaves_nothing_behind(self) -> None:
         environment = minimal_environment()
         if shutil.which("redis-server", path=environment.get("PATH")) is None:
-            self.skipTest("redis-server is required for this gate")
+            self.fail("redis-server is required on PATH for this gate; it fails rather than skips")
         with tempfile.TemporaryDirectory(prefix="oldman-gate-redis-") as directory:
             state_root = Path(directory)
             with owned_redis_server(state_root, environment=environment) as redis_url:

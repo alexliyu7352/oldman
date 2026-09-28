@@ -46,7 +46,7 @@ class CloseModalAction(ResponseAction, tag=ApiResponseAction.CLOSE_MODAL.value, 
 class ReloadTableAction(ResponseAction, tag=ApiResponseAction.RELOAD_TABLE.value, kw_only=True):
     """Reload one mounted table."""
 
-    target: str  # pyright: ignore[reportGeneralTypeIssues] -- this tagged subtype makes the inherited optional target required
+    target: str  # pyright: ignore[reportGeneralTypeIssues]  # pyrefly: ignore[bad-override-mutable-attribute] -- this tagged subtype makes the inherited optional target required
 
 
 class RedirectAction(ResponseAction, tag=ApiResponseAction.REDIRECT.value, kw_only=True):

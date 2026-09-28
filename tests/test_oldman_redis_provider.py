@@ -13,8 +13,8 @@ from pydantic import ValidationError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
+import oldman.conf as conf
 from oldman.conf import constants
-from oldman.conf.manager import DEFAULT_DEPRECATED_SETTINGS_KEYS
 from oldman.conf.schemas import (
     DefaultSettings,
     RedisConfig,
@@ -127,7 +127,6 @@ class RedisSettingsContractTest(unittest.TestCase):
         settings = DefaultSettings()
 
         self.assertEqual("CACHE", settings.cache.client)
-        self.assertEqual("main", settings.cache.namespace)
         self.assertEqual("pickle", settings.cache.serializer)
 
     def test_redis_protocol_accepts_nested_yaml_values(self) -> None:
@@ -138,7 +137,6 @@ class RedisSettingsContractTest(unittest.TestCase):
     def test_old_redis_fallback_constants_are_removed(self) -> None:
         self.assertFalse(hasattr(constants, "DEFAULT_REDIS_URL"))
         self.assertFalse(hasattr(constants, "REDIS_CONFIG"))
-        self.assertEqual("redis", DEFAULT_DEPRECATED_SETTINGS_KEYS["REDIS_CONFIG"])
 
 
 class AsyncRedisContractTest(unittest.IsolatedAsyncioTestCase):
@@ -257,10 +255,11 @@ class AsyncRedisContractTest(unittest.IsolatedAsyncioTestCase):
 
         pools = [Mock(), Mock()]
         connections = [Mock(), Mock()]
+        closers = [AsyncMock(), AsyncMock()]
         for pool in pools:
             pool.disconnect = AsyncMock()
-        for connection in connections:
-            connection.aclose = AsyncMock()
+        for connection, closer in zip(connections, closers, strict=True):
+            connection.aclose = closer
         client = AsyncRedis("redis://localhost:6379/0")
 
         with (
@@ -273,7 +272,7 @@ class AsyncRedisContractTest(unittest.IsolatedAsyncioTestCase):
             self.assertIs(connections[1], await client.async_get_conn())
 
         self.assertEqual(2, pool_factory.call_count)
-        connections[0].aclose.assert_awaited_once()
+        closers[0].assert_awaited_once()
         pools[0].disconnect.assert_awaited_once()
 
     async def test_async_redis_cleans_pool_when_client_construction_fails(self) -> None:
@@ -472,12 +471,19 @@ class LockTimeoutSeparationTest(unittest.TestCase):
 
     class _RecordingConnection:
         def __init__(self) -> None:
+            self.names: list[str] = []
             self.ttls: list[int | None] = []
 
         async def set(self, name: str, value: str, nx: bool | None = None, ex: int | None = None) -> bool:
-            del name, value, nx
+            del value, nx
+            self.names.append(name)
             self.ttls.append(ex)
             return True
+
+    def setUp(self) -> None:
+        settings = DefaultSettings()
+        settings.core.namespace = "svc"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
 
     def _client(self, connection: object):
         from oldman.providers.redis.redis import AsyncRedis
@@ -494,6 +500,8 @@ class LockTimeoutSeparationTest(unittest.TestCase):
         connection = self._RecordingConnection()
         asyncio.run(self._client(connection).acquire_lock("job", acquire_timeout=5, expire_timeout=60))
         self.assertEqual([60], connection.ttls, "the lock TTL must follow expire_timeout, not the retry deadline")
+        # Lock names live under the service namespace, like every other key.
+        self.assertEqual(["svc:lock:job"], connection.names)
 
     def test_omitting_the_hold_time_keeps_the_previous_behaviour(self) -> None:
         connection = self._RecordingConnection()

@@ -7,24 +7,32 @@ from typing import Any, Literal
 from urllib.parse import quote
 
 from sanic.exceptions import Forbidden
-from sanic.views import HTTPMethodView
+from sanic.views import HTTPMethodView as SanicHTTPMethodView
 
+from oldman.i18n import gettext
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
+from oldman.web.authentication import request_user
 from oldman.web.errors import render_html_error_response
-from oldman.web.request import get_arg
+from oldman.web.request import bearer_credential, get_arg
 from oldman.web.response import json_response, redirect_response
 
 ResponseMode = Literal["auto", "html", "json"]
 
 
 def resolve_response_mode(request: Any, default: ResponseMode = "auto") -> Literal["html", "json"]:
-    """按 response_mode 参数优先、Accept 兜底解析响应模式。"""
+    """按 response_mode 参数优先、Accept 兜底解析响应模式。
+
+    出示了 Bearer 令牌的请求来自 API 客户端:令牌过期时它要的是 JSON 401,不是跳转到登录页的 302。
+    只认 Bearer,不认任意 Authorization——代理在测试站前面加的 HTTP Basic 不该把整站变成 JSON。
+    """
     args = getattr(request, "args", {}) or {}
     value = str(get_arg(args, "response_mode", "") or "").lower()
     if value in {"html", "json"}:
         return value  # type: ignore[return-value]
     if default in {"html", "json"}:
         return default  # type: ignore[return-value]
+    if bearer_credential(request) is not None:
+        return "json"
     accept = str((getattr(request, "headers", {}) or {}).get("accept", "")).lower()
     return "json" if "application/json" in accept else "html"
 
@@ -50,23 +58,27 @@ def authentication_required_response(
     if response_mode == "json" or is_oldman_request:
         payload = DefaultApiResponse(
             error_code=ApiErrorCode.AUTHENTICATION_REQUIRED,
-            message="Authentication required",
+            message=gettext("Authentication required", request=request),
             data={"login_url": login_url},
         )
         return json_response(payload.to_dict(), status=401)
     return redirect_response(build_login_url(request, login_url), status=302)
 
 
-async def permission_denied_response(request: Any, response_mode: Literal["html", "json"], *, message: str = "Permission denied"):
-    """返回 JSON 403 或项目可覆盖的 HTML 403 页面。"""
+async def permission_denied_response(request: Any, response_mode: Literal["html", "json"], *, message: str | None = None):
+    """返回 JSON 403 或项目可覆盖的 HTML 403 页面;没给 message 时用翻译后的"没有权限"。"""
+    message = message or gettext("Permission denied", request=request)
     if response_mode == "json":
         payload = DefaultApiResponse(error_code=ApiErrorCode.PERMISSION_DENIED, message=message)
         return json_response(payload.to_dict(), status=403)
     return await render_html_error_response(request, Forbidden(message))
 
 
-class OldmanHTTPMethodView(HTTPMethodView):
-    """带 Oldman 登录和 staff 权限协议的 HTTPMethodView。"""
+class HTTPMethodView(SanicHTTPMethodView):
+    """Sanic 的 HTTPMethodView 加上 Oldman 的登录与 staff 权限协议。
+
+    ``require_authenticated`` 与 ``require_staff`` 默认关闭,此时行为与 Sanic 的原类相同。
+    """
 
     require_authenticated = False
     require_staff = False
@@ -83,12 +95,15 @@ class OldmanHTTPMethodView(HTTPMethodView):
             return await self.resolve_hook_response(self.on_authentication_required(request, response_mode, method_name=method_name))
 
         if self.require_staff and not self.is_staff(request):
-            return await self.resolve_hook_response(self.on_permission_denied(request, response_mode, message="Permission denied", method_name=method_name))
+            denied = gettext("Permission denied", request=request)
+            return await self.resolve_hook_response(self.on_permission_denied(request, response_mode, message=denied, method_name=method_name))
 
         allowed, message = await self.check_permission(request, method_name=method_name, route_kwargs=route_kwargs)
         if not allowed:
             return await self.resolve_hook_response(
-                self.on_permission_denied(request, response_mode, message=message or "Permission denied", method_name=method_name)
+                self.on_permission_denied(
+                    request, response_mode, message=message or gettext("Permission denied", request=request), method_name=method_name
+                )
             )
 
         handler = getattr(self, method_name, None)
@@ -103,14 +118,12 @@ class OldmanHTTPMethodView(HTTPMethodView):
         return result
 
     def is_authenticated(self, request: Any) -> bool:
-        """判断请求是否已登录。"""
-        session = getattr(getattr(request, "ctx", None), "session", None)
-        return bool(session and session.is_authenticated())
+        """判断请求是否来自已登录用户,不论它凭什么认证。"""
+        return request_user(request).is_authenticated
 
     def is_staff(self, request: Any) -> bool:
-        """判断请求 session 是否具备后台 staff 权限。"""
-        session = getattr(getattr(request, "ctx", None), "session", None)
-        return bool(session and session.is_staff)
+        """判断请求用户是否具备后台 staff 权限;匿名用户一律没有。"""
+        return request_user(request).is_staff
 
     async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
         """endpoint 级权限 hook，默认允许。"""
@@ -136,7 +149,6 @@ class OldmanHTTPMethodView(HTTPMethodView):
 
 __all__ = [
     "HTTPMethodView",
-    "OldmanHTTPMethodView",
     "authentication_required_response",
     "build_login_url",
     "permission_denied_response",

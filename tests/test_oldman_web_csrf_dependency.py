@@ -3,17 +3,25 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import patch
 
+from sanic import Sanic
+from sanic.response import text
+
 import oldman.conf as conf
-from oldman.conf.schemas import CSRFConfig, WebConfig, WebSecurityConfig
+from oldman.conf.schemas import CSRFConfig, DefaultSettings, WebConfig, WebSecurityConfig
+from oldman.providers.redis import RedisClientRegistry
+from oldman.web.auth import login_required
 from oldman.web.security import WebSecurityPurpose, derive_web_security_key
 from oldman.web.security.csrf import StatelessCSRFManager, add_csrf_token, csrf_exempt, csrf_protect
-from oldman.web.session import SessionData
+from oldman.web.session import DefaultSessionInterface, Session, SessionData
+from tests.redis_support import RedisProcess, owned_redis_config, require_redis_server
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -133,7 +141,8 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
 
         token = manager.generate_token(cast(Any, request))
 
-        self.assertEqual("0", manager._get_session_id(cast(Any, request)))
+        # A hand-built request no Session middleware opened is bound to its user id.
+        self.assertEqual("user:0", manager._binding(cast(Any, request), issue=False))
         self.assertEqual((True, "Valid"), manager.validate_token(cast(Any, request), token))
 
     def test_same_origin_check_uses_origin_first_and_rejects_cross_site(self) -> None:
@@ -255,6 +264,142 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SessionBoundTokenTest(unittest.IsolatedAsyncioTestCase):
+    """What a token is bound to, through a real Sanic app, the Session middleware and an owned redis-server."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._directory = tempfile.TemporaryDirectory()
+        cls._redis = RedisProcess(require_redis_server(), Path(cls._directory.name), "csrf_binding")
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._redis.stop()
+        cls._directory.cleanup()
+
+    async def asyncSetUp(self) -> None:
+        settings = DefaultSettings()
+        settings.core.namespace = "csrf_binding"
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
+        self.registry = RedisClientRegistry(owned_redis_config(self._redis.socket_path, {"SESSION": 0}))
+        self.enterContext(patch("oldman.web.session.base.redis_client", self.registry))
+        await (await self.registry.using("SESSION").async_get_bin_conn()).flushdb()
+        self.interface = DefaultSessionInterface(cookie_name="sid", session_model=SessionData)
+        app = Sanic(f"csrf_binding_{uuid.uuid4().hex}")
+        Session(app, self.interface)
+        StatelessCSRFManager(cast(Any, app), secret_key="csrf-binding-test-secret", check_referer=False)
+
+        @app.get("/form")
+        @add_csrf_token()
+        async def form(request):
+            return text(request.ctx.csrf_token)
+
+        @app.post("/submit")
+        @csrf_protect()
+        async def submit(request):
+            return text("ok")
+
+        @app.post("/account")
+        @csrf_protect()
+        @login_required()
+        async def account(request):
+            return text("ok")
+
+        self.app = app
+
+    async def asyncTearDown(self) -> None:
+        Sanic.unregister_app(self.app)
+        await self.registry.close()
+
+    def client(self) -> Any:
+        """The test client with an empty cookie jar: each request carries exactly the cookies it is given."""
+        client = self.app.asgi_client
+        client.cookies.clear()
+        return client
+
+    async def form(self, cookies: dict[str, str]) -> tuple[str, str | None]:
+        """A token, and the CSRF cookie the response set, if it set one."""
+        _request, response = await self.client().get("/form", cookies=cookies)
+        return response.text, response.cookies.get("csrf_id")
+
+    async def submit(self, token: str, cookies: dict[str, str]) -> int:
+        _request, response = await self.client().post("/submit", data={"csrfmiddlewaretoken": token}, cookies=cookies)
+        return response.status
+
+    async def test_an_anonymous_token_holds_only_with_the_visitors_own_cookie(self) -> None:
+        """Every anonymous token used to bind the same "anonymous" and pass for any visitor."""
+        token_a, cookie_a = await self.form({})
+        token_b, cookie_b = await self.form({})
+        assert cookie_a is not None and cookie_b is not None
+
+        self.assertEqual(200, await self.submit(token_a, {"csrf_id": cookie_a}))
+        self.assertEqual(403, await self.submit(token_a, {"csrf_id": cookie_b}))
+        self.assertEqual(403, await self.submit(token_a, {}))
+        # A visitor who has the cookie keeps it: the next page binds to it and sets nothing.
+        token_again, cookie_again = await self.form({"csrf_id": cookie_a})
+        self.assertIsNone(cookie_again)
+        self.assertEqual(200, await self.submit(token_again, {"csrf_id": cookie_a}))
+
+    async def test_a_signed_in_token_holds_only_in_its_own_session(self) -> None:
+        """Tokens were bound to the user id: another session of the same user, or signing out, kept them valid."""
+        anonymous_token, csrf_cookie = await self.form({})
+        assert csrf_cookie is not None
+        first = await self.interface.login(SessionData(user_id=7, username="ops", is_active=True))
+        second = await self.interface.login(SessionData(user_id=7, username="ops", is_active=True))
+        token, issued = await self.form({"sid": first, "csrf_id": csrf_cookie})
+        self.assertIsNone(issued)
+
+        self.assertEqual(200, await self.submit(token, {"sid": first, "csrf_id": csrf_cookie}))
+        # Another session, or signing in again, in the same browser: its CSRF cookie does not stand in for the session.
+        self.assertEqual(403, await self.submit(token, {"sid": second, "csrf_id": csrf_cookie}))
+        self.assertEqual(403, await self.submit(token, {}))
+        # A form opened before signing in needs a reload after it.
+        self.assertEqual(403, await self.submit(anonymous_token, {"sid": first, "csrf_id": csrf_cookie}))
+
+    async def test_a_form_left_open_until_its_session_was_ended_reaches_the_sign_in_check(self) -> None:
+        """Ended by an administrator, the session cookie stays and names a session that is gone. The form's
+        token was a CSRF failure (403) instead of a sign-in."""
+        sid = await self.interface.login(SessionData(user_id=7, username="ops", is_active=True))
+        token, csrf_cookie = await self.form({"sid": sid})
+        # A signed-in page gives a browser without one its CSRF cookie too.
+        assert csrf_cookie is not None
+        await self.interface.force_logout_user(7)
+
+        _request, response = await self.client().post("/account", data={"csrfmiddlewaretoken": token}, cookies={"sid": sid, "csrf_id": csrf_cookie})
+        self.assertEqual(302, response.status)
+        self.assertIn("/login", response.headers.get("location", ""))
+        # Without the browser's CSRF cookie nothing ties the request to that form.
+        self.assertEqual(403, await self.submit(token, {"sid": sid}))
+        self.assertEqual(403, await self.submit(token, {}))
+
+    async def test_a_form_left_open_until_the_user_signed_out_reaches_the_sign_in_check(self) -> None:
+        """Signing out, or the session expiring, takes the session cookie with it: only the CSRF cookie the
+        browser got before signing in is left. The form's token was a CSRF failure (403) instead of a sign-in."""
+        _anonymous_token, csrf_cookie = await self.form({})
+        assert csrf_cookie is not None
+        sid = await self.interface.login(SessionData(user_id=7, username="ops", is_active=True))
+        token, _cookie = await self.form({"sid": sid, "csrf_id": csrf_cookie})
+        await self.interface.logout(sid)
+
+        _request, response = await self.client().post("/account", data={"csrfmiddlewaretoken": token}, cookies={"csrf_id": csrf_cookie})
+        self.assertEqual(302, response.status)
+        self.assertIn("/login", response.headers.get("location", ""))
+        # Another browser's CSRF cookie does not pass it.
+        _other_token, other_cookie = await self.form({})
+        assert other_cookie is not None
+        self.assertEqual(403, await self.submit(token, {"csrf_id": other_cookie}))
+
+    async def test_the_cookie_travels_like_the_session_cookie_and_only_with_a_token(self) -> None:
+        _request, response = await self.client().get("/form")
+        header = next(value for key, value in response.headers.items() if key.lower() == "set-cookie" and value.startswith("csrf_id="))
+        self.assertIn("HttpOnly", header)
+        self.assertIn("Path=/", header)
+        self.assertIn("Max-Age=31536000", header)
+        # A request that generated no token sets no cookie.
+        _request, response = await self.client().post("/submit", data={})
+        self.assertNotIn("csrf_id", response.cookies)
 
 
 class GlobalCsrfEnforcementTest(unittest.TestCase):

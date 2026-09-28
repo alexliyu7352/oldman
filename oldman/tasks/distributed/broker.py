@@ -93,7 +93,8 @@ class TaskiqBroker(PullBasedJetStreamBroker):
         """Native reconnection continues; errors remain visible to service logging."""
         logger.error("Taskiq NATS connection: %s", error)
 
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:
+    # The standard context manager signature: taskiq declares a catch-all (*args, **kwargs) this body reads exc_value from.
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None, traceback: TracebackType | None) -> None:  # pyrefly: ignore[bad-override]
         """Keep the native context entry; failed cleanup cannot hide a body error."""
         try:
             await self.shutdown()
@@ -330,7 +331,8 @@ class TaskiqBroker(PullBasedJetStreamBroker):
             if messages:
                 return self._delivery(messages[0])
 
-    async def listen(self) -> AsyncGenerator[RenewingMessage | bytes, None]:
+    # Core NATS broadcasts arrive as bytes beside JetStream deliveries; taskiq's Receiver takes both, as AsyncBroker.listen declares.
+    async def listen(self) -> AsyncGenerator[RenewingMessage | bytes, None]:  # pyrefly: ignore[bad-override]
         """Bound each source to one pending read, feeding the same Receiver."""
         if not self._started or not self._subscriptions:
             raise RuntimeError("Start the Taskiq worker broker before listening")

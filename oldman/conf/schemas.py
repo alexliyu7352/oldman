@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import copy
+import ipaddress
 import logging
 import re
 from collections.abc import Iterator, Mapping
@@ -20,13 +21,14 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic_settings import SettingsConfigDict
 
 from oldman.conf.base import YamlBaseSettings
 from oldman.conf.constants import PROJECT_ROOT
 from oldman.i18n.registry import LanguageRegistry, canonical_language_code
 
 
-class OldmanBaseModel(BaseModel):
+class ConfigModel(BaseModel):
     """Base model for settings sections."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -39,18 +41,88 @@ Secret = Annotated[str, Field(repr=False)]
 OptionalSecret = Annotated[str | None, Field(repr=False)]
 
 
-class CoreConfig(OldmanBaseModel):
+class CoreConfig(ConfigModel):
     """Core application config."""
 
     app_name: str = Field(default="oldman", description="Application name")
+    namespace: str | None = Field(
+        default=None,
+        description=(
+            "Prefix of every Redis key and channel this service uses. Services that share sessions, "
+            "tokens or cache set the same value; one that must stay apart sets its own. Unset: app_name"
+        ),
+    )
     data_dir: Path = Field(default=PROJECT_ROOT / "data", description="Application data directory")
     time_zone: str = Field(default="Asia/Singapore", description="Application time zone")
+    id_alphabet: str | None = Field(
+        default=None,
+        description=(
+            "Alphabet that encodes public ids (oldman.utils.hash_ids). Settings sync generates one for a Web service; "
+            "every other service that encodes or decodes ids sets the same value. Changing it changes every id already handed out"
+        ),
+    )
+    debug: bool = Field(
+        default=False,
+        description=(
+            "Debug mode for every service: Sanic debug and error details, DEBUG logging when logging.level is null, "
+            "SQL echo when database.echo is null, full proxy tracebacks"
+        ),
+    )
+
+    @field_validator("id_alphabet", mode="before")
+    @classmethod
+    def validate_id_alphabet(cls, value: object) -> str | None:
+        """Blank means not generated yet; a set alphabet must be one Sqids accepts."""
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("core.id_alphabet must be a string")
+        normalized = value.strip()
+        if not normalized:
+            return None
+        from sqids import Sqids
+
+        try:
+            Sqids(alphabet=normalized)
+        except ValueError as exc:
+            raise ValueError(f"core.id_alphabet is not a usable alphabet: {exc}") from None
+        return normalized
+
+    @field_validator("namespace", mode="before")
+    @classmethod
+    def validate_namespace(cls, value: object) -> str | None:
+        """The namespace is the first segment of every key, so it may not contain the separator."""
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("core.namespace must be a string")
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not _is_namespace(normalized):
+            raise ValueError("core.namespace may not contain ':' or whitespace")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_namespace_fallback(self) -> CoreConfig:
+        """Unset, the namespace is app_name, which then has to be one as well."""
+        if self.namespace is None and not _is_namespace(self.app_name):
+            raise ValueError(
+                f"core.app_name {self.app_name!r} is the Redis namespace while core.namespace is unset, and a namespace "
+                "may not be empty or contain ':' or whitespace; set core.namespace"
+            )
+        return self
 
 
-class LoggingConfig(OldmanBaseModel):
+def _is_namespace(value: str) -> bool:
+    """The first segment of every Redis key: no separator, no whitespace, not empty."""
+    return bool(value) and ":" not in value and not any(character.isspace() for character in value)
+
+
+class LoggingConfig(ConfigModel):
     """Logging level, file location and console color configuration."""
 
-    level: int = Field(default=logging.INFO, description="Logging level")
+    level: int | None = Field(default=None, description="Logging level; null follows core.debug: DEBUG when it is on, INFO otherwise")
     dir: Path = Field(default=PROJECT_ROOT / "logs", description="Log file directory")
     color: Literal["auto", "always", "never"] = Field(default="auto", description="Console color policy")
     rotate_when: Literal["S", "M", "H", "D", "W0", "W1", "W2", "W3", "W4", "W5", "W6", "midnight"] | None = Field(
@@ -72,6 +144,12 @@ class LoggingConfig(OldmanBaseModel):
             raise ValueError("logging.max_bytes requires logging.rotate_when to be null; the two cannot both rotate")
         return self
 
+    def resolved_level(self, *, debug: bool) -> int:
+        """The level to install: the configured one, or DEBUG / INFO by the debug switch."""
+        if self.level is not None:
+            return self.level
+        return logging.DEBUG if debug else logging.INFO
+
     @field_validator("level", mode="before")
     @classmethod
     def normalize_level(cls, value: object) -> object:
@@ -83,13 +161,13 @@ class LoggingConfig(OldmanBaseModel):
         return level if level is not None else value
 
 
-class ProcessConfig(OldmanBaseModel):
+class ProcessConfig(ConfigModel):
     """Process lifecycle config."""
 
     pid_dir: Path = Field(default=PROJECT_ROOT / "pids", description="Service PID file directory")
 
 
-class CSRFConfig(OldmanBaseModel):
+class CSRFConfig(ConfigModel):
     """Stateless Web CSRF policy."""
 
     ttl: int = Field(default=3600, gt=0, description="CSRF token lifetime in seconds")
@@ -105,9 +183,14 @@ class CSRFConfig(OldmanBaseModel):
         default=False,
         description="Validate every unsafe-method request, exempting handlers marked csrf_exempt",
     )
+    cookie_name: str = Field(
+        default="csrf_id",
+        min_length=1,
+        description="Cookie holding an anonymous visitor's random id that CSRF tokens bind to; not csrftoken, which the frontend reads as a token",
+    )
 
 
-class FingerprintRateLimitConfig(OldmanBaseModel):
+class FingerprintRateLimitConfig(ConfigModel):
     """One browser-fingerprint and IP rate-limit rule."""
 
     window: int = Field(default=60, gt=0, description="Rate-limit window in seconds")
@@ -135,7 +218,7 @@ def _default_fingerprint_rate_limits() -> dict[str, FingerprintRateLimitConfig]:
     }
 
 
-class FingerprintSecurityConfig(OldmanBaseModel):
+class FingerprintSecurityConfig(ConfigModel):
     """Browser fingerprint encryption and anomaly policy.
 
     Opt-in: nothing enforces a fingerprint until a route asks for it with
@@ -213,17 +296,12 @@ class FingerprintSecurityConfig(OldmanBaseModel):
         return self
 
 
-class WebSecurityConfig(OldmanBaseModel):
-    """Central Web signing, token, CSRF, and browser-fingerprint settings."""
+class WebSecurityConfig(ConfigModel):
+    """Central Web signing, CSRF, and browser-fingerprint settings."""
 
     secret_key: OptionalSecret = Field(
         default=None,
         description="Server-only root key for purpose-separated Web secrets",
-    )
-    token_expire_time: int = Field(
-        default=60 * 60 * 24,
-        gt=0,
-        description="Authentication token lifetime in seconds",
     )
     csrf: CSRFConfig = Field(
         default_factory=CSRFConfig,
@@ -250,7 +328,7 @@ class WebSecurityConfig(OldmanBaseModel):
         return normalized
 
 
-class SessionConfig(OldmanBaseModel):
+class SessionConfig(ConfigModel):
     """Optional Redis-backed Web session configuration."""
 
     enabled: bool = Field(default=False, description="Install Web session middleware")
@@ -265,8 +343,6 @@ class SessionConfig(OldmanBaseModel):
         gt=0,
         description="Session lifetime in seconds when the user ticks 'Remember me' at login",
     )
-    prefix: str = Field(default="session:", min_length=1, description="Redis session key prefix")
-    user_prefix: str = Field(default="user_session:", min_length=1, description="Redis user-session index prefix")
     cookie_name: str = Field(default="session_id", min_length=1, description="Browser session cookie name")
     cookie_domain: str | None = Field(default=None, description="Optional browser session cookie domain")
     cookie_httponly: bool = Field(default=True, description="Hide the session cookie from browser scripts")
@@ -277,12 +353,11 @@ class SessionConfig(OldmanBaseModel):
     )
 
 
-class SSEConfig(OldmanBaseModel):
+class SSEConfig(ConfigModel):
     """Optional distributed browser event configuration."""
 
     enabled: bool = Field(default=False, description="Enable Redis-backed distributed SSE delivery")
     redis_alias: str = Field(default="SSE", min_length=1, description="Named Redis connection used by SSE")
-    channel_prefix: str = Field(default="", description="Project and environment specific Redis channel prefix")
     heartbeat_interval: float = Field(default=15.0, gt=0, description="Idle heartbeat interval in seconds")
     session_check_interval: float = Field(
         default=30.0,
@@ -292,21 +367,14 @@ class SSEConfig(OldmanBaseModel):
     queue_size: int = Field(default=100, gt=0, description="Default bounded SSE connection queue size")
     max_message_size: int = Field(default=65536, gt=0, description="Maximum encoded Redis event size in bytes")
 
-    @model_validator(mode="after")
-    def validate_distributed_settings(self) -> SSEConfig:
-        """Require an explicit channel namespace only when Redis delivery is enabled."""
-        if self.enabled and not self.channel_prefix.strip():
-            raise ValueError("web.sse.channel_prefix must not be blank when distributed SSE is enabled")
-        return self
 
-
-class TemplateConfig(OldmanBaseModel):
+class TemplateConfig(ConfigModel):
     """Template config."""
 
     dir: Path = Field(default=PROJECT_ROOT / "templates", description="Server-rendered template directory")
 
 
-class StaticConfig(OldmanBaseModel):
+class StaticConfig(ConfigModel):
     """Static assets config."""
 
     dir: Path = Field(default=PROJECT_ROOT / "static", description="Static source directory")
@@ -314,7 +382,7 @@ class StaticConfig(OldmanBaseModel):
     url: str = Field(default="/static/", description="Static URL prefix")
 
 
-class I18nLanguageConfig(OldmanBaseModel):
+class I18nLanguageConfig(ConfigModel):
     """Optional user overrides for one canonical language definition."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
@@ -346,7 +414,7 @@ def _default_i18n_languages() -> dict[str, I18nLanguageConfig]:
     return {"en": I18nLanguageConfig()}
 
 
-class I18nConfig(OldmanBaseModel):
+class I18nConfig(ConfigModel):
     """Internationalization config."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
@@ -407,15 +475,25 @@ class I18nConfig(OldmanBaseModel):
         return self
 
 
-class DatabaseConfig(OldmanBaseModel):
+class DatabaseConfig(ConfigModel):
     """Database config."""
 
     url: OptionalSecret = Field(default=None, description="SQLAlchemy async database URL, which routinely carries a password")
-    echo: bool | None = Field(default=None, description="Override SQLAlchemy engine echo; null follows web.debug")
+    echo: bool | None = Field(default=None, description="Override SQLAlchemy engine echo; null follows core.debug")
     enable_sql_logging: bool = Field(default=False, description="Enable SQL query tracking and performance summaries")
+    cache_pool_size: int = Field(
+        default=5,
+        gt=0,
+        description="Connections in the model cache's own pool, opened on the first cache miss; each process may hold this many more database connections",
+    )
+    cache_pool_timeout: float = Field(
+        default=1.0,
+        gt=0,
+        description="Seconds a model cache miss waits for a cache pool connection before reading through the caller's session without caching",
+    )
 
 
-class RedisConnectionConfig(OldmanBaseModel):
+class RedisConnectionConfig(ConfigModel):
     """One named Redis connection and its redis-py pool options."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow", hide_input_in_errors=True)
@@ -436,7 +514,7 @@ class RedisConnectionConfig(OldmanBaseModel):
     socket_keepalive_idle: int = Field(default=60, gt=0, description="TCP keepalive idle time")
     socket_keepalive_interval: int = Field(default=10, gt=0, description="TCP keepalive probe interval")
     socket_keepalive_count: int = Field(default=3, gt=0, description="TCP keepalive probe count")
-    __pydantic_extra__: dict[str, Any] = Field(init=False)
+    __pydantic_extra__: dict[str, Any] = Field(init=False)  # pyrefly: ignore[bad-override-mutable-attribute] -- pydantic's documented way to type extra fields
 
     @field_validator("redis_url")
     @classmethod
@@ -491,7 +569,7 @@ def _default_redis_connection(name: str) -> RedisConnectionConfig:
     return RedisConnectionConfig.model_validate(copy.deepcopy(_BUILTIN_REDIS_CONNECTIONS[name]))
 
 
-class RedisConfig(OldmanBaseModel, Mapping[str, RedisConnectionConfig]):
+class RedisConfig(ConfigModel, Mapping[str, RedisConnectionConfig]):
     """Case-sensitive mapping of named Redis connection configs."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
@@ -508,7 +586,7 @@ class RedisConfig(OldmanBaseModel, Mapping[str, RedisConnectionConfig]):
         default_factory=lambda: _default_redis_connection("SESSION"),
         description="Redis connection used by Web sessions",
     )
-    __pydantic_extra__: dict[str, RedisConnectionConfig] = Field(init=False)
+    __pydantic_extra__: dict[str, RedisConnectionConfig] = Field(init=False)  # pyrefly: ignore[bad-override-mutable-attribute] -- pydantic's documented way to type extra fields
 
     @model_validator(mode="before")
     @classmethod
@@ -539,7 +617,7 @@ class RedisConfig(OldmanBaseModel, Mapping[str, RedisConnectionConfig]):
         except KeyError:
             raise KeyError(name) from None
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[str]:  # pyrefly: ignore[bad-override] -- a Mapping of aliases: keys, not BaseModel's (name, value) pairs
         yield from type(self).model_fields
         yield from self.__pydantic_extra__ or {}
 
@@ -547,15 +625,14 @@ class RedisConfig(OldmanBaseModel, Mapping[str, RedisConnectionConfig]):
         return len(type(self).model_fields) + len(self.__pydantic_extra__ or {})
 
 
-class RedisCacheConfig(OldmanBaseModel):
+class RedisCacheConfig(ConfigModel):
     """Configuration for the Redis-backed cache implementation."""
 
     client: str = Field(default="CACHE", min_length=1, description="Named Redis client used by the cache")
-    namespace: str = Field(default="main", min_length=1, description="Redis cache key namespace")
     serializer: str = Field(default="pickle", min_length=1, description="Redis cache serializer name")
 
 
-class NATSConnectionConfig(OldmanBaseModel):
+class NATSConnectionConfig(ConfigModel):
     """One native NATS connection; validation never reads certificates or connects."""
 
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
@@ -594,7 +671,7 @@ class NATSConnectionConfig(OldmanBaseModel):
         return self
 
 
-class NATSConfig(OldmanBaseModel, Mapping[str, NATSConnectionConfig]):
+class NATSConfig(ConfigModel, Mapping[str, NATSConnectionConfig]):
     """Case-sensitive named NATS connections, matching the Redis mapping convention."""
 
     model_config = ConfigDict(extra="allow", hide_input_in_errors=True)
@@ -603,7 +680,7 @@ class NATSConfig(OldmanBaseModel, Mapping[str, NATSConnectionConfig]):
         default_factory=lambda: NATSConnectionConfig(nats_url="nats://localhost:4222"),
         description="Default NATS connection",
     )
-    __pydantic_extra__: dict[str, NATSConnectionConfig] = Field(init=False)
+    __pydantic_extra__: dict[str, NATSConnectionConfig] = Field(init=False)  # pyrefly: ignore[bad-override-mutable-attribute] -- pydantic's documented way to type extra fields
 
     @model_validator(mode="before")
     @classmethod
@@ -629,7 +706,7 @@ class NATSConfig(OldmanBaseModel, Mapping[str, NATSConnectionConfig]):
         except KeyError:
             raise KeyError(name) from None
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[str]:  # pyrefly: ignore[bad-override] -- a Mapping of aliases: keys, not BaseModel's (name, value) pairs
         """Enumerate built-in and explicitly supplied aliases."""
         yield from type(self).model_fields
         yield from self.__pydantic_extra__ or {}
@@ -639,7 +716,7 @@ class NATSConfig(OldmanBaseModel, Mapping[str, NATSConnectionConfig]):
         return len(type(self).model_fields) + len(self.__pydantic_extra__ or {})
 
 
-class NATSBusConfig(OldmanBaseModel):
+class NATSBusConfig(ConfigModel):
     """Core event/RPC lifecycle, independent of named transports and Taskiq."""
 
     model_config = ConfigDict(extra="forbid")
@@ -678,7 +755,7 @@ def validate_taskiq_name(value: str) -> str:
     return value
 
 
-class TaskiqConfig(OldmanBaseModel):
+class TaskiqConfig(ConfigModel):
     """Distributed task limits, separate from fixed local Worker configuration."""
 
     model_config = ConfigDict(extra="forbid")
@@ -737,14 +814,14 @@ class TaskiqConfig(OldmanBaseModel):
         return self
 
 
-class HttpClientConfig(OldmanBaseModel):
+class HttpClientConfig(ConfigModel):
     """HTTP client config."""
 
     max_connections: int = Field(default=300, description="Maximum HTTP connection pool size")
     user_agent: str = Field(default="okhttp/3.8.7", description="Default outbound HTTP user agent")
 
 
-class StorageBackendConfig(OldmanBaseModel):
+class StorageBackendConfig(ConfigModel):
     """One importable storage backend and its backend-specific options."""
 
     backend: str = Field(description="Dotted import path of the storage backend")
@@ -769,7 +846,7 @@ def _default_storage_backend() -> StorageBackendConfig:
     )
 
 
-class StoragesConfig(OldmanBaseModel, Mapping[str, StorageBackendConfig]):
+class StoragesConfig(ConfigModel, Mapping[str, StorageBackendConfig]):
     """Mapping of the default storage and dynamically named storage aliases."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
@@ -778,7 +855,7 @@ class StoragesConfig(OldmanBaseModel, Mapping[str, StorageBackendConfig]):
         default_factory=_default_storage_backend,
         description="Default file storage backend",
     )
-    __pydantic_extra__: dict[str, StorageBackendConfig] = Field(init=False)
+    __pydantic_extra__: dict[str, StorageBackendConfig] = Field(init=False)  # pyrefly: ignore[bad-override-mutable-attribute] -- pydantic's documented way to type extra fields
 
     @model_validator(mode="after")
     def validate_storage_aliases(self) -> StoragesConfig:
@@ -798,7 +875,7 @@ class StoragesConfig(OldmanBaseModel, Mapping[str, StorageBackendConfig]):
         except KeyError:
             raise KeyError(name) from None
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[str]:  # pyrefly: ignore[bad-override] -- a Mapping of aliases: keys, not BaseModel's (name, value) pairs
         yield from type(self).model_fields
         yield from self.__pydantic_extra__ or {}
 
@@ -806,21 +883,21 @@ class StoragesConfig(OldmanBaseModel, Mapping[str, StorageBackendConfig]):
         return len(type(self).model_fields) + len(self.__pydantic_extra__ or {})
 
 
-class MediaConfig(OldmanBaseModel):
+class MediaConfig(ConfigModel):
     """Media storage and URL config."""
 
     storage: str = Field(default="default", description="Named storage used for media files")
     url: str = Field(default="/media/", description="Media URL prefix")
 
 
-class ProxyConfig(OldmanBaseModel):
+class ProxyConfig(ConfigModel):
     """Media proxy runtime config."""
 
     connect_timeout: int = Field(default=5, description="Proxy connection timeout in seconds")
     read_timeout: int = Field(default=10, description="Proxy read timeout in seconds")
 
 
-class SMTPMailConfig(OldmanBaseModel):
+class SMTPMailConfig(ConfigModel):
     """Transport settings for the SMTP mail backend."""
 
     host: str = Field(default="localhost", min_length=1, description="SMTP server host name or address")
@@ -840,7 +917,7 @@ class SMTPMailConfig(OldmanBaseModel):
         return self
 
 
-class MailConfig(OldmanBaseModel):
+class MailConfig(ConfigModel):
     """Outgoing mail settings shared by Web and task processes."""
 
     backend: str = Field(
@@ -863,24 +940,175 @@ class MailConfig(OldmanBaseModel):
         return value
 
 
-class FrontendConfig(OldmanBaseModel):
+class FrontendConfig(ConfigModel):
     """Frontend build and dev-server config."""
 
     vite_dev_server_url: str = Field(default="http://localhost:5173", description="Vite development server URL")
 
 
-class MessagesConfig(OldmanBaseModel):
+class MessagesConfig(ConfigModel):
     """Cookie-backed one-time Web message configuration."""
 
     enabled: bool = Field(default=False, description="Install one-time Web messages")
 
 
-class WebConfig(OldmanBaseModel):
+class JWTConfig(ConfigModel):
+    """Bearer access tokens: signed JWTs a client sends in the Authorization header."""
+
+    secret: OptionalSecret = Field(
+        default=None,
+        description=(
+            "HMAC key the tokens are signed with, apart from web.security.secret_key; services that "
+            "accept each other's tokens share it. Required when web.auth.authenticators lists jwt"
+        ),
+    )
+    access_token_ttl: int = Field(default=900, gt=0, description="Access token lifetime in seconds")
+    refresh_token_ttl: int = Field(
+        default=60 * 60 * 24 * 7,
+        gt=0,
+        description="Refresh token lifetime in seconds, counted again from every refresh: a client that refreshes within it stays signed in",
+    )
+    issuer: str | None = Field(default=None, description="Written to the iss claim and required in it when set")
+    audience: str | None = Field(default=None, description="Written to the aud claim and required in it when set")
+
+    @field_validator("secret", mode="before")
+    @classmethod
+    def validate_secret(cls, value: object) -> str | None:
+        """A short HMAC key can be brute-forced offline from any one token."""
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("web.auth.jwt.secret must be a string")
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if len(normalized) < 32:
+            raise ValueError("web.auth.jwt.secret must contain at least 32 characters")
+        return normalized
+
+
+class APIKeyConfig(ConfigModel):
+    """One named key the api_key method accepts from callers that are not users: other services, scripts."""
+
+    secret: str = Field(repr=False, description="The key itself; a caller sends it in the X-API-Key header")
+    query_param: str | None = Field(
+        default=None,
+        description="Also read the key from this query parameter; access logs, browser history and Referer headers then see it",
+    )
+    authorization: bool = Field(default=False, description="Also accept the key as Authorization: Bearer <key>")
+
+    @field_validator("secret", mode="before")
+    @classmethod
+    def validate_secret(cls, value: object) -> str:
+        """An empty key would let every caller that sends nothing match it."""
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("an API key needs a non-empty secret")
+        return value.strip()
+
+    @field_validator("query_param", mode="before")
+    @classmethod
+    def validate_query_param(cls, value: object) -> str | None:
+        """Blank means header only."""
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError("query_param must be a string")
+        return value.strip() or None
+
+
+class HTTPBasicConfig(ConfigModel):
+    """Fixed accounts the http_basic method accepts: tools and machines that speak HTTP Basic."""
+
+    realm: str = Field(default="oldman", description="Named by the browser's sign-in prompt; sent in WWW-Authenticate")
+    accounts: dict[str, str] = Field(
+        default_factory=dict,
+        repr=False,
+        description="Username to password, as written; the settings file is readable by its owner only",
+    )
+
+    @field_validator("realm")
+    @classmethod
+    def validate_realm(cls, value: str) -> str:
+        """The realm is sent inside a quoted header value; a quote or control character would break out of it."""
+        normalized = value.strip()
+        if not normalized or any(character in '"\\' or ord(character) < 0x20 or ord(character) == 0x7F for character in normalized):
+            raise ValueError("web.auth.http_basic.realm must be non-empty, without quotes, backslashes or control characters")
+        return normalized
+
+    @field_validator("accounts")
+    @classmethod
+    def validate_accounts(cls, value: dict[str, str]) -> dict[str, str]:
+        """HTTP Basic splits the credential at the first colon, so a username cannot hold one."""
+        for username, password in value.items():
+            if not username or ":" in username:
+                raise ValueError("web.auth.http_basic.accounts usernames must be non-empty and contain no ':'")
+            if not password:
+                raise ValueError(f"web.auth.http_basic.accounts {username!r} needs a non-empty password")
+        return value
+
+
+class AuthConfig(ConfigModel):
+    """How a Web service recognizes who, or what, is making each request."""
+
+    authenticators: list[str] | None = Field(
+        default=None,
+        description=(
+            "Request authentication methods tried in order, first match wins: built-in names "
+            "(session, jwt, api_key, http_basic, ip_allowlist) or import paths of project classes; ip_allowlist "
+            "must come last. Unset: session when sessions are enabled, otherwise none"
+        ),
+    )
+    login_backends: list[str] = Field(
+        default_factory=lambda: ["users"],
+        description=(
+            "Credential checks tried in order at sign-in and when issuing tokens, first match "
+            "wins: built-in names (users) or import paths of project classes"
+        ),
+    )
+    jwt: JWTConfig = Field(default_factory=JWTConfig, description="Bearer access token settings")
+    api_keys: dict[str, APIKeyConfig] = Field(
+        default_factory=dict,
+        description="Keys the api_key method accepts, by name; the name is request.ctx.auth.caller",
+    )
+    http_basic: HTTPBasicConfig = Field(default_factory=HTTPBasicConfig, description="Accounts the http_basic method accepts")
+    ip_allowlist: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Networks the ip_allowlist method accepts, by name; the name is request.ctx.auth.caller. The socket "
+            "peer and the client address must both fall in one entry, so a proxy in front lists its own address too"
+        ),
+    )
+
+    @field_validator("ip_allowlist")
+    @classmethod
+    def validate_ip_allowlist(cls, value: dict[str, list[str]]) -> dict[str, list[str]]:
+        """Each entry lists addresses or CIDR blocks; a block with host bits set is refused rather than widened."""
+        for name, networks in value.items():
+            if not networks:
+                raise ValueError(f"web.auth.ip_allowlist {name!r} lists no networks")
+            for network in networks:
+                try:
+                    ipaddress.ip_network(network)
+                except ValueError as error:
+                    raise ValueError(f"web.auth.ip_allowlist {name!r}: {error}") from None
+        return value
+
+    @model_validator(mode="after")
+    def validate_distinct_api_keys(self) -> AuthConfig:
+        """Two names on one key would leave it unclear which caller is calling."""
+        seen: dict[str, str] = {}
+        for name, key in self.api_keys.items():
+            if key.secret in seen:
+                raise ValueError(f"web.auth.api_keys {seen[key.secret]!r} and {name!r} share one secret")
+            seen[key.secret] = name
+        return self
+
+
+class WebConfig(ConfigModel):
     """Web server and browser-facing service config."""
 
     listen_host: str = Field(default="::", description="Web server listen host")
     listen_port: int = Field(default=17998, description="Web server listen port")
-    debug: bool = Field(default=False, description="Enable web debug mode")
     auto_reload: bool = Field(default=False, description="Enable source auto reload")
     workers: int = Field(default=1, description="Web server worker count")
     access_log: bool = Field(default=False, description="Enable HTTP access logging")
@@ -909,6 +1137,7 @@ class WebConfig(OldmanBaseModel):
         description="Web security settings",
     )
     session: SessionConfig = Field(default_factory=SessionConfig, description="Web session settings")
+    auth: AuthConfig = Field(default_factory=AuthConfig, description="Request authentication settings")
     messages: MessagesConfig = Field(default_factory=MessagesConfig, description="One-time Web message settings")
     sse: SSEConfig = Field(default_factory=SSEConfig, description="Server-sent event settings")
     template: TemplateConfig = Field(default_factory=TemplateConfig, description="Template settings")
@@ -921,7 +1150,7 @@ class DefaultSettings(YamlBaseSettings):
     """Complete runtime settings schema."""
 
     # Nested authentication validation must not print input mappings with credentials.
-    model_config = ConfigDict(hide_input_in_errors=True)
+    model_config = SettingsConfigDict(hide_input_in_errors=True)
 
     apps: tuple[str, ...] = Field(default=(), description="Installed App package paths")
     core: CoreConfig = Field(default_factory=CoreConfig, description="Core application settings")

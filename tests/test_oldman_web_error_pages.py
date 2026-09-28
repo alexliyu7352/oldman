@@ -14,7 +14,7 @@ from sanic.exceptions import Forbidden, SanicException, Unauthorized
 from sanic_ext import Config, Extend
 from sanic_ext.extensions.templating.extension import TemplatingExtension
 
-from oldman.web.errors import OldmanErrorHandler
+from oldman.web.errors import ErrorPageHandler
 from oldman.web.template import install_template_loaders
 
 
@@ -42,10 +42,10 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
         from oldman.apps.admin.site import admin_access_denied_response
         from oldman.apps.admin.table import AdminModelTable
         from oldman.web.auth import staff_required, superuser_required
-        from oldman.web.http import OldmanHTTPMethodView, permission_denied_response, resolve_response_mode
+        from oldman.web.http import HTTPMethodView, permission_denied_response, resolve_response_mode
         from oldman.web.session import SessionData
 
-        app = Sanic(f"permission-pages-{uuid4().hex}", error_handler=OldmanErrorHandler())
+        app = Sanic(f"permission-pages-{uuid4().hex}", error_handler=ErrorPageHandler())
         app.config.FALLBACK_ERROR_FORMAT = "auto"
         Extend(app, config=Config(templating_enable_async=True), extensions=[TemplatingExtension], built_in_extensions=False)
         temporary_directory = self.enterContext(TemporaryDirectory())
@@ -72,7 +72,7 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
         async def superuser(request):
             raise AssertionError("denied handler must not execute")
 
-        class StaffView(OldmanHTTPMethodView):
+        class StaffView(HTTPMethodView):
             require_staff = True
 
             async def get(self, request):
@@ -114,7 +114,7 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
         """The fallback must remain safe for both browser and API consumers."""
         app = Sanic(
             f"oldman-error-pages-{uuid4().hex}",
-            error_handler=OldmanErrorHandler(),
+            error_handler=ErrorPageHandler(),
         )
         app.config.FALLBACK_ERROR_FORMAT = "auto"
         app.config.TEMPLATING_ENABLE_ASYNC = True

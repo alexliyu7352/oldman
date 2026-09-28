@@ -31,6 +31,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch("oldman.apps.admin.commands.get_user_by_username", lookup),
             patch("oldman.apps.admin.commands.ensure_superuser", create),
+            patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()) as end_logins,
             patch(
                 "oldman.apps.admin.commands.typer.prompt",
                 side_effect=["root@example.com", "Secret123"],
@@ -41,6 +42,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         lookup.assert_awaited_once_with("root")
         create.assert_awaited_once_with("root", "Secret123", "root@example.com")
         self.assertEqual("User created", result)
+        end_logins.assert_not_awaited()
         self.assertEqual("Email", prompt.call_args_list[0].args[0])
         self.assertEqual("Password", prompt.call_args_list[1].args[0])
         self.assertTrue(prompt.call_args_list[1].kwargs["hide_input"])
@@ -67,19 +69,26 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
     async def test_an_existing_user_needs_update_even_without_input(self) -> None:
         """ensure_superuser 会覆盖密码并提成超管，所以"有就更新"必须显式要求。"""
         create = AsyncMock()
+        existing = object()
         with (
-            patch("oldman.apps.admin.commands.get_user_by_username", AsyncMock(return_value=object())),
+            patch("oldman.apps.admin.commands.get_user_by_username", AsyncMock(return_value=existing)),
             patch("oldman.apps.admin.commands.ensure_superuser", create),
+            patch("oldman.apps.admin.commands.user_identity", return_value=7) as identity,
+            patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()) as end_logins,
             patch.dict("os.environ", {SUPERUSER_PASSWORD_ENV: "Scripted123"}),
         ):
             with self.assertRaisesRegex(ValueError, "Username already exists"):
                 await CreateSuperuser().handle(username="gate", noinput=True)
             create.assert_not_awaited()
+            end_logins.assert_not_awaited()
 
             result = await CreateSuperuser().handle(username="gate", email="", noinput=True, update=True)
 
         create.assert_awaited_once_with("gate", "Scripted123", None)
         self.assertEqual("User updated", result)
+        # The password was overwritten: logins opened under the old one end with it.
+        identity.assert_called_once_with(existing)
+        end_logins.assert_awaited_once_with(7)
 
     async def test_noinput_without_a_username_says_so_instead_of_prompting(self) -> None:
         """无 tty 下 typer.prompt 只会 abort，报错和"非交互"无关，排查成本很高。"""
@@ -130,6 +139,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
             ),
             patch("oldman.apps.admin.commands.user_identity", return_value=7),
             patch("oldman.apps.admin.commands.change_user_password", change),
+            patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()) as end_logins,
             patch(
                 "oldman.apps.admin.commands.typer.prompt",
                 return_value="Changed123",
@@ -139,6 +149,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
 
         change.assert_awaited_once_with(7, "Changed123")
         self.assertEqual("Password changed", result)
+        end_logins.assert_awaited_once_with(7)
 
     async def test_changepassword_rejects_an_unknown_user_before_prompting(self) -> None:
         with (

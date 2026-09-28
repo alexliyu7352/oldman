@@ -10,6 +10,7 @@ import json
 import time
 
 from oldman.logging import logger
+from oldman.providers.redis import redis_key
 from oldman.serializers import MsgspecModel
 from oldman.web.response import json_response
 from oldman.web.security.decryptors import AESGcmDecrypt
@@ -49,7 +50,7 @@ def validate_payload(payload: dict, max_diff: int) -> tuple[bool, str, str]:
 
 async def log_fake_fingerprint_attempt(ip: str, reason: str):
     """记录伪造指纹尝试"""
-    log_key = f"fake_attempts:{ip}"
+    log_key = redis_key("fingerprint", "fake_attempts", ip)
     log_data = FakeLog(timestamp=int(time.time()), reason=reason)
     conn = await security_redis_connection()
 
@@ -60,7 +61,7 @@ async def log_fake_fingerprint_attempt(ip: str, reason: str):
     # 如果同一IP频繁伪造，直接拉黑
     attempt_count = await conn.llen(log_key)
     if attempt_count > 10:  # 10次伪造尝试
-        blacklist_key = f"blacklist:ip:{ip}"
+        blacklist_key = redis_key("fingerprint", "blacklist", "ip", ip)
         await conn.setex(blacklist_key, 3600, "fake_fingerprint")
         logger.warning(f"IP已拉黑（伪造指纹）: {ip}")
 
@@ -83,21 +84,21 @@ async def get_stats(fingerprint: str):
     conn = await security_redis_connection()
 
     # 获取关联IP
-    fp_ip_key = f"relation:fp_ip:{fingerprint}"
+    fp_ip_key = redis_key("fingerprint", "relation", "fp_ip", fingerprint)
     ips = await conn.smembers(fp_ip_key)
 
     # 获取异常日志
-    anomaly_key = f"anomaly_log:{fingerprint}"
+    anomaly_key = redis_key("fingerprint", "anomaly_log", fingerprint)
     anomaly_logs_raw = await conn.lrange(anomaly_key, 0, 9)
     anomaly_logs = [json.loads(log) for log in anomaly_logs_raw]
 
     # 获取拒绝日志
-    blocked_key = f"blocked_log:{fingerprint}"
+    blocked_key = redis_key("fingerprint", "blocked_log", fingerprint)
     blocked_logs_raw = await conn.lrange(blocked_key, 0, 9)
     blocked_logs = [json.loads(log) for log in blocked_logs_raw]
 
     # 检查黑名单状态
-    fp_blacklist_key = f"blacklist:fp:{fingerprint}"
+    fp_blacklist_key = redis_key("fingerprint", "blacklist", "fp", fingerprint)
     is_blocked = await conn.exists(fp_blacklist_key)
 
     return json_response(

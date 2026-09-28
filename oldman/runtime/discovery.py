@@ -183,7 +183,8 @@ def load_service_class(definition: ServiceDefinition) -> type[BaseApplication]:
             continue
         if not issubclass(value, BaseApplication):
             continue
-        direct_bases = {WebApplication, SimpleApplication, TaskiqWorkerApplication, TaskiqSchedulerApplication}.intersection(value.__bases__)
+        application_bases: set[type[BaseApplication]] = {WebApplication, SimpleApplication, TaskiqWorkerApplication, TaskiqSchedulerApplication}
+        direct_bases = application_bases.intersection(value.__bases__)
         if direct_bases:
             application_classes[value] = direct_bases
 

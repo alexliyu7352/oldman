@@ -172,8 +172,8 @@ class MultiHttpClient(BaseHttpClient):
 
     @classmethod
     def _cleanup_all_instances(cls):
-        """清理所有实例"""
-        instances = list(cls._instances)
+        """清理退出时仍持有 backend 的实例；从未初始化或已关闭的实例没有要关的东西，不计入日志"""
+        instances = [instance for instance in cls._instances if instance._impl is not None]
         if instances:
             logger.info(f"程序退出时清理 {len(instances)} 个HTTP客户端实例")
 
@@ -183,13 +183,7 @@ class MultiHttpClient(BaseHttpClient):
 
                 async def cleanup_all():
                     """并发关闭仍持有 backend 资源的客户端实例。"""
-
-                    tasks = []
-                    for instance in instances:
-                        if instance._impl is not None:
-                            tasks.append(instance.close_client())
-                    if tasks:
-                        await asyncio.gather(*tasks, return_exceptions=True)
+                    await asyncio.gather(*(instance.close_client() for instance in instances), return_exceptions=True)
 
                 loop.run_until_complete(cleanup_all())
                 loop.close()

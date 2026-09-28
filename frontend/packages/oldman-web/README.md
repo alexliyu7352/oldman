@@ -19,7 +19,7 @@ Tailwind 4 用于共享主题；不导入共享 CSS 的应用可不安装它。S
 
 ## 最小 Dashboard 入口
 
-下面是单页的最小 **API 接线参考**，不是完整 Demo 的源码节选。包含语言目录和按需 Page loader 的实际应用入口见 [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)及[浏览器生命周期参考](https://github.com/alexliyu7352/oldman/blob/master/docs/developers/frontend.md)。此处文件为应用 frontend/src/main.ts：
+下面是单页的最小 **API 接线参考**，不是完整 Demo 的源码节选。包含语言目录和按需 Page loader 的实际应用入口见 [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)及[浏览器生命周期参考](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md)。此处文件为应用 frontend/src/main.ts：
 
 ```typescript
 import "./app.css";
@@ -117,6 +117,6 @@ Python CLI 负责项目统一 POT/PO/MO，Dashboard 脚手架构建脚本按框�
 
 ## 完整文档
 
-[Dashboard 连续教程](https://github.com/alexliyu7352/oldman/blob/master/docs/users/tutorial-dashboard.md) · [组件用法](https://github.com/alexliyu7352/oldman/blob/master/docs/users/components.md) · [Page 和生命周期](https://github.com/alexliyu7352/oldman/blob/master/docs/developers/frontend.md) · [响应协议](https://github.com/alexliyu7352/oldman/blob/master/docs/developers/responses.md) · [构建、图标和翻译](https://github.com/alexliyu7352/oldman/blob/master/docs/developers/assets.md)
+[Dashboard 连续教程](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-dashboard.md) · [组件用法](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/components.md) · [Page 和生命周期](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [响应协议](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [构建、图标和翻译](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
 
 发布内容包括 dist、图标与翻译 CLI、类型声明、README 和 LICENSE。应用需要构建自己的入口；后端内置 Admin 资源不替代业务前端构建。

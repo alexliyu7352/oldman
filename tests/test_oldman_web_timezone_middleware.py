@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -67,6 +69,19 @@ class TimezoneMiddlewareTest(unittest.TestCase):
 
     def test_a_hostile_value_falls_back_instead_of_raising(self) -> None:
         self.assertEqual("Asia/Singapore", self._resolve(self._request(header="Not/AZone")))
+
+    def test_a_name_the_tzdata_package_cannot_open_falls_back_too(self) -> None:
+        """G5-1: with the tzdata package installed, an over-long name or a directory's name raised OSError, a 500."""
+        with tempfile.TemporaryDirectory() as root:
+            # A tzdata package of the real layout; zoneinfo reads it when the system has no such file.
+            zones = Path(root, "tzdata", "zoneinfo")
+            (zones / "America").mkdir(parents=True)
+            Path(root, "tzdata", "__init__.py").write_text("")
+            (zones / "__init__.py").write_text("")
+            with patch.object(sys, "path", [root, *sys.path]), patch.dict(sys.modules):
+                for header in ("A" * 300, "America"):
+                    with self.subTest(header=header[:12]):
+                        self.assertEqual("Asia/Singapore", self._resolve(self._request(header=header)))
 
     def test_the_empty_middleware_stubs_are_gone(self) -> None:
         """Two seven-line files with no code invited people to put things in the wrong place."""

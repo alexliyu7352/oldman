@@ -12,6 +12,7 @@ from redis.exceptions import RedisError
 
 from oldman.conf.schemas import FingerprintSecurityConfig
 from oldman.logging import logger
+from oldman.providers.redis import redis_key
 from oldman.web.security.rate_limiter.base import RedisConnectionClient
 from oldman.web.security.rate_limiter.lua import FINGERPRINT_IP_RATE_LIMIT_LUA
 
@@ -67,14 +68,14 @@ class FingerprintIPRateLimiter:
         """Evaluate one request against fingerprint and IP security limits."""
         rate_config = config.rate_limits.get(endpoint, config.rate_limits["default"])
         keys = [
-            f"rate:fp:{fingerprint}",
-            f"rate:ip:{ip}",
-            f"relation:fp_ip:{fingerprint}",
-            f"relation:ip_fp:{ip}",
-            f"blacklist:fp:{fingerprint}",
-            f"blacklist:ip:{ip}",
-            f"violations:fp:{fingerprint}",
-            f"violations:ip:{ip}",
+            redis_key("fingerprint", "rate", "fp", fingerprint),
+            redis_key("fingerprint", "rate", "ip", ip),
+            redis_key("fingerprint", "relation", "fp_ip", fingerprint),
+            redis_key("fingerprint", "relation", "ip_fp", ip),
+            redis_key("fingerprint", "blacklist", "fp", fingerprint),
+            redis_key("fingerprint", "blacklist", "ip", ip),
+            redis_key("fingerprint", "violations", "fp", fingerprint),
+            redis_key("fingerprint", "violations", "ip", ip),
         ]
         current_time = int(time.time())
         request_id = f"{current_time}:{uuid.uuid4().hex[:8]}"

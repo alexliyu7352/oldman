@@ -18,7 +18,7 @@ from oldman.web.messages.notifications.payloads import (
 class Notification(DatabaseModel):
     """Store one unread or read notification owned by a concrete User row."""
 
-    __tablename__ = "oldman_notification"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "oldman_notification"
     __table_args__ = (
         Index(
             "ix_oldman_notification_recipient_created",

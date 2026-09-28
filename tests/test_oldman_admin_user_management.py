@@ -19,14 +19,14 @@ from oldman.auth import UserManagementError, UserModelContractError, set_user_ac
 from oldman.auth.models import User
 from oldman.db import explicit_primary_key_column
 from oldman.db.models import DatabaseModel
-from oldman.web.auth.forms import UserFilterForm, user_create_form_class
+from oldman.web.auth.forms import UserFilterForm, user_create_form_class, user_edit_form_class
 from oldman.web.session import SessionData
 
 
 class UUIDAdminRecord(DatabaseModel):
     """Generic Admin model used to verify UUID identity coercion."""
 
-    __tablename__ = "test_oldman_admin_uuid_record"  # pyright: ignore[reportAssignmentType]
+    __tablename__ = "test_oldman_admin_uuid_record"
 
     record_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -152,6 +152,45 @@ class OldmanAdminUserManagementTest(unittest.TestCase):
         self.assertIn("is_active", form.errors)
         self.assertIn("is_staff", form.errors)
         self.assertIn("is_superuser", form.errors)
+
+    def test_only_a_superuser_may_touch_or_make_a_staff_account(self) -> None:
+        """Staff manage ordinary accounts; staff and superuser accounts are a superuser's."""
+        admin = AdminUserModelAdmin(User)
+        profile = {"username": "bob", "email": "bob@example.test", "display_name": "Bob", "is_active": "y"}
+        new_account = {**profile, "password": "Str0ngPass!2026", "confirm_password": "Str0ngPass!2026"}
+
+        def validated(form_data: dict[str, str], *, instance: User | None = None, is_superuser: bool = False) -> Any:
+            form = admin.build_form(
+                make_request(form=form_data, is_superuser=is_superuser),
+                instance=instance,
+                session=FakeUserLookupSession([]),
+            )
+            asyncio.run(form.validate())
+            return form
+
+        def ordinary() -> User:
+            return User(id=20, username="bob", email="bob@example.test", password_hash="", is_active=True, is_staff=False, is_superuser=False)
+
+        staff_account = User(id=21, username="bob", email="bob@example.test", password_hash="", is_active=True, is_staff=True, is_superuser=False)
+        refused = {
+            "create a staff account": validated({**new_account, "is_staff": "y"}),
+            "create a superuser": validated({**new_account, "is_superuser": "y"}),
+            "make an ordinary account staff": validated({**profile, "is_staff": "y"}, instance=ordinary()),
+            "edit a staff account": validated(profile, instance=staff_account),
+        }
+        for case, form in refused.items():
+            with self.subTest(case):
+                self.assertEqual("Permission denied", form.error_message)
+
+        self.assertIsNone(validated(new_account).error_message)
+        self.assertIsNone(validated(profile, instance=ordinary()).error_message)
+        self.assertIsNone(validated({**profile, "is_staff": "y"}, instance=staff_account, is_superuser=True).error_message)
+
+    def test_a_user_form_bound_to_no_request_refuses_like_any_other_operator(self) -> None:
+        staff_account = User(id=21, username="bob", password_hash="", is_active=True, is_staff=True, is_superuser=False)
+        form = user_edit_form_class(User)(data={"username": "bob", "is_active": "y", "is_staff": "y"}, instance=staff_account)
+        self.assertFalse(asyncio.run(form.validate()))
+        self.assertEqual("Permission denied", form.error_message)
 
     def test_password_and_delete_services_preserve_security_boundaries(self) -> None:
         """Password, self-status, self-delete and superuser-delete rules match the source."""
@@ -317,13 +356,14 @@ def make_request(
     args: dict[str, str] | None = None,
     form: dict[str, str] | None = None,
     user_id: int | None = 1,
+    is_superuser: bool = True,
 ):
     """Build the request subset used by Admin forms and tables."""
     session = FakeSession(
         user_id=user_id,
         is_active=user_id is not None,
         is_staff=user_id is not None,
-        is_superuser=user_id is not None,
+        is_superuser=user_id is not None and is_superuser,
     )
     return SimpleNamespace(
         app=SimpleNamespace(),

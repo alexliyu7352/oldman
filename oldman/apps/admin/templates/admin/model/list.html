@@ -6,7 +6,7 @@
 
 {% block content %}
   <div class="om-page-section">
-    {% if model_admin.has_add_permission(request) %}
+    {% if can_add %}
       {% call page_head(model_admin.verbose_name_plural) %}
         <a class="om-button om-button-primary" href="{{ admin_prefix }}/{{ model_admin.model_path }}/new">
           <i class="{{ model_admin.add_button_icon }}" aria-hidden="true"></i>

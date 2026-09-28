@@ -106,7 +106,7 @@ class NotificationTemplateTest(unittest.IsolatedAsyncioTestCase):
             extensions=[TemplatingExtension],
             built_in_extensions=False,
         )
-        self.app.ctx.oldman_app_registry = _InstalledApps()
+        self.app.ctx.app_registry = _InstalledApps()
         self.app.ctx.csrf = object()
         init_app(self.app)
         init_app(self.app, url_prefix="/admin")

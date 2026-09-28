@@ -9,7 +9,7 @@ import uuid as uuid_pkg
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
-from typing import Annotated, Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from pydantic.fields import FieldInfo
@@ -162,34 +162,7 @@ class BaseInputModel(UTCDatetimeMixin, Generic[T]):  # noqa: UP046 -- the explic
     data: T
 
 
-# -------------- token --------------
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    user_id: Annotated[int, Field(strict=True)]
-
-
 class BaseResponseModel(BaseModel):
     code: int = -1
     data: Any | None = None
     message: str = ""
-
-
-class TokenBlacklistBase(BaseModel):
-    token: str
-    expires_at: datetime
-
-
-class TokenBlacklistRead(TokenBlacklistBase):
-    id: int
-
-
-class TokenBlacklistCreate(TokenBlacklistBase):
-    pass
-
-
-class TokenBlacklistUpdate(TokenBlacklistBase):
-    pass

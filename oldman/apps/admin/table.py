@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, cast
 
 from markupsafe import Markup
@@ -15,6 +15,7 @@ from oldman.i18n import gettext
 from oldman.web.auth.tables import USER_FILTER_FIELDS, UserTableFilters
 from oldman.web.components.tables import Column, SQLAlchemyTableView, TailwindTableRenderer
 from oldman.web.components.tables.cells import normalize_raw_value
+from oldman.web.components.tables.columns import CellDisplayValue, CellRawValue
 from oldman.web.components.tables.views import TableInvalidRequest
 
 
@@ -73,23 +74,23 @@ class AdminModelTable(SQLAlchemyTableView):
 
     async def check_auth(self, request: Any) -> bool:
         """Use the registered ModelAdmin permission contract for table requests."""
-        return self.model_admin.has_view_permission(request)
+        return await self.model_admin.has_view_permission(request)
 
     def export_filename(self, export_format: str) -> str:
         """Name downloads after the model path instead of the internal route name."""
         return f"{self.model_admin.model_path}-{dt.date.today().isoformat()}.{export_format}"
 
-    async def render_permission_denied_response(self, request: Any):
+    async def render_permission_denied_response(self, request: Any, message: str | None = None):
         """Preserve the Admin site's authentication and permission response."""
         if self._permission_denied_response is not None:
             return await self.resolve_hook_response(self._permission_denied_response(request))
-        return await super().render_permission_denied_response(request)
+        return await super().render_permission_denied_response(request, message)
 
     async def get_queryset(self):
         """Return the registered model query consumed by SQLAlchemyTableView."""
         return select(cast(Any, self.model))
 
-    async def apply_filters(self, query: Any, table_request: Any):
+    async def apply_filters(self, query: Any, /, table_request: Any):
         """Reject filters outside this Table adapter's private allowlist."""
         allowed = set(self._filter_fields)
         for name in table_request.filters:
@@ -101,12 +102,12 @@ class AdminModelTable(SQLAlchemyTableView):
         self,
         row: object,
         column: Column,
-        context: dict[str, object],
+        context: Mapping[str, object],
         *,
         row_index: int,
         column_index: int,
         request: Any,
-    ):
+    ) -> tuple[CellDisplayValue, CellRawValue]:
         """Keep ModelAdmin display formatting while sharing the table renderer."""
         display_value, raw_value = super().get_cell_values(
             row,

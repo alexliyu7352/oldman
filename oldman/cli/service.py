@@ -16,8 +16,6 @@ from oldman.cli.settings import ensure_cwd_on_syspath
 from oldman.i18n import gettext
 from oldman.runtime import bootstrap_service
 from oldman.runtime.discovery import ServiceDefinition, load_service_class
-from oldman.utils import loop_utls
-from oldman.utils.console import console
 
 
 def load_selected_service(
@@ -32,7 +30,6 @@ def load_selected_service(
         config_file=config_file,
     )
     context.apps.load_commands()
-    loop_utls.use_uvloop()
     return load_service_class(definition), context.apps
 
 
@@ -55,18 +52,12 @@ def _create_service_command_handler(
         try:
             result = service_class.execute_command(command_name, *(args or []))
             if result:
-                console.print(str(result))
+                typer.echo(str(result))
         except ValueError as exc:
-            console.print(
-                gettext("Error: %(error)s", error=str(exc)),
-                style="bold red",
-            )
+            typer.echo(gettext("Error: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc
         except Exception as exc:
-            console.print(
-                gettext("Error executing command: %(error)s", error=str(exc)),
-                style="bold red",
-            )
+            typer.echo(gettext("Error executing command: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc
 
     command_handler.__name__ = f"{command_name}_command"
@@ -103,18 +94,12 @@ def _create_typed_command_handler(
         try:
             result = service_class.execute_app_command(command, *args, **kwargs)
             if result:
-                console.print(str(result))
+                typer.echo(str(result))
         except ValueError as exc:
-            console.print(
-                gettext("Error: %(error)s", error=str(exc)),
-                style="bold red",
-            )
+            typer.echo(gettext("Error: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc
         except Exception as exc:
-            console.print(
-                gettext("Error executing command: %(error)s", error=str(exc)),
-                style="bold red",
-            )
+            typer.echo(gettext("Error executing command: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc
 
     command_handler.__name__ = f"{command.name.replace('-', '_')}_command"

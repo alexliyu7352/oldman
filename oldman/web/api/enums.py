@@ -14,6 +14,9 @@ class ApiErrorCode(IntEnum):
     AUTHENTICATION_REQUIRED = 1401
     NOT_FOUND = 1404
     PERMISSION_DENIED = 1403
+    TOO_MANY_REQUESTS = 1429
+    #: A store the request needs is down; the change it made, if any, stands.
+    SERVICE_UNAVAILABLE = 1503
 
 
 class ApiResponseAction(StrEnum):

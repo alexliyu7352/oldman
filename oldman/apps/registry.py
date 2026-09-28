@@ -55,6 +55,7 @@ class AppRegistry:
         self._models_loaded = False
         self._commands_loaded = False
         self._views_loaded = False
+        self._permissions_loaded = False
         self._tasks_loaded = False
         self._events_loaded = False
         self._models: tuple[ModelMetadata, ...] = ()
@@ -446,6 +447,22 @@ class AppRegistry:
             return
         self._load_runtime_modules("views", "web_module")
         self._views_loaded = True
+
+    def load_permissions(self) -> None:
+        """Import each installed App's permission declarations once, after models.
+
+        Every declared namespace must be an installed App's label: a misspelt or foreign
+        namespace stops startup instead of producing permissions no role can be given sensibly.
+        """
+        if self._permissions_loaded:
+            return
+        self._load_runtime_modules("permissions", "permissions_module")
+        from oldman.auth.permissions import declared_permissions
+
+        unknown = sorted({permission.namespace for permission in declared_permissions()} - set(self._by_label))
+        if unknown:
+            raise RuntimeError(f"Permissions are declared under {', '.join(map(repr, unknown))}, which no installed App is labelled.")
+        self._permissions_loaded = True
 
     def load_tasks(self) -> None:
         """Import only installed Apps' tasks once, without loading Web modules."""

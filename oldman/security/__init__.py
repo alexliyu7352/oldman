@@ -1,5 +1,6 @@
 """Framework-independent security primitives."""
 
+from oldman.security.identity import require_user_id
 from oldman.security.jwt import (
     ExpiredTokenError,
     InvalidTokenError,
@@ -14,4 +15,5 @@ __all__ = [
     "JWTError",
     "jwt_decode",
     "jwt_encode",
+    "require_user_id",
 ]

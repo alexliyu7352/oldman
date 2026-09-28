@@ -1,3 +1,4 @@
+import { httpErrorMessage } from "../core/http/client";
 import { Form } from "./form";
 import { Table } from "./table";
 
@@ -58,7 +59,7 @@ export class TableFilterForm extends Form {
       this.setStatus("success");
       this.emit<TableFilterFormSubmitDetail>("om:table-filter-form:success", { component: this, form, table });
     } catch (error) {
-      this.setStatus("error", error instanceof Error ? error.message : this.i18n.t("Request failed"));
+      this.setStatus("error", httpErrorMessage(error, this.i18n));
       this.emit<TableFilterFormSubmitErrorDetail>("om:table-filter-form:error", { component: this, error, form });
       throw error;
     }

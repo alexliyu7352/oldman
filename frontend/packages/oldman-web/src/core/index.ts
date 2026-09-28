@@ -1,4 +1,4 @@
-export const OLDMAN_WEB_VERSION = "0.2.0";
+export const OLDMAN_WEB_VERSION = "0.3.0";
 
 export { startOldman } from "./runtime/start";
 export type { OldmanApp, StartOldmanActionsOptions, StartOldmanOptions } from "./types";
@@ -69,7 +69,7 @@ export {
   setHidden
 } from "./dom/helpers";
 export type { DelegatedDomHandler, DomParams, FormParamOptions, StopDomListener } from "./dom/helpers";
-export { createHttpClient, normalizeHttpError } from "./http/client";
+export { createHttpClient, httpErrorMessage, normalizeHttpError } from "./http/client";
 export type { HttpClient, HttpClientOptions, HttpErrorHandler, HttpErrorInfo, HttpMethod, HttpRequestConfig, HttpResult } from "./http/client";
 export { getCsrfToken, isStateChangingMethod } from "./http/csrf";
 export { deleteCookie, getCookie, serializeCookie, setCookie } from "./http/cookies";

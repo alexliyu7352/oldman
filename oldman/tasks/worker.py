@@ -20,7 +20,7 @@ class BaseWorker(ABC):
         self.comm_manager = CommunicationManager()
         self.running = False
 
-        # 内置任务管理器。注意 BackgroundTaskManager 是进程级单例（`@singleton_adv`）：
+        # 内置任务管理器。注意 BackgroundTaskManager 是进程级单例（`@singleton`）：
         # Worker 今天跑在独立进程里，所以和 Web 进程的那个互不干扰；哪天有人在 Web 进程
         # 内创建 Worker，两者就会共享同一个管理器，包括它的停机状态。
         self.task_manager = BackgroundTaskManager()
@@ -154,8 +154,13 @@ class BaseWorker(ABC):
             await self.task_manager.stop_all()
         except Exception as e:
             logger.error(f"Worker {self.worker_id} 停止任务管理器失败: {e}")
+        # 任务最后的提交还要让模型缓存失效；asyncio.run 结束时会取消没做完的失效。
+        from oldman.db.sqlalchemy.cache import wait_for_invalidations
 
-        self.tasks.clear()
-        # 清理通信
-        self.comm_manager.cleanup()
+        try:
+            await wait_for_invalidations()
+        finally:
+            # 等待被取消也照常清理通信
+            self.tasks.clear()
+            self.comm_manager.cleanup()
         logger.info(f"Worker {self.worker_id} 清理完成")

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Protocol, TypeVar, cast
 
-from oldman.web.routing import get_app
+from oldman.web.routing import router
 
 
 class WebSocket(Protocol):
@@ -39,7 +39,7 @@ def websocket(
     """Register a handler on the active runtime application."""
     return cast(
         Callable[[_Handler], _Handler],
-        get_app().websocket(path, name=name, subprotocols=subprotocols, strict_slashes=strict_slashes),
+        router.websocket(path, name=name, subprotocols=subprotocols, strict_slashes=strict_slashes),
     )
 
 

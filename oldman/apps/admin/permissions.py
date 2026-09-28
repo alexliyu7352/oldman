@@ -4,31 +4,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from oldman.web.session import SessionData
-
-
-def request_session(request: Any) -> SessionData | None:
-    """Return the request's strongly typed SessionData when available."""
-    session = getattr(getattr(request, "ctx", None), "session", None)
-    return session if isinstance(session, SessionData) else None
+from oldman.web.authentication import request_user
 
 
 def is_authenticated(request: Any) -> bool:
-    """Return whether request has an authenticated session."""
-    session = request_session(request)
-    return bool(session and session.is_authenticated())
+    """Return whether the request comes from a signed-in user, however it authenticated."""
+    return request_user(request).is_authenticated
 
 
 def is_staff(request: Any) -> bool:
-    """Return whether current session has Admin staff permission."""
-    session = request_session(request)
-    return bool(session and session.is_staff)
+    """Return whether the request's user has Admin staff permission."""
+    return request_user(request).is_staff
 
 
 def is_superuser(request: Any) -> bool:
-    """Return whether current session has superuser permission."""
-    session = request_session(request)
-    return bool(session and session.is_superuser)
+    """Return whether the request's user has superuser permission."""
+    return request_user(request).is_superuser
 
 
 def has_admin_permission(request: Any, *, require_superuser: bool = False) -> bool:

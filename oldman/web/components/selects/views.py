@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
-from oldman.web.http import OldmanHTTPMethodView
+from oldman.web.http import HTTPMethodView
 from oldman.web.request import get_arg
 from oldman.web.response import json_response
 
@@ -38,7 +38,7 @@ async def select_provider_payload(
     return payload, status_for_provider_payload(payload)
 
 
-class SelectProviderView(OldmanHTTPMethodView):
+class SelectProviderView(HTTPMethodView):
     """Select/Autocomplete 中心 provider endpoint。"""
 
     require_authenticated = True

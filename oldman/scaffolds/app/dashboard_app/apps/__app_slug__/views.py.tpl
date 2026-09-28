@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from oldman.web import Request, get_app, render_template
-
-app = get_app()
+from oldman.web import Request, router, render_template
 
 
-@app.get("/{{ app_slug }}", name="{{ app_slug }}_index")
+@router.get("/{{ app_slug }}", name="{{ app_slug }}_index")
 async def {{ app_slug }}_index(request: Request):
     """Render the dashboard page."""
     context = {

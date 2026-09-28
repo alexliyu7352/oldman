@@ -262,6 +262,21 @@ class CacheResponseTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIs(source, result)
                 backend.set.assert_not_awaited()
 
+    async def test_a_page_that_issued_a_csrf_token_is_not_written(self) -> None:
+        """Its token belongs to one visitor; the cookie binding it is added after this wrapper, where the cookie check cannot see it."""
+        backend = AsyncMock()
+        backend.get.return_value = None
+
+        @cache_response("items")
+        async def form_page(request: Any) -> Any:
+            request.ctx.csrf_token_issued = True  # what StatelessCSRFManager.generate_token records
+            return raw_response(b"<form>...</form>")
+
+        with patch("oldman.cache.utils.redis_cache", backend):
+            await form_page(_request("GET"))
+
+        backend.set.assert_not_awaited()
+
     async def test_read_and_write_failures_are_fail_open(self) -> None:
         """Cache failures must not duplicate or suppress handler execution."""
         backend = AsyncMock()

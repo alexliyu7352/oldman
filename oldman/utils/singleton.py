@@ -6,55 +6,18 @@
 
 __author__ = "alex"
 import threading
-import warnings
-from collections.abc import Callable
 from types import new_class
-from typing import Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 T = TypeVar("T")  # 被装饰类实例的类型
-P = ParamSpec("P")  # 被装饰类 __init__ / __call__ 的参数签名
-
-
-class SingletonCallable(Generic[T, P]):  # noqa: UP046 -- the explicit generic signature is part of the public API
-    """类以外的可调用”（工厂函数）"""
-
-    def __init__(self, cls: Callable[P, T]) -> None:
-        self._cls = cls
-        self._instance: T | None = None
-        self._lock = threading.Lock()
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
-        if self._instance is None:
-            with self._lock:
-                if self._instance is None:
-                    self._instance = self._cls(*args, **kwargs)
-        elif args or kwargs:
-            # 警告：单例已存在，忽略新参数
-            warnings.warn("Singleton instance already exists, ignoring new arguments", UserWarning, stacklevel=2)
-        return self._instance
-
-
-class Singleton(Generic[T, P]):  # noqa: UP046 -- the explicit generic signature is part of the public API
-    """装饰后名字绑定到可调用实例，严格意义上不再是类；某些需要类对象的场景（注册、issubclass、ABC 钩子等）会不兼容。"""
-
-    def __init__(self, cls: type[T]) -> None:
-        self.__wrapped__: type[T] = cls  # 便于 inspect / IDE
-        self._instance: T | None = None
-        self._lock = threading.Lock()  # 每个单例独立的锁
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
-        if self._instance is None:
-            with self._lock:
-                if self._instance is None:
-                    self._instance = self.__wrapped__(*args, **kwargs)
-        return self._instance
 
 
 class SingletonMeta(type):
-    """
-    因为装饰器返回了“带单例元类”的子类，后续再派生的子类也会继续是单例
-    如果原类本身已有自定义元类（如 ABCMeta），SingletonMeta 可能产生元类冲突
-    异质容器用宽类型，接口返回用 T。这是这类“type→instance 缓存”在静态类型系统里的常见折中
+    """让类在进程内只创建一个实例：第一次调用时创建，之后的调用都返回它，**再传的参数被忽略**。
+
+    每个类各自一个实例（子类与父类互不共用），各自一把锁：一个单例的 __init__ 里再创建另一个单例不会死锁。
+    实例已存在时只查一次字典、不碰锁（约 95 ns，原先先查锁再查实例约 160 ns）。
+    异质容器用宽类型、接口返回 T，是这类“类→实例缓存”在静态类型里的常见折中。
     """
 
     _instances: ClassVar[dict[type[Any], Any]] = {}
@@ -62,99 +25,82 @@ class SingletonMeta(type):
     _locks_guard: ClassVar[threading.Lock] = threading.Lock()
 
     def __call__(cls: type[T], *args: Any, **kwargs: Any) -> T:
-        # 拿/建该类的专属锁（用 guard 串行化“建锁”过程）
+        # 快速路径：直接下标取值（缺失只在第一次创建时发生）；取出的是 Any，不必 typing.cast——它在运行时是一次函数调用
+        try:
+            return SingletonMeta._instances[cls]
+        except KeyError:
+            pass
+
         lock = SingletonMeta._locks.get(cls)
         if lock is None:
             with SingletonMeta._locks_guard:
                 lock = SingletonMeta._locks.setdefault(cls, threading.Lock())
-
-        inst = SingletonMeta._instances.get(cls)
-        if inst is None:
-            # 第二重检查在类专属锁内完成
-            assert lock is not None
-            with lock:
-                inst = SingletonMeta._instances.get(cls)
-                if inst is None:
-                    # 用父元类的实现，避免 super(...) + cast
-                    # 不必要的强制转换，可能掩盖类型问题
-                    inst = super(SingletonMeta, cast(SingletonMeta, cls)).__call__(*args, **kwargs)
-                    SingletonMeta._instances[cls] = inst
-
-        return cast(T, inst)
+        with lock:
+            instance = SingletonMeta._instances.get(cls)
+            if instance is None:
+                instance = super(SingletonMeta, cast(SingletonMeta, cls)).__call__(*args, **kwargs)
+                SingletonMeta._instances[cls] = instance
+        return instance
 
 
-def singleton_adv(cls: type[T]) -> type[T]:  # noqa: UP047 -- the explicit generic signature is part of the public API
-    class SingletonWrapper(cls, metaclass=SingletonMeta):  # type: ignore
-        __wrapped__ = cls  # 便于 inspect / tooling
-
-    # 可选：保留原来的元信息，调试更友好
-    SingletonWrapper.__name__ = cls.__name__
-    SingletonWrapper.__qualname__ = cls.__qualname__
-    SingletonWrapper.__module__ = cls.__module__
-    SingletonWrapper.__doc__ = cls.__doc__
-
-    return cast(type[T], SingletonWrapper)
+_combined_metaclasses: dict[type, type] = {}
+_combined_guard = threading.Lock()
 
 
-class SingletonContainer:
-    # 不同类 -> 各自的实例（异质容器）
-    _instances: ClassVar[dict[type[Any], Any]] = {}
-    # 不同类 -> 各自的锁
-    _locks: ClassVar[dict[type[Any], threading.Lock]] = {}
-    # 仅用于“创建专属锁”这一步的串行化
-    _locks_guard: ClassVar[threading.Lock] = threading.Lock()
-
-    @classmethod
-    def get_instance(cls, container_class: type[T], *args: Any, **kwargs: Any) -> T:
-        # 取/建该类的专属锁
-        lock = cls._locks.get(container_class)
-        if lock is None:
-            with cls._locks_guard:
-                lock = cls._locks.setdefault(container_class, threading.Lock())
-
-        # DCL：锁外快速路径，锁内二次检查
-        inst = cls._instances.get(container_class)
-        if inst is None:
-            assert lock is not None
-            with lock:
-                inst = cls._instances.get(container_class)
-                if inst is None:
-                    inst = container_class(*args, **kwargs)
-                    cls._instances[container_class] = inst
-
-        return cast(T, inst)
+def _singleton_metaclass(metaclass: type) -> type:
+    """SingletonMeta 与类原有的元类（ABCMeta、pydantic 的元类等）组合成一个，避免“元类冲突”。"""
+    if issubclass(metaclass, SingletonMeta):
+        return metaclass
+    if metaclass is type:
+        return SingletonMeta
+    with _combined_guard:
+        combined = _combined_metaclasses.get(metaclass)
+        if combined is None:
+            combined = _combined_metaclasses[metaclass] = new_class(f"Singleton{metaclass.__name__}", (SingletonMeta, metaclass))
+    return combined
 
 
-def singleton_container(container_class: type[T]) -> type[T]:  # noqa: UP047 -- the explicit generic signature is part of the public API
-    """把类包装成通过 SingletonContainer 管理实例的类。"""
+def singleton(cls: type[T]) -> type[T]:  # noqa: UP047 -- the explicit generic signature is part of the public API
+    """类装饰器：让这个类在进程内只有一个实例，规则见 SingletonMeta。
 
-    def body(ns: dict[str, Any]) -> None:
-        # 关键：给 cls 加类型标注
-        def __new__(cls: type[Any], *args: Any, **kwargs: Any) -> Any:
-            return SingletonContainer.get_instance(container_class, *args, **kwargs)
+    装饰后仍然是类（原类的子类）：isinstance、issubclass、继承照常；再派生的子类各自也是单例。
+    类原本带自定义元类（如 ABC、pydantic 模型）时，自动与 SingletonMeta 组合。``__wrapped__`` 是原类，
+    测试里用它创建不受单例约束的独立实例。
+    """
 
-        ns["__new__"] = __new__
-        ns["__wrapped__"] = container_class
-        ns["__doc__"] = container_class.__doc__
+    def body(namespace: dict[str, Any]) -> None:
+        namespace["__wrapped__"] = cls
+        namespace["__module__"] = cls.__module__
+        namespace["__qualname__"] = cls.__qualname__
+        namespace["__doc__"] = cls.__doc__
 
-    Wrapper = new_class(
-        container_class.__name__,
-        (container_class,),
-        {},  # 这里不需要自定义元类
-        body,
-    )
-    Wrapper.__module__ = container_class.__module__
-    Wrapper.__qualname__ = container_class.__qualname__
-
-    return cast(type[T], Wrapper)
+    wrapper = new_class(cls.__name__, (cls,), {"metaclass": _singleton_metaclass(type(cls))}, body)
+    return cast(type[T], wrapper)
 
 
-# 使用示例
-@singleton_container
-class SingletonDict(dict):
-    pass
+_shared_containers: dict[tuple[type, str], Any] = {}
+_shared_guard = threading.Lock()
 
 
-@singleton_container
-class SingletonList(list):
-    pass
+def _shared_container(kind: type, name: str) -> Any:
+    try:
+        return _shared_containers[(kind, name)]
+    except KeyError:
+        pass
+    with _shared_guard:
+        return _shared_containers.setdefault((kind, name), kind())
+
+
+def shared_dict(name: str) -> dict[Any, Any]:
+    """按名字取进程内共享的 dict：同一个名字在任何模块里拿到的都是同一个对象，不同名字互不相干。
+
+    给“两个模块要共用一个容器，却不能互相 import 定义它的模块（会循环引用）”的场景用：双方只需约定名字。
+    名字写错会悄悄得到另一个容器，所以把它定义成常量，放在不会引起循环引用的地方。
+    返回的就是普通 dict；第一次取时创建，多线程同时第一次取也只创建一个。
+    """
+    return _shared_container(dict, name)
+
+
+def shared_list(name: str) -> list[Any]:
+    """按名字取进程内共享的 list，规则同 shared_dict；dict 与 list 用同一个名字互不相干。"""
+    return _shared_container(list, name)

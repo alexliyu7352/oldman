@@ -17,6 +17,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from oldman.processes.subprocess import (
     SubprocessError,
@@ -332,6 +333,17 @@ class ManagedSubprocessAsyncTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(-signal.SIGKILL, returncode)
         self.assertEqual(returncode, process.returncode)
         self.assertEqual([], _process_group_pids(process.process_group))
+
+    async def test_a_timeout_error_from_inside_the_wait_is_not_reported_as_our_deadline(self) -> None:
+        """No timeout was asked for: an inner TimeoutError surfaces as itself, never as an unbound variable."""
+        for method in ("wait", "communicate"):
+            with self.subTest(method=method):
+                process = await create_subprocess_exec(sys.executable, "-c", "import time; time.sleep(60)")
+                with patch.object(process, "_wait_and_cleanup_after_exit", side_effect=TimeoutError("inner")):
+                    with self.assertRaisesRegex(TimeoutError, "inner") as raised:
+                        await getattr(process, method)()
+                self.assertNotIsInstance(raised.exception, SubprocessTimeoutError)
+                self.assertEqual([], _process_group_pids(process.process_group), "the group is still cleaned up")
 
     async def test_repeated_timeout_cancel_and_recovery_do_not_poison_later_runs(self) -> None:
         """Failure cleanup must not leave shared state that blocks a later command."""

@@ -71,9 +71,9 @@ def _start_spawn_process(process: Any) -> None:
         # Python's own nested-spawn path instead reloads the original file.
         original_get_preparation_data = billiard.spawn.get_preparation_data
 
-        def get_preparation_data(process_name: str) -> dict[str, Any]:
+        def get_preparation_data(name: str) -> dict[str, Any]:
             """Translate Billiard's invalid nested-main name into its source path."""
-            data = original_get_preparation_data(process_name)
+            data = original_get_preparation_data(name)
             if data.get("init_main_from_name") == "__mp_main__":
                 data.pop("init_main_from_name")
                 data["init_main_from_path"] = os.path.abspath(main_path)

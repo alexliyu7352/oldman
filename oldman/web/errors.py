@@ -44,10 +44,11 @@ async def render_html_error_response(request: Any, exception: Exception):
         )
 
 
-class OldmanErrorHandler(ErrorHandler):
+class ErrorPageHandler(ErrorHandler):
     """Render project-overridable HTML pages without changing API errors."""
 
-    async def default(self, request: Any, exception: Exception):
+    # Asynchronous where Sanic's is synchronous: Sanic awaits whatever the error handler returns.
+    async def default(self, request: Any, exception: Exception):  # pyrefly: ignore[bad-override]
         """Use project-overridable templates for production HTML errors."""
         status = int(getattr(exception, "status_code", 500))
         fallback = request.app.config.FALLBACK_ERROR_FORMAT
@@ -58,4 +59,4 @@ class OldmanErrorHandler(ErrorHandler):
         return await render_html_error_response(request, exception)
 
 
-__all__ = ["OldmanErrorHandler", "render_html_error_response"]
+__all__ = ["ErrorPageHandler", "render_html_error_response"]

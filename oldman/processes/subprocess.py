@@ -353,17 +353,19 @@ class ManagedSubprocess:
         try:
             if timeout is None:
                 return await self._wait_and_cleanup_after_exit()
-            resolved_timeout = timeout
-            async with asyncio.timeout(resolved_timeout):
+            async with asyncio.timeout(timeout):
                 return await self._wait_and_cleanup_after_exit()
         except TimeoutError as error:
             await self._shielded_cleanup(graceful=True)
+            if timeout is None:
+                # Raised inside the wait, not by a deadline of ours: report it as it is.
+                raise
             raise SubprocessTimeoutError(
                 command=self.args,
                 pid=self.pid,
                 supervisor_pid=self.supervisor_pid,
                 process_group=self.process_group,
-                timeout=resolved_timeout,
+                timeout=timeout,
             ) from error
         except asyncio.CancelledError:
             await self._shielded_cleanup(graceful=True)
@@ -390,18 +392,20 @@ class ManagedSubprocess:
         try:
             if timeout is None:
                 return await finish()
-            resolved_timeout = timeout
-            async with asyncio.timeout(resolved_timeout):
+            async with asyncio.timeout(timeout):
                 return await finish()
         except TimeoutError as error:
             await self._shielded_cleanup(graceful=True)
             stdout, stderr = await asyncio.shield(communicate_task)
+            if timeout is None:
+                # Raised inside the exchange, not by a deadline of ours: report it as it is.
+                raise
             raise SubprocessTimeoutError(
                 command=self.args,
                 pid=self.pid,
                 supervisor_pid=self.supervisor_pid,
                 process_group=self.process_group,
-                timeout=resolved_timeout,
+                timeout=timeout,
                 stdout=stdout,
                 stderr=stderr,
             ) from error

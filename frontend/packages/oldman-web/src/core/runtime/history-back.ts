@@ -43,6 +43,11 @@ export function goBackOrFallback(trigger: HTMLElement, navigate: (url: string) =
  * 都会重建页面：表单刚画出来、外壳还没挂载完的那一小段时间里，Cancel 会退化成一次普通
  * 跳转，用户回到的是一张丢了筛选、排序和页码的默认表格。已挂载的组件先 preventDefault，
  * 这里看到 defaultPrevented 就不再重复处理。
+ *
+ * 边界：主 frame 的导航要等 Turbo 把它提升为页面访问才算走完。表单换上之后、提升访问开始之前
+ * 约两个动画帧（实测 20–50ms；正文下载完 Turbo 才改地址和渲染，慢速网络不会拉长它），这时的
+ * history.back() 会被随后开始的提升访问取消，页面停在列表地址上、显示的仍是表单。浏览器后退键
+ * 同样如此，是 Turbo 自身的时序。人手点不进这个窗口；自动化脚本要等 turbo:load 之后再点。
  */
 export function startHistoryBack(target: Document = document): () => void {
   const handler = (event: MouseEvent): void => {

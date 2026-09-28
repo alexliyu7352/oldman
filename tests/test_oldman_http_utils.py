@@ -1,4 +1,4 @@
-"""Best-effort public client address helper and trusted-proxy config tests."""
+"""Best-effort public client address helper, trusted-proxy config and query appending tests."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from sanic.compat import Header
 
 from oldman.conf.schemas import WebConfig
-from oldman.utils.http import FORWARDED_CLIENT_IP_HEADERS, first_public_ip
+from oldman.utils.http import FORWARDED_CLIENT_IP_HEADERS, append_query, first_public_ip
 
 
 def request_with(headers: list[tuple[str, str]] | None = None, ip: str | None = "10.0.0.5") -> SimpleNamespace:
@@ -74,6 +74,16 @@ class WebProxyConfigDefaultsTest(unittest.TestCase):
 
         self.assertEqual(2, config.proxies_count)
         self.assertEqual("edge-secret", config.forwarded_secret)
+
+
+class AppendQueryTest(unittest.TestCase):
+    def test_excluded_keys_are_dropped(self) -> None:
+        self.assertEqual("http://up/live?c=1&x=2", append_query("http://up/live", "c=1&channel_id=5&x=2", ["channel_id"]))
+
+    def test_a_string_is_refused_as_the_keys_to_exclude(self) -> None:
+        """G5-8: ``key in "channel_id"`` tests for a substring, so a string also excluded keys such as "c" and "id"."""
+        with self.assertRaises(TypeError):
+            append_query("http://up/live", "c=1&channel_id=5&x=2", "channel_id")
 
 
 if __name__ == "__main__":

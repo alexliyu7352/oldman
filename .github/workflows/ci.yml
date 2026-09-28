@@ -41,13 +41,25 @@ jobs:
           pnpm install --frozen-lockfile
           uv sync --group dev
 
-      # The Redis integration tests fail (not skip) without a redis-server binary; each test
-      # class starts its own server on a temporary Unix socket, so no system service is needed.
+      # The Redis, NATS and Taskiq checks fail (not skip) without redis-server (6.2 or newer)
+      # and nats-server; each check starts its own servers, so no system service is needed.
       - name: Install redis-server for the integration gate
         run: |
           sudo apt-get update
           sudo apt-get install -y redis-server
           redis-server --version
+
+      - name: Install nats-server for the integration gate
+        env:
+          NATS_VERSION: v2.15.0
+          NATS_SHA256: 5d2c51caca950333aba84911df7d377f826f3a59ec36061c6539105084f65c92
+        run: |
+          archive="nats-server-${NATS_VERSION}-linux-amd64"
+          curl -fsSL -o "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/nats-io/nats-server/releases/download/${NATS_VERSION}/$archive.tar.gz"
+          echo "$NATS_SHA256  $RUNNER_TEMP/$archive.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          echo "NATS_SERVER=$RUNNER_TEMP/$archive/nats-server" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/$archive/nats-server" --version
 
       # test_oldman_web_pack_boundary reads the built oldman-web package (dist/).
       - name: Build oldman-web
@@ -60,7 +72,6 @@ jobs:
         if: startsWith(matrix.python, '3.12')
         run: uv run pyright
 
-      # Tests that need NATS or Redis skip themselves unless NATS_SERVER / REDIS_SERVER are set.
       - name: Python tests
         run: uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .
 

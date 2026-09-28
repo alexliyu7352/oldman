@@ -124,6 +124,7 @@ class ImageCacheTest(unittest.IsolatedAsyncioTestCase):
         self.tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(self.tempdir.cleanup)
         self.settings = SimpleNamespace(
+            core=SimpleNamespace(app_name="oldman", namespace="svc"),
             cache=SimpleNamespace(client="CACHE"),
         )
         self.connection = AsyncMock()

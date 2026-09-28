@@ -1,0 +1,36 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: oldman\n"
+"Language: zh_Hant\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Roles"
+msgstr "角色"
+
+msgid "Role"
+msgstr "角色"
+
+msgid "User role"
+msgstr "使用者角色"
+
+msgid "User roles"
+msgstr "使用者角色"
+
+msgid "Name"
+msgstr "名稱"
+
+msgid "Description"
+msgstr "說明"
+
+msgid "Permissions"
+msgstr "權限"
+
+msgid "A role with this name already exists"
+msgstr "已有同名角色"
+
+#, python-format
+msgid "You can only grant permissions you hold: %(permissions)s"
+msgstr "只能授予自己擁有的權限：%(permissions)s"

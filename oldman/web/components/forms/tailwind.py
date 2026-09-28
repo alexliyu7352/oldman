@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from .base import OldmanForm, TableFilterForm
-from .models import OldmanModelForm
+from .base import Form, TableFilterForm
+from .models import ModelForm
 from .renderers import TailwindFieldRenderer, TailwindFormRenderer
 
 
-class TailwindForm(OldmanForm):
+class TailwindForm(Form):
     """业务默认 Tailwind 普通表单基类。"""
 
     renderer_class = TailwindFormRenderer
@@ -21,7 +21,7 @@ class TailwindTableFilterForm(TableFilterForm):
     field_renderer_class = TailwindFieldRenderer
 
 
-class TailwindModelForm(OldmanModelForm):
+class TailwindModelForm(ModelForm):
     """业务默认 Tailwind 模型表单基类。"""
 
     renderer_class = TailwindFormRenderer

@@ -133,6 +133,7 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(app.models_module, "models")
         self.assertEqual(app.migrations_module, "migrations")
         self.assertEqual(app.web_module, "views")
+        self.assertEqual(app.permissions_module, "permissions")
         self.assertEqual(app.commands_module, "commands")
         self.assertEqual(app.tasks_module, "tasks")
         self.assertEqual(app.events_module, "events")
@@ -157,6 +158,8 @@ class AppConfigTests(unittest.TestCase):
             ("models_module", None, "models_module"),
             ("migrations_module", "", "migrations_module"),
             ("web_module", ".views", "web_module"),
+            ("permissions_module", None, "permissions_module"),
+            ("permissions_module", "../permissions", "permissions_module"),
             ("commands_module", "commands-py", "commands_module"),
             ("tasks_module", None, "tasks_module"),
             ("tasks_module", "../tasks", "tasks_module"),

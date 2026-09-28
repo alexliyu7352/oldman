@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import unittest
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from markupsafe import Markup
 from sqlalchemy import ForeignKey, Integer, String, select
@@ -154,7 +155,7 @@ class TableStructuredDataTest(unittest.TestCase):
             columns = ["id", Column("rank", label="Rank", field_path=None, callback="get_column_rank_data")]
             batches: list[int] = []
 
-            async def build_row_contexts(self, rows):
+            async def build_row_contexts(self, rows: Sequence[object]) -> list[Mapping[str, object]]:
                 # One lookup for the whole batch, the way a per-row COUNT would be aggregated in a single query.
                 self.batches.append(len(rows))
                 return [{"rank": index + 1} for index, _row in enumerate(rows)]
@@ -272,7 +273,15 @@ class TableStructuredDataTest(unittest.TestCase):
 
     def test_table_rendering_delegates_to_renderer_class(self) -> None:
         class MinimalRenderer(TableRenderer):
-            async def render_shell(self, *, route_kwargs, html_id=None, show_search=True, data_format="html"):
+            async def render_shell(
+                self,
+                *,
+                route_kwargs: dict[str, object],
+                html_id: str | None = None,
+                show_search: bool = True,
+                data_format: Literal["html", "json"] = "html",
+                bulk_actions_html: Markup | str | None = None,
+            ) -> Markup:
                 return Markup(f'<section data-custom-table="1" data-format="{data_format}"></section>')
 
         class CustomRenderedTable(DemoProgramTable):

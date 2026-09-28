@@ -101,6 +101,26 @@ def redis_database_url(redis_url: str, database: int) -> str:
     return urlunsplit((parsed.scheme, parsed.netloc, f"/{database}", parsed.query, parsed.fragment))
 
 
+def use_owned_redis(payload: dict, redis_url: str) -> None:
+    """Point every Redis alias of one settings payload at the gate's own Redis, one database each.
+
+    Every alias, not a chosen few: projects have different numbers of them (EPG also has CACHE
+    and TASKIQ), and one left behind reads and writes the developer's real Redis. That includes
+    the aliases ``RedisConfig`` declares (DEFAULT, CACHE, SESSION) when the payload leaves them out:
+    they would otherwise take their built-in ``localhost:6379`` URLs. The aliases the payload writes
+    keep the database numbers they always had; the built-in ones it leaves out come after them. Only
+    the ``redis`` section changes, so the rest of the settings stays as the example has it.
+    """
+    from oldman.conf.schemas import RedisConfig
+
+    connections = payload.setdefault("redis", {})
+    aliases = sorted(connections) + sorted(set(RedisConfig.model_fields) - set(connections))
+    if len(aliases) > REDIS_DATABASE_COUNT:
+        raise BrowserGateError(f"门禁 Redis 只有 {REDIS_DATABASE_COUNT} 个 database，配置里有 {len(aliases)} 个别名")
+    for database, alias in enumerate(aliases):
+        connections.setdefault(alias, {})["redis_url"] = redis_database_url(redis_url, database)
+
+
 def _terminate_group(process: subprocess.Popen[Any], *, grace: float = 8, kill_wait: float = 5) -> None:
     """Signal the whole process group and wait for it, not only for its leader.
 
@@ -190,24 +210,21 @@ def gate_settings(
 ) -> Path:
     """把项目的 `web_settings.example.yaml` 改写成一份只指向临时目录的完整配置。
 
-    `redis` 下的**每一个**别名都被改写到门禁自己那台 Redis 的一个独立 database：项目的别名数量各不
-    相同（EPG 还有 CACHE 和 TASKIQ），漏掉一个就会让门禁读写开发机上的真实 Redis。
+    `redis` 下的**每一个**别名都经 `use_owned_redis` 改写到门禁自己那台 Redis 的一个独立 database。
 
-    `namespace` 用于 session 前缀和 Cookie 名，两个门禁同时跑也不会互相登出；`customize` 收到整个
+    `namespace` 成为服务的 Redis 命名空间并用于 Cookie 名，两个门禁同时跑也不会互相登出；`customize` 收到整个
     payload，用来改项目自己的键（关掉 taskiq、指定模板目录……）。
     """
     from ruamel.yaml import YAML
 
     payload = YAML(typ="safe", pure=True).load(example_file.read_text(encoding="utf-8"))
-    payload["core"]["data_dir"] = str(state_root / "data")
-    payload["logging"]["dir"] = str(state_root / "logs")
-    payload["process"]["pid_dir"] = str(state_root / "pids")
-    payload["database"]["url"] = f"sqlite+aiosqlite:///{state_root / database_name}"
-    aliases = sorted(payload.get("redis") or {})
-    if len(aliases) > REDIS_DATABASE_COUNT:
-        raise BrowserGateError(f"门禁 Redis 只有 {REDIS_DATABASE_COUNT} 个 database，配置里有 {len(aliases)} 个别名")
-    for database, alias in enumerate(aliases):
-        payload["redis"][alias]["redis_url"] = redis_database_url(redis_url, database)
+    # An example may leave a whole section to the schema's defaults (logging, once its level
+    # followed core.debug); the gate's paths go in all the same.
+    payload.setdefault("core", {})["data_dir"] = str(state_root / "data")
+    payload.setdefault("logging", {})["dir"] = str(state_root / "logs")
+    payload.setdefault("process", {})["pid_dir"] = str(state_root / "pids")
+    payload.setdefault("database", {})["url"] = f"sqlite+aiosqlite:///{state_root / database_name}"
+    use_owned_redis(payload, redis_url)
     web = payload["web"]
     web["listen_host"] = host
     web["listen_port"] = service_port
@@ -215,8 +232,7 @@ def gate_settings(
     web["access_log"] = False
     web["security"]["secret_key"] = secrets.token_urlsafe(48)
     web["security"]["fingerprint"]["aes_secret_key"] = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
-    web["session"]["prefix"] = f"{namespace}_session:"
-    web["session"]["user_prefix"] = f"{namespace}_user:"
+    payload["core"]["namespace"] = namespace
     web["session"]["cookie_name"] = f"{namespace}_sid"
     web["sse"]["heartbeat_interval"] = 0.5
     web["sse"]["session_check_interval"] = 0.5

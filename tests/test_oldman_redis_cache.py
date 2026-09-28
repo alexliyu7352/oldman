@@ -8,10 +8,11 @@ from collections.abc import Sequence
 from typing import Any
 from unittest.mock import Mock, patch
 
+import oldman.conf as conf
 from oldman.cache.backends import redis_cache as exported_redis_cache
 from oldman.cache.backends.redis import RedisCache
 from oldman.cache.backends.redis import redis_cache as module_redis_cache
-from oldman.conf.schemas import RedisCacheConfig
+from oldman.conf.schemas import DefaultSettings, RedisCacheConfig
 
 
 def redis_glob_matches(pattern: str, key: str) -> bool:
@@ -38,6 +39,13 @@ def require_positive_integer_expiration(value: object) -> None:
     if type(value) is not int or value <= 0:
         raise AssertionError("Redis expiration commands require a positive integer")
 
+
+
+def service_namespace(namespace: str) -> Any:
+    """Publish settings whose core.namespace is the given one."""
+    settings = DefaultSettings()
+    settings.core.namespace = namespace
+    return patch.dict(conf.__dict__, {"settings": settings})
 
 class FakeBinaryPipeline:
     def __init__(self, connection: FakeBinaryConnection) -> None:
@@ -302,7 +310,7 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_settings_namespace_only_binds_on_first_operation(self) -> None:
         settings_source = Mock(
-            return_value=RedisCacheConfig(client="CACHE", namespace="main", serializer="pickle")
+            return_value=RedisCacheConfig(client="CACHE", serializer="pickle")
         )
         registry = Mock()
         registry.using.return_value = FakeBinaryAlias()
@@ -312,7 +320,7 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
             unbound.namespace = "injected"
 
         cache = RedisCache(settings_source=settings_source)
-        with patch("oldman.cache.backends.redis.redis_client", registry):
+        with patch("oldman.cache.backends.redis.redis_client", registry), service_namespace("svc"):
             await cache.exists("key")
             for replacement in ("other", ""):
                 with self.subTest(replacement=replacement):
@@ -320,8 +328,9 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
                         cache.namespace = replacement
             await cache.clear()
 
-        self.assertEqual("main:key", cache.build_key("key"))
-        self.assertEqual(["main:*"], registry.using.return_value.connection.scan_patterns)
+        # The settings-driven cache lives under the service namespace: <namespace>:cache.
+        self.assertEqual("svc:cache:key", cache.build_key("key"))
+        self.assertEqual(["svc:cache:*"], registry.using.return_value.connection.scan_patterns)
 
     async def test_delete_match_and_clear_only_scan_current_namespace(self) -> None:
         alias = FakeBinaryAlias()
@@ -420,7 +429,7 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_global_cache_binds_settings_only_on_first_operation(self) -> None:
         settings_source = Mock(
-            return_value=RedisCacheConfig(client="CACHE", namespace="main", serializer="pickle")
+            return_value=RedisCacheConfig(client="CACHE", serializer="pickle")
         )
         cache = RedisCache(settings_source=settings_source)
         registry = Mock()
@@ -428,10 +437,11 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
         with patch("oldman.cache.backends.redis.redis_client", registry):
             settings_source.assert_not_called()
             registry.using.assert_not_called()
-            await cache.exists("key")
+            with service_namespace("svc"):
+                await cache.exists("key")
         settings_source.assert_called_once_with()
         registry.using.assert_called_once_with("CACHE")
-        self.assertEqual("main", cache.namespace)
+        self.assertEqual("svc:cache", cache.namespace)
 
     async def test_provider_errors_propagate_without_wrapping(self) -> None:
         error = RuntimeError("redis unavailable")

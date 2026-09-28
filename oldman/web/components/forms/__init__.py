@@ -1,11 +1,12 @@
 """后端 Form 组件包入口。"""
 
-from .base import OldmanForm, SanicFormData, TableFilterForm
+from .base import Form, SanicFormData, TableFilterForm
 from .choices import ModelChoice
 from .fields import (
     AjaxAutocompleteField,
     AjaxSelectField,
     AjaxSelectMultipleField,
+    CheckboxGroupField,
     ColorPickerField,
     EmailField,
     FileExtension,
@@ -18,7 +19,7 @@ from .fields import (
     UploadField,
 )
 from .layouts import Actions, FieldGroup, FieldLayout, FormLayout, FormStep, Row
-from .models import OldmanModelForm
+from .models import ModelForm
 from .renderers import FieldRenderer, FormRenderer, TailwindFieldRenderer, TailwindFormRenderer
 from .tailwind import TailwindForm, TailwindModelForm, TailwindTableFilterForm
 from .widgets import (
@@ -45,6 +46,7 @@ __all__ = [
     "AjaxSelectField",
     "AjaxSelectMultipleField",
     "AjaxSelectWidget",
+    "CheckboxGroupField",
     "ColorPickerField",
     "EmailField",
     "ColorPickerWidget",
@@ -61,8 +63,8 @@ __all__ = [
     "InputSpinnerWidget",
     "ModelChoice",
     "ModelChoiceField",
-    "OldmanForm",
-    "OldmanModelForm",
+    "Form",
+    "ModelForm",
     "RichTextField",
     "RichTextWidget",
     "Row",

@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from oldman.auth.models import User
 from oldman.web.auth import user_delete_modal_response, user_status_modal_response
+from oldman.web.template import template_globals
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "oldman" / "web" / "templates"
 
@@ -19,7 +20,7 @@ TEMPLATES = Path(__file__).resolve().parents[1] / "oldman" / "web" / "templates"
 def make_request() -> Any:
     """A request carrying only what the partials need: the environment and the CSRF token."""
     environment = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=True, enable_async=True)
-    environment.globals["_"] = lambda message: message
+    template_globals(environment)["_"] = lambda message: message
     return SimpleNamespace(
         app=SimpleNamespace(ext=SimpleNamespace(environment=environment)),
         ctx=SimpleNamespace(csrf_token="csrf-token"),

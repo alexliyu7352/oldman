@@ -117,7 +117,7 @@ Extend(
         logging=False,
     ),
 )
-app.ctx.oldman_app_registry = bootstrap_context.apps
+app.ctx.app_registry = bootstrap_context.apps
 Session(app)
 app.static(STATIC_URL, str(STATIC_ROOT), name="static")
 install_admin(

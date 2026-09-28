@@ -6,9 +6,11 @@ import base64
 import hashlib
 import hmac
 from dataclasses import asdict, dataclass
-from typing import Literal
+from typing import Literal, cast
 
 import orjson
+
+from oldman.utils.crypto import constant_time_equals
 
 
 class SelectBindError(ValueError):
@@ -43,7 +45,7 @@ def verify_select_context(bind: str, *, secret_key: str) -> SelectContext:
         raise SelectBindError("Invalid select bind format") from exc
 
     expected = _signature(payload, secret_key=secret_key)
-    if not hmac.compare_digest(signature, expected):
+    if not constant_time_equals(signature, expected):
         raise SelectBindError("Invalid select bind signature")
 
     try:
@@ -59,7 +61,8 @@ def verify_select_context(bind: str, *, secret_key: str) -> SelectContext:
 
 def _context_payload(context: SelectContext) -> dict[str, object]:
     """转换上下文为稳定 JSON payload。"""
-    payload = asdict(context)
+    # asdict() is typed field by field; the payload is about to hold a list where a field holds a tuple.
+    payload = cast(dict[str, object], asdict(context))
     payload["dependent_fields"] = list(context.dependent_fields)
     return payload
 

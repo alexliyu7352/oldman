@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import unittest
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock, call, patch
 
 from markupsafe import Markup
@@ -59,7 +60,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.settings_patch = patch.dict(conf.__dict__, {"settings": self.settings})
         self.settings_patch.start()
         self.app = self._new_app("runtime")
-        self.app.ctx.oldman_app_registry = _InstalledApps()
+        self.app.ctx.app_registry = _InstalledApps()
         self.app.ctx.csrf = _AcceptingCSRF()
 
         @self.app.on_request
@@ -147,16 +148,16 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         )
 
         missing_app = self._new_app("missing-app")
-        missing_app.ctx.oldman_app_registry = _MissingApps()
+        missing_app.ctx.app_registry = _MissingApps()
         missing_app.ctx.csrf = _AcceptingCSRF()
         cases.append(
             ("app", missing_app, "notifications", len(missing_app.router.routes))
         )
 
         no_templates = self._new_app("no-templates", templating=False)
-        no_templates.ctx.oldman_app_registry = _InstalledApps()
+        no_templates.ctx.app_registry = _InstalledApps()
         no_templates.ctx.csrf = _AcceptingCSRF()
-        no_templates.ext.environment = None
+        cast(Any, no_templates.ext).environment = None
         cases.append(
             (
                 "templates",
@@ -167,7 +168,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         )
 
         no_csrf = self._new_app("no-csrf")
-        no_csrf.ctx.oldman_app_registry = _InstalledApps()
+        no_csrf.ctx.app_registry = _InstalledApps()
         cases.append(("csrf", no_csrf, "CSRF", len(no_csrf.router.routes)))
 
         for label, app, message, original_route_count in cases:
@@ -179,7 +180,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
             Sanic.unregister_app(app)
 
         disabled = self._new_app("session-disabled")
-        disabled.ctx.oldman_app_registry = _InstalledApps()
+        disabled.ctx.app_registry = _InstalledApps()
         disabled.ctx.csrf = _AcceptingCSRF()
         disabled_route_count = len(disabled.router.routes)
         with patch.dict(

@@ -1,14 +1,12 @@
-"""Real TCP close regression checks; NATS_SERVER selects an executable, never a live server.
+"""Real TCP close regression checks; the gate starts its own nats-server, never uses a live one.
 
-Run with NATS_SERVER=/path/to/nats-server python -m unittest tests.test_oldman_nats_close.
+NATS_SERVER names the executable, else the one on PATH; without either the checks fail rather than skip.
 The suite owns its server and temporary storage and runs cases sequentially.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
-import shutil
 import socket
 import subprocess
 import tempfile
@@ -30,8 +28,7 @@ from nats.errors import TimeoutError as NatsTimeoutError
 
 from oldman.providers.nats import NATSConnection
 from oldman.serializers import MsgspecModel
-
-NATS_SERVER = os.environ.get("NATS_SERVER") or shutil.which("nats-server")
+from tests.nats_support import require_nats_server
 
 
 class Payload(MsgspecModel):
@@ -65,7 +62,6 @@ class ObservedConnection(NATSConnection):
         self.closed_count += 1
 
 
-@unittest.skipUnless(NATS_SERVER, "Set NATS_SERVER to a local nats-server executable")
 class NatsCloseTest(unittest.IsolatedAsyncioTestCase):
     """Exercise the shared fix through the actual Oldman/FastStream lifecycle."""
 
@@ -87,7 +83,7 @@ class NatsCloseTest(unittest.IsolatedAsyncioTestCase):
     def start_server(self) -> subprocess.Popen[bytes]:
         """Start or restart only this case's server and its existing store."""
         return subprocess.Popen(
-            [str(NATS_SERVER), "-a", "127.0.0.1", "-p", str(self.port), "-js", "-sd", self.directory.name],
+            [require_nats_server(), "-a", "127.0.0.1", "-p", str(self.port), "-js", "-sd", self.directory.name],
             stdout=self.log, stderr=self.log,
         )
 

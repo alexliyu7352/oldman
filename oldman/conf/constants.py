@@ -73,47 +73,6 @@ def _find_project_root(start: Path | None = None) -> Path:
 PROJECT_ROOT = _find_project_root()
 BASE_PATH = BASE_DIR = PROJECT_ROOT
 
-# 保留下来的开关。其余曾经住在这里的常量都已移除：它们与 oldman/conf/schemas.py 里的
-# Pydantic 默认值一字不差地重复，而改 schema 并不会同步这里，于是两份会慢慢对不上。
+# 其余曾经住在这里的常量都已移除：它们与 oldman/conf/schemas.py 里的 Pydantic 默认值重复，
+# 改 schema 并不会同步这里，于是两份会慢慢对不上；DEBUG、TEMPLATE_DEBUG 没有任何读取方。
 # 配置的唯一来源是 settings，不是这个模块。
-DEBUG = False
-
-TEMPLATE_DEBUG = DEBUG
-
-USER_AGENT_DICT_DEFINE = {
-    "browsers": [
-        "Google",
-        "Chrome",
-        "Firefox",
-        "Edge",
-        "Opera",
-        "Safari",
-        "Android",
-        "Yandex Browser",
-        "Samsung Internet",
-        "Opera Mobile",
-        "Mobile Safari",
-        "Firefox Mobile",
-        "Firefox iOS",
-        "Chrome Mobile",
-        "Chrome Mobile iOS",
-        "Mobile Safari UI/WKWebView",
-        "Edge Mobile",
-        "DuckDuckGo Mobile",
-        "MiuiBrowser",
-        "Whale",
-        "Twitter",
-        "Facebook",
-        "Amazon Silk",
-    ],
-    "os": [
-        "Windows",
-        "Linux",
-        "Ubuntu",
-        "Chrome OS",
-        "Mac OS X",
-        "Android",
-        "iOS",
-    ],
-    "platforms": ["desktop", "mobile", "tablet"],
-}

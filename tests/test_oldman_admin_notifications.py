@@ -28,10 +28,11 @@ from tests.test_oldman_admin_runtime import (
 
 
 class RegistryStub:
-    """Expose only the package lookup consumed by the Admin installer."""
+    """Expose only the lookups the Admin installer makes: installed labels and packages."""
 
     def __init__(self, *, notifications_installed: bool) -> None:
         self.notifications_installed = notifications_installed
+        self.labels = ("auth", "admin", "notifications") if notifications_installed else ("auth", "admin")
 
     def get_by_package(self, package: str) -> object:
         if package == "oldman.web.messages.notifications" and self.notifications_installed:
@@ -54,14 +55,13 @@ class AdminNotificationInstallerTest(TestCase):
 
     def test_installer_uses_registry_and_global_sse_configuration(self) -> None:
         app = FakeApp()
-        app.ctx.oldman_app_registry = RegistryStub(notifications_installed=True)
+        app.ctx.app_registry = RegistryStub(notifications_installed=True)
         settings = runtime_settings(
             session=SessionConfig(enabled=True),
         )
         settings.web.sse = SSEConfig(
             enabled=True,
             redis_alias="SSE",
-            channel_prefix="admin_test",
         )
         routes = NotificationRoutes(
             topbar_url="/control/user-notifications/topbar",
@@ -96,17 +96,16 @@ class AdminNotificationInstallerTest(TestCase):
             password_reset_rate_limiter=None,
             login_rate_limit=None,
         )
-        self.assertIs(app.ctx.oldman_admin_notification_routes, routes)
-        self.assertEqual(app.ctx.oldman_admin_user_events_url, "/control/user-events")
+        self.assertIs(app.ctx.admin_notification_routes, routes)
+        self.assertEqual(app.ctx.admin_user_events_url, "/control/user-events")
 
     def test_installer_does_not_infer_an_unregistered_notification_app(self) -> None:
         app = FakeApp()
-        app.ctx.oldman_app_registry = RegistryStub(notifications_installed=False)
+        app.ctx.app_registry = RegistryStub(notifications_installed=False)
         settings = runtime_settings(session=SessionConfig(enabled=True))
         settings.web.sse = SSEConfig(
             enabled=True,
             redis_alias="SSE",
-            channel_prefix="admin_test",
         )
         site = AdminSite("notification_absent")
 
@@ -126,11 +125,11 @@ class AdminNotificationInstallerTest(TestCase):
         installer.assert_not_called()
         self.assertFalse(register_routes.call_args.kwargs["notifications_enabled"])
         self.assertTrue(register_routes.call_args.kwargs["sse_enabled"])
-        self.assertIsNone(app.ctx.oldman_admin_notification_routes)
+        self.assertIsNone(app.ctx.admin_notification_routes)
 
     def test_installer_keeps_notification_http_routes_when_sse_is_disabled(self) -> None:
         app = FakeApp()
-        app.ctx.oldman_app_registry = RegistryStub(notifications_installed=True)
+        app.ctx.app_registry = RegistryStub(notifications_installed=True)
         settings = runtime_settings(session=SessionConfig(enabled=True))
         routes = NotificationRoutes(
             topbar_url="/control/user-notifications/topbar",
@@ -159,12 +158,12 @@ class AdminNotificationInstallerTest(TestCase):
         installer.assert_called_once_with(app, url_prefix="/control")
         self.assertTrue(register_routes.call_args.kwargs["notifications_enabled"])
         self.assertFalse(register_routes.call_args.kwargs["sse_enabled"])
-        self.assertIs(app.ctx.oldman_admin_notification_routes, routes)
-        self.assertIsNone(app.ctx.oldman_admin_user_events_url)
+        self.assertIs(app.ctx.admin_notification_routes, routes)
+        self.assertIsNone(app.ctx.admin_user_events_url)
 
     def test_installer_rejects_notifications_when_session_is_disabled(self) -> None:
         app = FakeApp()
-        app.ctx.oldman_app_registry = RegistryStub(notifications_installed=True)
+        app.ctx.app_registry = RegistryStub(notifications_installed=True)
         settings = runtime_settings(session=SessionConfig(enabled=False))
 
         with (
@@ -227,7 +226,7 @@ class AdminNotificationRoutesTest(TestCase):
             staff_request,
             admin_prefix="/control",
             site=site,
-            menu_items=site.menu_items("/control"),
+            menu_items=[],
             notification_center_content=Markup("<section>center</section>"),
         )
 
@@ -281,13 +280,13 @@ class AdminNotificationRoutesTest(TestCase):
 
     def test_render_context_exposes_only_installed_host_urls(self) -> None:
         app = FakeApp()
-        app.ctx.oldman_admin_notification_routes = NotificationRoutes(
+        app.ctx.admin_notification_routes = NotificationRoutes(
             topbar_url="/control/user-notifications/topbar",
             read_url="/control/user-notifications/read",
             delete_url="/control/user-notifications/delete",
             center_url="/control/user-notifications",
         )
-        app.ctx.oldman_admin_user_events_url = "/control/user-events"
+        app.ctx.admin_user_events_url = "/control/user-events"
         request = make_request(
             app,
             path="/control",

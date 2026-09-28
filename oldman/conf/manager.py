@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import copy
 import io
-import os
 import secrets
 from collections.abc import Mapping
 from pathlib import Path
@@ -17,28 +16,13 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
 from oldman.apps import AppRegistry
-from oldman.conf.base import SettingsFileMissingError
+from oldman.conf.base import SettingsFileMissingError, new_yaml
 from oldman.conf.schemas import DefaultSettings
+from oldman.utils.files import atomic_write
+from oldman.utils.hash_ids import generate_alphabet
 
 if TYPE_CHECKING:
     from oldman.runtime.discovery import ServiceDefinition
-
-
-DEFAULT_DEPRECATED_SETTINGS_KEYS = {
-    "ADMIN_SECRET": "web.security.secret_key",
-    "DATA_DIR": "core.data_dir",
-    "DEBUG": "web.debug",
-    "DEFAULT_LANGUAGE": "i18n.default_language",
-    "DOMAIN": "web.domain",
-    "LOG_LEVEL": "logging.level",
-    "LOGS_DIR": "logging.dir",
-    "REDIS_CONFIG": "redis",
-    "STATIC_ROOT": "web.static.root",
-    "STATIC_URL": "web.static.url",
-    "TIME_ZONE": "core.time_zone",
-    "USE_I18N": "i18n.use_i18n",
-    "USE_I18N_PATH": "i18n.use_i18n_path",
-}
 
 
 class SettingsManager[T_Settings: DefaultSettings]:
@@ -49,13 +33,10 @@ class SettingsManager[T_Settings: DefaultSettings]:
         settings_class: type[T_Settings],
         service_definition: ServiceDefinition,
         config_file: str | Path,
-        *,
-        deprecated_keys: Mapping[str, str] | None = None,
     ) -> None:
         self.settings_class = settings_class
         self.service_definition = service_definition
         self.config_file = Path(config_file)
-        self.deprecated_keys = dict(DEFAULT_DEPRECATED_SETTINGS_KEYS if deprecated_keys is None else deprecated_keys)
         self.registry = AppRegistry()
         self.settings: T_Settings | None = None
         self.app_settings: dict[str, BaseModel] = {}
@@ -186,8 +167,14 @@ class SettingsManager[T_Settings: DefaultSettings]:
         return self._last_diagnostics
 
     def inspect_diagnostics(self, data: Mapping[str, Any]) -> tuple[str, ...]:
-        """Report only deprecated keys and service/App usage warnings."""
-        diagnostics = [f"deprecated settings key '{key}'; use '{replacement}'" for key, replacement in self.deprecated_keys.items() if key in data]
+        """Report keys the settings do not declare, at every level, and service/App usage warnings.
+
+        Nested sections ignore undeclared keys rather than refuse them, so a misspelt key would
+        otherwise be dropped without a word. App settings are left out: they refuse unknown keys
+        outright.
+        """
+        global_data = {key: value for key, value in data.items() if key != "app_settings"}
+        diagnostics = unknown_settings_keys(global_data, self.settings_class)
         if self.service_definition.application_base == "simple" and "admin" in self.registry.labels:
             diagnostics.append(
                 "Admin is installed on a SimpleApplication service; its Web views "
@@ -337,6 +324,12 @@ class SettingsManager[T_Settings: DefaultSettings]:
         if self.service_definition.application_base != "web":
             return managed_data
 
+        # 公开 id 的字母表放在所有服务都有的 core 里，却只由 Web 服务生成：同一项目的其他服务复制同一个值，
+        # 各自生成会让它们编出的 id 在 Web 里解错，最坏解成另一个合法 id。
+        core = managed_data.setdefault("core", {})
+        if isinstance(core, dict) and _is_blank_secret(core.get("id_alphabet")):
+            core["id_alphabet"] = generate_alphabet()
+
         web = managed_data.setdefault("web", {})
         if not isinstance(web, dict):
             return managed_data
@@ -366,7 +359,7 @@ class SettingsManager[T_Settings: DefaultSettings]:
         messages["enabled"] = True
 
     def _write_config_file(self, data: Mapping[str, Any]) -> None:
-        """Render completely before truncating an existing settings file."""
+        """Render completely, then replace the settings file in one step (see atomic_write)."""
         documented_data = apply_schema_descriptions(data, self.settings_class)
         raw_app_settings = documented_data.get("app_settings")
         if isinstance(raw_app_settings, Mapping):
@@ -382,21 +375,15 @@ class SettingsManager[T_Settings: DefaultSettings]:
 
         rendered = io.StringIO()
         self._round_trip_yaml().dump(documented_data, rendered)
-        descriptor = os.open(
-            self.config_file,
-            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-            0o600,
-        )
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(rendered.getvalue())
+        # 整体替换而不是先清空再写：文件里有密钥，磁盘满或进程被杀时原文件必须完好。新建时仅属主可读写，
+        # 已有文件沿用它的权限。
+        # Through a link: services that share one settings file by linking to it stay together.
+        atomic_write(self.config_file, rendered.getvalue(), follow_symlinks=True, new_file_mode=0o600)
 
     @staticmethod
     def _round_trip_yaml() -> YAML:
-        """Return the established ruamel round-trip formatting policy."""
-        yaml = YAML(typ="rt")
-        yaml.default_flow_style = False
-        yaml.indent(mapping=2, sequence=4, offset=2)
-        return yaml
+        """Return the project's round-trip formatting policy, a fresh object per dump (see new_yaml)."""
+        return new_yaml()
 
 
 def _is_blank_secret(value: object) -> bool:
@@ -565,7 +552,6 @@ def apply_schema_descriptions(
 
 
 __all__ = [
-    "DEFAULT_DEPRECATED_SETTINGS_KEYS",
     "SettingsFileMissingError",
     "SettingsManager",
     "apply_schema_descriptions",

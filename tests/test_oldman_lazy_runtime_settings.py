@@ -90,24 +90,28 @@ class RuntimeSettingsBindingTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
 
-    def test_user_agent_helper_reads_settings_published_after_import(self) -> None:
+    def test_module_imported_before_bootstrap_reads_settings_published_after(self) -> None:
+        """框架模块在 bootstrap 之前被导入,函数体里仍要读到之后发布的设置。
+
+        这是全框架用 `import oldman.conf as conf` + `conf.settings.x` 而不用
+        `from oldman.conf import settings` 的原因:后者在导入时就把名字绑死了。
+        载体原先是 `oldman.utils.headers`(已删除),换成同一写法的 TimezoneManager。
+        """
         completed = run_fresh_project(
             """
-            from oldman.utils import headers
+            from oldman.utils.timezone import TimezoneManager
             from oldman import bootstrap_service
 
+            manager = TimezoneManager()
             bootstrap_service("worker")
 
-            assert headers.get_fake_user_agent() == "OldmanConfiguredAgent/2026"
-            assert headers.only_ua_header() == {
-                "user-agent": "OldmanConfiguredAgent/2026"
-            }
+            assert str(manager.get_timezone(None)) == "Asia/Tokyo"
             """,
             """
                 apps: []
                 app_settings: {}
-                http_client:
-                  user_agent: OldmanConfiguredAgent/2026
+                core:
+                  time_zone: Asia/Tokyo
             """,
         )
 

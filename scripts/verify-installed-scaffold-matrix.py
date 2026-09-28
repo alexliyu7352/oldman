@@ -529,11 +529,14 @@ def update_service_settings(
         web = data.setdefault("web", {})
         if not isinstance(web, dict):
             raise RuntimeError(f"Generated settings.web is not a mapping: {config_file}")
+        core = data.setdefault("core", {})
+        if not isinstance(core, dict):
+            raise RuntimeError(f"Generated settings.core is not a mapping: {config_file}")
+        core["debug"] = False
         web.update(
             {
                 "access_log": False,
                 "auto_reload": False,
-                "debug": False,
                 "listen_host": "127.0.0.1",
                 "listen_port": listen_port,
                 "workers": 1,
@@ -591,12 +594,14 @@ def run(
         )
         output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
         returncode = completed.returncode
+        stdout = completed.stdout
     except subprocess.TimeoutExpired as exc:
         output = "\n".join(
             part.decode(errors="replace") if isinstance(part, bytes) else part or ""
             for part in (exc.stdout, exc.stderr)
         ).strip()
         returncode = -1
+        stdout = ""  # unused: a timed-out command raises below
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text(
         f"cwd={cwd.resolve()}\ncommand={' '.join(command)}\nreturncode={returncode}\n{output}\n",
@@ -606,7 +611,7 @@ def run(
         if returncode == -1:
             raise RuntimeError(f"Command timed out after {timeout}s: {' '.join(command)}\n{output[-6000:]}")
         raise RuntimeError(f"Command failed ({returncode}): {' '.join(command)}\n{output[-6000:]}")
-    return completed.stdout
+    return stdout
 
 
 def run_tty(

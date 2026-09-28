@@ -302,7 +302,7 @@ class NotificationServiceTest(unittest.IsolatedAsyncioTestCase):
         )
         for arguments in invalid_list_arguments:
             with self.subTest(arguments=arguments), self.assertRaises((TypeError, ValueError)):
-                await service.list_for_user(self.first_user_id, **arguments)  # pyright: ignore[reportArgumentType] -- exercise runtime validation
+                await cast(Any, service).list_for_user(self.first_user_id, **arguments)  # exercise runtime validation
 
         for limit in (True, 0, 21):
             with self.subTest(limit=limit), self.assertRaises((TypeError, ValueError)):
@@ -312,7 +312,7 @@ class NotificationServiceTest(unittest.IsolatedAsyncioTestCase):
                 await service.get_for_user(self.first_user_id, notification_id)
         for user_id in (True, "1"):
             with self.subTest(user_id=user_id), self.assertRaises(TypeError):
-                await service.unread_count(user_id)  # pyright: ignore[reportArgumentType] -- exercise runtime validation
+                await cast(Any, service).unread_count(user_id)  # exercise runtime validation
         self.assertEqual(0, await service.unread_count(-1))
 
         invalid_ids: tuple[tuple[object, ...], ...] = (
@@ -323,9 +323,9 @@ class NotificationServiceTest(unittest.IsolatedAsyncioTestCase):
         )
         for values in invalid_ids:
             with self.subTest(values=values), self.assertRaises((TypeError, ValueError)):
-                await service.mark_read(self.first_user_id, values)  # pyright: ignore[reportArgumentType] -- exercise runtime validation
+                await cast(Any, service).mark_read(self.first_user_id, values)  # exercise runtime validation
             with self.subTest(values=values), self.assertRaises((TypeError, ValueError)):
-                await service.delete(self.first_user_id, values)  # pyright: ignore[reportArgumentType] -- exercise runtime validation
+                await cast(Any, service).delete(self.first_user_id, values)  # exercise runtime validation
 
         with patch.object(
             self.manager,
@@ -437,7 +437,6 @@ class NotificationServiceTest(unittest.IsolatedAsyncioTestCase):
             SSEConfig(
                 enabled=True,
                 redis_alias="SSE",
-                channel_prefix="tests:notifications",
                 max_message_size=max_message_size,
             ),
             registry=cast(Any, _PublisherRegistry()),
@@ -476,7 +475,6 @@ class NotificationServiceTest(unittest.IsolatedAsyncioTestCase):
             SSEConfig(
                 enabled=True,
                 redis_alias="SSE",
-                channel_prefix="tests:notifications",
                 max_message_size=tiny_limit,
             ),
             registry=cast(Any, _PublisherRegistry()),

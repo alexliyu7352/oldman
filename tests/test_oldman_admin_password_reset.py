@@ -7,7 +7,7 @@ import re
 import unittest
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import oldman.conf as conf
 from oldman import mail
@@ -241,7 +241,9 @@ class AdminPasswordResetTest(unittest.TestCase):
         token = self.generator.make_token(self.user)
         submit = self.handler("/control/password-reset/<uidb64:str>/<token:str>", "POST")
         # The flow reaches the store through the installed extension, so the double is its interface.
-        session_interface = SimpleNamespace(force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock())
+        session_interface = SimpleNamespace(
+            force_logout_user=AsyncMock(return_value=("s1",)), _logout_request=AsyncMock(), opened_session_id=Mock(return_value=None)
+        )
         session_manager = Session()
         session_manager.interface = cast(Any, session_interface)
         self.app.ctx.session = session_manager

@@ -1,0 +1,8 @@
+node_modules/
+build/
+.docusaurus/
+.cache-loader/
+
+# 由 scripts/build-docs-site.py 在构建期组装，源在 docs/public/<语言>/
+.staging/
+i18n/*/docusaurus-plugin-content-docs/

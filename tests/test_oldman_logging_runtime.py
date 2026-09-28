@@ -8,7 +8,10 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings
 from oldman.logging import (
     ChildLoggingContext,
     LoggingRuntime,
@@ -95,6 +98,17 @@ class DirectLoggingRuntimeTest(unittest.TestCase):
         finally:
             logger.removeHandler(foreign)
             foreign.close()
+
+    def test_an_unset_level_follows_the_debug_switch(self) -> None:
+        """Without logger_level, init_logging installs DEBUG when core.debug is on and logging.level is unset."""
+        settings = DefaultSettings()
+        settings.core.debug = True
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(conf.__dict__, {"settings": settings}):
+            runtime = init_logging("debug-follow", logger_path=tmp, color="never")
+            try:
+                self.assertEqual(logging.DEBUG, logger.level)
+            finally:
+                runtime.close()
 
     def test_child_context_replaces_inherited_owner_with_writer_only_runtime(self) -> None:
         """A child context creates atomic writers without a rotation coordinator."""

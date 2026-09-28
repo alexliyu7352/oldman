@@ -17,6 +17,8 @@ from typing import Any
 
 from markupsafe import Markup
 
+from oldman.web.template_globals import template_globals
+
 
 @dataclass(frozen=True)
 class StaticBundle:
@@ -179,7 +181,7 @@ class StaticBundleRegistry:
 
     def install_template_globals(self, environment: Any) -> None:
         """Expose the tag helpers to templates as the `bundle_*` globals every shell base uses."""
-        environment.globals.update(
+        template_globals(environment).update(
             bundle_asset_base_url=self.asset_base_url,
             bundle_asset_url=self.asset_url,
             bundle_client=self.client_tags,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,15 +62,16 @@ class CachePublicBoundaryTest(unittest.IsolatedAsyncioTestCase):
         order: list[str] = []
         with (
             patch(
-                "oldman.runtime.simple.memory_cache.close",
+                "oldman.cache.memory_cache.close",
                 new=AsyncMock(side_effect=lambda: order.append("memory")),
             ),
             patch(
-                "oldman.runtime.simple.redis_client.close",
+                "oldman.providers.redis.redis_client.close",
                 new=AsyncMock(side_effect=lambda: order.append("redis")),
             ),
+            patch("oldman.db.db_manager.close", new=AsyncMock()),
         ):
-            await application.after_stop()
+            await application._close_shared_resources()
         self.assertEqual(["memory", "redis"], order)
 
     async def test_web_runtime_shutdown_closes_memory_before_redis_provider(self) -> None:
@@ -91,24 +92,27 @@ class CachePublicBoundaryTest(unittest.IsolatedAsyncioTestCase):
         order: list[str] = []
         with (
             patch(
-                "oldman.runtime.web.memory_cache.close",
+                "oldman.cache.memory_cache.close",
                 new=AsyncMock(side_effect=lambda: order.append("memory")),
             ),
             patch(
-                "oldman.runtime.web.redis_client.close",
+                "oldman.providers.redis.redis_client.close",
                 new=AsyncMock(side_effect=lambda: order.append("redis")),
             ),
+            patch("oldman.db.db_manager.close", new=AsyncMock()),
         ):
-            await application.after_server_stop(cast(Any, SimpleNamespace()))
+            await application._close_shared_resources()
         self.assertEqual(["memory", "redis"], order)
 
     def test_runtime_has_no_eager_cache_initialization(self) -> None:
-        for relative in ("simple.py", "web.py"):
+        for relative in ("simple.py", "web.py", "base.py"):
             source = (ROOT / "oldman" / "runtime" / relative).read_text(encoding="utf-8")
             self.assertNotIn("async_cache", source, relative)
             self.assertNotIn("init_cache", source, relative)
             self.assertNotIn("REDIS_CONFIG", source, relative)
-            self.assertLess(source.index("await memory_cache.close()"), source.index("await redis_client.close()"))
+        # The framework's one resource cleanup closes the memory cache before the Redis provider.
+        base = (ROOT / "oldman" / "runtime" / "base.py").read_text(encoding="utf-8")
+        self.assertLess(base.index("await memory_cache.close()"), base.index("await redis_client.close()"))
 
 
 if __name__ == "__main__":

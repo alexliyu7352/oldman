@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from oldman.serializers import MsgspecModel
-from oldman.web import Request, get_app, json_response
+from oldman.web import Request, router, json_response
 from oldman.web.sse import SSEStream, sse
 from oldman.web.websocket import WebSocket, websocket
-
-app = get_app()
 
 
 class StatusUpdate(MsgspecModel, kw_only=True):
@@ -16,14 +14,14 @@ class StatusUpdate(MsgspecModel, kw_only=True):
     status: str
 
 
-@app.get("/{{ app_slug }}", name="{{ app_slug }}_index")
+@router.get("/{{ app_slug }}", name="{{ app_slug }}_index")
 async def {{ app_slug }}_index(request: Request):
     """Return a simple API response."""
     del request
     return json_response({"name": "{{ app_slug }}", "status": "ok"})
 
 
-@app.get("/{{ app_slug }}/status/stream", name="{{ app_slug }}_status_stream")
+@router.get("/{{ app_slug }}/status/stream", name="{{ app_slug }}_status_stream")
 @sse.streaming()
 async def {{ app_slug }}_status_stream(request: Request, stream: SSEStream) -> None:
     """Stream a finite service-status example."""

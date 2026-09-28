@@ -58,10 +58,10 @@
   </li>
 {% endmacro %}
 
-{% macro sidebar_menu_item(href, label, active=false) %}
-  {# 分组内的子项。 #}
+{% macro sidebar_menu_item(href, label, active=false, turbo=true) %}
+  {# 分组内的子项。turbo=false 用于离开这个壳的链接（例如另一个带自己布局和资源的后台）：整页打开，不换进主 Frame。 #}
   <li class="menu-item">
-    <a class="menu-link oldman-submenu-link nav-link{% if active %} active{% endif %}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}>
+    <a class="menu-link oldman-submenu-link nav-link{% if active %} active{% endif %}" href="{{ href }}"{% if active %} aria-current="page"{% endif %}{% if not turbo %} data-turbo="false"{% endif %}>
       <span class="menu-text">{{ label }}</span>
     </a>
   </li>

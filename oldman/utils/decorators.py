@@ -25,8 +25,20 @@ class _AsyncMethodDecorator(Protocol):
 
 def method_adaptor(decorator_factory: Callable[..., Any]) -> _AsyncMethodDecorator:
     """
-    通用适配器工厂：装饰时检测函数类型，运行时零开销
-    支持 @decorator 和 @decorator() 两种用法
+    让一个装饰器同时用于普通视图函数和类视图方法。
+
+    **只适配一种内层签名**:decorator_factory 返回的装饰器,包出来的函数必须是
+    `wrapper(view, request, *args, **kwargs)`,并且 view 为 None 时按普通函数调用。
+    框架的认证、CSRF、指纹装饰器都是这个形状;别的形状用它会把参数错位。
+
+    函数还是方法,在**装饰时**按第一个参数的名字判断:叫 `self` 或 `cls` 就是方法,
+    否则当普通函数,调用时在最前面补一个 None 作 view。方法的第一个参数若不叫
+    self/cls,会走错分支。
+
+    每次调用多一层 `async def` 包装和一次 await,不是零开销。
+
+    支持 @decorator 和 @decorator(...) 两种用法:只传了一个可调用对象、没有关键字参数时
+    视为无参用法。因此工厂的唯一参数本身是可调用对象时(例如一个回调),必须用关键字传。
     """
 
     @wraps(decorator_factory)

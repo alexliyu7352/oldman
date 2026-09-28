@@ -688,3 +688,150 @@ msgstr "使用者已更新"
 #: oldman/apps/admin/commands.py
 msgid "%(variable)s must be set for a non-interactive run."
 msgstr "非互動執行需要設定 %(variable)s。"
+
+#: oldman/web/auth/forms.py oldman/apps/admin/site.py
+msgid "Permission denied"
+msgstr "沒有權限"
+
+#: oldman/auth/user_permissions.py
+msgid "View users"
+msgstr "檢視使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Add users"
+msgstr "新增使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Change users"
+msgstr "修改使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Delete users"
+msgstr "刪除使用者"
+
+#: oldman/apps/admin/model_admin.py
+msgid "View %(name)s"
+msgstr "檢視%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Add %(name)s"
+msgstr "新增%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Change %(name)s"
+msgstr "修改%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Delete %(name)s"
+msgstr "刪除%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "%(name)s List"
+msgstr "%(name)s清單"
+
+#: oldman/apps/admin/model_admin.py
+msgid "New %(name)s"
+msgstr "新增%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Edit %(name)s"
+msgstr "編輯%(name)s"
+
+#: oldman/web/auth/decorators.py
+msgid "Staff permission required"
+msgstr "需要工作人員權限"
+
+#: oldman/web/auth/decorators.py
+msgid "Superuser permission required"
+msgstr "需要超級使用者權限"
+
+#: oldman/apps/admin/roles.py oldman/web/auth/permissions.py
+msgid "The permission store is unavailable"
+msgstr "權限儲存暫時無法使用"
+
+#: oldman/web/security/csrf/decorators.py
+msgid "CSRF token missing"
+msgstr "缺少 CSRF 權杖"
+
+#: oldman/web/security/csrf/decorators.py
+msgid "CSRF validation failed: %(reason)s"
+msgstr "CSRF 驗證失敗：%(reason)s"
+
+#: oldman/apps/admin/site.py
+msgid "%(name)s %(id)s was not found"
+msgstr "找不到%(name)s %(id)s"
+
+#: oldman/web/auth/user_session.py
+msgid "This needs a signed-in browser session"
+msgstr "需要在瀏覽器中登入後才能使用"
+
+#: oldman/web/authentication/jwt.py
+msgid "The access token revocation store is unavailable"
+msgstr "存取權杖撤銷記錄暫時無法使用"
+
+#: oldman/web/authentication/refresh.py
+msgid "The refresh token store is unavailable"
+msgstr "重新整理權杖儲存暫時無法使用"
+
+#, python-format
+msgid "You can only give roles whose permissions you hold: %(roles)s"
+msgstr "只能指派自己擁有其全部權限的角色：%(roles)s"
+
+#, python-format
+msgid "Required: %(fields)s"
+msgstr "缺少必填欄位：%(fields)s"
+
+msgid "Too many sign-in attempts"
+msgstr "登入嘗試過於頻繁"
+
+msgid "Invalid credentials"
+msgstr "使用者名稱或密碼錯誤"
+
+msgid "Invalid refresh token"
+msgstr "重新整理權杖無效"
+
+msgid "Invalid table pagination parameter"
+msgstr "表格分頁參數無效"
+
+msgid "Unsupported table export format"
+msgstr "不支援的表格匯出格式"
+
+#, python-format
+msgid "Unknown table filter: %(name)s"
+msgstr "未知的表格篩選條件：%(name)s"
+
+#, python-format
+msgid "Unknown table sort: %(name)s"
+msgstr "未知的表格排序欄位：%(name)s"
+
+#, python-format
+msgid "Table column is not sortable: %(name)s"
+msgstr "該欄不能排序：%(name)s"
+
+#, python-format
+msgid "Unknown chart filter: %(name)s"
+msgstr "未知的圖表篩選條件：%(name)s"
+
+#, python-format
+msgid "Invalid chart parameter: %(name)s"
+msgstr "圖表參數無效：%(name)s"
+
+#, python-format
+msgid "Unknown chart range: %(range)s"
+msgstr "未知的圖表時間範圍：%(range)s"
+
+#, python-format
+msgid "Unexpected dependent field: %(name)s"
+msgstr "不認識的相依欄位：%(name)s"
+
+#, python-format
+msgid "Invalid integer parameter: %(name)s"
+msgstr "整數參數無效：%(name)s"
+
+#, python-format
+msgid "Invalid positive integer parameter: %(name)s"
+msgstr "正整數參數無效：%(name)s"
+
+#, python-format
+msgid "Parameter exceeds maximum: %(name)s"
+msgstr "參數超過上限：%(name)s"

@@ -1,6 +1,7 @@
 """Configured native NATS security; real cases own their server and certificates.
 
-Set NATS_SERVER to a binary. NATS_TEST_CREDS_DIR may point to the public nats.py
+NATS_SERVER names the binary, else the one on PATH; without either the real cases fail rather
+than skip. NATS_TEST_CREDS_DIR may point to the public nats.py
 v2.15.0 nkeys fixtures (op.jwt, resolver_preload.conf, foo-user.creds).
 """
 
@@ -9,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shutil
 import socket
 import ssl
 import subprocess
@@ -26,8 +26,8 @@ from oldman.conf.schemas import NATSConnectionConfig
 from oldman.providers.nats import NATSConnection
 from oldman.providers.nats._compat import install_close_fix, install_tls_requirement
 from oldman.providers.nats.config import nats_connection_options
+from tests.nats_support import require_nats_server
 
-NATS_SERVER = os.environ.get("NATS_SERVER") or shutil.which("nats-server")
 CREDS_DIRECTORY = os.environ.get("NATS_TEST_CREDS_DIR")
 
 
@@ -66,7 +66,6 @@ class NATSOptionsTest(unittest.TestCase):
         self.assertEqual(original.__get__(unrelated, Client), unrelated._process_info)
 
 
-@unittest.skipUnless(NATS_SERVER, "Set NATS_SERVER to run real TLS checks")
 class NATSTLSIntegrationTest(unittest.IsolatedAsyncioTestCase):
     """Verify the actual public options through NATS TLS, rejection and reconnect."""
 
@@ -118,7 +117,7 @@ class NATSTLSIntegrationTest(unittest.IsolatedAsyncioTestCase):
         configuration += authentication
         path = self.root / "server.conf"
         path.write_text(configuration, encoding="utf-8")
-        self.server = subprocess.Popen([str(NATS_SERVER), "-c", str(path)], stdout=self.log, stderr=self.log)
+        self.server = subprocess.Popen([require_nats_server(), "-c", str(path)], stdout=self.log, stderr=self.log)
         async with asyncio.timeout(5):
             while True:
                 if self.server.poll() is not None:

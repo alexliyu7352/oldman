@@ -7,7 +7,6 @@ import json
 import locale
 import os
 import sys
-import tempfile
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -23,6 +22,7 @@ from oldman.i18n import (
     gettext_noop,
     reset_translations,
 )
+from oldman.utils.files import atomic_write
 
 CLI_LANGUAGE_ENV = "OLDMAN_CLI_LANGUAGE"
 CLI_LANGUAGE_CONFIG = Path("oldman/cli.json")
@@ -91,23 +91,7 @@ def save_cli_language(language: str, path: Path | None = None) -> str:
         raise ValueError(language)
 
     config_path = path or cli_config_path()
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=config_path.parent,
-            prefix=f".{config_path.name}.",
-            delete=False,
-        ) as temporary_file:
-            temporary_path = Path(temporary_file.name)
-            json.dump({"language": resolved}, temporary_file, ensure_ascii=False)
-            temporary_file.write("\n")
-        os.replace(temporary_path, config_path)
-    finally:
-        if temporary_path is not None and temporary_path.exists():
-            temporary_path.unlink()
+    atomic_write(config_path, json.dumps({"language": resolved}, ensure_ascii=False) + "\n", follow_symlinks=False)
     return resolved
 
 

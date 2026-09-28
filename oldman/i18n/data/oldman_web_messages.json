@@ -101,15 +101,15 @@
         },
         {
           "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
-          "line": 83
+          "line": 84
         },
         {
           "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
-          "line": 142
+          "line": 143
         },
         {
           "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
-          "line": 289
+          "line": 290
         },
         {
           "path": "frontend/packages/oldman-web/src/components/autocomplete.ts",
@@ -121,11 +121,11 @@
         },
         {
           "path": "frontend/packages/oldman-web/src/components/modal.ts",
-          "line": 282
+          "line": 283
         },
         {
           "path": "frontend/packages/oldman-web/src/components/modal.ts",
-          "line": 308
+          "line": 309
         },
         {
           "path": "frontend/packages/oldman-web/src/components/select.ts",
@@ -133,15 +133,15 @@
         },
         {
           "path": "frontend/packages/oldman-web/src/components/table-filter-form.ts",
-          "line": 53
+          "line": 54
         },
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 253
+          "line": 254
         },
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 310
+          "line": 311
         },
         {
           "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
@@ -160,7 +160,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
-          "line": 137
+          "line": 138
         }
       ]
     },
@@ -186,7 +186,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 397
+          "line": 398
         }
       ]
     },
@@ -273,6 +273,17 @@
       ]
     },
     {
+      "id": "Permission denied",
+      "context": null,
+      "plural": null,
+      "locations": [
+        {
+          "path": "frontend/packages/oldman-web/src/core/http/client.ts",
+          "line": 215
+        }
+      ]
+    },
+    {
       "id": "Press Enter to add \"{value}\"",
       "context": null,
       "plural": null,
@@ -308,40 +319,24 @@
       "plural": null,
       "locations": [
         {
-          "path": "frontend/packages/oldman-web/src/components/apex-chart.ts",
-          "line": 314
-        },
-        {
-          "path": "frontend/packages/oldman-web/src/components/modal.ts",
-          "line": 800
-        },
-        {
-          "path": "frontend/packages/oldman-web/src/components/select-provider.ts",
-          "line": 35
-        },
-        {
           "path": "frontend/packages/oldman-web/src/components/select.ts",
           "line": 737
-        },
-        {
-          "path": "frontend/packages/oldman-web/src/components/table-filter-form.ts",
-          "line": 61
-        },
-        {
-          "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 933
         },
         {
           "path": "frontend/packages/oldman-web/src/core/actions/response-actions.ts",
           "line": 303
         },
         {
-          "path": "frontend/packages/oldman-web/src/dashboard/index.ts",
-          "line": 168
+          "path": "frontend/packages/oldman-web/src/core/http/client.ts",
+          "line": 210
         },
         {
-          "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
-          "line": 408
+          "path": "frontend/packages/oldman-web/src/core/http/client.ts",
+          "line": 215
+        },
+        {
+          "path": "frontend/packages/oldman-web/src/dashboard/index.ts",
+          "line": 168
         },
         {
           "path": "frontend/packages/oldman-web/src/dashboard/notifications.ts",
@@ -415,7 +410,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1137
+          "line": 1131
         }
       ]
     },
@@ -437,7 +432,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1137
+          "line": 1131
         }
       ]
     },
@@ -448,7 +443,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1137
+          "line": 1131
         }
       ]
     },
@@ -459,7 +454,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1137
+          "line": 1131
         }
       ]
     },
@@ -470,7 +465,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1231
+          "line": 1225
         }
       ]
     },

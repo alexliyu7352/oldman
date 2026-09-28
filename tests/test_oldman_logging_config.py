@@ -20,7 +20,7 @@ class LoggingConfigTest(unittest.TestCase):
         """Defaults expose level, directory, console color policy and file rollover."""
         config = LoggingConfig()
 
-        self.assertEqual(logging.INFO, config.level)
+        self.assertIsNone(config.level)
         self.assertIsInstance(config.dir, Path)
         self.assertEqual("auto", config.color)
         # Rollover joined the surface once the sinks stopped hardcoding it; the defaults
@@ -33,6 +33,13 @@ class LoggingConfigTest(unittest.TestCase):
             {"level", "dir", "color", "rotate_when", "rotate_interval", "max_bytes", "backup_count"},
             set(type(config).model_fields),
         )
+
+    def test_an_unset_level_follows_the_debug_switch(self) -> None:
+        """Turning on core.debug is enough to see DEBUG logs; a configured level still wins."""
+        self.assertEqual(logging.INFO, LoggingConfig().resolved_level(debug=False))
+        self.assertEqual(logging.DEBUG, LoggingConfig().resolved_level(debug=True))
+        self.assertEqual(logging.WARNING, LoggingConfig(level=logging.WARNING).resolved_level(debug=True))
+        self.assertEqual(logging.INFO, LoggingConfig.model_validate({"level": "INFO"}).resolved_level(debug=True))
 
     def test_valid_runtime_options_are_preserved(self) -> None:
         """Supported values survive validation without a topology selector."""
@@ -206,10 +213,10 @@ class LogRotationSettingsTest(unittest.TestCase):
         """Two sources for one default drift apart; settings is the one that is read."""
         from oldman.conf import constants
 
-        for removed in ("LOG_LEVEL", "LOG_MAX_BYTES", "LOG_BACKUP_COUNT", "LOGS_DIR", "TIME_ZONE", "DOMAIN"):
+        for removed in ("LOG_LEVEL", "LOG_MAX_BYTES", "LOG_BACKUP_COUNT", "LOGS_DIR", "TIME_ZONE", "DOMAIN", "DEBUG", "TEMPLATE_DEBUG"):
             with self.subTest(constant=removed):
                 self.assertFalse(hasattr(constants, removed))
 
-        for kept in ("PROJECT_ROOT", "BASE_DIR", "BASE_PATH", "DEBUG", "TEMPLATE_DEBUG", "USER_AGENT_DICT_DEFINE"):
+        for kept in ("PROJECT_ROOT", "BASE_DIR", "BASE_PATH"):
             with self.subTest(constant=kept):
                 self.assertTrue(hasattr(constants, kept))

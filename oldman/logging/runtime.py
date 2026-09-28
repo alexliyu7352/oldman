@@ -10,10 +10,13 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from oldman.logging.config import ColorPolicy, RotationSettings, build_sink_config
 from oldman.logging.rotation import RotationCoordinator
+
+if TYPE_CHECKING:
+    from oldman.conf.schemas import LoggingConfig
 
 logger = logging.getLogger("default")
 _active_runtime: LoggingRuntime | None = None
@@ -364,16 +367,15 @@ def _replace_active_runtime(
     return _active_runtime
 
 
-def _configured_logging_defaults() -> Any:
-    """Return project logging settings or schema defaults during isolated use."""
+def _configured_logging_defaults() -> tuple[LoggingConfig, bool]:
+    """Return project logging settings and the debug switch, or schema defaults during isolated use."""
     from oldman.conf.schemas import LoggingConfig
 
-    fallback = LoggingConfig()
     try:
         from oldman.conf import settings
     except (ImportError, RuntimeError):
-        return fallback
-    return settings.logging
+        return LoggingConfig(), False
+    return settings.logging, settings.core.debug
 
 
 def init_logging(
@@ -385,9 +387,9 @@ def init_logging(
     color: ColorPolicy | None = None,
 ) -> LoggingRuntime:
     """Install main-process writers and return their lifecycle owner."""
-    defaults = _configured_logging_defaults()
+    defaults, debug = _configured_logging_defaults()
     resolved_path = defaults.dir if logger_path is None else logger_path
-    resolved_level = defaults.level if logger_level is None else logger_level
+    resolved_level = defaults.resolved_level(debug=debug) if logger_level is None else logger_level
     resolved_color = defaults.color if color is None else color
     log_config = build_sink_config(
         app_name,

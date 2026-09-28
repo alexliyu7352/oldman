@@ -26,7 +26,8 @@ from oldman.web.api import (
     modal_response,
 )
 from oldman.web.auth.forms import SessionPasswordForm
-from oldman.web.auth.session import revoke_user_sessions
+from oldman.web.auth.session import revoke_user_logins
+from oldman.web.exceptions import Unauthorized
 from oldman.web.response import json_response
 from oldman.web.session import SessionData
 from oldman.web.template import render_component_template
@@ -78,7 +79,7 @@ async def render_session_password_modal(
     db_manager: DatabaseManager | None = None,
 ):
     """Render the password form for the User identified by this request Session."""
-    session_data = _request_session(request)
+    session_data = authenticated_session(request)
     user_id = _authenticated_user_id(session_data)
     user = await get_user_by_id(
         user_id,
@@ -125,7 +126,7 @@ async def update_session_password(
     if not await form.validate():
         return json_response(form.to_api_response().to_dict())
 
-    session_data = _request_session(request)
+    session_data = authenticated_session(request)
     user_id = _authenticated_user_id(session_data)
     current = await get_user_by_id(user_id, auth_settings=auth_settings, db_manager=db_manager)
     if current is None:
@@ -167,7 +168,7 @@ async def update_session_password(
     )
     # Every session this user held, this request's own included: nothing is left for a
     # stolen cookie to use, and the new password is what gets the browser back in.
-    await revoke_user_sessions(request, user_id)
+    await revoke_user_logins(request, user_id)
     return json_response(payload.to_dict())
 
 
@@ -215,6 +216,20 @@ def _request_session(request: Any) -> SessionData:
     return session_data
 
 
+def authenticated_session(request: Any) -> SessionData:
+    """The request's signed-in browser session; a page about "this session" needs one.
+
+    A missing Session middleware is a wiring error and raises RuntimeError. A caller with
+    no signed-in session gets 401: one that authenticated some other way — a bearer
+    token, an API key — may pass the permission check, but has no browser session to show
+    or change.
+    """
+    session_data = _request_session(request)
+    if not session_data.is_authenticated():
+        raise Unauthorized(gettext("This needs a signed-in browser session", request=request))
+    return session_data
+
+
 def _authenticated_user_id(session_data: SessionData) -> int:
     """Return the integer identity required by current-user database operations."""
     if not session_data.is_authenticated() or session_data.user_id is None:
@@ -225,6 +240,7 @@ def _authenticated_user_id(session_data: SessionData) -> int:
 __all__ = [
     "SIGN_IN_AGAIN_DELAY_MS",
     "UserSessionProfile",
+    "authenticated_session",
     "render_session_password_modal",
     "save_language_preference",
     "session_profile",

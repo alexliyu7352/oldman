@@ -4,12 +4,12 @@ from wtforms import StringField, TextAreaField
 from wtforms.validators import DataRequired, Email
 
 from oldman.web import Request, get_app, redirect_response, render_template
-from oldman.web.components.forms import OldmanForm
+from oldman.web.components.forms import Form
 
 app = get_app()
 
 
-class ContactForm(OldmanForm):
+class ContactForm(Form):
     name = StringField("Name", validators=[DataRequired()])
     email = StringField("Email", validators=[DataRequired(), Email()])
     message = TextAreaField("Message", validators=[DataRequired()])

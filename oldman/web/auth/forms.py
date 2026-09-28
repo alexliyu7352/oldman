@@ -9,12 +9,15 @@ from typing import Any, cast
 from sqlalchemy import func, select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from wtforms import BooleanField, DateTimeLocalField, PasswordField, SelectField, StringField
-from wtforms.validators import DataRequired, InputRequired, Length, Optional, Regexp
+from wtforms.validators import DataRequired, InputRequired, Length, Optional, Regexp, ValidationError
 
-from oldman.auth import normalize_email, user_identity_matches
+from oldman.auth import is_ordinary_user, normalize_email, user_identity, user_identity_matches
 from oldman.db import explicit_primary_key_column, session_dialect
 from oldman.i18n import gettext, gettext_lazy
+from oldman.web.auth.permissions import permissions_not_held, roles_installed
+from oldman.web.authentication import request_user
 from oldman.web.components.forms import (
+    CheckboxGroupField,
     CheckboxWidget,
     DateTimePickerWidget,
     EmailField,
@@ -182,7 +185,61 @@ class UserModelForm(TailwindModelForm):
     confirm_password: Any
     email: Any
     password: Any
+    roles: Any
     username: Any
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Offer roles only where the service installs the roles App."""
+        super().__init__(*args, **kwargs)
+        self._roles_prepared = False
+        if "roles" in self._fields and not roles_installed(getattr(self.request, "app", None)):
+            del self["roles"]
+
+    async def prepare_async_fields(self) -> None:
+        """Load the roles to offer and, when showing a saved user, the ones they hold."""
+        await super().prepare_async_fields()
+        if "roles" not in self._fields or self._roles_prepared:
+            return
+        if self.session is None:
+            raise RuntimeError("The user form lists roles from the database; bind it to a session")
+        from oldman.apps.roles.models import Role, UserRole
+
+        rows = (await self.session.execute(select(Role.id, Role.name).order_by(Role.name))).all()
+        if not rows:
+            # No roles yet: nothing to offer, and nothing for save_roles() to write.
+            del self["roles"]
+            return
+        self.roles.choices = [(role_id, name) for role_id, name in rows]
+        # raw_data is None only when no submission was read: then show what the user holds now.
+        if self.roles.raw_data is None and self.instance is not None:
+            held = await self.session.execute(select(UserRole.role_id).where(UserRole.user_id == user_identity(self.instance)))
+            self.roles.data = list(held.scalars().all())
+        self._roles_prepared = True
+
+    async def clean_roles(self) -> list[int]:
+        """The checked roles. A role given anew must grant only what the operator holds, unless they are a superuser.
+
+        Otherwise whoever may edit users could hand an ordinary account the most powerful role,
+        and every page that checks only `has_perm` would let that account in. Roles the user
+        already holds, and taking roles away, are not restricted.
+        """
+        chosen = list(self.roles.data or [])
+        if self.session is None:
+            return chosen
+        from oldman.apps.roles.models import Role, UserRole
+
+        held: set[int] = set()
+        if self.instance is not None:
+            rows = await self.session.execute(select(UserRole.role_id).where(UserRole.user_id == user_identity(self.instance)))
+            held = set(rows.scalars().all())
+        added = set(chosen) - held
+        if not added:
+            return chosen
+        granting = (await self.session.execute(select(Role.name, Role.permissions).where(Role.id.in_(added)))).all()
+        refused = sorted([name for name, permissions in granting if await permissions_not_held(self.request, permissions)])
+        if refused:
+            raise ValidationError(gettext("You can only give roles whose permissions you hold: %(roles)s", roles=", ".join(refused)))
+        return chosen
 
     async def clean_username(self) -> str:
         """Validate username uniqueness before a database constraint can fail."""
@@ -226,8 +283,14 @@ class UserModelForm(TailwindModelForm):
         return value
 
     async def clean(self) -> None:
-        """Protect the current user and validate password confirmation."""
+        """Keep other operators to ordinary accounts, protect the current user and validate password confirmation."""
         await super().clean()
+        # Only a superuser may touch a staff or superuser account, or make one. A form bound
+        # to no request has no operator to go by, and refuses as it would for anyone else.
+        if not request_user(self.request).is_superuser:
+            makes_privileged = bool(self.cleaned_data.get("is_staff") or self.cleaned_data.get("is_superuser"))
+            if makes_privileged or (self.instance is not None and not is_ordinary_user(self.instance)):
+                raise ValidationError(gettext("Permission denied"))
         if self.instance is not None and user_identity_matches(self.instance, self.current_user_id):
             if self.cleaned_data.get("is_active") is False:
                 self.add_error("is_active", gettext("cannot disable current user"))
@@ -254,6 +317,20 @@ class UserModelForm(TailwindModelForm):
             if inspect.isawaitable(flush_result):
                 await flush_result
         return user
+
+    async def save_roles(self, session: Any, user: Any) -> bool:
+        """Make the user hold the checked roles, and report whether that changed anything.
+
+        Call it once the user row is written, inside the same transaction: a new user has no
+        id before then. When it returns True, end the user's logins after the commit, as for
+        changed access flags: sessions and tokens carry the role ids they were opened with.
+        A form without the roles field (no roles App, or no roles yet) writes nothing.
+        """
+        if "roles" not in self._fields:
+            return False
+        from oldman.apps.roles.store import replace_user_roles
+
+        return await replace_user_roles(session, user_identity(user), self.cleaned_data.get("roles") or [])
 
     def is_same_instance(self, other: Any) -> bool:
         """Compare rows without assuming the primary key is named ``id``."""
@@ -321,6 +398,8 @@ def _user_model_form_class(
         "is_active": BooleanField(cast(str, gettext_lazy("Active")), description=cast(str, gettext_lazy("Can sign in"))),
         "is_staff": BooleanField(cast(str, gettext_lazy("Staff")), description=cast(str, gettext_lazy("Can open the dashboard"))),
         "is_superuser": BooleanField(cast(str, gettext_lazy("Superuser")), description=cast(str, gettext_lazy("Has every permission"))),
+        # Dropped per form where the service has no roles App; choices come from the database.
+        "roles": CheckboxGroupField(cast(str, gettext_lazy("Roles")), coerce=int, choices=[]),
     }
     primary_key = list(mapper.primary_key)[0]
     if not create and primary_key.key in model_fields:
@@ -378,6 +457,7 @@ def _user_model_form_class(
             FieldLayout("is_active", "md:col-span-4 md:col-start-1"),
             FieldLayout("is_staff", "md:col-span-4"),
             FieldLayout("is_superuser", "md:col-span-4"),
+            FieldLayout("roles"),
         )
     )
     fields["field_layout"] = tuple(field_layout)

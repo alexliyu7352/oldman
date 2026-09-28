@@ -13,7 +13,7 @@ from oldman.i18n import gettext_lazy
 from oldman.web.html import css_classes, void_tag
 from oldman.web.template import render_component_template
 
-from .fields import JSONListField, SlugField, UploadField
+from .fields import CheckboxGroupField, JSONListField, SlugField, UploadField
 from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget, DateTimePickerWidget, InputSpinnerWidget
 
 _SAVE_LABEL = gettext_lazy("Save")
@@ -392,6 +392,10 @@ class FieldRenderer:
     radio_group_class = ""
     radio_input_class = ""
     radio_option_class = ""
+    checkbox_group_class = ""
+    checkbox_group_title_class = ""
+    checkbox_input_class = ""
+    checkbox_option_class = ""
     help_class = ""
     error_class = ""
 
@@ -405,6 +409,8 @@ class FieldRenderer:
             return await self.render_json_list_field(field)
         if isinstance(field, RadioField):
             return await self.render_radio_field(field)
+        if isinstance(field, CheckboxGroupField):
+            return await self.render_checkbox_group_field(field)
         if isinstance(field, BooleanField):
             return await self.render_boolean_field(field)
         if isinstance(field, PasswordField) and self.password_toggle_enabled(field):
@@ -426,23 +432,48 @@ class FieldRenderer:
             },
         )
 
-    async def render_radio_field(self, field: RadioField) -> Markup:
-        """把 RadioField 渲染为可正常布局的原生单选组。"""
-        error_id = f"{field.id}-error"
+    def _choice_options(
+        self,
+        field: RadioField | CheckboxGroupField,
+        error_id: str,
+        *,
+        input_class: str,
+        option_class: str,
+        required_on_each: bool,
+    ) -> list[dict[str, Any]]:
+        """单选组、复选框组里每个选项的控件、label 属性与文字。
+
+        WTForms 在字段必填时给每个选项都标 required：单选组要的是选一个，浏览器按组检查，可以保留；
+        复选框上它会要求每个框都勾上，所以复选框组传 ``required_on_each=False``。
+        """
         options: list[dict[str, Any]] = []
         for option in field:
             attrs = dict(getattr(option, "render_kw", None) or {})
-            attrs["class"] = css_classes(attrs.get("class"), self.radio_input_class, self.invalid_class() if field.errors else None)
+            attrs["class"] = css_classes(attrs.get("class"), input_class, self.invalid_class() if field.errors else None)
             attrs["aria-describedby"] = error_id
+            if not required_on_each:
+                attrs["required"] = False
             if field.errors:
                 attrs["aria-invalid"] = "true"
             options.append(
                 {
                     "control_html": option(**attrs),
-                    "label_attrs": {"class": self.radio_option_class or None, "for": option.id},
+                    "label_attrs": {"class": option_class or None, "for": option.id},
                     "label_text": display_text(option.label.text),
                 }
             )
+        return options
+
+    async def render_radio_field(self, field: RadioField) -> Markup:
+        """把 RadioField 渲染为可正常布局的原生单选组。"""
+        error_id = f"{field.id}-error"
+        options = self._choice_options(
+            field,
+            error_id,
+            input_class=self.radio_input_class,
+            option_class=self.radio_option_class,
+            required_on_each=True,
+        )
         return await render_component_template(
             self.form,
             self.template_name("radio_field.html"),
@@ -455,6 +486,42 @@ class FieldRenderer:
                 "label_attrs": {"class": self.label_class or None},
                 "label_text": display_text(field.label.text),
                 "options": options,
+            },
+        )
+
+    async def render_checkbox_group_field(self, field: CheckboxGroupField) -> Markup:
+        """Render a CheckboxGroupField as native checkboxes; grouped choices get a heading per group."""
+        error_id = f"{field.id}-error"
+        options = self._choice_options(
+            field,
+            error_id,
+            input_class=self.checkbox_input_class,
+            option_class=self.checkbox_option_class,
+            required_on_each=False,
+        )
+        # Iterating the field lists grouped choices group after group, so cut the options back into groups.
+        groups: list[dict[str, Any]] = []
+        if isinstance(field.choices, dict):
+            start = 0
+            for group_label, choices in field.choices.items():
+                size = len(list(choices))
+                groups.append({"label": display_text(group_label), "options": options[start : start + size]})
+                start += size
+        else:
+            groups.append({"label": "", "options": options})
+        return await render_component_template(
+            self.form,
+            self.template_name("checkbox_group_field.html"),
+            {
+                "attrs": {"data-om-checkbox-group": True},
+                "errors_html": await self.render_field_errors(field, error_id=error_id),
+                "field": field,
+                "group_attrs": {"class": self.checkbox_group_class or None},
+                "group_title_attrs": {"class": self.checkbox_group_title_class or None},
+                "groups": groups,
+                "help_html": await self.render_help(field),
+                "label_attrs": {"class": self.label_class or None},
+                "label_text": display_text(field.label.text),
             },
         )
 
@@ -715,6 +782,10 @@ class TailwindFieldRenderer(FieldRenderer):
     radio_group_class = "om-radio-group"
     radio_input_class = "om-radio"
     radio_option_class = "om-radio-option"
+    checkbox_group_class = "om-check-group"
+    checkbox_group_title_class = "om-check-group-title"
+    checkbox_input_class = "om-check"
+    checkbox_option_class = "om-check-option"
     help_class = "om-form-help"
     error_class = "om-form-error"
 

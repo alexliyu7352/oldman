@@ -9,6 +9,7 @@ import textwrap
 import unittest
 from pathlib import Path
 from typing import cast
+from unittest.mock import patch
 
 from pydantic import ValidationError
 from sqlalchemy import Table, create_engine, select
@@ -272,14 +273,10 @@ class OldmanUserModelTest(unittest.TestCase):
             def reject_hot_path_validation(model: object) -> None:
                 raise AssertionError("User table validation entered the ORM hot path")
 
-            try:
-                user_base.validate_user_table_contract = reject_hot_path_validation
-                with Session(engine) as session:
-                    session.add(User(username="root", password_hash=""))
-                    session.flush()
-                    self.assertIsNotNone(session.scalar(select(User)))
-            finally:
-                user_base.validate_user_table_contract = original_validator
+            with patch.object(user_base, "validate_user_table_contract", reject_hot_path_validation), Session(engine) as session:
+                session.add(User(username="root", password_hash=""))
+                session.flush()
+                self.assertIsNotNone(session.scalar(select(User)))
         finally:
             engine.dispose()
 

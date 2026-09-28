@@ -22,7 +22,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import MANAGED_INFO_KEY, Base
 from oldman.logging import logger
-from oldman.storage.lifecycle import OldmanWriteSession, finalize_model_files, take_file_cleanup_records
+from oldman.storage.lifecycle import WriteSession, finalize_model_files, take_file_cleanup_records
 
 DatabaseConfigSource = DatabaseConfig | Callable[[], DatabaseConfig]
 DebugSource = bool | Callable[[], bool]
@@ -83,11 +83,17 @@ class DatabaseManager:
         pool_timeout: float | None = None,
         pool_recycle: int | None = None,
         enable_sql_logging: bool | None = None,
+        cache_pool_size: int | None = None,
+        cache_pool_timeout: float | None = None,
     ) -> None:
         if not isinstance(config, DatabaseConfig) and not callable(config):
             raise TypeError("DatabaseManager requires DatabaseConfig or a DatabaseConfig factory")
         if not isinstance(debug, bool) and not callable(debug):
             raise TypeError("debug must be a bool or a bool factory")
+        # As database.cache_pool_size / cache_pool_timeout in settings: QueuePool takes 0 as "no limit".
+        for name, value in (("cache_pool_size", cache_pool_size), ("cache_pool_timeout", cache_pool_timeout)):
+            if value is not None and value <= 0:
+                raise ValueError(f"{name} must be greater than 0")
 
         self._config_source = config
         self._resolved_config = config if isinstance(config, DatabaseConfig) else None
@@ -98,8 +104,12 @@ class DatabaseManager:
         self._pool_timeout = pool_timeout
         self._pool_recycle = pool_recycle
         self._enable_sql_logging = enable_sql_logging
+        self._cache_pool_size = cache_pool_size
+        self._cache_pool_timeout = cache_pool_timeout
 
         self._engine: AsyncEngine | None = None
+        self._cache_engine: AsyncEngine | None = None
+        self._cache_session_maker: async_sessionmaker[AsyncSession] | None = None
         self.async_session: async_sessionmaker[AsyncSession] | None = None
         self.async_scoped_session: async_scoped_session[AsyncSession] | None = None
         self.read_session_maker: async_sessionmaker[AsyncSession] | None = None
@@ -199,7 +209,7 @@ class DatabaseManager:
                 candidate_session = async_sessionmaker(
                     candidate_engine,
                     class_=AsyncSession,
-                    sync_session_class=OldmanWriteSession,
+                    sync_session_class=WriteSession,
                     expire_on_commit=False,
                 )
                 candidate_scoped_session = async_scoped_session(
@@ -238,8 +248,12 @@ class DatabaseManager:
             )
 
     async def close(self) -> None:
-        """Dispose this manager's engine and allow later lazy reinitialization."""
+        """Dispose this manager's engines and allow later lazy reinitialization."""
         async with self._initialize_lock:
+            if self._cache_engine is not None:
+                await self._cache_engine.dispose()
+            self._cache_engine = None
+            self._cache_session_maker = None
             if self._engine is not None:
                 await self._engine.dispose()
             self._engine = None
@@ -259,20 +273,18 @@ class DatabaseManager:
         return self.async_session()
 
     @asynccontextmanager
-    async def transaction(
-        self,
-        nested: bool = False,
-    ) -> AsyncIterator[AsyncSession]:
-        """Yield an automatically finalized transaction or nested savepoint."""
+    async def transaction(self) -> AsyncIterator[AsyncSession]:
+        """Yield a new session inside a transaction that commits on success and rolls back on error.
+
+        There is no savepoint form: on a new session it opened an outer transaction nobody
+        committed, and closing the session rolled the writes back. A savepoint belongs on the
+        session that holds the transaction - ``session.begin_nested()``.
+        """
         await self.initialize()
         session = self._get_async_session()
         try:
-            if nested:
-                async with session.begin_nested():
-                    yield session
-            else:
-                async with session.begin():
-                    yield session
+            async with session.begin():
+                yield session
         finally:
             await self._finish_write_session(session)
 
@@ -322,6 +334,52 @@ class DatabaseManager:
         finally:
             await session.close()
 
+    async def _cache_sessions(self) -> async_sessionmaker[AsyncSession]:
+        """Create the model cache's engine on first use: same database, its own small pool.
+
+        A request already holds a connection from the main pool; taking a second one from
+        that same pool to fill the cache would, under load, leave every request waiting for
+        a connection another request holds. A separate pool keeps the two from ever waiting
+        on each other.
+        """
+        await self.initialize()
+        if self._cache_session_maker is not None:
+            return self._cache_session_maker
+        async with self._initialize_lock:
+            if self._cache_session_maker is not None:
+                return self._cache_session_maker
+            config = self._config()
+            assert config.url is not None  # initialize() refused a missing URL
+            database_url = make_url(config.url)
+            if database_url.get_backend_name() == "sqlite" and (
+                database_url.database in (None, "", ":memory:") or database_url.query.get("mode") == "memory"
+            ):
+                raise ValueError("the model cache reads through a second connection, and an in-memory SQLite database is empty to any other")
+            options = self._engine_options(config, database_url)
+            options.update(
+                poolclass=AsyncAdaptedQueuePool,
+                pool_size=config.cache_pool_size if self._cache_pool_size is None else self._cache_pool_size,
+                max_overflow=0,
+                pool_timeout=config.cache_pool_timeout if self._cache_pool_timeout is None else self._cache_pool_timeout,
+            )
+            engine = create_async_engine(config.url, **options)
+            self._cache_engine = engine
+            self._cache_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+            return self._cache_session_maker
+
+    @asynccontextmanager
+    async def cache_fill_session(self) -> AsyncIterator[AsyncSession]:
+        """Yield a session for the model cache's fill queries; not for application code.
+
+        Every fill runs in a fresh, short transaction on the cache pool, so what it stores
+        was committed before the fill began and never includes a caller's uncommitted work.
+        """
+        session = (await self._cache_sessions())()
+        try:
+            yield session
+        finally:
+            await session.close()
+
     async def create_db_and_tables(self) -> None:
         """Create managed metadata for low-level tests, never for deployment."""
         await self.initialize()
@@ -350,7 +408,7 @@ def _configured_debug() -> bool:
     """Resolve the project debug flag for default engine echo behavior."""
     from oldman.conf import settings
 
-    return settings.web.debug
+    return settings.core.debug
 
 
 db_manager = DatabaseManager(_configured_database, debug=_configured_debug)

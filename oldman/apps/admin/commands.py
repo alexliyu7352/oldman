@@ -15,6 +15,7 @@ from oldman.auth import (
 from oldman.cli import Command
 from oldman.i18n import gettext
 from oldman.i18n import gettext_lazy as _
+from oldman.web.auth import end_user_logins
 
 
 def _username(value: str | None, *, noinput: bool = False) -> str:
@@ -74,7 +75,8 @@ class CreateSuperuser(Command):
 
         同名用户存在时默认拒绝，`--noinput` 也一样：`ensure_superuser` 会覆盖密码并把账号提成
         active+staff+superuser，发布脚本重复执行会静默回滚管理员自己改过的密码，拿一个普通用户名
-        执行则等于提权。要这种"有就更新"的语义得显式写 `--update`。
+        执行则等于提权。要这种"有就更新"的语义得显式写 `--update`。更新时该用户已有的登录
+        全部结束，和其他改密入口一样。
         """
         selected_username = _username(username, noinput=noinput)
         existing = await get_user_by_username(selected_username)
@@ -97,7 +99,10 @@ class CreateSuperuser(Command):
             _noninteractive_password() if noinput else _prompt_password(),
             (selected_email or "").strip() or None,
         )
-        return gettext("User updated") if existing is not None else gettext("User created")
+        if existing is None:
+            return gettext("User created")
+        await end_user_logins(user_identity(existing))
+        return gettext("User updated")
 
 
 class ChangePassword(Command):
@@ -107,18 +112,17 @@ class ChangePassword(Command):
     help = _("Change Password")
 
     async def handle(self, username: str) -> str:
-        """Find the selected User and replace its password."""
+        """Find the selected User, replace its password and end the logins opened under the old one."""
         selected_username = _username(username)
         user = await get_user_by_username(selected_username)
         if user is None:
             raise ValueError(gettext("User not found."))
 
-        changed = await change_user_password(
-            user_identity(user),
-            _prompt_password(),
-        )
+        user_id = user_identity(user)
+        changed = await change_user_password(user_id, _prompt_password())
         if changed is None:
             raise ValueError(gettext("User not found."))
+        await end_user_logins(user_id)
         return gettext("Password changed")
 
 

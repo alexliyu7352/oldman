@@ -31,7 +31,7 @@ from oldman.runtime.web import (
     _create_sanic_app_factory,
     prepare_process_context,
 )
-from oldman.web.errors import OldmanErrorHandler
+from oldman.web.errors import ErrorPageHandler
 from oldman.web.routing import WebApp
 from oldman.web.session import Session, SessionData
 
@@ -150,9 +150,63 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         self.assertFalse(sanic_type.call_args.kwargs["configure_logging"])
         self.assertIsInstance(
             sanic_type.call_args.kwargs["error_handler"],
-            OldmanErrorHandler,
+            ErrorPageHandler,
         )
         self.assertNotIn("log_config", sanic_type.call_args.kwargs)
+
+    def test_process_service_exposes_the_server_it_created(self) -> None:
+        """runtime_app is the very application requests see, ctx included."""
+        application = ConcreteWebApplication("process-service")
+        sanic_app = Mock()
+        sanic_app.ctx = SimpleNamespace()
+        sanic_app.router.routes_all = {}
+
+        with patch("oldman.runtime.web.Sanic", return_value=sanic_app):
+            application.init()
+
+        self.assertIs(application, ConcreteWebApplication.current())
+        running = WebApplication.current()
+        assert running is not None
+        server = running.runtime_app
+        assert server is not None
+        self.assertIs(sanic_app, server)
+        self.assertIs(application.task_manager, server.ctx.tasks)
+
+    def test_routes_recorded_before_the_server_land_ahead_of_the_views(self) -> None:
+        """Modules imported before the application exists register through router too."""
+        from oldman.web import routing
+        from oldman.web.routing import router
+
+        events: list[str] = []
+        # The service exists but has no application yet, as on the command line before init().
+        application = ConcreteWebApplication("pending-routes")
+        sanic_app = Mock()
+        sanic_app.ctx = SimpleNamespace()
+        sanic_app.router.routes_all = {}
+        sanic_app.get.side_effect = lambda *args, **kwargs: lambda handler: (events.append("recorded-route"), handler)[1]
+        self.app_registry.load_views.side_effect = lambda: events.append("views")
+
+        async def early(request: Any) -> None:
+            return None
+
+        with patch.object(routing, "_pending_registrations", []):
+            router.get("/early", name="early")(early)
+            self.assertEqual([], events)
+            with patch("oldman.runtime.web.Sanic", return_value=sanic_app):
+                application.init()
+
+        self.assertEqual(["recorded-route", "views"], events)
+
+    def test_a_misnamed_login_backend_stops_startup(self) -> None:
+        """Found at startup, not at the first sign-in."""
+        self.settings.web.auth.login_backends = ["ldap"]
+        application = ConcreteWebApplication("bad-login-backend")
+        sanic_app = Mock()
+        sanic_app.ctx = SimpleNamespace()
+        sanic_app.router.routes_all = {}
+
+        with patch("oldman.runtime.web.Sanic", return_value=sanic_app), self.assertRaisesRegex(ValueError, "web.auth.login_backends"):
+            application.init()
 
     def test_sanic_fallback_error_format_comes_from_web_settings(self) -> None:
         """Allow each Web service to select Sanic's fallback response negotiation."""
@@ -249,7 +303,11 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
             assert manager.interface is not None
             self.assertEqual("RUNTIME_SESSION", manager.interface.redis_alias)
             self.assertIs(RuntimeSessionData, manager.interface.session_model)
-            self.assertEqual(1, len(sanic_app.request_middleware))
+            # Authentication reads the session that middleware opened, so it has to run after it.
+            self.assertEqual(
+                ["add_session_to_request", "authenticate_request"],
+                [cast(Any, getattr(middleware, "func", middleware)).__name__ for middleware in sanic_app.request_middleware],
+            )
             self.assertEqual(1, len(sanic_app.response_middleware))
         finally:
             Sanic.unregister_app(sanic_app)
@@ -393,6 +451,20 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         stop_handlers = [call.args[0] for call in sanic_app.register_listener.call_args_list if call.args[1] == "before_server_stop"]
         self.assertEqual([sse_stop, application.before_server_stop], stop_handlers)
 
+    def test_the_request_language_is_bound_before_authentication_runs(self) -> None:
+        """G1-4: i18n was registered last, so a 503 raised while authenticating was always English."""
+        self.settings.i18n.use_i18n = True
+        application = ConcreteWebApplication("i18n-order")
+        sanic_app = Mock(spec=Sanic)
+        sanic_app.ctx = SimpleNamespace()
+        sanic_app.router.routes_all = {}
+
+        with patch("oldman.runtime.web.Sanic", return_value=sanic_app):
+            application.init()
+
+        names = [call.args[0].__name__ for call in sanic_app.register_middleware.call_args_list if call.args[1] == "request"]
+        self.assertLess(names.index("install_i18n"), names.index("authenticate_request"), names)
+
     def test_sanic_process_context_is_coordinated_before_logging_starts(self) -> None:
         """Match an existing spawn context and reject an incompatible global method early."""
         with (
@@ -427,7 +499,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         extensions = application.get_extension() or []
         self.assertNotIn(
             "LoggingExtension",
-            {extension.__name__ for extension in extensions},
+            {extension.__name__ if isinstance(extension, type) else type(extension).__name__ for extension in extensions},
         )
         application.get_ext_config = Mock(return_value={"logging": True})  # type: ignore[method-assign]
         sanic_app = Mock()
@@ -765,14 +837,13 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         self.logging_runtime.close.side_effect = lambda: events.append("close")
 
         with (
-            patch("oldman.runtime.web.memory_cache.close", new=AsyncMock(side_effect=lambda: events.append("memory"))),
-            patch("oldman.runtime.web.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
-            patch("oldman.runtime.web.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
-            patch("oldman.runtime.web.logger.info", side_effect=lambda *args, **kwargs: events.append("log")),
+            patch("oldman.cache.memory_cache.close", new=AsyncMock(side_effect=lambda: events.append("memory"))),
+            patch("oldman.providers.redis.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
+            patch("oldman.db.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
+            patch("oldman.runtime.base.logger.info", side_effect=lambda *args, **kwargs: events.append("log")),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", AsyncMock()),
         ):
-            asyncio.run(
-                application.after_server_stop(cast(Any, SimpleNamespace()))
-            )
+            asyncio.run(application._services_after_server_stop(cast(Any, SimpleNamespace())))
 
         self.assertEqual(["memory", "redis", "database", "log"], events)
         self.logging_runtime.close.assert_not_called()
@@ -783,17 +854,20 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         application = ConcreteWebApplication("worker-close-failure")
 
         with (
-            patch("oldman.runtime.web.memory_cache.close", new=AsyncMock(side_effect=RuntimeError("cache is stuck"))),
-            patch("oldman.runtime.web.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
-            patch("oldman.runtime.web.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
+            patch("oldman.cache.memory_cache.close", new=AsyncMock(side_effect=RuntimeError("cache is stuck"))),
+            patch("oldman.providers.redis.redis_client.close", new=AsyncMock(side_effect=lambda: events.append("redis"))),
+            patch("oldman.db.db_manager.close", new=AsyncMock(side_effect=lambda: events.append("database"))),
             self.assertRaisesRegex(RuntimeError, "cache is stuck"),
         ):
-            asyncio.run(application.after_server_stop(cast(Any, SimpleNamespace())))
+            asyncio.run(application._close_shared_resources())
 
         self.assertEqual(["redis", "database"], events)
 
-    def test_publishers_close_before_the_resources_their_hooks_use(self) -> None:
-        """taskiq 的 shutdown 钩子可能还要写库：引擎必须在它们之后才关，否则会惰性新建一个没人关的。"""
+    def test_after_server_stop_runs_before_the_publishers_and_the_resources_close(self) -> None:
+        """N-1: the hook ran after taskiq and NATS were closed, so it could no longer publish or enqueue.
+
+        taskiq 的 shutdown 钩子可能还要写库，所以资源仍在发布连接之后才关，否则会惰性新建一个没人关的引擎。
+        """
         events: list[str] = []
         application = ConcreteWebApplication("shutdown-order")
 
@@ -803,15 +877,115 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
 
         async def after_server_stop(self: object, app: object) -> None:
             del self, app
+            events.append("hook")
+
+        async def close_shared_resources(self: object) -> None:
+            del self
             events.append("resources")
+
+        async def wait_for_invalidations() -> None:
+            events.append("invalidations")
 
         with (
             patch.object(ConcreteWebApplication, "_close_publishers", close_publishers),
             patch.object(ConcreteWebApplication, "after_server_stop", after_server_stop),
+            patch.object(ConcreteWebApplication, "_close_shared_resources", close_shared_resources),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", wait_for_invalidations),
+        ):
+            asyncio.run(application._services_after_server_stop(cast(Any, SimpleNamespace())))
+
+        # The last requests' commits still invalidate the model cache while Redis is open.
+        self.assertEqual(["hook", "publishers", "invalidations", "resources"], events)
+
+    def test_a_failing_after_server_stop_still_closes_the_publishers_and_the_resources(self) -> None:
+        events: list[str] = []
+        application = ConcreteWebApplication("failing-stop-hook")
+
+        async def after_server_stop(self: object, app: object) -> None:
+            del self, app
+            raise ValueError("hook failed")
+
+        with (
+            patch.object(ConcreteWebApplication, "after_server_stop", after_server_stop),
+            patch.object(ConcreteWebApplication, "_close_publishers", AsyncMock(side_effect=lambda *args: events.append("publishers"))),
+            patch.object(ConcreteWebApplication, "_close_shared_resources", AsyncMock(side_effect=lambda: events.append("resources"))),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", AsyncMock()),
+            self.assertRaisesRegex(ValueError, "hook failed"),
         ):
             asyncio.run(application._services_after_server_stop(cast(Any, SimpleNamespace())))
 
         self.assertEqual(["publishers", "resources"], events)
+
+    def test_a_failing_before_server_stop_closes_what_after_server_stop_would_have(self) -> None:
+        """Sanic skips after_server_stop once before_server_stop failed; the resources stayed open."""
+        events: list[str] = []
+        application = ConcreteWebApplication("failing-before-stop")
+
+        async def before_server_stop(self: object, app: object) -> None:
+            del self, app
+            raise ValueError("before stop failed")
+
+        with (
+            patch.object(ConcreteWebApplication, "before_server_stop", before_server_stop),
+            patch.object(ConcreteWebApplication, "_stop_nats_consuming", AsyncMock()),
+            patch.object(ConcreteWebApplication, "_close_publishers", AsyncMock(side_effect=lambda *args: events.append("publishers"))),
+            patch.object(ConcreteWebApplication, "_close_shared_resources", AsyncMock(side_effect=lambda: events.append("resources"))),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", AsyncMock()),
+            self.assertRaisesRegex(ValueError, "before stop failed"),
+        ):
+            asyncio.run(application._services_before_server_stop(cast(Any, SimpleNamespace())))
+
+        self.assertEqual(["publishers", "resources"], events)
+
+    def test_without_taskiq_or_nats_the_stop_listener_still_waits_for_invalidations(self) -> None:
+        """The default configuration used to register after_server_stop itself, which closed Redis without waiting."""
+        self.settings.taskiq.enabled = False
+        self.settings.nats_bus.enabled = False
+        events: list[str] = []
+        application = ConcreteWebApplication("default-stop")
+        sanic_app = Mock(spec=Sanic)
+        sanic_app.ctx = SimpleNamespace()
+        sanic_app.router.routes_all = {}
+
+        async def after_server_stop(self: object, app: object) -> None:
+            del self, app
+            events.append("hook")
+
+        async def close_shared_resources(self: object) -> None:
+            del self
+            events.append("resources")
+
+        async def wait_for_invalidations() -> None:
+            events.append("invalidations")
+
+        with (
+            patch("oldman.runtime.web.Sanic", return_value=sanic_app),
+            patch.object(ConcreteWebApplication, "after_server_stop", after_server_stop),
+            patch.object(ConcreteWebApplication, "_close_shared_resources", close_shared_resources),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", wait_for_invalidations),
+        ):
+            application.init()
+            [listener] = [call.args[0] for call in sanic_app.register_listener.call_args_list if call.args[1] == "after_server_stop"]
+            asyncio.run(listener(sanic_app))
+
+        self.assertEqual(["hook", "invalidations", "resources"], events)
+
+    def test_resources_close_when_the_invalidation_wait_is_cancelled(self) -> None:
+        events: list[str] = []
+        application = ConcreteWebApplication("cancelled-stop")
+
+        async def close_shared_resources(self: object) -> None:
+            del self
+            events.append("resources")
+
+        with (
+            patch.object(ConcreteWebApplication, "_close_shared_resources", close_shared_resources),
+            patch("oldman.db.sqlalchemy.cache.wait_for_invalidations", AsyncMock(side_effect=asyncio.CancelledError)),
+            self.assertRaises(asyncio.CancelledError),
+        ):
+            asyncio.run(application._services_after_server_stop(cast(Any, SimpleNamespace())))
+
+        self.assertEqual(["resources"], events)
 
     def test_prepare_server_derives_the_listener_from_the_web_settings(self) -> None:
         """默认监听参数来自配置，单进程只在没有多 worker、没有 auto_reload 时成立。"""
@@ -822,7 +996,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         # 三个值显式写出来：靠 runtime_settings() 的默认值碰巧成立的话，默认值一改这条就空转了。
         self.settings.web.workers = 1
         self.settings.web.auto_reload = False
-        self.settings.web.debug = False
+        self.settings.core.debug = False
 
         single = Mock()
         application.prepare_server(cast(Any, single))

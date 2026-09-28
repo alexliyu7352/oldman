@@ -17,6 +17,7 @@ from redis.backoff import ExponentialBackoff
 from redis.exceptions import ConnectionError, TimeoutError
 
 from oldman.logging import logger
+from oldman.providers.redis.keys import redis_key
 
 _TCP_REDIS_SCHEMES = frozenset({"redis", "rediss"})
 _DECLARED_CONNECTION_OPTIONS = frozenset(
@@ -211,15 +212,15 @@ class AsyncRedis:
                 raise connection_error
 
     async def get_db_lock(self, key: str, expire_timeout: int = 60) -> bool:
-        """Atomically create a short-lived presence lock."""
+        """Atomically create a short-lived presence lock; its key lives under the service namespace."""
         conn = await self.async_get_conn()
-        result = await conn.set(key, 1, nx=True, ex=expire_timeout)
+        result = await conn.set(redis_key("lock", key), 1, nx=True, ex=expire_timeout)
         return result is True
 
     async def is_db_lock(self, key: str) -> bool:
         """Return whether a presence lock exists."""
         conn = await self.async_get_conn()
-        result = await conn.get(key)
+        result = await conn.get(redis_key("lock", key))
         return bool(result and int(result) > 0)
 
     async def acquire_lock(
@@ -247,7 +248,7 @@ class AsyncRedis:
         identifier = str(uuid.uuid4())
         end = time.time() + acquire_timeout
         while time.time() < end:
-            if await conn.set(lock_name, identifier, nx=True, ex=hold_timeout):
+            if await conn.set(redis_key("lock", lock_name), identifier, nx=True, ex=hold_timeout):
                 return identifier
             await asyncio.sleep(retry_interval)
         return False
@@ -257,7 +258,7 @@ class AsyncRedis:
         conn = await self.async_get_conn()
         lua = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
         try:
-            result = await conn.eval(lua, 1, lock_name, identifier)
+            result = await conn.eval(lua, 1, redis_key("lock", lock_name), identifier)
             return bool(result)
         except Exception:
             return False
@@ -272,7 +273,7 @@ class AsyncRedis:
         """Return redis-py's distributed lock object."""
         conn = await self.async_get_conn()
         return conn.lock(
-            name=lock_key,
+            name=redis_key("lock", lock_key),
             timeout=expire_timeout,
             blocking=True,
             blocking_timeout=blocking_timeout,

@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from oldman.i18n import gettext
 from oldman.utils.date import naive_utcnow
 
 from .exceptions import ChartInvalidRequest
@@ -35,7 +36,7 @@ class ChartRequest:
         match = RANGE_KEY_PATTERN.fullmatch(self.range_key)
         days = int(match.group(1)) if match else 0
         if days < 1:
-            raise ChartInvalidRequest(f"Unknown chart range: {self.range_key}")
+            raise ChartInvalidRequest(gettext("Unknown chart range: %(range)s", range=self.range_key))
         return days
 
     def range_start(self, *, end: dt.datetime | None = None) -> dt.datetime:

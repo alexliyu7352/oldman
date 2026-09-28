@@ -1,5 +1,7 @@
 import base64
 import hashlib
+import re
+import secrets
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -9,27 +11,45 @@ from cryptography.fernet import Fernet
 
 import oldman.conf as conf
 from oldman.serializers import MsgspecModel
-from oldman.web.request import Request
+from oldman.web.authentication import user_from_session
+from oldman.web.request import Request, request_sends_json
 from oldman.web.routing import WebApp
 from oldman.web.security.csrf.csrf_extension import CsrfExtension
 from oldman.web.security.keys import (
     WebSecurityPurpose,
     derive_web_security_key,
 )
+from oldman.web.template_globals import template_globals
 
 
 class Payload(MsgspecModel):
+    #: What the token is bound to: see StatelessCSRFManager._binding.
     sid: str
     exp: int
     url: str
+    #: For a token issued to a signed-in session, also the browser's CSRF cookie (`cookie:<id>`),
+    #: which outlives the session: see StatelessCSRFManager.validate_token.
+    browser: str | None = None
+
+
+#: How long the anonymous visitor's id cookie lives, as Django's CSRF cookie: it is only a random
+#: id kept by the browser, and a long life keeps a page left open from outliving it.
+CSRF_COOKIE_MAX_AGE = 365 * 24 * 3600
+#: secrets.token_urlsafe(24): 32 URL-safe characters.
+_COOKIE_ID = re.compile(r"[A-Za-z0-9_-]{32}")
 
 
 class StatelessCSRFManager:
     """
     无状态 CSRF Token 管理器
 
-    Token 组成: {session_id/anonymous, expire_time, url_hash} -> 对称加密
-    验证: 解密 -> 检查 Referer -> 检查有效期 -> 检查 session_id
+    Token 组成: {绑定对象, expire_time, url_hash} -> 对称加密
+    验证: 同源检查 -> 解密 -> 检查有效期 -> 检查绑定对象
+
+    绑定对象(见 _binding):已登录绑定会话中间件记下的 SID;匿名访客绑定 CSRF cookie 里的随机 id,
+    这个 cookie 由会话中间件按会话 cookie 的策略写出(Session.send_cookie)。已登录时签发的 token
+    也记下这个 cookie:会话结束(过期、退出、被强制下线)后请求变成匿名,仍能认出是同一个浏览器。
+    没经过会话中间件的请求(没开 Session 的服务)没有能写 cookie 的一方,匿名 token 不绑定,只靠同源检查。
     """
 
     def __init__(
@@ -42,8 +62,11 @@ class StatelessCSRFManager:
         check_referer: bool | None = None,
         check_url: bool | None = None,
         enforce: bool | None = None,
+        cookie_name: str | None = None,
     ):
         self.ttl = 3600 if ttl is None else ttl
+        self.cookie_name = "csrf_id" if cookie_name is None else cookie_name
+        self._cookie_name_overridden = cookie_name is not None
         self.anonymous_id = anonymous_id
         self.session_name = session_name
         self.check_referer = True if check_referer is None else check_referer
@@ -72,6 +95,8 @@ class StatelessCSRFManager:
                 self.check_url = csrf_config.check_url
             if not self._enforce_overridden:
                 self.enforce = csrf_config.enforce
+            if not self._cookie_name_overridden:
+                self.cookie_name = csrf_config.cookie_name
             root_secret = security_config.secret_key
             if root_secret is None:
                 raise RuntimeError("settings.web.security.secret_key is empty; run `oldman <service> settings sync`")
@@ -103,28 +128,51 @@ class StatelessCSRFManager:
         """配置 Jinja2 环境，添加 i18n 扩展"""
         jinja_env = app.ext.environment
         jinja_env.add_extension(CsrfExtension)
-        jinja_env.globals.setdefault("csrf_token_for", csrf_token_for)
+        template_globals(jinja_env).setdefault("csrf_token_for", csrf_token_for)
 
-    def _get_session_id(self, request: Request) -> str:
-        """
-        获取 session_id
+    def _binding(self, request: Request, *, issue: bool) -> str | None:
+        """What a token for this request is bound to; None when an anonymous visitor has no id yet.
 
-        request.ctx 是 SimpleNamespace，直接访问属性
+        - A signed-in session: the SID the Session middleware captured, which a forged request
+          cannot choose; a new login gets a new SID, so another session's tokens do not pass.
+          A hand-built request that no Session middleware opened has only its user id.
+        - An anonymous visitor on a request the Session middleware opened: the random id in the
+          CSRF cookie, as Django does (see _browser_binding).
+        - No Session middleware: `anonymous_id`, which binds nothing. Nothing could write the
+          cookie, and such a service has no browser login a forged request could ride on.
         """
-        # 直接访问属性，如果不存在会抛出 AttributeError
-        try:
-            session = request.ctx.session
-            # session 可能是字典或对象，统一处理
-            if isinstance(session, dict):
-                sid = session.get("sid")
-                user_id = session.get("user_id")
-            else:
-                sid = getattr(session, "sid", None)
-                user_id = getattr(session, "user_id", None)
-            identity = sid if sid else user_id
-            return self.anonymous_id if identity is None or identity == "" else str(identity)
-        except AttributeError:
+        from oldman.web.session import Session
+
+        ctx = getattr(request, "ctx", None)
+        sessions = getattr(getattr(getattr(request, "app", None), "ctx", None), "session", None)
+        sid = sessions.opened_session_id(request) if isinstance(sessions, Session) else None
+        user = user_from_session(getattr(ctx, "session", None))
+        if user.is_authenticated:
+            return f"session:{sid}" if sid is not None else f"user:{user.id}"
+        if sid is None or not isinstance(sessions, Session):
             return self.anonymous_id
+        return self._browser_binding(request, issue=issue)
+
+    def _browser_binding(self, request: Request, *, issue: bool) -> str | None:
+        """The random id in this browser's CSRF cookie, on a request the Session middleware opened.
+
+        With `issue`, a browser without a valid one gets a new id, sent by the Session middleware
+        with the session cookie's policy; one per request. None when there is none and `issue` is off.
+        """
+        from oldman.web.session import Session
+
+        sessions = getattr(getattr(getattr(request, "app", None), "ctx", None), "session", None)
+        assert isinstance(sessions, Session)
+        cookie_id = request.cookies.get(self.cookie_name)
+        if not isinstance(cookie_id, str) or not _COOKIE_ID.fullmatch(cookie_id):
+            cookie_id = getattr(getattr(request, "ctx", None), "csrf_cookie_id", None)
+            if cookie_id is None:
+                if not issue:
+                    return None
+                cookie_id = secrets.token_urlsafe(24)
+                request.ctx.csrf_cookie_id = cookie_id
+                sessions.send_cookie(request, self.cookie_name, cookie_id, max_age=CSRF_COOKIE_MAX_AGE)
+        return f"cookie:{cookie_id}"
 
     def _get_url_hash(self, url: str) -> str:
         """生成 URL 哈希"""
@@ -136,14 +184,22 @@ class StatelessCSRFManager:
 
         Token 结构: {session_id, expire_time, url_hash} -> 加密
         """
-        session_id = self._get_session_id(request)
+        binding = self._binding(request, issue=True)
+        assert binding is not None  # issue=True always yields one
+        # A signed-in session's token also names the browser, so it is still recognized once the
+        # session has ended and the request comes in anonymous.
+        browser = self._browser_binding(request, issue=True) if binding.startswith("session:") else None
+        # The page now holds a token for one visitor or one session; cache_response must not
+        # serve it to anyone else.
+        request.ctx.csrf_token_issued = True
         expire_time = int(time.time()) + self.ttl
         url_hash = self._get_url_hash(request.path)
 
         payload = Payload(
-            sid=session_id,
+            sid=binding,
             exp=expire_time,
             url=url_hash,
+            browser=browser,
         )
         encrypted = self._require_cipher().encrypt(payload.to_msgpack())
         return encrypted.decode("utf-8")
@@ -216,8 +272,7 @@ class StatelessCSRFManager:
 
         # 3. JSON body. Sanic's request.json property eagerly parses the body,
         # so do not touch it for form submissions without a JSON content type.
-        content_type = str(request.headers.get("content-type", "")).partition(";")[0].strip().lower()
-        if content_type == "application/json" or content_type.endswith("+json"):
+        if request_sends_json(request):
             payload = request.json
             token = payload.get("csrfmiddlewaretoken") if isinstance(payload, Mapping) else None
             if token:
@@ -279,11 +334,12 @@ class StatelessCSRFManager:
             if url_hash != token_url_hash:
                 return False, "Token URL mismatch"
 
-        # 5. 验证 session_id
-        current_session_id = self._get_session_id(request)
-        token_session_id = payload.sid or self.anonymous_id
-
-        if current_session_id != self.anonymous_id and current_session_id != token_session_id:
+        # 5. 验证绑定对象:已登录比对 SID,匿名比对 CSRF cookie;没有会话中间件时不绑定。
+        #    已登录时签发的 token 还记着浏览器的 CSRF cookie:会话结束(过期、退出、被强制下线)后,同一个
+        #    浏览器的请求以匿名身份通过,交给视图的登录检查跳登录页,而不是 CSRF 错误。已登录的请求只比对
+        #    SID(浏览器绑定是 cookie:,永远不等于 session:),同一浏览器重新登录后旧 token 照样失效。
+        current = self._binding(request, issue=False)
+        if current != self.anonymous_id and (current is None or current not in (payload.sid, payload.browser)):
             return False, "Session ID mismatch"
 
         return True, "Valid"

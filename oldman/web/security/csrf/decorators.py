@@ -1,7 +1,9 @@
 # csrf/decorators.py
 from functools import wraps
 
+from oldman.i18n import gettext
 from oldman.utils.decorators import method_adaptor
+from oldman.web.authentication import exempt_from_csrf
 from oldman.web.exceptions import Forbidden
 from oldman.web.request import Request
 
@@ -12,13 +14,19 @@ def enforce_csrf(csrf_manager, request: Request) -> None:
     A plain function taking the manager, rather than a method on it, so that the
     decorator and the global middleware share one implementation without widening the
     manager interface that test doubles and downstream code implement.
+
+    A request that authenticated with a credential the browser does not attach on its own
+    — a bearer token, an API key header — cannot have been forged cross-site and is let
+    through; one riding on a signed-in browser session never is.
     """
+    if exempt_from_csrf(request):
+        return
     token = csrf_manager.get_token_from_request(request)
     if not token:
-        raise Forbidden("CSRF token missing")
+        raise Forbidden(gettext("CSRF token missing", request=request))
     is_valid, error_msg = csrf_manager.validate_token(request, token)
     if not is_valid:
-        raise Forbidden(f"CSRF validation failed: {error_msg}")
+        raise Forbidden(gettext("CSRF validation failed: %(reason)s", request=request, reason=error_msg))
 
 
 def _csrf_protect():

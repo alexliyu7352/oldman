@@ -7,7 +7,7 @@ import {
   type InternalAxiosRequestConfig
 } from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createHttpClient, normalizeHttpError } from "./client";
+import { createHttpClient, httpErrorMessage, normalizeHttpError } from "./client";
 
 function response(config: InternalAxiosRequestConfig, data: unknown): AxiosResponse {
   return {
@@ -527,5 +527,41 @@ describe("createHttpClient", () => {
       isCanceled: false,
       isNetworkError: false
     });
+  });
+});
+
+describe("httpErrorMessage", () => {
+  const i18n = { t: (message: string) => `t:${message}` };
+  const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+
+  function refused(status: number | undefined, data?: unknown): AxiosError {
+    const message = status === undefined ? "Network Error" : `Request failed with status code ${status}`;
+    const reply = status === undefined ? undefined : { data, status, statusText: "", headers: {}, config, request: {} };
+    return new AxiosError(message, status === undefined ? "ERR_NETWORK" : "ERR_BAD_REQUEST", config, {}, reply);
+  }
+
+  it("shows the message of the framework's own API response, which it already translated", () => {
+    expect(httpErrorMessage(refused(403, { error_code: 1403, message: "没有权限", data: {}, actions: [] }), i18n)).toBe("没有权限");
+  });
+
+  it("falls back to local copy by status and never shows the transport's English", () => {
+    expect(httpErrorMessage(refused(403, "<tr><td>Permission denied</td></tr>"), i18n)).toBe("t:Permission denied");
+    expect(httpErrorMessage(refused(500, { error_code: 1500, message: "  " }), i18n)).toBe("t:Request failed");
+    expect(httpErrorMessage(refused(undefined), i18n)).toBe("t:Request failed");
+  });
+
+  it("does not show the English diagnostics of Sanic's own error bodies", () => {
+    // What the framework's error handler answers a JSON request with when an exception escapes a view.
+    const sanic = (status: number, message: string) => refused(status, { description: "Error", status, message });
+    expect(httpErrorMessage(sanic(503, "The permission store is unavailable"), i18n)).toBe("t:Request failed");
+    expect(httpErrorMessage(sanic(403, "CSRF validation failed: Token expired"), i18n)).toBe("t:Permission denied");
+    expect(httpErrorMessage(sanic(500, "The application encountered an unexpected error and could not continue."), i18n)).toBe(
+      "t:Request failed"
+    );
+  });
+
+  it("leaves errors that are not requests as they are", () => {
+    expect(httpErrorMessage(new Error("选项格式不对"), i18n)).toBe("选项格式不对");
+    expect(httpErrorMessage("boom", i18n)).toBe("t:Request failed");
   });
 });

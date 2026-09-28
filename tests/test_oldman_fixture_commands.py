@@ -219,7 +219,7 @@ class FixtureDataTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_creates_updates_and_remains_idempotent(self) -> None:
         fixture_path = Path(self.temporary_directory.name) / "demo.json"
-        records = [
+        records: list[dict[str, Any]] = [
             {
                 "model": "demo.FixtureProject",
                 "pk": 7,

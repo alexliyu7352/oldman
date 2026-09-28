@@ -23,6 +23,10 @@ __all__ = (
 )
 
 
+#: request.ctx attribute: cookies to write with the session cookie's policy once the session is saved.
+_POLICY_COOKIES = "_oldman_session_policy_cookies"
+
+
 class Session:
     """Install typed Redis sessions and expose session-management operations."""
 
@@ -74,6 +78,11 @@ class Session:
                 # handler response itself when persistence is invalid.
                 logger.exception("Session response persistence failed")
                 return empty(status=500)
+            # After save(), not inside it: save() returns early when nothing changed, and these
+            # cookies go out regardless.
+            interface = self._require_interface()
+            for name, (value, max_age) in (getattr(request.ctx, _POLICY_COOKIES, None) or {}).items():
+                interface.write_policy_cookie(response, name, value, max_age=max_age)
             return None
 
         app.register_middleware(add_session_to_request, MiddlewareLocation.REQUEST.name, priority=0)
@@ -87,8 +96,6 @@ class Session:
         config = conf.settings.web.session
         return DefaultSessionInterface(
             expiry=config.expiry,
-            prefix=config.prefix,
-            user_prefix=config.user_prefix,
             cookie_name=config.cookie_name,
             domain=config.cookie_domain,
             httponly=config.cookie_httponly,
@@ -142,6 +149,23 @@ class Session:
     def get_session_id(self, request: Request) -> str:
         """Return the request SID captured by Session middleware."""
         return self._require_interface().get_session_id(request)
+
+    def opened_session_id(self, request: Request) -> str | None:
+        """The request SID, or None when this middleware did not open the request's session (a hand-built request)."""
+        return self._require_interface().opened_session_id(request)
+
+    def send_cookie(self, request: Request, name: str, value: str, *, max_age: int) -> None:
+        """Have the response carry this cookie, written the way the session cookie is, once the session is saved.
+
+        For a cookie that must reach exactly where the session cookie does - the CSRF manager's id
+        for anonymous visitors. Its Domain, Secure and SameSite are the session cookie's; it is
+        HttpOnly. Only a request this middleware opened has a response it writes to.
+        """
+        if self.opened_session_id(request) is None:
+            raise RuntimeError("Session middleware has not initialized this request")
+        pending: dict[str, tuple[str, int]] = getattr(request.ctx, _POLICY_COOKIES, None) or {}
+        pending[name] = (value, max_age)
+        setattr(request.ctx, _POLICY_COOKIES, pending)
 
     def _require_interface(self) -> DefaultSessionInterface:
         """Return the installed interface or report incorrect extension use."""
