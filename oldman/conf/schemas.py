@@ -165,6 +165,12 @@ class ProcessConfig(ConfigModel):
     """Process lifecycle config."""
 
     pid_dir: Path = Field(default=PROJECT_ROOT / "pids", description="Service PID file directory")
+    stop_timeout: float = Field(
+        default=60,
+        gt=0,
+        allow_inf_nan=False,
+        description="Seconds the stop command waits for a Web or background service before killing its process group",
+    )
 
 
 class CSRFConfig(ConfigModel):

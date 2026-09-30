@@ -251,6 +251,8 @@ async def main(self, *args, **kwargs) -> None:
 
 正常运行顺序为 init/模型、按开关加载 events 声明、同步 prepare；事件循环中先打开启用的 Core/Taskiq 发送连接，再执行 before_start，开始 Core 接收，然后 main。main 返回或收到停止信号后，先结束 Core handler，再执行 before_stop/after_stop，然后关闭 Taskiq 与 Core，最后关闭缓存、Redis 和数据库引擎。main 返回服务即结束；Demo 的 main 使用 await asyncio.Event().wait() 等正常停止，不是空 main 自动成为 Worker。
 
+`before_start`、`main` 或停止钩子抛出异常时，框架照常执行停止钩子、关闭连接，再把异常连同调用栈写进日志并继续往外抛：`start` 以非 0 退出，按「失败才重启」配置的进程管理器能看到。`prepare` 在事件循环启动之前同步执行，还没进入上面的生命周期：它抛出异常时同样写日志（带调用栈）、以非 0 退出，但不执行停止钩子，也不经过框架关闭 Core/Taskiq、缓存、Redis 和数据库的收尾；`prepare` 自己打开的资源，要在抛出前自己收拾。`main` 里用 `asyncio.TaskGroup` 时，日志里能看到组里每个子异常的调用栈。收到停止信号或 Ctrl-C 按正常退出。
+
 `before_start()`、`before_stop()`、`after_stop()` 是异步扩展点。基类的 before_stop 取消通过其接口登记的后台任务；after_stop 之后，框架关闭 Taskiq 与 Core、等模型缓存失效写完，再依次关闭缓存、Redis 和数据库引擎（其中任何一个失败也不会漏掉后面的，业务钩子失败也照样关闭）；业务自己创建的其他资源仍需要自身的清理，不用再写一遍 `await db_manager.close()`。
 
 覆盖 `after_stop` 不必调用 super（基类的 after_stop 什么也不做），此时接收 handler 已退出。业务停止钩子中仍可用 Core 发送给其他在线服务，不能再期待本地已停止的订阅回复。信号取消的是受管主协程，不先 loop.stop 抢断异步清理；等待仍是协作式取消，不保证无界阻塞业务的硬退出期限。
@@ -299,7 +301,7 @@ def cache_page_path() -> str:
 | --- | --- |
 | `app_name`、`bootstrap_context`、`runtime_app`；Web 与 Simple 服务的 `task_manager`；子类自己定义的属性 | `start()`、`stop()`、`restart()`、`run()`、`init()`、`shutdown()` |
 
-后一类是 CLI 在服务启动前后调用的。在运行中的服务里调用它们，行为与命令行完全相同：例如 `stop()` 读取 pid 文件，向其中记录的**主进程**发送 SIGTERM——在 worker 里调用会停掉整个服务。
+后一类是 CLI 在服务启动前后调用的。在运行中的服务里调用它们，行为与命令行完全相同：例如 `stop()` 核实 pid 文件旁的身份记录后给**主进程**发送 SIGTERM，并等整个进程组退出；在服务自己的进程（包括 worker）里调用会被拒绝，因为调用者就在要停止的进程组里。不论被拒绝还是成功（例如在 App 命令里停掉正在运行的服务），都不影响调用方进程的日志：日志由命令行在它自己构造的那个实例的命令结束时关闭，这几个方法本身不关（真正把服务跑起来的 `start()` 除外：服务结束时由它的 `run()` 关闭）。
 
 ## Python Shell 与 IDE
 

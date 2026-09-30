@@ -7,6 +7,12 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 from oldman.apps.admin.commands import SUPERUSER_PASSWORD_ENV, ChangePassword, CreateSuperuser
+from oldman.cli import tui
+from tests.tui_support import without_preset_answers
+
+
+def setUpModule() -> None:
+    unittest.enterModuleContext(without_preset_answers())
 
 
 class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
@@ -32,10 +38,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
             patch("oldman.apps.admin.commands.get_user_by_username", lookup),
             patch("oldman.apps.admin.commands.ensure_superuser", create),
             patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()) as end_logins,
-            patch(
-                "oldman.apps.admin.commands.typer.prompt",
-                side_effect=["root@example.com", "Secret123"],
-            ) as prompt,
+            tui.simulate_input(["root@example.com", "Secret123", "Other123", "Secret123", "Secret123"]) as terminal,
         ):
             result = await CreateSuperuser().handle(username=" root ")
 
@@ -43,13 +46,20 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         create.assert_awaited_once_with("root", "Secret123", "root@example.com")
         self.assertEqual("User created", result)
         end_logins.assert_not_awaited()
-        self.assertEqual("Email", prompt.call_args_list[0].args[0])
-        self.assertEqual("Password", prompt.call_args_list[1].args[0])
-        self.assertTrue(prompt.call_args_list[1].kwargs["hide_input"])
-        self.assertEqual(
-            "Confirm Password",
-            prompt.call_args_list[1].kwargs["confirmation_prompt"],
-        )
+        self.assertTrue(terminal.stdout.startswith("Email: root@example.com\nPassword: \nConfirm Password: \n"))
+        self.assertIn("The two entries do not match.", terminal.stdout)
+        self.assertNotIn("Secret123", terminal.stdout)
+
+    async def test_createsuperuser_email_may_be_left_empty(self) -> None:
+        create = AsyncMock()
+        with (
+            patch("oldman.apps.admin.commands.get_user_by_username", AsyncMock(return_value=None)),
+            patch("oldman.apps.admin.commands.ensure_superuser", create),
+            tui.simulate_input(["", "Secret123", "Secret123"]),
+        ):
+            await CreateSuperuser().handle(username="root")
+
+        create.assert_awaited_once_with("root", "Secret123", None)
 
     async def test_noinput_reads_the_password_from_the_environment(self) -> None:
         """脚本和门禁用 --noinput：密码来自环境变量，不进命令行参数。"""
@@ -57,14 +67,13 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch("oldman.apps.admin.commands.get_user_by_username", AsyncMock(return_value=None)),
             patch("oldman.apps.admin.commands.ensure_superuser", create),
-            patch("oldman.apps.admin.commands.typer.prompt") as prompt,
+            tui.simulate_input([]),
             patch.dict("os.environ", {SUPERUSER_PASSWORD_ENV: "Scripted123"}),
         ):
             result = await CreateSuperuser().handle(username="gate", email="gate@example.test", noinput=True)
 
         create.assert_awaited_once_with("gate", "Scripted123", "gate@example.test")
         self.assertEqual("User created", result)
-        prompt.assert_not_called()
 
     async def test_an_existing_user_needs_update_even_without_input(self) -> None:
         """ensure_superuser 会覆盖密码并提成超管，所以"有就更新"必须显式要求。"""
@@ -91,15 +100,14 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         end_logins.assert_awaited_once_with(7)
 
     async def test_noinput_without_a_username_says_so_instead_of_prompting(self) -> None:
-        """无 tty 下 typer.prompt 只会 abort，报错和"非交互"无关，排查成本很高。"""
+        """`--noinput` 下直接说缺了 `--username`，而不是提问后才报"需要终端"。"""
         with (
-            patch("oldman.apps.admin.commands.typer.prompt") as prompt,
+            tui.simulate_input([]),
             patch("oldman.apps.admin.commands.ensure_superuser", AsyncMock()) as create,
             self.assertRaisesRegex(ValueError, "--username"),
         ):
             await CreateSuperuser().handle(noinput=True)
 
-        prompt.assert_not_called()
         create.assert_not_awaited()
 
     async def test_noinput_without_the_password_variable_fails_before_writing(self) -> None:
@@ -121,13 +129,12 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
                 AsyncMock(return_value=object()),
             ),
             patch("oldman.apps.admin.commands.ensure_superuser", AsyncMock()) as create,
-            patch("oldman.apps.admin.commands.typer.prompt") as prompt,
+            tui.simulate_input([]),
         ):
             with self.assertRaisesRegex(ValueError, "Username already exists"):
                 await CreateSuperuser().handle(username="root")
 
         create.assert_not_awaited()
-        prompt.assert_not_called()
 
     async def test_changepassword_updates_the_selected_user(self) -> None:
         user = object()
@@ -140,10 +147,7 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
             patch("oldman.apps.admin.commands.user_identity", return_value=7),
             patch("oldman.apps.admin.commands.change_user_password", change),
             patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()) as end_logins,
-            patch(
-                "oldman.apps.admin.commands.typer.prompt",
-                return_value="Changed123",
-            ),
+            tui.simulate_input(["Changed123", "Changed123"]),
         ):
             result = await ChangePassword().handle("root")
 
@@ -151,18 +155,31 @@ class AdminUserCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Password changed", result)
         end_logins.assert_awaited_once_with(7)
 
+    async def test_changepassword_takes_a_preset_password_for_scripts(self) -> None:
+        change = AsyncMock(return_value=object())
+        with (
+            patch("oldman.apps.admin.commands.get_user_by_username", AsyncMock(return_value=object())),
+            patch("oldman.apps.admin.commands.user_identity", return_value=7),
+            patch("oldman.apps.admin.commands.change_user_password", change),
+            patch("oldman.apps.admin.commands.end_user_logins", AsyncMock()),
+            patch.dict("os.environ", {"OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD": "Scripted123"}),
+            tui.simulate_input([]) as terminal,
+        ):
+            await ChangePassword().handle("root")
+
+        change.assert_awaited_once_with(7, "Scripted123")
+        self.assertEqual("Password: *** (OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD)\n", terminal.stdout)
+
     async def test_changepassword_rejects_an_unknown_user_before_prompting(self) -> None:
         with (
             patch(
                 "oldman.apps.admin.commands.get_user_by_username",
                 AsyncMock(return_value=None),
             ),
-            patch("oldman.apps.admin.commands.typer.prompt") as prompt,
+            tui.simulate_input([]),
         ):
             with self.assertRaisesRegex(ValueError, "User not found"):
                 await ChangePassword().handle("missing")
-
-        prompt.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -281,6 +281,7 @@ class MigrationRenameTests(unittest.TestCase):
                 _STATE_IMPORTS,
                 """
                 import io
+                import sys
                 from sqlalchemy import create_engine
                 from oldman.db.migrations.autogenerate import MigrationDeletionCancelled
                 from oldman.db.migrations.interaction import ConsoleMigrationInteraction, MigrationInteractionRequired
@@ -317,10 +318,8 @@ class MigrationRenameTests(unittest.TestCase):
                 else:
                     raise AssertionError("partial column name confirmed deletion")
 
-                console = ConsoleMigrationInteraction(
-                    input_stream=io.StringIO(),
-                    output_stream=io.StringIO(),
-                )
+                sys.stdin = io.StringIO()  # not a terminal
+                console = ConsoleMigrationInteraction()
                 try:
                     make_migration(project, console)
                 except MigrationInteractionRequired:

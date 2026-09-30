@@ -18,10 +18,16 @@ from unittest.mock import patch
 from babel.messages.pofile import read_po
 
 from oldman.cli import main as oldman_main
+from oldman.cli import tui
 from oldman.cli.localization import resolve_cli_language
 from oldman.i18n import gettext
+from tests.tui_support import without_preset_answers
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def setUpModule() -> None:
+    unittest.enterModuleContext(without_preset_answers())
 
 
 def cli_environment(
@@ -149,9 +155,9 @@ class OldmanCliLocalizationTest(unittest.TestCase):
     def test_each_builtin_language_localizes_help_and_usage_errors(self) -> None:
         """All built-in catalogs cover structural help and common parser errors."""
         expected = {
-            "en": ("Usage:", "No such option", "Aborted."),
-            "zh-Hans": ("用法:", "没有此选项", "已中止。"),
-            "zh-Hant": ("用法:", "沒有此選項", "已中止。"),
+            "en": ("Usage:", "No such option", "needs an answer: run it in a terminal or set OLDMAN_ANSWER_STARTPROJECT_TYPE"),
+            "zh-Hans": ("用法:", "没有此选项", "需要回答：请在终端里运行，或设置 OLDMAN_ANSWER_STARTPROJECT_TYPE"),
+            "zh-Hant": ("用法:", "沒有此選項", "需要回答：請在終端裡執行，或設定 OLDMAN_ANSWER_STARTPROJECT_TYPE"),
         }
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -169,21 +175,21 @@ class OldmanCliLocalizationTest(unittest.TestCase):
                         "--bad",
                         language=language,
                     )
-                    bad_choice = run_cli(
+                    unanswered = run_cli(
                         root,
                         root / language,
                         "startproject",
                         "probe",
                         language=language,
-                        input_text="invalid\n",
+                        input_text="piped answers are not read\n",
                     )
 
                     self.assertEqual(help_result.returncode, 0, help_result.stderr)
                     self.assertEqual(bad_option.returncode, 2, bad_option.stderr)
-                    self.assertEqual(bad_choice.returncode, 1, bad_choice.stderr)
+                    self.assertEqual(unanswered.returncode, 2, unanswered.stderr)
                     self.assertIn(markers[0], help_result.stdout)
                     self.assertIn(markers[1], bad_option.stderr)
-                    self.assertIn(markers[2], bad_choice.stderr)
+                    self.assertIn(markers[2], unanswered.stderr)
 
     def test_environment_override_does_not_replace_saved_language(self) -> None:
         """One-process environment selection stays separate from persistence."""
@@ -242,16 +248,26 @@ class OldmanCliLocalizationTest(unittest.TestCase):
                     "oldman.cli.localization._should_prompt",
                     return_value=True,
                 ),
-                patch("builtins.input", return_value="2"),
-                contextlib.redirect_stdout(io.StringIO()),
+                tui.simulate_input(["2"]) as terminal,
             ):
                 state = resolve_cli_language(["--help"])
+            self.assertIn("1. English\n2. 简体中文", terminal.stdout)
 
             config = json.loads((config_home / "oldman" / "cli.json").read_text(encoding="utf-8"))
 
         self.assertEqual(state.effective, "zh-Hans")
         self.assertEqual(state.source, "prompt")
         self.assertEqual(config, {"language": "zh-Hans"})
+
+    def test_a_stdin_closed_at_startup_is_not_a_terminal(self) -> None:
+        """`python -m oldman 0<&-` leaves sys.stdin as None: no prompt, the system language."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with (
+                patch.dict(os.environ, {"XDG_CONFIG_HOME": temporary_directory, "OLDMAN_CLI_LANGUAGE": "", "LANG": "C"}, clear=False),
+                patch.object(sys, "stdin", None),
+            ):
+                state = resolve_cli_language(["--help"])
+        self.assertEqual("system", state.source)
 
     def test_cold_help_does_not_import_broken_project_runtime(self) -> None:
         """Root help never imports config.settings and removed root groups stay absent."""
@@ -367,6 +383,40 @@ class OldmanCliLocalizationTest(unittest.TestCase):
                     catalog = read_po(catalog_file, locale=locale_name)
                 incomplete = [message.id for message in catalog if message.id and (not message.string or "fuzzy" in message.flags)]
                 self.assertEqual([], incomplete)
+
+    def test_every_cli_message_in_the_source_is_in_the_template_and_translated(self) -> None:
+        """A message added to the source but never to the catalogs is shown in English only.
+
+        The check above only sees entries the .po files already have; this one extracts the source
+        the way locales/README.md does and compares.
+        """
+        locales = ROOT / "oldman" / "cli" / "locales"
+
+        def message_ids(path: Path, *, translated_only: bool = False) -> set[str]:
+            with path.open("rb") as catalog_file:
+                catalog = read_po(catalog_file)
+            return {
+                message.id if isinstance(message.id, str) else message.id[0]
+                for message in catalog
+                if message.id and (not translated_only or (message.string and "fuzzy" not in message.flags))
+            }
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            extracted = Path(temporary_directory) / "messages.pot"
+            subprocess.run(
+                [sys.executable, "-m", "babel.messages.frontend", "extract", "-F", "oldman/cli/babel.cfg"]
+                + ["-k", "_", "-k", "gettext", "-k", "gettext_noop", "-k", "ngettext:1,2", "-o", str(extracted), "oldman"],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+            )
+            in_source = message_ids(extracted)
+
+        self.assertEqual([], sorted(in_source - message_ids(locales / "messages.pot")))
+        for locale_name in ("zh_Hans", "zh_Hant"):
+            with self.subTest(locale=locale_name):
+                translated = message_ids(locales / locale_name / "LC_MESSAGES" / "messages.po", translated_only=True)
+                self.assertEqual([], sorted(in_source - translated))
 
     def test_release_artifacts_include_cli_catalogs(self) -> None:
         """Wheel and sdist both publish the runtime and source catalog assets."""

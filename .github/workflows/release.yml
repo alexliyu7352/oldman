@@ -9,6 +9,13 @@ on:
   push:
     tags: ["v*"]
 
+# GitHub has started two runs for a single tag push (v0.3.0). The PyPI and npm jobs run in
+# parallel, so two runs racing could each lose one publish and neither create the Release;
+# the newer run cancels the older, which the duplicates catch while it is still building.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

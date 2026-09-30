@@ -96,10 +96,11 @@ class InstalledScaffoldMatrixGateTest(unittest.TestCase):
                 "PYTHONPATH": "/repo",
                 "UV_PROJECT_ENVIRONMENT": "/repo/.venv",
                 "VIRTUAL_ENV": "/repo/.venv",
+                "OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME": "Left over",
             }
         )
 
-        for name in ("PYTHONHOME", "PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"):
+        for name in ("PYTHONHOME", "PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV", "OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME"):
             self.assertNotIn(name, environment)
         self.assertEqual("1", environment["PYTHONNOUSERSITE"])
         self.assertEqual("1", environment["CI"])

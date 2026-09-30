@@ -1,13 +1,14 @@
 # 进程与后台任务
 
-`oldman.runtime` 管生命周期；`oldman.processes` 执行短期 Python 进程或受控外部命令；`oldman.tasks` 管同进程协程和长期 Worker。另有显式启用的 oldman.tasks.distributed 管持久队列；本地接口不向 NATS 投递，也不共用一个含糊的 MessageBus。
+`oldman.runtime` 管生命周期；`oldman.processes` 执行短期 Python 进程、受控外部命令或前台交互命令；`oldman.tasks` 管同进程协程和长期 Worker。另有显式启用的 oldman.tasks.distributed 管持久队列；本地接口不向 NATS 投递，也不共用一个含糊的 MessageBus。
 
 | 需求 | 入口 |
 | --- | --- |
 | 同一事件循环周期采样 | `BackgroundTaskManager`，或 SimpleApplication 自己的 `main()` |
 | 请求或命令里即发即忘的一次性协程（发邮件、写审计） | `BackgroundTaskManager().spawn()`；Web 处理器用 `request.app.ctx.tasks.spawn()` |
 | 限并发执行同步 Python 计算 | `AsyncProcessManager` |
-| 启动外部程序、处理超时及子进程组 | `run_subprocess_exec` / `create_subprocess_exec` |
+| 启动外部程序，对面没有人（Web 服务、taskiq worker、命令里的机器任务），要超时和整组清理 | `run_subprocess_exec` / `create_subprocess_exec` |
+| 启动外部程序，可能要人在终端上回答（`sudo` 问密码、脚本里的 `read`） | [`run_foreground`](#前台命令) |
 | 多个长期 Worker 接收启动/停止任务指令 | `BaseManager`、`BaseWorker`、`BaseTask` |
 | 异步函数持久排队、多个执行进程、结果和定时投递 | [Taskiq](distributed-tasks.md) |
 | 不同独立服务之间的消息/RPC | [NATS provider](providers.md#nats-连接与发布) |
@@ -115,6 +116,11 @@ def inspect_projects(statuses: list[str], scenario: str, marker: str) -> dict:
 
 ## 外部命令
 
+两个入口按「对面有没有人」选：
+
+- `run_subprocess_exec` / `create_subprocess_exec` 给对面没有人的子进程：Web 服务、taskiq worker 里启动的程序，命令里跑的机器任务。子进程由看守进程放进独立的会话，脱离终端；超时、任务被取消、宿主进程退出时整组清理，所以 Web 服务的 worker 重启、请求被取消、taskiq worker 退出，都不会留下还在运行的子进程。代价是子进程没有控制终端，打不开 `/dev/tty`：`sudo` 问不了密码，终端上的 Ctrl-C 也送不到它（只送到调用方，再由框架清理整组）；继承来的 stdin 仍然能读，但不适合拿来和人交互。只支持 Linux。
+- `run_foreground` 给可能要人回答的命令：子进程留在调用方的会话和进程组里，与调用方共用终端，`sudo` 能问密码，终端上的 Ctrl-C 同时送到它。见[前台命令](#前台命令)。
+
 实际 EPG Command 是 [SubprocessDemo](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/process_examples.py)，运行方式见[外部命令教程](../users/background-work.md#实际运行受控外部命令)。模块已导入 sys、json、asyncio 和框架 create_subprocess_exec/run_subprocess_exec、结果与异常类型。program 固定为 sys.executable，参数为 `-m apps.examples.external_job` 和经过枚举校验的 scenario。data 是父进程 `_project_statuses()` 查询后经 json.dumps(...).encode("utf-8") 得到的 bytes。
 
 success/error/timeout 使用下面这段真实调用：
@@ -139,6 +145,18 @@ cancel 分支演示低层句柄：await create_subprocess_exec 指定 stdin/stdo
 长输出使用 `create_subprocess_exec()` 获得 `ManagedSubprocess`，通过其 `stdout`/`stderr` StreamReader 持续读取；支持 `async with`，以及 `wait(timeout=None)`、`communicate(input=None, timeout=None)`、`terminate()`、`kill()`。PIPE 两端都可能填满，不要只读 stdout 却无人消费大量 stderr，也不要用 `capture_output` 无上限缓存无限日志。
 
 Linux supervisor 持有受控进程组：超时/取消/退出会清理组内剩余进程，正常命令退出也不会留下同组后台程序。它不是允许任意命令运行的安全沙箱，主动脱离进程组等行为不能当作受保护业务模式。
+
+### 前台命令
+
+`await run_foreground(program, *args, input=None, capture_output=False, text=False, timeout=None, check=False, cwd=None, env=None)` 就是放进工作线程里的 `subprocess.run`：等待期间事件循环照常处理别的任务；结果和异常都是标准库的——`subprocess.CompletedProcess`，`check=True` 时非零退出抛 `CalledProcessError`，超时抛 `TimeoutExpired`，程序不存在抛 `FileNotFoundError`。`input` 是 bytes，`text=True` 时是 str；`env` 替换整个环境，不是追加。
+
+```python
+from oldman.processes import run_foreground
+
+completed = await run_foreground("sudo", "apt-get", "install", "-y", "nginx", check=True)
+```
+
+它不负责子进程的收尾：超时只杀掉命令本身，不管它另外启动的进程；取消这个 await 不会停下命令：命令照常跑完，`asyncio.run` 返回前也要等它结束，所以工具要等命令结束才会退出（例如用 `asyncio.timeout` 包住一个要跑 5 分钟的命令，超时后工具仍会停留到这 5 分钟过完）。需要超时就停下的命令，用 `run_foreground` 自己的 `timeout` 参数。[运维原语](ops.md#systemd)的 systemd 和[远程文件](remote.md)的脚本都用它运行。
 
 ## 长期 Worker：真实项目快照
 

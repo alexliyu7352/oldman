@@ -14,6 +14,7 @@ from oldman.cli._main import create_app
 from oldman.cli.localization import CliLanguageState
 from oldman.cli.scaffold import DatabaseChoice, ProjectType, start_project
 from oldman.runtime.discovery import discover_service_definitions
+from tests.tui_support import without_preset_answers
 
 
 @contextlib.contextmanager
@@ -51,8 +52,12 @@ def invoke_startservice(project: Path, name: str, service_type: str):
         return CliRunner().invoke(
             scaffold_cli(),
             ["startservice", name],
-            input=f"{service_type}\n",
+            env={"OLDMAN_ANSWER_STARTSERVICE_TYPE": service_type},
         )
+
+
+def setUpModule() -> None:
+    unittest.enterModuleContext(without_preset_answers())
 
 
 class StartServiceScaffoldTests(unittest.TestCase):
@@ -125,13 +130,10 @@ class StartServiceScaffoldTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = create_web_project(Path(temporary_directory))
             with working_directory(project):
-                result = CliRunner().invoke(
-                    scaffold_cli(),
-                    ["startservice", "unfinished"],
-                    input="",
-                )
+                result = CliRunner().invoke(scaffold_cli(), ["startservice", "unfinished"])
 
-            self.assertNotEqual(result.exit_code, 0)
+            self.assertEqual(result.exit_code, 2, result.output)
+            self.assertIn("OLDMAN_ANSWER_STARTSERVICE_TYPE", result.output)
             self.assertFalse((project / "services" / "unfinished.py").exists())
 
     def test_existing_service_is_rejected_without_overwrite(self) -> None:

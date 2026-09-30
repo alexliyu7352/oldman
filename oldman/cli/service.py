@@ -13,6 +13,8 @@ from typer.core import TyperCommand
 from oldman.apps import AppRegistry
 from oldman.cli import Command
 from oldman.cli.settings import ensure_cwd_on_syspath
+from oldman.cli.tui.inputs import Cancelled
+from oldman.cli.tui.output import _command_stdout, error
 from oldman.i18n import gettext
 from oldman.runtime import bootstrap_service
 from oldman.runtime.discovery import ServiceDefinition, load_service_class
@@ -53,6 +55,9 @@ def _create_service_command_handler(
             result = service_class.execute_command(command_name, *(args or []))
             if result:
                 typer.echo(str(result))
+        except Cancelled as exc:
+            error(gettext("Aborted."))
+            raise typer.Exit(1) from exc
         except ValueError as exc:
             typer.echo(gettext("Error: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc
@@ -92,9 +97,14 @@ def _create_typed_command_handler(
     def command_handler(*args: Any, **kwargs: Any) -> None:
         """Execute one discovered App command."""
         try:
-            result = service_class.execute_app_command(command, *args, **kwargs)
+            # A raw_stdout command's stdout carries data only; tui sends the rest to stderr.
+            with _command_stdout(raw_stdout=command.raw_stdout):
+                result = service_class.execute_app_command(command, *args, **kwargs)
             if result:
                 typer.echo(str(result))
+        except Cancelled as exc:
+            error(gettext("Aborted."))
+            raise typer.Exit(1) from exc
         except ValueError as exc:
             typer.echo(gettext("Error: %(error)s", error=str(exc)), err=True)
             raise typer.Exit(1) from exc

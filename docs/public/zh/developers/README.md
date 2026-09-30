@@ -7,6 +7,9 @@
 | [应用与生命周期](applications.md) | 服务发现、AppConfig、Registry、Web/SimpleApplication、Shell 和资源归属 |
 | [配置参考](configuration.md) | 根 Settings、App Settings、YAML 管理、默认值和配置路径，以及运行期可变配置 |
 | [CLI 参考](cli.md) | 项目与服务命令、交互约定、自定义异步 Command |
+| [终端交互](tui.md) | 命令与运维工具的输出、表格、等待提示、提问、表单、菜单、取消与非终端、测试 |
+| [运维原语](ops.md) | 可反复执行的配置文件编辑、os-release、systemd 单元 |
+| [远程文件](remote.md) | 运维工具菜单里的远程 Python 文件与脚本：基础地址、缓存与刷新、文件约定、凭据 |
 | [Web 请求与模板](web.md) | 路由、模板加载、Session、权限、CSRF 和错误页 |
 | [权限](permissions.md) | 在代码里声明权限、命名规则和启动时的检查；角色与角色缓存 |
 | [表单与字段](forms.md) | WTForms 分工、绑定/校验、ModelForm、布局、远程选项 |

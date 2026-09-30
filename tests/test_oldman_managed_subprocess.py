@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import oldman.processes.subprocess as managed_subprocess
 from oldman.processes.subprocess import (
     SubprocessError,
     SubprocessStartError,
@@ -344,6 +345,26 @@ class ManagedSubprocessAsyncTest(unittest.IsolatedAsyncioTestCase):
                         await getattr(process, method)()
                 self.assertNotIsInstance(raised.exception, SubprocessTimeoutError)
                 self.assertEqual([], _process_group_pids(process.process_group), "the group is still cleaned up")
+
+    async def test_waiting_for_a_group_does_not_scan_proc_at_every_poll(self) -> None:
+        # A scan of /proc takes about 45 ms on a host with 600 processes; at every 20 ms poll the wait
+        # did little but scan.
+        member = subprocess.Popen(["sleep", "60"], start_new_session=True)
+        self.addCleanup(member.wait)
+        self.addCleanup(member.kill)
+        scans = 0
+        scan = managed_subprocess._live_process_group_pids
+
+        def counted_scan(group: int) -> tuple[int, ...]:
+            nonlocal scans
+            scans += 1
+            return scan(group)
+
+        with patch.object(managed_subprocess, "_live_process_group_pids", counted_scan):
+            remaining = await managed_subprocess._wait_for_group_exit(member.pid, 0.3)
+        self.assertEqual((member.pid,), remaining)
+        # One scan to learn the members, one for what remains at the deadline.
+        self.assertLessEqual(scans, 2)
 
     async def test_repeated_timeout_cancel_and_recovery_do_not_poison_later_runs(self) -> None:
         """Failure cleanup must not leave shared state that blocks a later command."""

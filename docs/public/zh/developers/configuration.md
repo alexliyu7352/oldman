@@ -245,6 +245,7 @@ Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时�
 | `logging.max_bytes` | `0`(关闭)。按大小轮转,**要求 `rotate_when` 为 `null`**——两种轮转不能同时开 |
 | `logging.backup_count` | `3`,保留几份历史日志 |
 | `process.pid_dir` | 项目根下 `pids` |
+| `process.stop_timeout` | `60`（秒）。Web 与后台服务的 `stop` 等整个进程组退出的期限，到期对整组 SIGKILL；Taskiq 服务用 `taskiq.stop_timeout` |
 | `database.url` | `None`，用数据库前必须配置 |
 | `database.echo` | `None`，此时跟随 `core.debug` |
 | `database.enable_sql_logging` | `False` |

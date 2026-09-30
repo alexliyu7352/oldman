@@ -61,8 +61,10 @@ class SimpleApplication(BaseApplication):
             self.loop = new_event_loop()
             asyncio.set_event_loop(self.loop)
 
-            # 设置信号处理
-            self._setup_signal_handlers()
+            # 设置信号处理:在循环开始运行之后才装。uvloop 会丢掉"处理函数已装、循环还没运行"时到达的信号,
+            # 服务就收不到那次停止请求;call_soon 排在主任务第一步之前,主任务开始前处理函数已就位。
+            # 装上之前到达的 SIGTERM 按默认动作结束进程,与 init()、prepare() 期间相同。
+            self.loop.call_soon(self._setup_signal_handlers)
 
             # 运行主服务
             self._main_task = self.loop.create_task(self._run_async(*args, **kwargs))
@@ -76,12 +78,12 @@ class SimpleApplication(BaseApplication):
                 raise self._nats_error from error
         except KeyboardInterrupt:
             logger.info(f"{self.app_name} 收到中断信号，准备退出")
-        except Exception as e:
-            logger.error(f"{self.app_name} 运行异常: {e}")
-            # Keep existing business-error behavior, but required connection or
-            # cleanup failures cannot report successful startup.
-            if e is self._taskiq_error or self._nats_error is not None:
-                raise
+        except Exception:
+            # With the traceback: an ExceptionGroup's own message only counts its sub-exceptions.
+            # Raised on, as a Web service does, so the process exits non-zero and a manager that
+            # restarts on failure sees it; a requested stop above still ends normally.
+            logger.exception(f"{self.app_name} 运行异常")
+            raise
         finally:
             self._cleanup()
 

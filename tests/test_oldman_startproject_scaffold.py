@@ -19,12 +19,14 @@ from babel.messages.pofile import read_po
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from oldman.cli import tui
 from oldman.cli._main import create_app
 from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
 from oldman.cli.scaffold import DatabaseChoice, ProjectType, start_project
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
 from oldman.version import __VERSION__
+from tests.tui_support import without_preset_answers
 
 ROOT = Path(__file__).resolve().parents[1]
 I18N_CLI = (
@@ -99,17 +101,13 @@ def invoke_startproject(
     project_type: ProjectType,
     database: DatabaseChoice | None = None,
 ):
-    """Answer the public interactive prompts through Typer's real runner."""
-    answers = [project_type.value]
+    """Answer the public questions with preset answers through Typer's real runner."""
+    answers = {"OLDMAN_ANSWER_STARTPROJECT_TYPE": project_type.value}
     if project_type != ProjectType.CLI:
         assert database is not None
-        answers.append(database.value)
+        answers["OLDMAN_ANSWER_STARTPROJECT_DATABASE"] = database.value
     with working_directory(parent):
-        return CliRunner().invoke(
-            scaffold_cli(),
-            ["startproject", name],
-            input="\n".join(answers) + "\n",
-        )
+        return CliRunner().invoke(scaffold_cli(), ["startproject", name], env=answers)
 
 
 def read_yaml(path: Path) -> dict[str, object]:
@@ -117,6 +115,10 @@ def read_yaml(path: Path) -> dict[str, object]:
     payload = YAML(typ="safe", pure=True).load(path.read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
     return payload
+
+
+def setUpModule() -> None:
+    unittest.enterModuleContext(without_preset_answers())
 
 
 class StartProjectInteractionTests(unittest.TestCase):
@@ -156,32 +158,46 @@ class StartProjectInteractionTests(unittest.TestCase):
         self.assertEqual(generated, 16)
 
     def test_missing_database_answer_leaves_no_partial_project(self) -> None:
-        """EOF after choosing a Web template cannot leave copied files behind."""
+        """A Web project without a database answer stops before any file is copied."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
             with working_directory(parent):
                 result = CliRunner().invoke(
                     scaffold_cli(),
                     ["startproject", "unfinished"],
-                    input="web\n",
+                    env={"OLDMAN_ANSWER_STARTPROJECT_TYPE": "web"},
                 )
 
-            self.assertNotEqual(result.exit_code, 0)
+            self.assertEqual(result.exit_code, 2, result.output)
+            self.assertIn("OLDMAN_ANSWER_STARTPROJECT_DATABASE", result.output)
             self.assertFalse((parent / "unfinished").exists())
 
     def test_cancelled_project_choice_leaves_no_partial_project(self) -> None:
-        """An interrupted first prompt cannot create the target directory."""
+        """An interrupted first question cannot create the target directory."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
-            with working_directory(parent):
-                result = CliRunner().invoke(
-                    scaffold_cli(),
-                    ["startproject", "cancelled"],
-                    input="\x03",
-                )
+            with working_directory(parent), tui.simulate_input([KeyboardInterrupt]):
+                result = CliRunner().invoke(scaffold_cli(), ["startproject", "cancelled"])
 
-            self.assertNotEqual(result.exit_code, 0)
+            self.assertEqual(result.exit_code, 1, result.output)
+            self.assertIn("Aborted.", result.output)
             self.assertFalse((parent / "cancelled").exists())
+
+    def test_a_dashboard_needs_a_database(self) -> None:
+        """Asked again at the terminal; a preset answer without one is an error before any write."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            with working_directory(parent), tui.simulate_input(["dashboard", "none", "sqlite"]):
+                result = CliRunner().invoke(scaffold_cli(), ["startproject", "asked"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Dashboard projects require a database.", result.output)
+
+            preset = {"OLDMAN_ANSWER_STARTPROJECT_TYPE": "dashboard", "OLDMAN_ANSWER_STARTPROJECT_DATABASE": "none"}
+            with working_directory(parent):
+                result = CliRunner().invoke(scaffold_cli(), ["startproject", "preset"], env=preset)
+            self.assertEqual(result.exit_code, 2, result.output)
+            self.assertIn("OLDMAN_ANSWER_STARTPROJECT_DATABASE is not valid: Dashboard projects require a database.", result.output)
+            self.assertFalse((parent / "preset").exists())
 
     def test_non_tty_without_answers_leaves_no_partial_project(self) -> None:
         """Automation cannot silently receive the former Web defaults."""
@@ -198,6 +214,7 @@ class StartProjectInteractionTests(unittest.TestCase):
             )
 
             self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("OLDMAN_ANSWER_STARTPROJECT_TYPE", completed.stderr)
             self.assertFalse((parent / "unattended").exists())
 
     def test_nonempty_target_is_rejected_without_overwriting_it(self) -> None:
@@ -381,19 +398,18 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             )
 
     def test_gitignore_excludes_service_settings(self) -> None:
-        """Generated projects do not commit service-specific settings and secrets."""
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            with working_directory(Path(temporary_directory)):
-                target = start_project(
-                    "portal",
-                    project_type=ProjectType.WEB,
-                    db=DatabaseChoice.SQLITE,
-                )
+        """Generated projects do not commit service-specific settings, secrets, logs or pid files."""
+        for project_type in (ProjectType.SERVICE, ProjectType.API, ProjectType.WEB, ProjectType.DASHBOARD):
+            with self.subTest(project_type=project_type), tempfile.TemporaryDirectory() as temporary_directory:
+                with working_directory(Path(temporary_directory)):
+                    target = start_project("portal", project_type=project_type, db=DatabaseChoice.SQLITE)
+                gitignore = (target / ".gitignore").read_text(encoding="utf-8").splitlines()
 
-            gitignore = (target / ".gitignore").read_text(encoding="utf-8")
-
-        self.assertIn("/data/*_settings.yaml", gitignore)
-        self.assertNotIn("/data/settings.yaml", gitignore)
+                self.assertIn("/data/*_settings.yaml", gitignore)
+                self.assertNotIn("/data/settings.yaml", gitignore)
+                # logging.dir and process.pid_dir default to these; the first command already creates logs/.
+                self.assertIn("/logs/", gitignore)
+                self.assertIn("/pids/", gitignore)
 
     def test_dashboard_frontend_and_release_versions_are_preserved(self) -> None:
         """The settings refactor does not replace the established dashboard assets."""

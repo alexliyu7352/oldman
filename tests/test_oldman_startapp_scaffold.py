@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from oldman.cli._main import create_app
 from oldman.cli.localization import CliLanguageState
 from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, start_project
+from tests.tui_support import without_preset_answers
 
 
 @contextlib.contextmanager
@@ -51,13 +52,17 @@ def invoke_startapp(
     app_type: AppType,
     display_name: str,
 ):
-    """Answer both public prompts from a nested project directory."""
+    """Answer both public questions with preset answers from a nested project directory."""
     with working_directory(project / "apps"):
         return CliRunner().invoke(
             scaffold_cli(),
             ["startapp", name],
-            input=f"{app_type.value}\n{display_name}\n",
+            env={"OLDMAN_ANSWER_STARTAPP_TEMPLATE": app_type.value, "OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME": display_name},
         )
+
+
+def setUpModule() -> None:
+    unittest.enterModuleContext(without_preset_answers())
 
 
 class StartAppScaffoldTests(unittest.TestCase):
@@ -138,19 +143,31 @@ class StartAppScaffoldTests(unittest.TestCase):
             ast.parse(source)
             self.assertIn(repr(display_name), source)
 
-    def test_missing_display_name_answer_leaves_no_partial_app(self) -> None:
-        """EOF after the template choice occurs before filesystem writes."""
+    def test_missing_template_answer_leaves_no_partial_app(self) -> None:
+        """Without a terminal or a preset template the command stops before filesystem writes."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            project = create_web_project(Path(temporary_directory))
+            with working_directory(project):
+                result = CliRunner().invoke(scaffold_cli(), ["startapp", "unfinished"])
+
+            self.assertEqual(result.exit_code, 2, result.output)
+            self.assertIn("OLDMAN_ANSWER_STARTAPP_TEMPLATE", result.output)
+            self.assertFalse((project / "apps" / "unfinished").exists())
+
+    def test_the_display_name_defaults_to_the_humanized_name(self) -> None:
+        """Only the template has no sensible default; an unattended run may leave the name out."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = create_web_project(Path(temporary_directory))
             with working_directory(project):
                 result = CliRunner().invoke(
                     scaffold_cli(),
-                    ["startapp", "unfinished"],
-                    input="api\n",
+                    ["startapp", "sales_reports"],
+                    env={"OLDMAN_ANSWER_STARTAPP_TEMPLATE": "api"},
                 )
 
-            self.assertNotEqual(result.exit_code, 0)
-            self.assertFalse((project / "apps" / "unfinished").exists())
+            self.assertEqual(result.exit_code, 0, result.output)
+            source = (project / "apps" / "sales_reports" / "apps.py").read_text(encoding="utf-8")
+            self.assertIn("'Sales Reports'", source)
 
     def test_existing_app_is_rejected_without_partial_overwrite(self) -> None:
         """A target conflict is detected before copying any App file."""

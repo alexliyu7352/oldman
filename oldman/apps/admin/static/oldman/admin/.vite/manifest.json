@@ -30,17 +30,17 @@
     "isDynamicEntry": true
   },
   "../../packages/oldman-web/src/components/autocomplete.ts": {
-    "file": "assets/autocomplete-BxTE_nEO.js",
+    "file": "assets/autocomplete-BlWC9qee.js",
     "name": "autocomplete",
     "src": "../../packages/oldman-web/src/components/autocomplete.ts",
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
-      "_select-DR2KGlgp.js"
+      "_select-BrXzEtnr.js"
     ]
   },
   "../../packages/oldman-web/src/components/date-time-picker.ts": {
-    "file": "assets/date-time-picker-vOt0JxQc.js",
+    "file": "assets/date-time-picker-CMM5fu5c.js",
     "name": "date-time-picker",
     "src": "../../packages/oldman-web/src/components/date-time-picker.ts",
     "isDynamicEntry": true,
@@ -52,7 +52,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/dropdown.ts": {
-    "file": "assets/dropdown-Cr5Mgv3C.js",
+    "file": "assets/dropdown-CW8RqZbW.js",
     "name": "dropdown",
     "src": "../../packages/oldman-web/src/components/dropdown.ts",
     "isDynamicEntry": true,
@@ -62,7 +62,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/form-validator.ts": {
-    "file": "assets/form-validator-BZM7uzfq.js",
+    "file": "assets/form-validator-DtTCOorQ.js",
     "name": "form-validator",
     "src": "../../packages/oldman-web/src/components/form-validator.ts",
     "isDynamicEntry": true,
@@ -71,7 +71,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/form.ts": {
-    "file": "assets/form-BirI7_pM.js",
+    "file": "assets/form-D-9_ptUZ.js",
     "name": "form",
     "src": "../../packages/oldman-web/src/components/form.ts",
     "isDynamicEntry": true,
@@ -80,7 +80,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/language-switcher.ts": {
-    "file": "assets/language-switcher-Clb0rLIC.js",
+    "file": "assets/language-switcher-B9zyHaIr.js",
     "name": "language-switcher",
     "src": "../../packages/oldman-web/src/components/language-switcher.ts",
     "isDynamicEntry": true,
@@ -89,7 +89,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/popover.ts": {
-    "file": "assets/popover-BXC_Omkn.js",
+    "file": "assets/popover-B3JUPUTu.js",
     "name": "popover",
     "src": "../../packages/oldman-web/src/components/popover.ts",
     "isDynamicEntry": true,
@@ -99,7 +99,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/preloader.ts": {
-    "file": "assets/preloader-CfvUuvsh.js",
+    "file": "assets/preloader-BWZzFRHf.js",
     "name": "preloader",
     "src": "../../packages/oldman-web/src/components/preloader.ts",
     "isDynamicEntry": true,
@@ -108,7 +108,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/sidebar-menu.ts": {
-    "file": "assets/sidebar-menu-DAKjroZE.js",
+    "file": "assets/sidebar-menu-D3Lc9HZ4.js",
     "name": "sidebar-menu",
     "src": "../../packages/oldman-web/src/components/sidebar-menu.ts",
     "isDynamicEntry": true,
@@ -118,7 +118,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/table-filter-form.ts": {
-    "file": "assets/table-filter-form-DC9swJFO.js",
+    "file": "assets/table-filter-form-CxAZFQqf.js",
     "name": "table-filter-form",
     "src": "../../packages/oldman-web/src/components/table-filter-form.ts",
     "isDynamicEntry": true,
@@ -137,7 +137,7 @@
     "isDynamicEntry": true
   },
   "../../packages/oldman-web/src/components/table.ts": {
-    "file": "assets/table-CBngObwK.js",
+    "file": "assets/table-C4tx5DQf.js",
     "name": "table",
     "src": "../../packages/oldman-web/src/components/table.ts",
     "isDynamicEntry": true,
@@ -151,7 +151,7 @@
     ]
   },
   "../../packages/oldman-web/src/components/tooltip.ts": {
-    "file": "assets/tooltip-DkI8atJA.js",
+    "file": "assets/tooltip-DDGg87zy.js",
     "name": "tooltip",
     "src": "../../packages/oldman-web/src/components/tooltip.ts",
     "isDynamicEntry": true,
@@ -161,7 +161,7 @@
     ]
   },
   "../../packages/oldman-web/src/dashboard/modal.ts": {
-    "file": "assets/modal-DKRIMMKI.js",
+    "file": "assets/modal-Br2LgB73.js",
     "name": "modal",
     "src": "../../packages/oldman-web/src/dashboard/modal.ts",
     "isDynamicEntry": true,
@@ -177,8 +177,8 @@
     "file": "assets/select-BnyRxOjF.css",
     "src": "_select-!~{00e}~.js"
   },
-  "_select-DR2KGlgp.js": {
-    "file": "assets/select-DR2KGlgp.js",
+  "_select-BrXzEtnr.js": {
+    "file": "assets/select-BrXzEtnr.js",
     "name": "select",
     "isDynamicEntry": true,
     "imports": [
@@ -189,7 +189,7 @@
     ]
   },
   "src/main.ts": {
-    "file": "assets/main-B4YKoLVg.js",
+    "file": "assets/main-DMcAuiz7.js",
     "name": "main",
     "src": "src/main.ts",
     "isEntry": true,
@@ -206,7 +206,7 @@
       "../../packages/oldman-web/src/dashboard/modal.ts",
       "../../packages/oldman-web/src/components/popover.ts",
       "../../packages/oldman-web/src/components/preloader.ts",
-      "_select-DR2KGlgp.js",
+      "_select-BrXzEtnr.js",
       "../../packages/oldman-web/src/components/table-filter-form.ts",
       "../../packages/oldman-web/src/components/tooltip.ts"
     ],

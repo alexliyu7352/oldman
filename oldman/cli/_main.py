@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
@@ -11,6 +12,7 @@ from typer import _click
 from typer.core import TyperCommand, TyperGroup, TyperOption
 from typer.main import get_command
 
+from oldman.cli import tui
 from oldman.cli.discovery import discover_services
 from oldman.cli.i18n_commands import (
     build_frontend_catalogs,
@@ -224,6 +226,33 @@ def _print_settings_diagnostics(manager: Any) -> None:
         )
 
 
+@contextmanager
+def _answering() -> Iterator[None]:
+    """Stop a scaffold command cleanly when its questions cannot be answered.
+
+    Cancelling (Ctrl-C, end of input) reads "Aborted." with exit code 1, as the former prompts
+    did. No terminal and no preset answer, or a preset answer that does not fit, is a usage error
+    naming the `OLDMAN_ANSWER_*` variable to set. Nothing has been written at that point.
+    """
+    try:
+        yield
+    except tui.Cancelled:
+        typer.echo(gettext("Aborted."), err=True)
+        raise typer.Exit(1) from None
+    except ValueError as exc:
+        _exit_with_error(str(exc))
+
+
+def _database_for(project_type: ProjectType) -> Callable[[DatabaseChoice], None]:
+    """The database check for one project type: a dashboard stores its users and roles."""
+
+    def check(database: DatabaseChoice) -> None:
+        if project_type == ProjectType.DASHBOARD and database == DatabaseChoice.NONE:
+            raise ValueError(gettext("Dashboard projects require a database."))
+
+    return check
+
+
 def _startproject_command(
     name: Annotated[
         str,
@@ -231,30 +260,16 @@ def _startproject_command(
     ],
 ) -> None:
     """Create one project scaffold."""
-    project_type = ProjectType(
-        typer.prompt(
-            gettext("Project type [cli/service/api/web/dashboard]"),
-            type=ProjectType,
-        )
-    )
-    if project_type == ProjectType.CLI:
-        database = DatabaseChoice.NONE
-    else:
-        while True:
-            database = DatabaseChoice(
-                typer.prompt(
-                    gettext("Database [none/sqlite/mysql/postgres]"),
-                    type=DatabaseChoice,
-                )
-            )
-            if (
-                project_type != ProjectType.DASHBOARD
-                or database != DatabaseChoice.NONE
-            ):
-                break
-            typer.echo(
-                gettext("Dashboard projects require a database."),
-                err=True,
+    with _answering():
+        project_type = tui.choose(gettext("Project type"), list(ProjectType), key="startproject.type")
+        if project_type == ProjectType.CLI:
+            database = DatabaseChoice.NONE
+        else:
+            database = tui.choose(
+                gettext("Database"),
+                list(DatabaseChoice),
+                key="startproject.database",
+                validate=_database_for(project_type),
             )
     try:
         target = start_project(
@@ -274,21 +289,9 @@ def _startapp_command(
     ],
 ) -> None:
     """Create one application scaffold."""
-    app_type = AppType(
-        typer.prompt(
-            gettext("App template [service/api/web/dashboard]"),
-            type=AppType,
-        )
-    )
-    suggested_display_name = humanize_name(name)
-    while True:
-        display_name = typer.prompt(
-            gettext("Display name"),
-            default=suggested_display_name,
-        ).strip()
-        if display_name:
-            break
-        typer.echo(gettext("Display name cannot be empty."), err=True)
+    with _answering():
+        app_type = tui.choose(gettext("App template"), list(AppType), key="startapp.template")
+        display_name = tui.ask(gettext("Display name"), default=humanize_name(name), key="startapp.display_name")
     try:
         created = start_app(
             name,
@@ -309,12 +312,8 @@ def _startservice_command(
     ],
 ) -> None:
     """Create one standalone service module."""
-    service_type = ServiceType(
-        typer.prompt(
-            gettext("Service type [simple/web/taskiq_worker/taskiq_scheduler]"),
-            type=ServiceType,
-        )
-    )
+    with _answering():
+        service_type = tui.choose(gettext("Service type"), list(ServiceType), key="startservice.type")
     try:
         created = start_service(name, service_type=service_type)
     except (FileExistsError, ValueError) as exc:
@@ -1049,6 +1048,11 @@ def run(
     if selected_definition is not None:
         from oldman.cli.service import load_selected_service
 
+        # Runtime commands (start, stop, restart, App commands) always read the default
+        # data/<service>_settings.yaml; there is deliberately no --config for them. It would have to
+        # reach all of them alike, since stop and restart find the running service through the pid
+        # directory its settings name. settings, shell, mail and static take --config; a script
+        # can call bootstrap_service(..., config_file=...).
         try:
             service_class, app_registry = load_selected_service(
                 selected_definition

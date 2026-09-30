@@ -6,7 +6,7 @@ import base64
 import copy
 import io
 import secrets
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -14,6 +14,7 @@ from pydantic import BaseModel, ValidationError
 from pydantic.fields import FieldInfo
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.tokens import CommentToken
 
 from oldman.apps import AppRegistry
 from oldman.conf.base import SettingsFileMissingError, new_yaml
@@ -360,18 +361,17 @@ class SettingsManager[T_Settings: DefaultSettings]:
 
     def _write_config_file(self, data: Mapping[str, Any]) -> None:
         """Render completely, then replace the settings file in one step (see atomic_write)."""
-        documented_data = apply_schema_descriptions(data, self.settings_class)
+        documented_data = _commented_copy(data)
+        sections: list[tuple[CommentedMap, type[BaseModel], int]] = [(documented_data, self.settings_class, 0)]
         raw_app_settings = documented_data.get("app_settings")
         if isinstance(raw_app_settings, Mapping):
-            mutable_app_settings = cast(dict[str, Any], raw_app_settings)
+            app_settings = documented_data["app_settings"] = _commented(raw_app_settings)
             for label, instance in self.app_settings.items():
-                values = mutable_app_settings.get(label)
+                values = app_settings.get(label)
                 if isinstance(values, Mapping):
-                    mutable_app_settings[label] = apply_schema_descriptions(
-                        values,
-                        type(instance),
-                        indent=2,
-                    )
+                    # An App's fields sit two levels in: app_settings -> label -> field.
+                    sections.append((_commented_value(app_settings, label), type(instance), 4))
+        _describe_fields(documented_data, sections)
 
         rendered = io.StringIO()
         self._round_trip_yaml().dump(documented_data, rendered)
@@ -525,30 +525,95 @@ def apply_schema_descriptions(
     *,
     indent: int = 0,
 ) -> CommentedMap:
-    """Attach field descriptions while preserving existing YAML comments."""
-    documented = copy.deepcopy(data) if isinstance(data, CommentedMap) else CommentedMap(copy.deepcopy(dict(data)))
-    for key, value in list(documented.items()):
+    """Put each field's description one line above its key, exactly once, keeping every other comment."""
+    documented = _commented_copy(data)
+    _describe_fields(documented, [(documented, model_class, indent)])
+    return documented
+
+
+def _commented(mapping: Mapping[str, Any]) -> CommentedMap:
+    return mapping if isinstance(mapping, CommentedMap) else CommentedMap(mapping)
+
+
+def _commented_copy(data: Mapping[str, Any]) -> CommentedMap:
+    return copy.deepcopy(data) if isinstance(data, CommentedMap) else CommentedMap(copy.deepcopy(dict(data)))
+
+
+def _commented_value(mapping: CommentedMap, key: Any) -> CommentedMap:
+    """The mapping under `key` as a CommentedMap, replacing a plain dict so it can carry comments."""
+    value = mapping[key] = _commented(mapping[key])
+    return value
+
+
+def _description_placements(
+    mapping: CommentedMap,
+    model_class: type[BaseModel],
+    indent: int,
+) -> list[tuple[CommentedMap, Any, str, int]]:
+    """Each described field of `model_class` present in `mapping`, nested models included."""
+    placements: list[tuple[CommentedMap, Any, str, int]] = []
+    for key, value in list(mapping.items()):
         resolved = _field_for_input_key(model_class, str(key))
         if resolved is None:
             continue
         field_info = resolved[1]
         nested_model = direct_model_class(field_info.annotation)
         if nested_model is not None and isinstance(value, Mapping):
-            documented[key] = apply_schema_descriptions(
-                value,
-                nested_model,
-                indent=indent + 2,
-            )
+            placements.extend(_description_placements(_commented_value(mapping, key), nested_model, indent + 2))
+        if field_info.description:
+            placements.append((mapping, key, field_info.description, indent))
+    return placements
 
-        existing_comment = documented.ca.items.get(key)
-        has_comment = bool(existing_comment and any(part is not None for part in existing_comment))
-        if field_info.description and not has_comment:
-            documented.yaml_set_comment_before_after_key(
-                key,
-                before=field_info.description,
-                indent=indent,
-            )
-    return documented
+
+def _describe_fields(document: CommentedMap, sections: list[tuple[CommentedMap, type[BaseModel], int]]) -> None:
+    """Describe every field of every section once, however often the file has been written before.
+
+    ruamel does not keep a comment line on the key it stands above: reading the file back puts it
+    at the end of whatever precedes the key (the previous value, the head of the mapping), so "does
+    this key already have its description" cannot be answered by looking at the key — that is how
+    each sync used to add every description again. Instead, every comment line that is exactly one
+    of the descriptions is removed wherever it sits, and each description is then put back above
+    its key. Other comments stay; copies left by earlier versions merge into one.
+    """
+    placements = [placement for mapping, model, indent in sections for placement in _description_placements(mapping, model, indent)]
+    _drop_comment_lines(document, {f"# {text}" for _mapping, _key, text, _indent in placements})
+    for mapping, key, text, indent in placements:
+        mapping.yaml_set_comment_before_after_key(key, before=text, indent=indent)
+
+
+def _drop_comment_lines(node: Any, lines: set[str]) -> None:
+    """Remove every full comment line in `lines` from the comments of `node` and everything under it."""
+    comments = getattr(node, "ca", None)
+    if comments is not None:
+        _drop_from_slots(comments.comment, lines)
+        _drop_from_slots([comments.end], lines)
+        for slots in comments.items.values():
+            _drop_from_slots(slots, lines)
+    if isinstance(node, Mapping):
+        children: Iterable[Any] = node.values()
+    elif isinstance(node, list):
+        children = node
+    else:
+        children = ()
+    for child in children:
+        _drop_comment_lines(child, lines)
+
+
+def _drop_from_slots(slots: list[Any] | None, lines: set[str]) -> None:
+    """A slot is a list of whole comment lines, or one comment that begins on the line of a value."""
+    for slot in slots or ():
+        if isinstance(slot, list):
+            kept = []
+            for token in slot:
+                token.value = "".join(line for line in token.value.splitlines(keepends=True) if line.strip() not in lines)
+                if token.value:
+                    kept.append(token)
+            # In place: ruamel may hold the same list for a mapping and the key above it.
+            slot[:] = kept
+        elif isinstance(slot, CommentToken):
+            # The first line ends the value's own line (a newline or an end-of-line comment): never removed.
+            first, *rest = slot.value.splitlines(keepends=True) or [""]
+            slot.value = first + "".join(line for line in rest if line.strip() not in lines)
 
 
 __all__ = [

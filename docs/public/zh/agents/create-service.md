@@ -35,10 +35,10 @@ uv tool install --python 3.13 oldman
 在准备存放项目的父目录执行：
 
 ```sh
-oldman startproject my_site
+OLDMAN_ANSWER_STARTPROJECT_TYPE=api OLDMAN_ANSWER_STARTPROJECT_DATABASE=none oldman startproject my_site
 ```
 
-交互选择 api、none 可生成不配置数据库的 API 项目。进入生成目录后安装依赖，运行：
+两个环境变量预置了项目类型和数据库两个问题的答案（api、none 生成不配置数据库的 API 项目）；agent 的执行环境不是终端，不预置就会报错并写出缺哪个变量，从管道喂答案也不会被读取。其他取值见 [CLI 参考](../developers/cli.md#项目级命令)。进入生成目录后安装依赖，运行：
 
 ```sh
 cd my_site

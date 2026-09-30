@@ -586,9 +586,9 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                     await asyncio.gather(reply, return_exceptions=True)
 
     async def test_disabled_shutdown_and_startup_failures(self) -> None:
-        """Keep disabled/legacy business behavior, but fail required NATS startup."""
+        """A business error in before_start fails the service like a NATS failure; hooks still run."""
         for mode, enabled, success in (("disabled", False, True), ("shutdown", True, True),
-                                       ("start-fail", True, True), ("peer-fail", True, False)):
+                                       ("start-fail", True, False), ("peer-fail", True, False)):
             with self.subTest(mode=mode):
                 process = self.launch(mode, enabled=enabled)
                 lines = await self.finish(mode, process, success=success)

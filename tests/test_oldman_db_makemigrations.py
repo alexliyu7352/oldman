@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import textwrap
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
+
+from tests.tui_support import TerminalStream
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ID = "9714d0a3-3f2b-48aa-88d7-c0869b2a6f25"
@@ -86,6 +91,24 @@ def _project_source(packages: tuple[str, ...]) -> str:
 def _joined(*sources: str) -> str:
     """Dedent separately authored source fragments before concatenating them."""
     return "".join(textwrap.dedent(source) for source in sources)
+
+
+class ConsoleMigrationInteractionTest(unittest.TestCase):
+    def test_a_question_is_refused_unless_stdout_shows_it_too(self) -> None:
+        """`db migrate > out.txt`: the question would go into the file while the command waited."""
+        from oldman.db.migrations.interaction import ConsoleMigrationInteraction, MigrationInteractionRequired
+
+        interaction = ConsoleMigrationInteraction()
+        redirected = io.StringIO()
+        with patch.object(sys, "stdin", TerminalStream("1\n")), redirect_stdout(redirected):
+            self.assertFalse(interaction.is_interactive)
+            with self.assertRaisesRegex(MigrationInteractionRequired, "interactive terminal"):
+                interaction.choose("Choose the migration scope.", ("all", "cancel"))
+        self.assertEqual("", redirected.getvalue())
+
+        with patch.object(sys, "stdin", TerminalStream("1\n")), redirect_stdout(TerminalStream()):
+            self.assertTrue(interaction.is_interactive)
+            self.assertEqual("all", interaction.choose("Choose the migration scope.", ("all", "cancel")))
 
 
 class OldmanMakemigrationsTests(unittest.TestCase):
@@ -548,11 +571,13 @@ class OldmanMakemigrationsTests(unittest.TestCase):
                 _project_source(("alpha", "beta")),
                 """
             import io
+            import sys
 
             from oldman.db.migrations.interaction import ConsoleMigrationInteraction, MigrationInteractionRequired
             from oldman.db.migrations.revisions import make_migration
 
-            interaction = ConsoleMigrationInteraction(input_stream=io.StringIO(), output_stream=io.StringIO())
+            sys.stdin = io.StringIO()  # not a terminal
+            interaction = ConsoleMigrationInteraction()
             try:
                 make_migration(project, interaction)
             except MigrationInteractionRequired as exc:
@@ -600,6 +625,9 @@ class OldmanMakemigrationsTests(unittest.TestCase):
                 source = generated.path.read_text(encoding="utf-8")
                 assert "down_revision: str | Sequence[str] | None = None" in source
                 assert "branch_labels: str | Sequence[str] | None = ('alpha',)" in source
+                # The first revision revises nothing: no trailing space after "Revises:" for linters to flag.
+                trailing = [line for line in source.splitlines() if line != line.rstrip()]
+                assert trailing == [], trailing
                 """,
             ),
         )
@@ -660,6 +688,7 @@ class OldmanMakemigrationsTests(unittest.TestCase):
                 assert generated is not None
                 source = generated.path.read_text(encoding="utf-8")
                 assert "down_revision: str | Sequence[str] | None = 'a1'" in source
+                assert "Revises: a1" in source.splitlines(), source
                 assert "branch_labels: str | Sequence[str] | None = None" in source
                 """,
             ),

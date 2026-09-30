@@ -5,11 +5,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
+import select
+import signal
+import socket
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -558,6 +563,120 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         loader_type.assert_called_once()
         serve.assert_called_once_with(primary=primary, app_loader=loader)
         application._close_logging.assert_called_once_with()
+
+    def test_a_server_error_is_raised_with_its_traceback_logged(self) -> None:
+        application = ConcreteWebApplication("primary")
+        application.create_app = Mock(return_value=Mock(serve_location="http://127.0.0.1:9000"))  # type: ignore[method-assign]
+        application.prepare_server = Mock()  # type: ignore[method-assign]
+        application._close_logging = Mock()  # type: ignore[method-assign]
+
+        def broken_listener(**_kwargs: Any) -> None:
+            raise OSError("address already in use")
+
+        with (
+            patch("oldman.runtime.web.AppLoader"),
+            patch("oldman.runtime.web.Sanic.serve", side_effect=broken_listener),
+            self.assertLogs("default", level="ERROR") as logs,
+            self.assertRaises(OSError),
+        ):
+            application.run()
+        failure = next(record for record in logs.records if "Error while running the server" in record.getMessage())
+        self.assertIsNotNone(failure.exc_info)
+        self.assertIn("broken_listener", logging.Formatter().format(failure))
+
+    def test_the_primary_process_installs_the_ack_wait_fix_before_serving(self) -> None:
+        from sanic.worker.manager import WorkerManager
+
+        import oldman.runtime.web as web
+
+        self.addCleanup(setattr, WorkerManager, "wait_for_ack", web._SANIC_WAIT_FOR_ACK)
+        WorkerManager.wait_for_ack = web._SANIC_WAIT_FOR_ACK  # type: ignore[method-assign]
+        application = ConcreteWebApplication("primary")
+        primary = Mock(serve_location="http://127.0.0.1:9000")
+        application.create_app = Mock(return_value=primary)  # type: ignore[method-assign]
+        application.prepare_server = Mock()  # type: ignore[method-assign]
+        application._close_logging = Mock()  # type: ignore[method-assign]
+        with patch("oldman.runtime.web.AppLoader"), patch("oldman.runtime.web.Sanic.serve"):
+            application.run()
+        self.assertIs(web._wait_for_ack, WorkerManager.wait_for_ack)
+
+    def test_sanic_still_has_the_wait_for_ack_the_fix_replaces(self) -> None:
+        """The fix copies Sanic 25.12.1's method; a Sanic that changes it needs the fix looked at again."""
+        import hashlib
+        import inspect
+
+        import oldman.runtime.web as web
+
+        source = inspect.getsource(web._SANIC_WAIT_FOR_ACK)
+        self.assertEqual(
+            "f08ad25923f550492ba62c44dc615e9788ed092171f5cad1ab900af81c049919",
+            hashlib.sha256(source.encode()).hexdigest(),
+            "Sanic's WorkerManager.wait_for_ack changed: check whether it now leaves on the shutdown "
+            "signal's None, and drop or update oldman.runtime.web._wait_for_ack.",
+        )
+
+    def test_a_shutdown_signal_while_workers_start_ends_the_primary_process(self) -> None:
+        """Sanic 25.12.1 spun forever: its startup wait put the shutdown signal's None back and waited again."""
+        script = textwrap.dedent(
+            """
+            import asyncio
+            import sys
+
+            from sanic import Sanic
+            from sanic.response import text
+
+            from oldman.runtime.web import _leave_ack_wait_on_shutdown
+
+            app = Sanic("SlowStart")
+
+
+            @app.get("/")
+            async def index(request):
+                return text("ok")
+
+
+            @app.before_server_start
+            async def slow(app):
+                print("worker starting", flush=True)
+                await asyncio.sleep(30)
+
+
+            if __name__ == "__main__":
+                _leave_ack_wait_on_shutdown()
+                app.run(host="127.0.0.1", port=int(sys.argv[1]), workers=1, access_log=False, motd=False)
+            """
+        )
+        with tempfile.TemporaryDirectory() as directory, socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+            probe.close()
+            path = Path(directory) / "slow_start.py"
+            path.write_text(script)
+            process = subprocess.Popen(
+                [sys.executable, str(path), str(port)],
+                cwd=directory,
+                env={**os.environ, "PYTHONPATH": str(ROOT)},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            stdout = process.stdout
+            assert stdout is not None
+            try:
+                output = b""
+                deadline = time.monotonic() + 20
+                while b"worker starting" not in output:
+                    self.assertLess(time.monotonic(), deadline, output.decode(errors="replace"))
+                    ready, _, _ = select.select([stdout], [], [], 0.1)
+                    if ready:
+                        output += os.read(stdout.fileno(), 4096)
+                os.kill(process.pid, signal.SIGTERM)
+                process.wait(timeout=15)
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+                stdout.close()
 
     def test_spawn_worker_bootstraps_before_importing_service_module(self) -> None:
         """A spawned worker rebuilds settings and Apps before importing service code."""

@@ -80,11 +80,11 @@ msgid "Project directory name."
 msgstr ""
 
 #: oldman/cli/_main.py:235
-msgid "Project type [cli/service/api/web/dashboard]"
+msgid "Project type"
 msgstr ""
 
 #: oldman/cli/_main.py:245
-msgid "Database [none/sqlite/mysql/postgres]"
+msgid "Database"
 msgstr ""
 
 #: oldman/cli/_main.py:255
@@ -101,16 +101,13 @@ msgid "Application name."
 msgstr ""
 
 #: oldman/cli/_main.py:278
-msgid "App template [service/api/web/dashboard]"
+msgid "App template"
 msgstr ""
 
 #: oldman/cli/_main.py:285
 msgid "Display name"
 msgstr ""
 
-#: oldman/cli/_main.py:290
-msgid "Display name cannot be empty."
-msgstr ""
 
 #: oldman/cli/_main.py:300
 #, python-format
@@ -122,7 +119,7 @@ msgid "Service module name."
 msgstr ""
 
 #: oldman/cli/_main.py:313
-msgid "Service type [simple/web/taskiq_worker/taskiq_scheduler]"
+msgid "Service type"
 msgstr ""
 
 #: oldman/cli/_main.py:322
@@ -610,4 +607,127 @@ msgstr ""
 
 #: oldman/cli/_main.py oldman/cli/mail.py
 msgid "If you're reading this, the mail settings of this service work."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:75
+#, python-format
+msgid "%(label)s needs an answer, but stdin and the output are not both terminals."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:80
+msgid "Enter a whole number."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:82
+msgid "Enter a number."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:84 oldman/cli/tui/inputs.py:148
+msgid "Invalid value."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:134
+msgid "This value is required."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:142
+#, python-format
+msgid "Choose one of: %(choices)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:150
+#, python-format
+msgid "Confirm %(label)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:151
+msgid "The two entries do not match."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:159
+msgid "yes"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:159
+msgid "no"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:177
+msgid "Answer yes or no."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:248
+#, python-format
+msgid "Enter a number from 1 to %(count)d."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:273
+#, python-format
+msgid "Not in the list: %(item)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:294
+#, python-format
+msgid "%(variable)s must be true or false, not %(value)r."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:139
+#, python-format
+msgid "%(variable)s is not valid: %(error)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:348
+#, python-format
+msgid "%(variable)s must be one of: %(choices)s"
+msgstr ""
+
+#: oldman/cli/tui/forms.py:65 oldman/cli/tui/forms.py:70
+#, python-format
+msgid "Ignoring the saved answers in %(path)s: %(error)s"
+msgstr ""
+
+#: oldman/cli/tui/forms.py:70
+msgid "not a JSON object"
+msgstr ""
+
+#: oldman/cli/tui/menus.py:62
+msgid "Quit"
+msgstr ""
+
+#: oldman/cli/tui/menus.py:69
+msgid "Back"
+msgstr ""
+
+#: oldman/cli/tui/menus.py:83
+#, python-format
+msgid "Enter a number from 0 to %(count)d."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py:134
+#, python-format
+msgid "%(label)s needs an answer: run it in a terminal or set %(variable)s."
+msgstr ""
+
+#: oldman/cli/_main.py:477
+msgid "Service whose settings describe the languages."
+msgstr ""
+
+#: oldman/cli/_main.py:481
+msgid "Building frontend catalogs..."
+msgstr ""
+
+#: oldman/cli/_main.py:796
+msgid "Build browser catalogs and the frontend language manifest."
+msgstr ""
+
+#: oldman/cli/i18n_commands.py:75
+#, python-format
+msgid ""
+"Settings file %(path)s does not exist; create it or pass another service "
+"with --service."
+msgstr ""
+
+#: oldman/cli/tui/forms.py:66
+#, python-format
+msgid "Ignoring the saved answer for %(label)s: %(error)s"
 msgstr ""

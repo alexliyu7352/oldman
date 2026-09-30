@@ -130,14 +130,14 @@ export class Table extends Component {
     }
 
     this.listen(this.root, "om:table:reload", () => {
-      void this.reload();
+      this.settleUnawaited(this.reload());
     });
 
     this.on("input", TABLE_FILTER_SELECTOR, () => {
       this.searchInteracted = true;
       if (this.isServerMode()) {
         this.currentPage = 1;
-        void this.refresh();
+        this.settleUnawaited(this.refresh());
         return;
       }
 
@@ -151,7 +151,7 @@ export class Table extends Component {
 
       if (this.isServerMode()) {
         this.currentPage = this.pageFromTarget(target);
-        void this.refresh(this.buildUrl(target));
+        this.settleUnawaited(this.refresh(this.buildUrl(target)));
         return;
       }
 
@@ -161,7 +161,7 @@ export class Table extends Component {
     this.on("change", TABLE_PAGE_SIZE_CONTROL_SELECTOR, () => {
       this.currentPage = 1;
       if (this.isServerMode()) {
-        void this.refresh(this.buildUrl(undefined, { page: 1 }));
+        this.settleUnawaited(this.refresh(this.buildUrl(undefined, { page: 1 })));
         return;
       }
 
@@ -174,7 +174,7 @@ export class Table extends Component {
 
       if (this.isServerMode()) {
         this.setRemoteSort(target);
-        void this.refresh(this.buildUrl(target));
+        this.settleUnawaited(this.refresh(this.buildUrl(target)));
         return;
       }
 
@@ -214,7 +214,7 @@ export class Table extends Component {
 
     this.on("click", TABLE_EMPTY_RESET_SELECTOR, (event) => {
       event.preventDefault();
-      void this.resetFilters();
+      this.settleUnawaited(this.resetFilters());
     });
 
     this.restoreViewPreferences();
@@ -234,6 +234,14 @@ export class Table extends Component {
     }
 
     this.applyLocalView();
+  }
+
+  /**
+   * 事件触发、没有调用方等待的刷新：失败已经显示在表格上（状态与提示）并发出了 om:table:error，
+   * 这里不再把它变成页面上的未处理 Promise 拒绝。直接调用 refresh()/reload() 的代码照样收到失败。
+   */
+  private settleUnawaited(refresh: Promise<void>): void {
+    void refresh.catch(() => undefined);
   }
 
   /** Reload the current table mode and resolve after its visible state is updated. */

@@ -20,6 +20,8 @@
 运行真实四条路径并检查 PID 回收。父进程查询完只传普通 list，子模块不导入 ORM/Settings，不创建
 父进程连接的“可序列化代理”。本例统计可用 SQL 更高效，不能把示例当成所有计数都应开子进程的建议。
 
+外部命令先按对面有没有人选入口：Web 服务、taskiq worker、机器任务用 run_subprocess_exec；要人在终端上
+回答的（sudo 问密码、脚本 read）用 run_foreground，它不脱离终端，也不做整组清理。
 受控外部命令对照同文件 SubprocessDemo 与 `apps/examples/external_job.py`。默认使用
 run_subprocess_exec 的 stdin bytes/capture_output/check，取消示例用 create_subprocess_exec 和 async with。
 固定程序+argv，不新增任意 shell 参数。错误显示 SubprocessError.result，超时显示异常保留的输出，

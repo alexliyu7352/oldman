@@ -81,12 +81,12 @@ msgid "Project directory name."
 msgstr "專案目錄名稱。"
 
 #: oldman/cli/_main.py:235
-msgid "Project type [cli/service/api/web/dashboard]"
-msgstr "專案類型 [cli/service/api/web/dashboard]"
+msgid "Project type"
+msgstr "專案類型"
 
 #: oldman/cli/_main.py:245
-msgid "Database [none/sqlite/mysql/postgres]"
-msgstr "資料庫 [none/sqlite/mysql/postgres]"
+msgid "Database"
+msgstr "資料庫"
 
 #: oldman/cli/_main.py:255
 msgid "Dashboard projects require a database."
@@ -102,16 +102,13 @@ msgid "Application name."
 msgstr "應用程式名稱。"
 
 #: oldman/cli/_main.py:278
-msgid "App template [service/api/web/dashboard]"
-msgstr "應用程式範本 [service/api/web/dashboard]"
+msgid "App template"
+msgstr "應用程式範本"
 
 #: oldman/cli/_main.py:285
 msgid "Display name"
 msgstr "顯示名稱"
 
-#: oldman/cli/_main.py:290
-msgid "Display name cannot be empty."
-msgstr "顯示名稱不能為空。"
 
 #: oldman/cli/_main.py:300
 #, python-format
@@ -123,8 +120,8 @@ msgid "Service module name."
 msgstr "服務模組名稱。"
 
 #: oldman/cli/_main.py:313
-msgid "Service type [simple/web/taskiq_worker/taskiq_scheduler]"
-msgstr "服務類型 [simple/web/taskiq_worker/taskiq_scheduler]"
+msgid "Service type"
+msgstr "服務類型"
 
 #: oldman/cli/_main.py:322
 #, python-format
@@ -698,3 +695,114 @@ msgstr "正在產生前端語言包……"
 #: oldman/cli/_main.py
 msgid "Service whose settings describe the languages."
 msgstr "語言設定所屬的服務。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(label)s needs an answer, but stdin and the output are not both terminals."
+msgstr "%(label)s 需要回答，但標準輸入和輸出不都是終端。"
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a whole number."
+msgstr "請輸入整數。"
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a number."
+msgstr "請輸入數字。"
+
+#: oldman/cli/tui/inputs.py oldman/cli/tui/inputs.py
+msgid "Invalid value."
+msgstr "值無效。"
+
+#: oldman/cli/tui/inputs.py
+msgid "This value is required."
+msgstr "此項必填。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Choose one of: %(choices)s"
+msgstr "請從這些選項中選擇：%(choices)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Confirm %(label)s"
+msgstr "確認%(label)s"
+
+#: oldman/cli/tui/inputs.py
+msgid "The two entries do not match."
+msgstr "兩次輸入不一致。"
+
+#: oldman/cli/tui/inputs.py
+msgid "yes"
+msgstr "是"
+
+#: oldman/cli/tui/inputs.py
+msgid "no"
+msgstr "否"
+
+#: oldman/cli/tui/inputs.py
+msgid "Answer yes or no."
+msgstr "請回答 yes 或 no（是 / 否）。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Enter a number from 1 to %(count)d."
+msgstr "請輸入 1 到 %(count)d 之間的編號。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Not in the list: %(item)s"
+msgstr "不在列表中：%(item)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be true or false, not %(value)r."
+msgstr "%(variable)s 只能是 true 或 false，不能是 %(value)r。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s is not valid: %(error)s"
+msgstr "%(variable)s 的值無效：%(error)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be one of: %(choices)s"
+msgstr "%(variable)s 必須是其中之一：%(choices)s"
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answers in %(path)s: %(error)s"
+msgstr "不使用 %(path)s 裡保存的答案：%(error)s"
+
+#: oldman/cli/tui/forms.py
+msgid "not a JSON object"
+msgstr "不是 JSON 物件"
+
+#: oldman/cli/tui/menus.py
+msgid "Quit"
+msgstr "退出"
+
+#: oldman/cli/tui/menus.py
+msgid "Back"
+msgstr "返回"
+
+#: oldman/cli/tui/menus.py
+#, python-format
+msgid "Enter a number from 0 to %(count)d."
+msgstr "請輸入 0 到 %(count)d 之間的編號。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(label)s needs an answer: run it in a terminal or set %(variable)s."
+msgstr "%(label)s 需要回答：請在終端裡執行，或設定 %(variable)s。"
+
+#: oldman/cli/i18n_commands.py:75
+#, python-format
+msgid ""
+"Settings file %(path)s does not exist; create it or pass another service "
+"with --service."
+msgstr "設定檔 %(path)s 不存在；請先建立它，或用 --service 指定另一個服務。"
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answer for %(label)s: %(error)s"
+msgstr "不使用上次保存的「%(label)s」答案：%(error)s"

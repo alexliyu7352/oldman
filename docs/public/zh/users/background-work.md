@@ -93,7 +93,7 @@ timeout/cancel 模式还启动一个固定的同进程组 sleep 子进程，用�
 
 - 同一进程的异步采样：不用额外进程或消息中间件。
 - CPU 密集的同步 Python 计算：使用 `AsyncProcessManager`；每次调用有并发和超时限制。
-- 外部命令：使用框架受控 subprocess，传程序和参数列表，不拼 shell 字符串。
+- 外部命令：传程序和参数列表，不拼 shell 字符串。对面没有人的（Web 服务、taskiq worker、机器任务）用受控的 `run_subprocess_exec`；要人在终端上回答的（`sudo` 问密码）用 `run_foreground`，见[外部命令](../developers/background.md#外部命令)。
 - 多个长期 Worker：使用 `BaseManager`；需要知道它只传启动/停止指令，不保存可靠任务结果。
 - 异步函数持久排队、结果和计划：使用 [Taskiq](distributed-tasks.md)。
 - 独立服务器之间发布或 RPC：使用 NATS，而不是把 Worker 内部 Queue 暴露给业务服务。

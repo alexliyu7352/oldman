@@ -492,7 +492,7 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
 
             assert not _live_process_group_pids(process.pid)
             assert not (project / "pids/mail_jobs.pid").exists()
-            assert not (project / "pids/mail_jobs.taskiq.json").exists()
+            assert not (project / "pids/mail_jobs.identity.json").exists()
             assert "Traceback" not in (root / "worker.log").read_text(), (root / "worker.log").read_text()
             report = {"worker_pids": worker_pids, "stop_status": stopped.returncode, "runtime_replacements": replacements}
         finally:
@@ -558,7 +558,7 @@ def exercise_worker_terminal(command: list[str], project: Path, environment: dic
     from dataclasses import replace
 
     from oldman.processes.subprocess import _live_process_group_pids
-    from oldman.runtime._taskiq_process import GroupIdentity, stop_process_group
+    from oldman.runtime._process_group import GroupIdentity, stop_process_group
     from tests.test_oldman_logging_tty_runtime import _PtyReader
 
     for job_control in (True, False):
@@ -576,7 +576,7 @@ def exercise_worker_terminal(command: list[str], project: Path, environment: dic
             while "All 2 Taskiq worker processes are ready" not in reader.partial_output:
                 assert time.monotonic() < deadline, reader.partial_output
                 time.sleep(0.05)
-            owner = GroupIdentity.from_json((project / "pids/mail_jobs.taskiq.json").read_text())
+            owner = GroupIdentity.from_json((project / "pids/mail_jobs.identity.json").read_text())
             assert os.tcgetpgrp(terminal) == owner.pgid != shell_pid
             # A stale record must not signal either the service or its shell.
             try:
@@ -613,7 +613,7 @@ def exercise_worker_terminal(command: list[str], project: Path, environment: dic
                 os.kill(shell_pid, signal.SIGKILL)
                 os.waitpid(shell_pid, 0)
             output = reader.finish()
-        assert "Traceback" not in output and "Taskiq service stop failed" not in output, output
+        assert "Traceback" not in output and "Service stop failed" not in output, output
     return 2
 
 
@@ -1018,7 +1018,9 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
                    "TASKIQ_PROBE_WEB_PORT": str(web_port), "PYTHONPATH": os.pathsep.join((str(project), str(ROOT)))}
     executable = str(Path(sys.executable).parent / "oldman")
     for command, expected, name in (("start", 0, "simple"), ("publish", 0, "publish"), ("fail", 1, "fail")):
-        result = subprocess.run([executable, "worker", command], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+        # No terminal stdin: a service started from a terminal's foreground takes it until it exits.
+        result = subprocess.run([executable, "worker", command], cwd=project, env=environment, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
         assert result.returncode == expected, result.stdout + result.stderr
         assert json.loads((root / f"{name}-closed.json").read_text())["closed"]
         if command == "fail":

@@ -35,7 +35,7 @@ class PythonPackageInstallGateTest(unittest.TestCase):
         self.assertIn("Installed markerless project root escaped the working directory", source)
         self.assertIn('"--help"', source)
         self.assertIn('"startproject"', source)
-        self.assertIn('input_text="web\\nsqlite\\n"', source)
+        self.assertIn('"OLDMAN_ANSWER_STARTPROJECT_TYPE": "web", "OLDMAN_ANSWER_STARTPROJECT_DATABASE": "sqlite"', source)
         self.assertIn('"startapp", "installed_probe_app"', source)
         self.assertIn('"startservice", "installed_probe_worker"', source)
         self.assertIn('"web", "settings", "sync"', source)
@@ -52,10 +52,13 @@ class PythonPackageInstallGateTest(unittest.TestCase):
     def test_clean_environment_blocks_repository_and_user_site_leaks(self) -> None:
         module = load_gate()
 
-        environment = module.clean_environment({"PYTHONPATH": "/repo", "PYTHONHOME": "/python", "PATH": "/bin"})
+        environment = module.clean_environment(
+            {"PYTHONPATH": "/repo", "PYTHONHOME": "/python", "PATH": "/bin", "OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME": "Left over"}
+        )
 
         self.assertNotIn("PYTHONPATH", environment)
         self.assertNotIn("PYTHONHOME", environment)
+        self.assertNotIn("OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME", environment)
         self.assertEqual("1", environment["PYTHONNOUSERSITE"])
         self.assertEqual("/bin", environment["PATH"])
 

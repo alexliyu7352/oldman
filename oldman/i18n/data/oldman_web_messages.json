@@ -137,11 +137,11 @@
         },
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 254
+          "line": 262
         },
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 311
+          "line": 319
         },
         {
           "path": "frontend/packages/oldman-web/src/components/tags-input.ts",
@@ -186,7 +186,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 398
+          "line": 406
         }
       ]
     },
@@ -410,7 +410,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1131
+          "line": 1139
         }
       ]
     },
@@ -432,7 +432,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1131
+          "line": 1139
         }
       ]
     },
@@ -443,7 +443,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1131
+          "line": 1139
         }
       ]
     },
@@ -454,7 +454,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1131
+          "line": 1139
         }
       ]
     },
@@ -465,7 +465,7 @@
       "locations": [
         {
           "path": "frontend/packages/oldman-web/src/components/table.ts",
-          "line": 1225
+          "line": 1233
         }
       ]
     },

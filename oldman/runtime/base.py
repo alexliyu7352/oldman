@@ -1,15 +1,14 @@
 import asyncio
-import atexit
 import fcntl
 import inspect
 import os
 import re
 import signal
 import sys
-import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from signal import SIG_IGN
 from typing import TYPE_CHECKING, Any, Self
 
@@ -20,6 +19,7 @@ from oldman.logging import (
     init_logging,
     logger,
 )
+from oldman.runtime._process_group import GroupIdentity, group_members, leader_is_alive, service_process_group, stop_process_group
 from oldman.runtime.bootstrap import (
     ServiceBootstrapContext,
     _get_bootstrap_context,
@@ -35,6 +35,104 @@ PublicCommandEntry = tuple[Callable, str]
 
 #: The service this process runs; read it through ``BaseApplication.current()``.
 _current_service: "BaseApplication | None" = None
+
+#: PID file descriptors this process holds locked (a service's, or an App command's).
+_held_locks: set[int] = set()
+
+
+def _close_inherited_locks() -> None:
+    """In a forked child, close the inherited PID file descriptors without unlocking them.
+
+    A flock belongs to the open file, so a child keeping the descriptor would keep the service or
+    command "running" after its main process had gone (`multiprocessing` forks by default on Linux
+    before Python 3.14). Unlocking would release the parent's lock too, so the child only closes.
+    The framework's own children are spawned and never inherit the descriptors.
+    """
+    for fd in _held_locks:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+    _held_locks.clear()
+
+
+os.register_at_fork(after_in_child=_close_inherited_locks)
+
+
+def _lock_pid_file(path: str) -> int:
+    """Open `path` and lock it; the locked descriptor, or BlockingIOError while another process holds it.
+
+    The lock is held on a raw descriptor, not a file object: a forked child closes the descriptor,
+    and a file object would later close whatever file had reused the number. A holder removes its
+    file before releasing the lock, so a lock taken on a file no longer at `path` counts for
+    nothing: open the path again.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for _ in range(3):
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BaseException:
+            os.close(fd)
+            raise
+        if _same_file(fd, path):
+            _held_locks.add(fd)
+            return fd
+        os.close(fd)
+    raise RuntimeError(f"{path} kept being replaced while it was being locked")
+
+
+def _same_file(fd: int, path: str) -> bool:
+    """Whether `fd` still refers to the file now at `path`."""
+    try:
+        current = os.stat(path)
+    except FileNotFoundError:
+        return False
+    held = os.fstat(fd)
+    return (held.st_dev, held.st_ino) == (current.st_dev, current.st_ino)
+
+
+def _read_pid(fd: int) -> int:
+    content = os.pread(fd, 64, 0).decode(errors="ignore").strip()
+    return int(content) if content.isascii() and content.isdigit() else 0
+
+
+def _pid_in(path: str) -> str:
+    """The PID written in `path`, for a message; empty when unreadable."""
+    try:
+        return Path(path).read_text(encoding="ascii", errors="ignore").strip()
+    except OSError:
+        return ""
+
+
+def _write_pid(fd: int, pid: int) -> None:
+    os.ftruncate(fd, 0)
+    os.pwrite(fd, str(pid).encode(), 0)
+    os.fsync(fd)
+
+
+def _release_pid_file(fd: int, path: str, *, before_unlock: Callable[[], None] | None = None) -> None:
+    """Remove `path`, run `before_unlock`, then close the locked descriptor, which unlocks it.
+
+    A no-op for a descriptor not held. Whoever holds the lock is the only one using the file,
+    whatever number it holds: a start that failed before writing its pid leaves nothing behind. The
+    file goes before the lock, and only while it is still the file at `path` (see _lock_pid_file). A
+    forked child has closed its copies of the parent's descriptors (see _close_inherited_locks) and
+    must not remove the parent's file.
+    """
+    if fd not in _held_locks:
+        return
+    _held_locks.discard(fd)
+    try:
+        try:
+            if _same_file(fd, path):
+                os.remove(path)
+        except FileNotFoundError:
+            pass
+        if before_unlock is not None:
+            before_unlock()
+    finally:
+        os.close(fd)
 
 
 class BaseApplication(ABC):
@@ -87,7 +185,15 @@ class BaseApplication(ABC):
                 ),
                 loop_factory=new_event_loop,
             )
-        return cls._run_sync_command(bound_func, *args, **kwargs)
+        try:
+            return cls._run_sync_command(bound_func, *args, **kwargs)
+        finally:
+            # The logging of the instance built for this command ends with the command; a service's
+            # run() has closed it already. start, stop and restart leave it to this: called on
+            # current(), the instance a running service, worker or App command logs through, they
+            # must not end that process's logging.
+            if not instance._logging_closed:
+                instance._close_logging()
 
     @classmethod
     def execute_app_command(
@@ -142,10 +248,10 @@ class BaseApplication(ABC):
         service_id = cls.safe_pid_name(cls.get_service_id())
         safe_command_name = cls.safe_pid_name(command_name)
         settings = _get_bootstrap_context().settings
-        return os.path.join(
-            settings.process.pid_dir,
-            f"{service_id}_{safe_command_name}.pid",
-        )
+        # A dot, which service module names cannot hold ([a-z][a-z0-9_]*): "a_b.pid" is service a_b's
+        # own file, "a.b.pid" command b of service a. Absolute, as a service's own: a relative pid_dir
+        # must not follow a command that changes its working directory.
+        return os.path.abspath(os.path.join(settings.process.pid_dir, f"{service_id}.{safe_command_name}.pid"))
 
     @staticmethod
     def safe_pid_name(value: str) -> str:
@@ -158,46 +264,19 @@ class BaseApplication(ABC):
     @classmethod
     def create_command_pid_file(cls, pid_path: str, command_name: str) -> int:
         """创建命令级 pid 文件并持有非阻塞文件锁。"""
-        os.makedirs(os.path.dirname(pid_path), exist_ok=True)
-
-        flags = os.O_RDWR | os.O_CREAT
-        fd: int | None = None
         try:
-            fd = os.open(pid_path, flags, 0o644)
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fd = _lock_pid_file(pid_path)
         except BlockingIOError:
-            pid = ""
-            if fd is not None:
-                os.lseek(fd, 0, os.SEEK_SET)
-                pid = os.read(fd, 64).decode(errors="ignore").strip()
-                os.close(fd)
-            logger.error("%s command %s already started, pid: %s", cls.get_service_name(), command_name, pid or "unknown")
+            logger.error("%s command %s already started, pid: %s", cls.get_service_name(), command_name, _pid_in(pid_path) or "unknown")
             sys.exit(1)
-        except Exception:
-            if fd is not None:
-                os.close(fd)
-            raise
-
-        os.ftruncate(fd, 0)
-        os.write(fd, str(os.getpid()).encode())
-        os.fsync(fd)
+        _write_pid(fd, os.getpid())
         logger.info("%s command %s pid: %s", cls.get_service_name(), command_name, os.getpid())
         return fd
 
     @classmethod
     def delete_command_pid_file(cls, pid_path: str, fd: int) -> None:
-        """删除当前进程持有的命令级 pid 文件。"""
-        try:
-            os.lseek(fd, 0, os.SEEK_SET)
-            pid = os.read(fd, 64).decode(errors="ignore").strip()
-            if pid == str(os.getpid()) and os.path.exists(pid_path):
-                try:
-                    os.remove(pid_path)
-                except FileNotFoundError:
-                    pass
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            os.close(fd)
+        """删除当前进程持有的命令级 pid 文件并放锁。"""
+        _release_pid_file(fd, pid_path)
 
     @staticmethod
     def _is_async_callable(func: Callable) -> bool:
@@ -496,6 +575,9 @@ class BaseApplication(ABC):
             self.pid_file_path = pid_file_path
         else:
             self.pid_file_path = os.path.join(application_settings.process.pid_dir, f"{file_name}.pid")
+        # Absolute: a relative pid_dir must not follow a service that changes its working directory.
+        self.pid_file_path = os.path.abspath(self.pid_file_path)
+        self._pid_fd: int | None = None
 
         self.logger_level = application_settings.logging.resolved_level(debug=application_settings.core.debug)
         if not self.log_file_path:
@@ -518,11 +600,6 @@ class BaseApplication(ABC):
                 logger_level=self.logger_level,
             )
         self.log_config = self.logging_runtime.log_config
-        self._pid_cleanup_callback: Callable[[], None] | None = None
-
-        if os.getppid() == 1:
-            self._pid_cleanup_callback = self.delete_pid_file
-            atexit.register(self._pid_cleanup_callback)
 
         # bootstrap_service() refuses a second service in one process, so a later instance
         # is always the same service again and simply takes the place of the earlier one.
@@ -582,65 +659,210 @@ class BaseApplication(ABC):
         # Ignore SIGHUP
         signal.signal(signal.SIGHUP, SIG_IGN)
 
-    def create_pid_file(self) -> None:
-        """
-        Create PID file
-        """
-        pid = str(os.getpid())
-        if not os.path.exists(os.path.dirname(self.pid_file_path)):
-            os.makedirs(os.path.dirname(self.pid_file_path))
-        with open(self.pid_file_path, "w") as f:
-            f.write(pid)
-        logger.info(f"{self.app_name} main progress pid: {pid}")
+    @property
+    def _identity_path(self) -> Path:
+        """The running service's identity record, beside its PID file (see oldman.runtime._process_group)."""
+        return Path(self.pid_file_path).with_suffix(".identity.json")
+
+    def _stop_timeout(self) -> float:
+        """How long stop waits for the service's process group before killing it."""
+        return self.bootstrap_context.settings.process.stop_timeout
 
     def delete_pid_file(self) -> None:
-        """
-        Delete PID file
-        """
-        logger.info(f"{self.app_name} shutdown, pid: {os.getpid()}")
-        if os.path.exists(self.pid_file_path):
-            os.remove(self.pid_file_path)
+        """Remove this run's records and release the lock; a no-op for an instance that holds no lock.
 
-    def check_pid_status(self) -> None:
+        Under the lock nothing else uses the PID file, so it goes whatever it holds. The identity
+        record goes only when it is this run's: when start refused because the previous run's
+        processes survive, that run's record stays for stop to report. Silent: it runs after the
+        service has closed its logging.
         """
-        Check if process is already running
+        fd, self._pid_fd = self._pid_fd, None
+        if fd is None:
+            return
+        # The PID file first, then the identity record, both before the lock goes: a stop never finds
+        # this run's PID file without its record (see start). A start that locks a fresh file at the
+        # path in between still reads this run's record and is refused while this process lives.
+        _release_pid_file(fd, self.pid_file_path, before_unlock=self._remove_own_identity)
+
+    def _remove_own_identity(self) -> None:
+        """Remove the identity record if it is this process's run."""
+        try:
+            if GroupIdentity.from_json(self._identity_path.read_text(encoding="utf-8")).pid == os.getpid():
+                self._identity_path.unlink()
+        except (OSError, ValueError, TypeError):
+            pass  # No record, or one that is not this run's to judge: stop deals with an unreadable one.
+
+    def _write_identity(self, identity: GroupIdentity) -> None:
+        """Replace the identity record in one step: a reader finds the whole previous record or the whole new one."""
+        temporary = self._identity_path.with_name(f"{self._identity_path.name}.{os.getpid()}.tmp")
+        try:
+            with open(temporary, "w", encoding="utf-8") as record:
+                record.write(identity.to_json())
+                record.flush()
+                os.fsync(record.fileno())
+            os.replace(temporary, self._identity_path)
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+
+    @contextmanager
+    def _records_lock(self) -> Iterator[bool]:
+        """Hold the PID file lock and yield True while no run holds it, or yield False while one does.
+
+        Records removed under the lock are never those of a run that has just started. The PID file
+        itself goes when the lock is released (see _release_pid_file). A start that tries to lock it in
+        that moment is refused as already running: microseconds, and only while a stop cleans up.
         """
-        if os.path.exists(self.pid_file_path):
-            with open(self.pid_file_path) as f:
-                pid = f.read()
-            if pid and os.path.exists(f"/proc/{pid}"):
-                logger.error(f"{self.app_name} already started, pid: {pid}")
-                sys.exit(1)
-            else:
-                self.create_pid_file()
-        else:
-            self.create_pid_file()
+        try:
+            fd = _lock_pid_file(self.pid_file_path)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            _release_pid_file(fd, self.pid_file_path)
+
+    def _refuse_surviving_group(self) -> None:
+        """Refuse to start while processes of the previous run are still alive.
+
+        The PID file lock was free, so that run's main process is gone, but processes it started
+        (Sanic workers whose primary was killed) may still hold its port. A new identity record would
+        put them out of stop's reach. A free lock with the main process alive means the running
+        service's PID file was removed or replaced: that group is the service itself.
+        """
+        try:
+            previous = GroupIdentity.from_json(self._identity_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            # No record, or an unreadable one: nothing to check. Accepted: a running service whose PID
+            # file was removed and whose record is unreadable is not seen here (two outside faults).
+            return
+        survivors = group_members(previous)
+        if survivors and leader_is_alive(previous):
+            raise RuntimeError(
+                f"{self.app_name} is still running (main process {previous.pid}), but its PID file {self.pid_file_path} "
+                "was removed or replaced, so this start could not see it. Use stop, which finds it by its identity record."
+            )
+        if survivors:
+            raise self._orphaned_run(previous, survivors)
+
+    def _orphaned_run(self, identity: GroupIdentity, survivors: tuple[int, ...]) -> RuntimeError:
+        """A run whose main process is gone while processes it started live on: neither start nor stop may take it."""
+        return RuntimeError(
+            f"{self.app_name}: the main process of its last run is gone, but processes it started are still alive "
+            f"in process group {identity.pgid}: {', '.join(map(str, survivors))}. "
+            f"Stop them with `kill -TERM -{identity.pgid}`, then start the service again."
+        )
 
     def start(self, *args: Any, **kwargs: Any) -> None:
+        """Run the service, holding its PID file lock and identity record for its whole run.
+
+        Running means the PID file is locked: the kernel releases the lock however the process ends,
+        so a PID file left behind, or its number reused by another process, never looks like a running
+        service; a child the service forks closes its copy of the lock. The service owns a process
+        group, so stop can wait for, and past its deadline kill, every process the run started; a
+        child that leaves the group itself (setsid, setpgid) is the service's own to end. Linux only:
+        the identity comes from /proc and the boot id.
         """
-        Start the application
-        """
-        self.check_pid_status()
-        self.run(*args, **kwargs)
+        try:
+            self._pid_fd = _lock_pid_file(self.pid_file_path)
+        except BlockingIOError:
+            holder = _pid_in(self.pid_file_path) or "unknown"
+            raise RuntimeError(f"{self.app_name} is already running, pid: {holder}") from None
+        try:
+            self._refuse_surviving_group()
+            with service_process_group() as identity:
+                self._group_identity = identity
+                # The identity first: stop goes by it, so no moment has a pid without an identity to verify it.
+                self._write_identity(identity)
+                _write_pid(self._pid_fd, identity.pid)
+                logger.info(f"{self.app_name} main process pid: {identity.pid}")
+                self.run(*args, **kwargs)
+        finally:
+            self.delete_pid_file()
 
     def stop(self, *args: Any, **kwargs: Any) -> int:
+        """Stop the running service and return once its whole process group has exited.
+
+        SIGTERM goes to the service's main process; the group is killed after `_stop_timeout()`
+        seconds. Returns the main process's pid, which the CLI prints, or 0 when nothing runs.
         """
-        Stop the application
-        """
-        if os.path.exists(self.pid_file_path):
-            with open(self.pid_file_path) as f:
-                pid = int(f.read())
-            if os.path.exists(f"/proc/{pid}"):
-                pid = int(pid)
-                os.kill(pid, signal.SIGTERM)
-                logger.info(f"{self.app_name} stop success")
-            else:
-                logger.error(f"{self.app_name} not running")
-                return 0
-            return pid
+        try:
+            recorded = self._identity_path.read_text(encoding="utf-8")
+            identity = GroupIdentity.from_json(recorded)
+        except FileNotFoundError:
+            return self._stop_without_identity()
+        except (ValueError, TypeError) as error:
+            return self._stop_with_unreadable_identity(error)
+        members = group_members(identity)
+        running = bool(members)
+        if running and not leader_is_alive(identity):
+            raise self._orphaned_run(identity, members)
+        if running and identity.pgid == os.getpgrp():
+            raise RuntimeError(f"{self.app_name}: stop cannot be called from inside the running service, whose process group it would signal")
+        if running:
+            forced = stop_process_group(identity, self._stop_timeout())
+            logger.info(f"{self.app_name} stopped{' after the stop deadline' if forced else ''}")
         else:
-            logger.error(f"{self.app_name} not running")
-            return 0
+            logger.info(f"{self.app_name} is not running; removing the records of its last run")
+        self._remove_records(recorded)
+        return identity.pid if running else 0
+
+    def _remove_records(self, recorded: str) -> None:
+        """After a stop, remove the records that still describe the group it stopped.
+
+        A run that ends normally removes its own; one that was killed cannot. A run that has started
+        since holds the lock, and the records are its: leave them.
+        """
+        with self._records_lock() as free:
+            if not free:
+                return
+            # Unlike a run's own exit, the identity record goes while the PID file still holds the
+            # lock at the path: the group is gone, so a start that locked a fresh file could pass its
+            # checks and replace the record between this read and the unlink. Accepted instead: a
+            # stop arriving in these microseconds finds the PID file without a record and refuses
+            # with the "earlier version" message.
+            try:
+                if self._identity_path.read_bytes() == recorded.encode():
+                    self._identity_path.unlink()
+            except FileNotFoundError:
+                pass
+
+    def _stop_without_identity(self) -> int:
+        """Without an identity record nothing runs, unless its PID file names a process stop cannot verify.
+
+        A start writes its identity before its pid, so an empty PID file belongs to a start still on
+        its way, or to one killed before it wrote anything.
+        """
+        if _pid_in(self.pid_file_path):
+            raise RuntimeError(
+                f"{self.pid_file_path} has no identity record beside it: it was written by an earlier "
+                "version or by hand, and its pid cannot be verified. Stop that process with the version "
+                "that started it, or remove the file if nothing runs."
+            )
+        logger.info(f"{self.app_name} is not running")
+        return 0
+
+    def _stop_with_unreadable_identity(self, error: Exception) -> int:
+        """An identity record that is empty or broken: edited by hand, or damaged on disk (start replaces it whole).
+
+        While no run holds the lock it is a leftover: remove it and report the service as not running,
+        so restart goes on. While a run holds it, stop cannot verify which group to signal.
+
+        Accepted: if the running service's PID file was removed as well, the lock at the path is free,
+        so this reports the service as not running, and start, which cannot read the record either
+        (see _refuse_surviving_group), starts a second run. It takes two outside faults at once.
+        """
+        with self._records_lock() as free:
+            if free:
+                self._identity_path.unlink(missing_ok=True)
+                logger.info(f"{self.app_name} is not running; removed its unreadable identity record {self._identity_path} ({error})")
+                return 0
+        raise RuntimeError(
+            f"{self.app_name} is running (its PID file is locked), but its identity record {self._identity_path} cannot be "
+            f"read ({error}), so stop cannot verify which process group to signal and sends nothing. End its main process "
+            f"(pid {_pid_in(self.pid_file_path) or 'not written yet'}) with `kill -TERM <pid>`."
+        )
 
     @staticmethod
     def stop_loop(loop: asyncio.AbstractEventLoop | None = None) -> None:
@@ -653,18 +875,8 @@ class BaseApplication(ABC):
             logger.error(f"Error stopping loop: {repr(e)}")
 
     def restart(self, *args: Any, **kwargs: Any) -> None:
-        """
-        Restart the application
-        """
-        pid = self.stop(*args, **kwargs)
-        if pid <= 0:
-            time.sleep(5)
-        else:
-            while True:
-                if os.path.exists(f"/proc/{pid}"):
-                    time.sleep(1)
-                else:
-                    break
+        """Stop the running service, waiting until its group has exited, then start a new run."""
+        self.stop(*args, **kwargs)
         self.start(*args, **kwargs)
 
     def shutdown(self, *args: Any, **kwargs: Any) -> None:
@@ -680,16 +892,4 @@ class BaseApplication(ABC):
         if self._logging_closed:
             return
         self._logging_closed = True
-        try:
-            self._run_registered_pid_cleanup()
-        finally:
-            self.logging_runtime.close()
-
-    def _run_registered_pid_cleanup(self) -> None:
-        """Run a registered PID cleanup before logging closes, never again at exit."""
-        callback = self._pid_cleanup_callback
-        if callback is None:
-            return
-        self._pid_cleanup_callback = None
-        atexit.unregister(callback)
-        callback()
+        self.logging_runtime.close()

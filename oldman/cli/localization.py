@@ -129,31 +129,30 @@ def _should_prompt(args: list[str]) -> bool:
     """Return whether an unconfigured invocation may ask for a language."""
     if args[:1] == ["language"] or _is_completion_invocation(args):
         return False
-    return sys.stdin.isatty() and sys.stdout.isatty()
+    # A stream closed when the process started is None.
+    return all(stream is not None and stream.isatty() for stream in (sys.stdin, sys.stdout))
 
 
 def _prompt_for_language(default_language: str) -> str:
-    """Prompt without depending on an already selected translation catalog."""
-    definitions = tuple(CLI_LANGUAGE_REGISTRY)
-    default_index = next(index for index, definition in enumerate(definitions, start=1) if definition.code == default_language)
-    while True:
-        print("Select CLI language / 请选择 CLI 语言 / 請選擇 CLI 語言")
-        for index, definition in enumerate(definitions, start=1):
-            print(f"{index}. {definition.name}")
-        try:
-            answer = input(f"[{default_index}]: ").strip()
-        except EOFError:
+    """Prompt without depending on an already selected translation catalog.
+
+    No catalog is bound yet, so the question and the complaint are written in all three
+    languages. The end of input keeps the default; Ctrl-C stops the CLI as before.
+    """
+    from oldman.cli import tui
+
+    try:
+        return tui.choose(
+            "Select CLI language / 请选择 CLI 语言 / 請選擇 CLI 語言",
+            [(definition.code, definition.name) for definition in CLI_LANGUAGE_REGISTRY],
+            default=default_language,
+            match=CLI_LANGUAGE_REGISTRY.resolve,
+            invalid="Invalid selection / 无效选择 / 無效選擇",
+        )
+    except tui.Cancelled as cancelled:
+        if cancelled.reason == "end-of-input":
             return default_language
-        if not answer:
-            return default_language
-        if answer.isdigit():
-            selected_index = int(answer)
-            if 1 <= selected_index <= len(definitions):
-                return definitions[selected_index - 1].code
-        resolved = CLI_LANGUAGE_REGISTRY.resolve(answer)
-        if resolved:
-            return resolved
-        print("Invalid selection / 无效选择 / 無效選擇", file=sys.stderr)
+        raise KeyboardInterrupt from None
 
 
 def resolve_cli_language(args: list[str]) -> CliLanguageState:

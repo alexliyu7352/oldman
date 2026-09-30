@@ -4,28 +4,26 @@ from __future__ import annotations
 
 import os
 
-import typer
-
 from oldman.auth import (
     change_user_password,
     ensure_superuser,
     get_user_by_username,
     user_identity,
 )
-from oldman.cli import Command
+from oldman.cli import Command, tui
 from oldman.i18n import gettext
 from oldman.i18n import gettext_lazy as _
 from oldman.web.auth import end_user_logins
 
 
 def _username(value: str | None, *, noinput: bool = False) -> str:
-    """Return one non-empty username from an option or interactive prompt.
+    """Return one non-empty username from an option or a question.
 
-    `--noinput` 下不能弹提示：无 tty 时 typer 只会 abort，报错和"非交互"没关系，排查成本很高。
+    `--noinput` 下不提问：要么有参数，要么直接说缺了 `--username`，比"需要终端"的报错更好查。
     """
     if value is None and noinput:
         raise ValueError(gettext("--username is required for a non-interactive run."))
-    username = (value if value is not None else typer.prompt(gettext("Username"))).strip()
+    username = (value if value is not None else tui.ask(gettext("Username"))).strip()
     if not username:
         raise ValueError(gettext("Username cannot be empty."))
     return username
@@ -34,15 +32,13 @@ def _username(value: str | None, *, noinput: bool = False) -> str:
 SUPERUSER_PASSWORD_ENV = "OLDMAN_SUPERUSER_PASSWORD"
 
 
-def _prompt_password() -> str:
-    """Read one password without exposing it in command arguments or terminal output."""
-    return str(
-        typer.prompt(
-            gettext("Password"),
-            hide_input=True,
-            confirmation_prompt=gettext("Confirm Password"),
-        )
-    )
+def _prompt_password(*, key: str | None = None) -> str:
+    """Read one password twice without exposing it in command arguments or terminal output.
+
+    With `key` the password can be preset through the environment (see `tui.answer_variable`),
+    which, like `OLDMAN_SUPERUSER_PASSWORD`, keeps it out of the process list and shell history.
+    """
+    return str(tui.ask(gettext("Password"), secret=True, confirm_secret=True, key=key))
 
 
 def _noninteractive_password() -> str:
@@ -83,17 +79,7 @@ class CreateSuperuser(Command):
         if existing is not None and not update:
             raise ValueError(gettext("Username already exists"))
 
-        selected_email = (
-            email
-            if email is not None or noinput
-            else str(
-                typer.prompt(
-                    gettext("Email"),
-                    default="",
-                    show_default=False,
-                )
-            )
-        )
+        selected_email = email if email is not None or noinput else tui.ask(gettext("Email"), required=False)
         await ensure_superuser(
             selected_username,
             _noninteractive_password() if noinput else _prompt_password(),
@@ -119,7 +105,7 @@ class ChangePassword(Command):
             raise ValueError(gettext("User not found."))
 
         user_id = user_identity(user)
-        changed = await change_user_password(user_id, _prompt_password())
+        changed = await change_user_password(user_id, _prompt_password(key="changepassword.password"))
         if changed is None:
             raise ValueError(gettext("User not found."))
         await end_user_logins(user_id)

@@ -2,6 +2,8 @@
 __pycache__/
 /data/*_settings.yaml
 /data/*.db
+/logs/
+/pids/
 /static/dist/
 /frontend/node_modules/
 /frontend/public/i18n/

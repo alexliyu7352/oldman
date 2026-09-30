@@ -321,6 +321,103 @@ class TwoPhaseAppSettingsTest(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
 
 
+_DESCRIBED_APP = {
+    "reports_app/__init__.py": "",
+    "reports_app/apps.py": """
+        from pydantic import BaseModel, ConfigDict, Field
+        from oldman.apps import AppConfig
+
+        class Limits(BaseModel):
+            rows: int = Field(default=100, description="Most rows in one report")
+
+        class ReportsSettings(BaseModel):
+            model_config = ConfigDict(extra="forbid")
+            endpoint: str = Field(description="Where reports are fetched")
+            page_size: int = Field(default=50, description="Rows per page")
+            limits: Limits = Field(default_factory=Limits, description="Report limits")
+
+        class ReportsConfig(AppConfig[ReportsSettings]):
+            label = "reports"
+            display_name = "Reports"
+            settings_model = ReportsSettings
+
+        app = ReportsConfig()
+    """,
+}
+
+_SYNC_AND_READ = """
+    from pathlib import Path
+
+    from oldman.conf.manager import SettingsManager
+    from oldman.conf.schemas import DefaultSettings
+    from oldman.runtime import ServiceDefinition
+
+    root = Path.cwd()
+    settings_file = root / "data/worker_settings.yaml"
+    manager = SettingsManager(DefaultSettings, ServiceDefinition("worker", root / "services/worker.py", "simple"), settings_file)
+    rendered = []
+    for _ in range(3):
+        manager.sync_config()
+        rendered.append(settings_file.read_text(encoding="utf-8"))
+    print(rendered[0])
+    print("@@SAME@@" if rendered[0] == rendered[1] == rendered[2] else "@@CHANGED@@")
+"""
+
+
+class SettingsDescriptionCommentsTest(unittest.TestCase):
+    """Each field's description stays one line above its key, however often the file is synced."""
+
+    def test_sync_is_stable_and_app_descriptions_sit_with_their_keys(self) -> None:
+        completed = _run_project(
+            {
+                **_DESCRIBED_APP,
+                "data/worker_settings.yaml": "apps:\n  - reports_app\napp_settings:\n  reports:\n    endpoint: https://reports.internal\n",
+            },
+            _SYNC_AND_READ,
+        )
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        source = completed.stdout
+        self.assertIn("@@SAME@@", source)
+        for description in (
+            "# Installed App package paths",
+            "# Core application settings",
+            "# Where reports are fetched",
+            "# Most rows in one report",
+        ):
+            self.assertEqual(1, source.count(description), description)
+        lines = source.splitlines()
+        self.assertEqual("    # Where reports are fetched", lines[lines.index("    endpoint: https://reports.internal") - 1])
+        self.assertEqual("      # Most rows in one report", lines[lines.index("      rows: 100") - 1])
+
+    def test_sync_merges_copies_left_by_earlier_versions_and_keeps_operator_comments(self) -> None:
+        earlier = (
+            "# Installed App package paths\n"
+            "# Installed App package paths\n"
+            "apps:\n"
+            "  - reports_app\n"
+            "# operator note: keep this\n"
+            "app_settings:\n"
+            "  reports:\n"
+            "  # Where reports are fetched\n"
+            "  # Where reports are fetched\n"
+            "    endpoint: https://reports.internal\n"
+            "    # my own note on page size\n"
+            "  # Rows per page\n"
+            "  # Rows per page\n"
+            "    page_size: 10\n"
+        )
+        completed = _run_project({**_DESCRIBED_APP, "data/worker_settings.yaml": earlier}, _SYNC_AND_READ)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        source = completed.stdout
+        self.assertIn("@@SAME@@", source)
+        for description in ("# Installed App package paths", "# Where reports are fetched", "# Rows per page"):
+            self.assertEqual(1, source.count(description), description)
+        self.assertIn("# operator note: keep this", source)
+        self.assertIn("# my own note on page size", source)
+        lines = source.splitlines()
+        self.assertEqual("    # Rows per page", lines[lines.index("    page_size: 10") - 1])
+
+
 class WebSettingsIntegrationTest(unittest.TestCase):
     """Verify the two explicit Web/App configuration interactions."""
 

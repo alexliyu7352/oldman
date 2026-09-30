@@ -2,3 +2,5 @@
 __pycache__/
 /data/*_settings.yaml
 /data/*.db
+/logs/
+/pids/

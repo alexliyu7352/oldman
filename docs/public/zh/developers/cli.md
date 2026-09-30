@@ -35,7 +35,23 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 
-这些选择由交互完成，当前不提供 `startproject --type` 或 `--db` 参数。`startapp` 同样是交互选择，不传 `--type`。
+这些选择由提问完成，不提供 `startproject --type` 或 `--db` 这类参数。无人值守（CI、脚本、agent）时用环境变量[预置答案](tui.md#预置答案无人值守)，设了变量的问题不再提问：
+
+```sh
+OLDMAN_ANSWER_STARTPROJECT_TYPE=web OLDMAN_ANSWER_STARTPROJECT_DATABASE=sqlite oldman startproject my_site
+OLDMAN_ANSWER_STARTAPP_TEMPLATE=api ./run.sh startapp reports
+OLDMAN_ANSWER_STARTSERVICE_TYPE=taskiq_worker ./run.sh startservice worker
+```
+
+| 命令 | 问题 | 变量 | 可选值 |
+| --- | --- | --- | --- |
+| `startproject` | 项目类型 | `OLDMAN_ANSWER_STARTPROJECT_TYPE` | `cli`、`service`、`api`、`web`、`dashboard` |
+| `startproject` | 数据库（`cli` 不问） | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`、`sqlite`、`mysql`、`postgres`；`dashboard` 不能是 `none` |
+| `startapp` | App 模板 | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`、`api`、`web`、`dashboard` |
+| `startapp` | 显示名称 | `OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME` | 任意文字；不设时用由名字生成的默认值 |
+| `startservice` | 服务类型 | `OLDMAN_ANSWER_STARTSERVICE_TYPE` | `simple`、`web`、`taskiq_worker`、`taskiq_scheduler` |
+
+值也可以写编号（按终端里列出的顺序）。预置的值不合格时命令报错并写出变量名，不写任何文件；不在终端里运行、又缺了没有默认值的答案时同样报错，并写出该设的变量。不从管道按行读答案：`printf 'web\nsqlite\n' | oldman startproject my_site` 不会生效。
 
 `startproject` 创建已有最小 YAML；后续使用 `settings sync`。`startservice` 只生成服务代码，后续需要 `settings init`。`startapp` 不替你修改服务的 App 清单。
 
@@ -90,7 +106,7 @@ Demo 的 YAML 已安装 `oldman.auth` 与 `oldman.apps.admin`，因此在 web �
 ./run.sh web changepassword admin
 ```
 
-先迁移数据库，再创建账户。`changepassword admin` 中的 admin 应换成已经创建的真实用户名；不存在的用户会报错，不会顺便创建；改完后该用户已有的登录全部结束。`createsuperuser` 遇到重名同样报错，不会修改旧账户。密码使用隐藏输入并再次确认，不通过命令行明文参数传入；仅生成数据库不自动创建默认管理员。这些命令只依赖 App 注册和数据库，不要求挂载或启动 `/admin` 页面。
+先迁移数据库，再创建账户。`changepassword admin` 中的 admin 应换成已经创建的真实用户名；不存在的用户会报错，不会顺便创建；改完后该用户已有的登录全部结束。`createsuperuser` 遇到重名同样报错，不会修改旧账户。密码使用隐藏输入并再次确认，不通过命令行明文参数传入；仅生成数据库不自动创建默认管理员。脚本里用环境变量给密码：`createsuperuser --noinput --username … [--email …]` 读 `OLDMAN_SUPERUSER_PASSWORD`；`changepassword` 读[预置答案](tui.md#预置答案无人值守) `OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD`。都不从管道读密码。这些命令只依赖 App 注册和数据库，不要求挂载或启动 `/admin` 页面。
 
 ## 自定义 App 命令
 
@@ -161,11 +177,11 @@ class ProjectStats(Command):
 
 `--team-id` 的类型及最小值由 Typer 检查，错误退出码为 2。不存在的团队抛出 ValueError，CLI 输出说明并退出 1；存在但没有项目的团队正常输出 0，退出 0。缺表、数据库不可访问等异常也退出 1，不自动建表或导入 fixture。状态按数据库原值排序/显示，输出只列实际存在的分组；每次重新查询，不读取缓存页的快照。
 
-读 Session 的上下文管理器负责关闭 Session；`finally` 另外释放本次命令使用的数据库连接池，包括查询失败时。一次性命令不执行 Web 停止监听器，不能指望 `WebService.before_server_stop()` 代为清理。这是命令的资源收尾，不是供请求内并发调用的统计助手。这里用 `typer.echo()` 打印普通文本后返回 None，避免数据库字符串被终端 Rich 标记解释；需要交互输入时仍复用 Typer prompt/confirm，实际例子可看内置 [Admin 命令](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py)。
+读 Session 的上下文管理器负责关闭 Session；`finally` 另外释放本次命令使用的数据库连接池，包括查询失败时。一次性命令不执行 Web 停止监听器，不能指望 `WebService.before_server_stop()` 代为清理。这是命令的资源收尾，不是供请求内并发调用的统计助手。这里用 `typer.echo()` 打印普通文本后返回 None，避免数据库字符串被终端 Rich 标记解释；需要提问时用 [tui](tui.md)（`tui.ask`、`tui.confirm` 等），实际例子可看内置 [Admin 命令](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py)。
 
 `name` 匹配 `[a-z][a-z0-9-]*`；命令名用连字符，Python 参数名用下划线。`help` 必须是非空字符串或 `LazyTranslation`。类必须可无参数构造，`handle()` 必须是 `async def`，可以返回供 CLI 打印的结果，也可以自行输出并返回 None。
 
-参数沿用 Typer：无默认值通常是位置参数，有默认值通常是选项；可以用 `Annotated[..., typer.Option(...)]` 或 `typer.Argument(...)` 明确约束。交互复用 `typer.prompt()`、`typer.confirm()`，不另写输入解析系统。
+参数沿用 Typer：无默认值通常是位置参数，有默认值通常是选项；可以用 `Annotated[..., typer.Option(...)]` 或 `typer.Argument(...)` 明确约束。提问用 [tui](tui.md)，不另写输入解析；要支持无人值守就给问题起 key。
 
 同一服务的 App 命令名必须唯一，不能与服务已有命令、配置/静态/Shell 入口或 fixtures 命令冲突。App 显示名用于帮助里的分组，不成为额外一级命令。例如执行的是 `web changepassword`，不是 `web admin changepassword`。
 
@@ -201,8 +217,8 @@ Core 只发送/RPC，不因 consume=true 加载 App events 或启动 subscriber�
 
 两个可选类属性：
 
-- `check_pid = True`：限制同一服务的同名命令并发。默认 false；不是分布式锁，也不保护不同机器。
-- `raw_stdout = True`：给机器消费原始 stdout 时，把命令日志送往 stderr。默认 false；命令自己也应避免在数据流中混入说明文字。
+- `check_pid = True`：限制同一服务的同名命令并发，锁文件是 `process.pid_dir` 下的 `<服务>.<命令>.pid`。默认 false；不是分布式锁，也不保护不同机器。
+- `raw_stdout = True`：给机器消费原始 stdout 时，把命令日志送往 stderr。默认 false；命令自己也应避免在数据流中混入说明文字。用 [tui](tui.md) 输出时，除 `echo` 外的说明、表格和等待提示会自动改走 stderr。
 
 ## 数据库命令的范围
 

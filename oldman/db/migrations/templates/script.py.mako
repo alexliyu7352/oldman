@@ -1,7 +1,11 @@
 """${message}
 
 Revision ID: ${up_revision}
+% if down_revision:
 Revises: ${down_revision | comma,n}
+% else:
+Revises:
+% endif
 Create Date: ${create_date}
 
 Review upgrade() and downgrade() before applying this migration.

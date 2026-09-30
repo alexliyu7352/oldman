@@ -7,6 +7,12 @@ import { ComponentRegistry } from "../core/component/registry";
 import { Table } from "./table";
 import { TableFilterForm } from "./table-filter-form";
 
+/** Node's process, where Vitest's runner sees unhandled rejections; this package's types leave Node out. */
+type UnhandledRejectionListener = (reason: unknown) => void;
+const nodeProcess = (globalThis as unknown as {
+  process: { on(event: "unhandledRejection", listener: UnhandledRejectionListener): void; off(event: "unhandledRejection", listener: UnhandledRejectionListener): void };
+}).process;
+
 describe("Table", () => {
   beforeEach(() => {
     window.history.replaceState(null, "", "/");
@@ -1588,6 +1594,60 @@ describe("Table", () => {
 
     await component.stop();
     document.body.replaceChildren();
+  });
+
+  it("leaves a failed refresh started by an event on the table, not as an unhandled rejection", async () => {
+    // Reload events, filtering, paging, page size, sorting and the empty state's reset all refresh with nobody awaiting the
+    // result; the failure is already shown and emitted, so re-raising it only reached the page's
+    // unhandled-rejection handlers (a 401 that redirects to login, reported as a page error).
+    document.body.innerHTML = `
+      <section data-om-component="table" data-om-table-src="/streams">
+        <input data-om-table-filter data-om-table-param="q">
+        <button type="button" data-om-table-sort="name">Name</button>
+        <select data-om-table-page-size-control><option value="10">10</option><option value="20">20</option></select>
+        <div data-om-table-partial><table><tbody><tr data-om-table-row><td>Alpha Stream</td></tr></tbody></table></div>
+        <p data-om-table-empty hidden></p>
+        <p data-om-table-loading hidden></p>
+        <p data-om-table-error hidden></p>
+        <button type="button" data-om-table-page="2">2</button>
+        <button type="button" data-om-table-empty-reset>Reset filters</button>
+      </section>
+    `;
+    const root = document.querySelector<HTMLElement>("[data-om-component='table']")!;
+    const component = new Table(root);
+    const html = vi.fn().mockRejectedValue(new Error("网络错误"));
+    Object.assign(component.http, { html });
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    nodeProcess.on("unhandledRejection", record);
+    await component.start();
+    try {
+      const triggers: Array<[string, () => void]> = [
+        ["om:table:reload", () => root.dispatchEvent(new CustomEvent("om:table:reload"))],
+        ["filter", () => root.querySelector("[data-om-table-filter]")!.dispatchEvent(new Event("input", { bubbles: true }))],
+        ["page", () => root.querySelector<HTMLButtonElement>("[data-om-table-page='2']")!.click()],
+        ["page size", () => root.querySelector("[data-om-table-page-size-control]")!.dispatchEvent(new Event("change", { bubbles: true }))],
+        ["sort", () => root.querySelector<HTMLButtonElement>("[data-om-table-sort='name']")!.click()],
+        // The default empty state's button (tables/default/empty.html), shown when filters hide every row.
+        ["empty reset", () => root.querySelector<HTMLButtonElement>("[data-om-table-empty-reset]")!.click()]
+      ];
+      for (const [name, trigger] of triggers) {
+        const calls = html.mock.calls.length;
+        trigger();
+        // Each refresh settles before the next one starts, so every one of them is the current one.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(html.mock.calls.length, name).toBe(calls + 1);
+        expect(root.dataset.omStatus, name).toBe("error");
+        expect(root.querySelector<HTMLElement>("[data-om-table-error]")!.textContent, name).toBe("网络错误");
+      }
+      expect(unhandled).toEqual([]);
+    } finally {
+      nodeProcess.off("unhandledRejection", record);
+      await component.stop();
+      document.body.replaceChildren();
+    }
   });
 
   it("shows a scoped loading overlay during remote refresh", async () => {

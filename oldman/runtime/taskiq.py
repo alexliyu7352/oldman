@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import fcntl
 import multiprocessing
-import os
 import signal
 import subprocess
 import sys
@@ -15,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from oldman.logging import ChildLoggingContext, logger
-from oldman.runtime._taskiq_process import GroupIdentity, service_process_group, spawn_stopper, stop_process_group
+from oldman.runtime._process_group import spawn_stopper
 from oldman.runtime.base import BaseApplication
 from oldman.runtime.bootstrap import bootstrap_service
 from oldman.runtime.simple import SimpleApplication
@@ -71,98 +69,33 @@ def _worker_entry(*, args: WorkerArgs, service: str, config_file: Path, logging_
         logging_runtime.close()
 
 
-class _TaskiqServiceLifecycle:
-    """Share explicit group-safe start/stop between Worker and Scheduler only."""
+class _TaskiqServiceLifecycle(BaseApplication):
+    """What the Taskiq Worker and Scheduler add to the shared service lifecycle.
 
-    # These members are provided by the actual Application base, not a proxy.
-    if TYPE_CHECKING:
-        from oldman.runtime.bootstrap import ServiceBootstrapContext
-
-        bootstrap_context: ServiceBootstrapContext
-        pid_file_path: str
-        _pid_cleanup_callback: Any
-
-        def run(self, *args: Any, **kwargs: Any) -> None: ...
-        def _close_logging(self) -> None: ...
-
-    @property
-    def _identity_path(self) -> Path:
-        """Keep the existing numeric PID file protocol; add private group identity."""
-        return Path(self.pid_file_path).with_suffix(".taskiq.json")
+    Their PID lock, identity record and bounded group stop are BaseApplication's; they also require
+    taskiq.enabled, use taskiq.stop_timeout, and start a stopper process on Ctrl-C or a failed start,
+    because their own loops can be blocked when that happens. Unlike Web and Simple services, their
+    run() leaves the logging open: the command that started them closes it.
+    """
 
     def start(self, *args: Any, **kwargs: Any) -> None:
-        """Hold the service PID lock for its lifetime and retain terminal signals."""
+        """Refuse without taskiq.enabled, then run under the shared lifecycle."""
         if not self.bootstrap_context.settings.taskiq.enabled:
-            self._close_logging()
             raise RuntimeError("This service requires settings.taskiq.enabled=true")
-        pid_path = Path(self.pid_file_path)
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with pid_path.open("a+", encoding="ascii") as pid_file:
-                try:
-                    fcntl.flock(pid_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError:
-                    raise RuntimeError("Taskiq service is already running") from None
-                pid_file.seek(0)
-                previous = pid_file.read().strip()
-                if previous and Path(f"/proc/{int(previous)}").exists():
-                    raise RuntimeError(f"Service PID {previous} is still present; refusing to overwrite its PID file")
-                with service_process_group() as identity:
-                    self._group_identity = identity
-                    self._stopper: subprocess.Popen[bytes] | None = None
-                    pid_file.seek(0)
-                    pid_file.truncate()
-                    pid_file.write(str(identity.pid))
-                    pid_file.flush()
-                    self._identity_path.write_text(identity.to_json(), encoding="utf-8")
-                    try:
-                        self.run(*args, **kwargs)
-                    finally:
-                        self.delete_pid_file()
-        finally:
-            self._close_logging()
+        self._stopper: subprocess.Popen[bytes] | None = None
+        super().start(*args, **kwargs)
 
-    def delete_pid_file(self) -> None:
-        """A stop-command instance must never remove another process's PID files."""
-        path = Path(self.pid_file_path)
-        if path.exists() and path.read_text().strip() == str(os.getpid()):
-            path.unlink(missing_ok=True)
-            self._identity_path.unlink(missing_ok=True)
+    def _stop_timeout(self) -> float:
+        """Taskiq services keep their own stop deadline setting."""
+        return self.bootstrap_context.settings.taskiq.stop_timeout
 
     def _ensure_stopper(self) -> None:
         """Only create a short-lived stopper when stop has actually been requested."""
         if self._stopper is None:
-            self._stopper = spawn_stopper(self._group_identity, self.bootstrap_context.settings.taskiq.stop_timeout)
-
-    def stop(self, *args: Any, **kwargs: Any) -> int:
-        """One command includes graceful waiting, deadline escalation and checking."""
-        try:
-            if not self._identity_path.exists():
-                if Path(self.pid_file_path).exists():
-                    raise RuntimeError("Taskiq group identity is missing; refusing to stop an unverified PID")
-                logger.info("Taskiq service is not running")
-                return 0
-            identity = GroupIdentity.from_json(self._identity_path.read_text())
-            forced = stop_process_group(identity, self.bootstrap_context.settings.taskiq.stop_timeout)
-            logger.info("Taskiq service group stopped%s", " after the stop deadline" if forced else "")
-            # Remove stale files only when they still describe the stopped service.
-            if self._identity_path.exists() and self._identity_path.read_text() == identity.to_json():
-                self._identity_path.unlink()
-                path = Path(self.pid_file_path)
-                if path.exists() and path.read_text().strip() == str(identity.pid):
-                    path.unlink()
-            return identity.pid
-        finally:
-            self._close_logging()
-
-    def restart(self, *args: Any, **kwargs: Any) -> None:
-        """Do not start a replacement until stop has verified the old group gone."""
-        self.stop(*args, **kwargs)
-        # stop closes its command instance's logging; reuse the normal constructor.
-        type(self)().start(*args, **kwargs)
+            self._stopper = spawn_stopper(self._group_identity, self._stop_timeout())
 
 
-class TaskiqWorkerApplication(_TaskiqServiceLifecycle, BaseApplication):
+class TaskiqWorkerApplication(_TaskiqServiceLifecycle):
     """A native Taskiq process manager, not a SimpleApplication background task."""
 
     def init(self) -> None:

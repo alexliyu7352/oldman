@@ -58,10 +58,13 @@ def sdist_distribution_version(sdist: Path) -> str:
 
 
 def clean_environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Remove Python path mechanisms that could leak repository source into probes."""
+    """Remove Python path mechanisms that could leak repository source into probes, and preset answers."""
     environment = dict(os.environ if source is None else source)
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTHONHOME", None)
+    # A preset answer left in the shell would answer the scaffold questions instead of the probe.
+    for name in [name for name in environment if name.startswith("OLDMAN_ANSWER_")]:
+        del environment[name]
     environment["PYTHONNOUSERSITE"] = "1"
     return environment
 
@@ -71,15 +74,15 @@ def run(
     *,
     cwd: Path,
     environment: Mapping[str, str],
-    input_text: str | None = None,
 ) -> str:
+    # stdin is closed: a question without a preset answer fails at once, naming its variable.
     completed = subprocess.run(
         list(command),
         cwd=cwd,
         env=dict(environment),
         check=False,
         capture_output=True,
-        input=input_text,
+        stdin=subprocess.DEVNULL,
         text=True,
     )
     if completed.returncode:
@@ -178,24 +181,22 @@ def install_and_probe(wheel: Path, *, python_executable: Path, label: str, modul
             raise RuntimeError(f"Installed markerless project root escaped the working directory: {project_root}")
 
         run((str(oldman), "--help"), cwd=root, environment=environment)
+        # Preset answers: the questions do not read piped stdin (see the tui docs).
         run(
             (str(oldman), "startproject", "installed_probe"),
             cwd=root,
-            environment=environment,
-            input_text="web\nsqlite\n",
+            environment={**environment, "OLDMAN_ANSWER_STARTPROJECT_TYPE": "web", "OLDMAN_ANSWER_STARTPROJECT_DATABASE": "sqlite"},
         )
         project = root / "installed_probe"
         run(
             (str(oldman), "startapp", "installed_probe_app"),
             cwd=project,
-            environment=environment,
-            input_text="web\n\n",
+            environment={**environment, "OLDMAN_ANSWER_STARTAPP_TEMPLATE": "web"},
         )
         run(
             (str(oldman), "startservice", "installed_probe_worker"),
             cwd=project,
-            environment=environment,
-            input_text="simple\n",
+            environment={**environment, "OLDMAN_ANSWER_STARTSERVICE_TYPE": "simple"},
         )
         run(
             (str(oldman), "installed_probe_worker", "settings", "init"),

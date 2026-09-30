@@ -359,10 +359,13 @@ def prepare_evidence_directory(requested: Path) -> Path:
 
 
 def clean_environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
-    """Remove inherited Python and uv paths that could expose repository source."""
+    """Remove inherited Python and uv paths that could expose repository source, and preset answers."""
     environment = dict(os.environ if source is None else source)
     for name in ("PYTHONHOME", "PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"):
         environment.pop(name, None)
+    # A preset answer left in the shell would answer the scaffold questions instead of the matrix.
+    for name in [name for name in environment if name.startswith("OLDMAN_ANSWER_")]:
+        del environment[name]
     environment["PYTHONNOUSERSITE"] = "1"
     environment["CI"] = "1"
     return environment
@@ -578,9 +581,11 @@ def run(
     environment: Mapping[str, str],
     log_path: Path,
     timeout: int = 300,
-    input_text: str | None = None,
 ) -> str:
-    """Run one probe command and persist its exact cwd, return code and output."""
+    """Run one probe command and persist its exact cwd, return code and output.
+
+    stdin is closed: a question without a preset answer fails at once, naming its variable.
+    """
     try:
         completed = subprocess.run(
             list(command),
@@ -588,7 +593,7 @@ def run(
             env=dict(environment),
             check=False,
             capture_output=True,
-            input=input_text,
+            stdin=subprocess.DEVNULL,
             text=True,
             timeout=timeout,
         )
@@ -1542,9 +1547,13 @@ def generate_case(
     run(
         (str(generator_oldman), "startproject", case_name),
         cwd=root,
-        environment=environment,
+        # Preset answers: the questions do not read piped stdin (see the tui docs).
+        environment={
+            **environment,
+            "OLDMAN_ANSWER_STARTPROJECT_TYPE": project_type,
+            "OLDMAN_ANSWER_STARTPROJECT_DATABASE": database,
+        },
         log_path=case_evidence / "startproject.log",
-        input_text=f"{project_type}\n" + (f"{database}\n" if project_type != "cli" else ""),
     )
     metadata = validate_generated_project(project, project_type, database, framework_version=npm_version)
     preserve_evidence_file(project / "pyproject.toml", case_evidence / "generated" / "pyproject.toml")
@@ -1609,16 +1618,14 @@ def generate_case(
         run(
             (str(oldman), "startapp", "matrix_probe"),
             cwd=project,
-            environment=environment,
+            environment={**environment, "OLDMAN_ANSWER_STARTAPP_TEMPLATE": APP_TYPES[project_type]},
             log_path=case_evidence / "startapp.log",
-            input_text=f"{APP_TYPES[project_type]}\n\n",
         )
         run(
             (str(oldman), "startservice", "matrix_worker"),
             cwd=project,
-            environment=environment,
+            environment={**environment, "OLDMAN_ANSWER_STARTSERVICE_TYPE": "simple" if project_type == "service" else "web"},
             log_path=case_evidence / "startservice.log",
-            input_text="simple\n" if project_type == "service" else "web\n",
         )
         preserve_evidence_file(
             project / "apps" / "matrix_probe" / "apps.py",

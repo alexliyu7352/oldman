@@ -12,8 +12,10 @@ from typing import Any, ClassVar, cast
 
 from sanic import Request as SanicRequest
 from sanic import Sanic
+from sanic.log import error_logger
 from sanic.mixins.listeners import ListenerEvent
 from sanic.worker.loader import AppLoader
+from sanic.worker.manager import WorkerManager
 from sanic_ext import Config, Extend
 from sanic_ext.extensions.base import Extension
 from sanic_ext.extensions.health.extension import HealthExtension
@@ -60,6 +62,63 @@ def prepare_process_context() -> None:
 
     # Sanic rejects an already-set context even when it is the expected one.
     Sanic.START_METHOD_SET = True
+
+
+#: Sanic's own `WorkerManager.wait_for_ack`, kept for the test that notices when Sanic changes it.
+_SANIC_WAIT_FOR_ACK = WorkerManager.wait_for_ack
+
+
+def _wait_for_ack(self: WorkerManager) -> None:
+    """Sanic 25.12.1's `WorkerManager.wait_for_ack`, which also leaves on the shutdown signal's None.
+
+    `shutdown_signal` sends None into the manager's own pipe and terminates the workers. The loop
+    in `monitor()` stops on None, but this wait runs before it: Sanic's version puts back every
+    message it does not know and waits again without counting, so a SIGTERM while the workers
+    start makes the primary process spin forever on its own None. Here None goes back into the
+    pipe for `monitor()`'s loop, and the wait ends. Everything else is Sanic's code unchanged.
+    """
+    misses = 0
+    message = (
+        "It seems that one or more of your workers failed to come "
+        "online in the allowed time. Sanic is shutting down to avoid a "
+        f"deadlock. The current threshold is {self.THRESHOLD / 10}s. "
+        "If this problem persists, please check out the documentation "
+        "https://sanic.dev/en/guide/deployment/manager.html#worker-ack."
+    )
+    while not self._all_workers_ack():
+        if self.monitor_subscriber.poll(0.1):
+            monitor_msg = self.monitor_subscriber.recv()
+            if not monitor_msg:
+                self.monitor_publisher.send(monitor_msg)
+                return
+            if monitor_msg != "__TERMINATE_EARLY__":
+                self.monitor_publisher.send(monitor_msg)
+                continue
+            misses = self.THRESHOLD
+            message = (
+                "One of your worker processes terminated before startup "
+                "was completed. Please solve any errors experienced "
+                "during startup. If you do not see an exception traceback "
+                "in your error logs, try running Sanic in a single "
+                "process using --single-process or single_process=True. "
+                "Once you are confident that the server is able to start "
+                "without errors you can switch back to multiprocess mode."
+            )
+        misses += 1
+        if misses > self.THRESHOLD:
+            error_logger.error("Not all workers acknowledged a successful startup. Shutting down.\n\n" + message)
+            self.kill()
+
+
+def _leave_ack_wait_on_shutdown() -> None:
+    """Make Sanic's worker manager stop when a shutdown signal arrives while workers start.
+
+    The framework pins `sanic==25.12.1`; Sanic's main branch has the same `wait_for_ack` (checked 2026-09-29),
+    reported upstream as https://github.com/sanic-org/sanic/issues/3196.
+    When a Sanic release fixes it, drop this; `tests/test_oldman_web_runtime_boundaries.py` fails
+    as soon as Sanic's own `wait_for_ack` changes, so a Sanic upgrade cannot keep it unnoticed.
+    """
+    WorkerManager.wait_for_ack = _wait_for_ack  # type: ignore[method-assign]
 
 
 def _package_locale_root(package_name: str) -> Path | None:
@@ -395,9 +454,12 @@ class WebApplication(BaseApplication):
             logger.warning("Listening on %s", primary.serve_location)
             logger.warning("Data directory: %s", settings.core.data_dir)
             logger.warning("Logs directory: %s", settings.logging.dir)
+            _leave_ack_wait_on_shutdown()
             Sanic.serve(primary=primary, app_loader=loader)
-        except Exception as exc:
-            logger.error("Error while running the server: %r", exc)
+        except Exception:
+            # With the traceback: the CLI only prints the message, and a startup error's repr says
+            # little about where it came from.
+            logger.exception("Error while running the server")
             raise
         finally:
             # Sanic.serve returns only after its WorkerManager joined workers.

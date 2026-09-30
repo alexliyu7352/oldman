@@ -367,13 +367,13 @@ class MigrationDependencyTests(unittest.TestCase):
                 _project_source(("reports",)),
                 """
                 import io
+                import sys
                 from oldman.db.migrations.interaction import (
                     ConsoleMigrationInteraction, MigrationInteractionRequired,
                 )
                 from oldman.db.migrations.revisions import make_migration
-                interaction = ConsoleMigrationInteraction(
-                    input_stream=io.StringIO(), output_stream=io.StringIO(),
-                )
+                sys.stdin = io.StringIO()  # not a terminal
+                interaction = ConsoleMigrationInteraction()
                 try:
                     make_migration(project, interaction)
                 except MigrationInteractionRequired:

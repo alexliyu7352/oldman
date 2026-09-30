@@ -1,4 +1,13 @@
-"""Run external commands with Linux process-group ownership."""
+"""Run external commands with Linux process-group ownership.
+
+For children no person talks to: in a web service or a taskiq worker, or a job a command runs
+with a timeout. Each child runs behind a supervisor in a session of its own, without the
+terminal, and its whole process group is cleaned up on timeout, on cancellation and when the
+owning process dies, so a worker that restarts or a request that is cancelled leaves nothing
+running. For the same reason the child has no controlling terminal: `sudo` cannot ask for a
+password, and Ctrl-C at the terminal reaches only the owner, which then cleans up the group. Run
+commands a person may answer with `oldman.processes.run_foreground`.
+"""
 
 from __future__ import annotations
 
@@ -129,28 +138,58 @@ def _validate_durations(
     return grace, kill
 
 
-def _live_process_group_pids(process_group: int) -> tuple[int, ...]:
-    """Return live non-zombie Linux members of one owned process group."""
+def _group_is_gone(process_group: int) -> bool:
+    """Whether the kernel knows no process in `process_group` any more, not even a zombie.
+
+    Group 1 cannot be asked: killpg(1, sig) is kill(-1, sig), "every process the caller may signal
+    but init and itself", so for it the answer is always "maybe not".
+    """
+    if process_group <= 1:
+        return False
     try:
         os.killpg(process_group, 0)
     except ProcessLookupError:
-        return ()
+        return True
     except PermissionError:
         # The group is expected to be ours. If kernel permissions disagree,
         # retain the slower evidence path so cleanup fails closed.
         pass
+    return False
 
-    pids: list[int] = []
-    for stat_path in Path("/proc").glob("[0-9]*/stat"):
-        try:
-            fields = stat_path.read_text(encoding="utf-8").rsplit(")", 1)[1].split()
-            state = fields[0]
-            group = int(fields[2])
-        except (FileNotFoundError, IndexError, OSError, ValueError):
-            continue
-        if group == process_group and state != "Z":
-            pids.append(int(stat_path.parent.name))
-    return tuple(sorted(pids))
+
+def _live_group_of(pid: int) -> int | None:
+    """The process group of `pid`, or None once it has exited or is a zombie."""
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
+        return None if fields[0] == "Z" else int(fields[2])
+    except (IndexError, OSError, ValueError):
+        return None
+
+
+def _live_process_group_pids(process_group: int) -> tuple[int, ...]:
+    """Return live non-zombie Linux members of one owned process group."""
+    if _group_is_gone(process_group):
+        return ()
+    return tuple(sorted(int(entry) for entry in os.listdir("/proc") if entry.isdigit() and _live_group_of(int(entry)) == process_group))
+
+
+def _group_has_live_members(process_group: int, known: set[int]) -> bool:
+    """Whether `process_group` has a live member, as `_live_process_group_pids` would say, but cheaply.
+
+    Scanning /proc takes about 45 ms on a host with 600 processes, so a wait that scans every poll
+    keeps a core a third busy. The kernel answers "no process at all", and the members seen so far,
+    kept in `known`, answer "one still lives". Only a group that is not empty while none of them lives
+    (a zombie is left, or a member forked since) is scanned, and the members found join `known`.
+    """
+    if _group_is_gone(process_group):
+        return False
+    for pid in list(known):
+        if _live_group_of(pid) == process_group:
+            return True
+        known.discard(pid)
+    found = _live_process_group_pids(process_group)
+    known.update(found)
+    return bool(found)
 
 
 def _signal_process_group(process_group: int, selected_signal: signal.Signals) -> None:
@@ -164,11 +203,12 @@ def _signal_process_group(process_group: int, selected_signal: signal.Signals) -
 async def _wait_for_group_exit(process_group: int, timeout: float) -> tuple[int, ...]:
     """Wait asynchronously for a group to contain no live non-zombie process."""
     deadline = time.monotonic() + timeout
-    while True:
-        remaining = _live_process_group_pids(process_group)
-        if not remaining or time.monotonic() >= deadline:
-            return remaining
+    known: set[int] = set()
+    while _group_has_live_members(process_group, known):
+        if time.monotonic() >= deadline:
+            return _live_process_group_pids(process_group)
         await asyncio.sleep(_POLL_INTERVAL)
+    return ()
 
 
 async def _receive_handshake(
@@ -435,7 +475,7 @@ async def create_subprocess_exec(
     terminate_grace_period: float = _DEFAULT_TERMINATE_GRACE_PERIOD,
     kill_timeout: float = _DEFAULT_KILL_TIMEOUT,
 ) -> ManagedSubprocess:
-    """Start one command behind an owner-death-aware Linux group supervisor."""
+    """Start one command behind an owner-death-aware Linux group supervisor (see the module for when to use it)."""
     if sys.platform != "linux":
         raise NotImplementedError("managed subprocess currently supports Linux only")
     command = _normalize_command(program, args)
@@ -518,7 +558,11 @@ async def run_subprocess_exec(
     terminate_grace_period: float = _DEFAULT_TERMINATE_GRACE_PERIOD,
     kill_timeout: float = _DEFAULT_KILL_TIMEOUT,
 ) -> CompletedSubprocess:
-    """Run one command to completion with optional capture and return checking."""
+    """Run one command to completion with optional capture and return checking.
+
+    For children no person talks to; see the module. A command a person may answer runs with
+    `run_foreground` instead.
+    """
     if capture_output:
         if stdout is not None or stderr is not None:
             raise ValueError("capture_output cannot be combined with stdout or stderr")
