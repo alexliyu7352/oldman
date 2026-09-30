@@ -568,6 +568,8 @@ def exercise_worker_terminal(command: list[str], project: Path, environment: dic
 
     bash = shutil.which("bash", path=environment.get("PATH"))
     assert bash is not None, "the terminal check needs bash"
+    # With a terminal on stdin and no saved choice (CI runners), the CLI would first ask for its language.
+    environment = {**environment, "OLDMAN_CLI_LANGUAGE": "en"}
     for job_control in (True, False):
         shell_pid, terminal = pty.fork()
         if shell_pid == 0:
