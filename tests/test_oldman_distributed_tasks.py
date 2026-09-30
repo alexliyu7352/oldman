@@ -13,6 +13,7 @@ import json
 import os
 import pty
 import shlex
+import shutil
 import signal
 import socket
 import subprocess
@@ -554,23 +555,29 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
 
 
 def exercise_worker_terminal(command: list[str], project: Path, environment: dict[str, str]) -> int:
-    """Type Ctrl+C into real zsh terminals, with and without shell job control."""
+    """Type Ctrl+C into real interactive shells, with and without job control.
+
+    bash, which every Linux host and CI runner has; zsh (the shell this was first written with) is not on
+    GitHub's runners.
+    """
     from dataclasses import replace
 
     from oldman.processes.subprocess import _live_process_group_pids
     from oldman.runtime._process_group import GroupIdentity, stop_process_group
     from tests.test_oldman_logging_tty_runtime import _PtyReader
 
+    bash = shutil.which("bash", path=environment.get("PATH"))
+    assert bash is not None, "the terminal check needs bash"
     for job_control in (True, False):
         shell_pid, terminal = pty.fork()
         if shell_pid == 0:
             os.chdir(project)
-            os.execve("/usr/bin/zsh", ["zsh", "-f", "-i"], environment)
+            os.execve(bash, ["bash", "--norc", "--noprofile", "-i"], environment)
         reader = _PtyReader(terminal)
         owner: GroupIdentity | None = None
         reaped = False
         try:
-            prefix = "" if job_control else "unsetopt monitor\n"
+            prefix = "" if job_control else "set +m\n"
             os.write(terminal, (prefix + shlex.join([*command, "start"]) + "\n").encode())
             deadline = time.monotonic() + 10
             while "All 2 Taskiq worker processes are ready" not in reader.partial_output:
@@ -590,7 +597,7 @@ def exercise_worker_terminal(command: list[str], project: Path, environment: dic
             while _live_process_group_pids(owner.pgid):
                 assert time.monotonic() < deadline, reader.partial_output
                 time.sleep(0.05)
-            os.write(terminal, b"print -r -- __OLDMAN_STATUS_${?}__\n")
+            os.write(terminal, b"printf '__OLDMAN_STATUS_%s__\\n' \"$?\"\n")
             deadline = time.monotonic() + 3
             while "__OLDMAN_STATUS_0__" not in reader.partial_output:
                 assert time.monotonic() < deadline, reader.partial_output
@@ -1032,10 +1039,12 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
         process = subprocess.Popen([executable, "web", "start"], cwd=project, env=environment,
                                    stdout=log, stderr=log, text=True, start_new_session=True)
         try:
+            # Retry only while the server does not answer yet. A request it accepted may already have published,
+            # and the stream below must hold exactly 9 messages, so a slow response is awaited, never retried.
             deadline = time.monotonic() + 12
             while True:
                 try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/publish", timeout=1) as response:
+                    with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/publish", timeout=10) as response:
                         assert json.load(response)["task_id"]
                     break
                 except urllib.error.URLError:

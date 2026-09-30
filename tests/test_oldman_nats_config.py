@@ -75,9 +75,23 @@ class NATSTLSIntegrationTest(unittest.IsolatedAsyncioTestCase):
         cls.temporary = tempfile.TemporaryDirectory(prefix="oldman-nats-tls-", dir="/tmp")
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.root = Path(cls.temporary.name)
-        (cls.root / "extensions.conf").write_text("subjectAltName=DNS:localhost\n", encoding="utf-8")
+        # Every extension spelled out rather than taken from the system's openssl.cnf: Python 3.13 verifies
+        # strictly (VERIFY_X509_STRICT), which wants key usage on the CA and key identifiers on each
+        # certificate, and what a default config adds differs between OpenSSL versions.
+        (cls.root / "ca.conf").write_text(
+            "[req]\ndistinguished_name = dn\nprompt = no\n[dn]\nCN = OldmanTestCA\n"
+            "[v3_ca]\nbasicConstraints = critical,CA:TRUE\nkeyUsage = critical,keyCertSign,cRLSign\n"
+            "subjectKeyIdentifier = hash\nauthorityKeyIdentifier = keyid:always\n",
+            encoding="utf-8",
+        )
+        (cls.root / "extensions.conf").write_text(
+            "basicConstraints = critical,CA:FALSE\nkeyUsage = critical,digitalSignature,keyEncipherment\n"
+            "extendedKeyUsage = serverAuth,clientAuth\nsubjectAltName = DNS:localhost\n"
+            "subjectKeyIdentifier = hash\nauthorityKeyIdentifier = keyid,issuer\n",
+            encoding="utf-8",
+        )
         commands = [
-            ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-subj", "/CN=OldmanTestCA", "-days", "1"],
+            ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-config", "ca.conf", "-extensions", "v3_ca", "-days", "1"],
         ]
         for name in ("server", "client"):
             commands.extend([
