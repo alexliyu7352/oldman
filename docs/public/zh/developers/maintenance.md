@@ -25,7 +25,7 @@ pnpm install --frozen-lockfile
 
 当前元数据要求 Python 3.12 到 3.14、Node 20 及以上，packageManager 指定 pnpm 9.12.3。前端依赖版本以仓库的 `pnpm-lock.yaml` 为准；Python 依赖只受 `pyproject.toml` 的约束，`uv.lock` 是本机解析结果，不提交仓库。不通过随意升级来绕过失败。依赖变化本身应是独立、可审阅的任务。CI 的 3.13 与 3.14 矩阵钉在 3.13.11 与 3.14.2：asyncio 调试模式（`IsolatedAsyncioTestCase` 会强制开启）下，uvloop（0.22.1、0.23.0 都未修复）回收未关闭的 async generator 会崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），框架测试在 3.13.15、3.14.7 上触发，在这两个版本上不触发；上游修复后再放开。
 
-编辑前检查 Git 状态、现有风格与全部相关调用方；一个明确任务一个提交。发布校验不是要求提交用户的未完成修改。需要干净已提交源码时先分清归属，不用 reset 或 add . 清场。
+编辑前检查 Git 状态、现有风格与全部相关调用方；一个明确任务一个提交，标题的写法见[提交标题与发行说明](#提交标题与发行说明)。发布校验不是要求提交用户的未完成修改。需要干净已提交源码时先分清归属，不用 reset 或 add . 清场。
 
 ## 日常验证：只运行相关范围
 
@@ -65,10 +65,32 @@ pnpm --filter oldman-admin build
 发布由 GitHub Actions 完成，本地只做三件事：
 
 1. 修改 `project.version`，运行 `pnpm version:sync`，审阅并提交它改写的 Python/npm 版本副本（`package.json`、两个前端包、`oldman/version.py`、`OLDMAN_WEB_VERSION`）。不要逐个随手修改版本而遗漏另一个包。
-2. 在公开 `main` 对应的提交上打注释标签 `v<版本>`（例如 `v0.1.1`、`v0.1.1-rc.1`），推送标签。
+2. 在 `main` 的这个提交上打注释标签 `v<版本>`（例如 `v0.1.1`、`v0.1.1-rc.1`），推送 `main` 与标签。
 3. 在 Actions 中查看 Release 运行结果，并核对 PyPI、npm 与 GitHub Release。
 
-`.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12、3.13 与 3.14）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建附带三个产物和 `SHA256SUMS` 的 GitHub Release。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
+`.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；按提交标题生成发行说明（见下一节）；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12、3.13 与 3.14）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建 GitHub Release：正文是生成的发行说明，附带三个产物和 `SHA256SUMS`。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
+
+### 提交标题与发行说明
+
+仓库不维护 CHANGELOG 文件，每个版本的发行说明就是 GitHub Release 的正文，由发布工作流用 git-cliff 按根目录的 `cliff.toml` 从提交标题生成。所以提交标题就是发行说明里的一条，要写成给使用者看的一句英文：
+
+```text
+type(scope): summary
+```
+
+- `type` 决定分组：`feat` 进 Added，`fix` 进 Fixed，`perf` 进 Performance，`refactor` 进 Changed，`docs` 进 Documentation，`revert` 进 Reverted；`test`、`build`、`ci`、`chore`、`release` 不进发行说明。
+- `scope` 可选，写受影响的子系统，例如 `fix(web): ...`。
+- 破坏性变更在类型后加 `!`（`feat(db)!: ...`），或在正文末尾写 `BREAKING CHANGE: ...` 脚注；这类条目排在发行说明最前面。
+- 正文不进发行说明，用来写原因和实现细节。
+- 不符合格式的标题仍会出现在 Other 分组里，不会被丢掉，但应当避免。
+
+正式版的说明从上一个正式版算起，包括其间预发布的提交；预发布的说明从上一个标签算起。发版前在本地预览将要生成的说明：
+
+```sh
+uvx git-cliff@2.14.2 --unreleased
+```
+
+提交推送之后标题就不能再改；写错了可以在 Release 页面直接修改正文。
 
 预发布版本（版本号含 `-`）：PyPI 视为 pre-release，`pip install oldman` 默认不会选中它，需要 `--pre` 或精确版本；npm 发布到 `next` dist-tag，`latest` 不变；GitHub Release 标记为 prerelease。用预发布版本演练发布链路不会影响正式用户。
 

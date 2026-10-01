@@ -55,6 +55,7 @@ Homepage = "https://github.com/alexliyu7352/oldman"
 Documentation = "https://github.com/alexliyu7352/oldman#readme"
 Repository = "https://github.com/alexliyu7352/oldman.git"
 Issues = "https://github.com/alexliyu7352/oldman/issues"
+Changelog = "https://github.com/alexliyu7352/oldman/releases"
 
 [project.scripts]
 oldman = "oldman.cli:main"
