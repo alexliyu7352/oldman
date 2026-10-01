@@ -90,6 +90,7 @@ class OldmanPackageMetadataTest(unittest.TestCase):
         self.assertEqual({"file": "LICENSE"}, project["license"])
         self.assertEqual(
             {
+                "Changelog": "https://github.com/alexliyu7352/oldman/releases",
                 "Documentation": "https://github.com/alexliyu7352/oldman#readme",
                 "Homepage": "https://github.com/alexliyu7352/oldman",
                 "Issues": "https://github.com/alexliyu7352/oldman/issues",
