@@ -61,7 +61,7 @@ uv sync
 
 普通 API 不要求安装前端包。需要共享 Dashboard UI 时再安装 `oldman-web` 及其声明的依赖；内置 Admin 的默认浏览器资源随 Python 包提供。
 
-当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：打开 `core.debug`（asyncio 调试模式）时，uvloop（0.22.1、0.23.0 都未修复）回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)）：要同时满足调试模式和代码里有没关闭的 async generator 才会出现，与 Python 版本无关，详见[配置参考](docs/public/zh/developers/configuration.md#web-默认值与开关)；默认关闭调试的生产运行不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
+当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：打开 `core.debug`（asyncio 调试模式）时，uvloop（0.22.1、0.23.0 都未修复）回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)）：要同时满足调试模式和代码里有没关闭的 async generator 才会出现，换 Python 版本避不开，详见[配置参考](docs/public/zh/developers/configuration.md#web-默认值与开关)；默认关闭调试的生产运行不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
 
 ## 完整示例
 

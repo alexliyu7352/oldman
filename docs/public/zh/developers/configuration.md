@@ -290,7 +290,7 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 设置真实 IP header 不表示所有请求都可信。生产反向代理应覆盖该 header，并限制直接绕过代理访问服务的路径。
 
-`core.debug` 为 true 时，Web 服务的 Sanic 会对事件循环调用 `set_debug(True)`。在这个模式下，uvloop 回收没有关闭的 async generator 时可能报 `AttributeError`，也可能直接段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)；到 2026-10-01 为止，0.22.1 与 0.23.0 都没有修复）。两个条件同时满足才会出现：打开了调试模式，并且代码里有 async generator 没有关闭（`break` 跳出 `async for` 之类）、留给垃圾回收。只看 Python 版本判断不了：用上游 #715 的复现脚本实测，3.12、3.13、3.14 各补丁版在调试模式下都会出现（段错误，或者只打印一条 `AttributeError` 的 "Exception ignored"），关掉调试就都正常；框架自己的测试在 3.13.11、3.14.2 上不触发，CI 因此固定这两个版本。默认关闭调试的生产运行不受影响。调试时遇到回收 async generator 的报错或段错误就是这个问题；把自己代码里的 async generator 显式关闭（`contextlib.aclosing`），不留给垃圾回收，就不会触发。
+`core.debug` 为 true 时，Web 服务的 Sanic 会对事件循环调用 `set_debug(True)`。在这个模式下，uvloop 回收没有关闭的 async generator 时可能报 `AttributeError`，也可能直接段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)；到 2026-10-01 为止，0.22.1 与 0.23.0 都没有修复）。两个条件同时满足才会出现：打开了调试模式，并且代码里有 async generator 没有关闭（`break` 跳出 `async for` 之类）、留给垃圾回收。换 Python 版本避不开：用上游 #715 的复现脚本实测，3.12 的各补丁版和 3.13.11、3.13.15、3.14.2 在调试模式下都会出现（段错误，或者只打印一条 `AttributeError` 的 "Exception ignored"），3.14.7 上这个脚本不出错、框架自己的测试却会崩；关掉调试就都正常。框架自己的测试在 3.13.11、3.14.2 上不触发，CI 因此固定这两个版本。默认关闭调试的生产运行不受影响。调试时遇到回收 async generator 的报错或段错误就是这个问题；把自己代码里的 async generator 显式关闭（`contextlib.aclosing`），不留给垃圾回收，就不会触发。
 
 ### Web 安全配置
 
