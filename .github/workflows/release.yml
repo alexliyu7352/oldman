@@ -65,6 +65,21 @@ jobs:
             exit 1
           fi
 
+      - name: Write the release notes from the commit subjects
+        env:
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          # cliff.toml counts from the previous final release; a prerelease counts from the tag before it.
+          range=()
+          if [ "$PRERELEASE" = "true" ]; then range=(--tag-pattern '^v[0-9]'); fi
+          mkdir -p release-notes
+          uvx git-cliff@2.14.2 --current "${range[@]}" --strip all --output release-notes/notes.md
+          if ! grep -q . release-notes/notes.md; then
+            echo "::error::git-cliff wrote empty release notes for $GITHUB_REF_NAME"
+            exit 1
+          fi
+          cat release-notes/notes.md
+
       - name: Build wheel, sdist and npm tarball
         run: |
           pnpm build:python
@@ -95,6 +110,11 @@ jobs:
         with:
           name: release
           path: release/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes/
           if-no-files-found: error
 
   publish-pypi:
@@ -150,6 +170,10 @@ jobs:
         with:
           name: release
           path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes
       - uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -157,4 +181,4 @@ jobs:
             release/npm/*
             release/SHA256SUMS
           prerelease: ${{ needs.build.outputs.prerelease == 'true' }}
-          generate_release_notes: true
+          body_path: release-notes/notes.md
