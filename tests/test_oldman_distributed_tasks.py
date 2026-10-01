@@ -453,6 +453,7 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
             recovered = subprocess.run(publish.args, cwd=project, env=environment, capture_output=True, text=True, timeout=25)
             assert recovered.returncode == 0, recovered.stdout + recovered.stderr + (root / "worker.log").read_text()
             assert set(json.loads(recovered.stdout.strip().splitlines()[-1])) == child_pids()
+            serving = child_pids()
             redelivered = subprocess.run([sys.executable, "-c", textwrap.dedent("""
                 import asyncio
                 from oldman import bootstrap_service
@@ -471,6 +472,17 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
                 asyncio.run(main())
             """)], cwd=project, env=environment, capture_output=True, text=True, timeout=15)
             assert redelivered.returncode == 0, redelivered.stdout + redelivered.stderr
+            # crash_once's worker is replaced in the background. Restart only once the replacement listens: Taskiq
+            # stops workers with SIGINT, and one still in spawn bootstrap prints a KeyboardInterrupt traceback
+            # (runtime replacements report no readiness; a known gap, not what this step checks).
+            deadline = time.monotonic() + 10
+            while True:
+                current = child_pids()
+                output = (root / "worker.log").read_text()
+                if len(current) == 2 and current != serving and all(f"[{pid}] [INFO] Listening started." in output for pid in current):
+                    break
+                assert process.poll() is None and time.monotonic() < deadline, output
+                time.sleep(0.1)
             # restart must stop the entire old group before the new process can
             # claim the same PID file. Keep ownership of both actual processes.
             previous = process
