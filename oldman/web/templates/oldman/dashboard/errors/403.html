@@ -5,6 +5,6 @@
 {% block content %}
   <div class="error-status error-status--warning" aria-hidden="true">403</div>
   <h1 class="error-title">{{ _("Access denied") }}</h1>
-  <p class="error-description">{{ _("You do not have permission to access this page.") }}</p>
+  <p class="error-description">{{ description or _("You do not have permission to access this page.") }}</p>
   <a class="error-action" href="/">{{ _("Return to dashboard") }}</a>
 {% endblock %}

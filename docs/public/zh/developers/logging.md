@@ -17,7 +17,7 @@ except ValueError:
 
 ## 初始化与关闭
 
-WebApplication、SimpleApplication 和正常服务命令负责自己的日志生命周期。业务模块只取得 Logger，不在 import 时调用 `init_logging()`。
+WebApplication、SimpleApplication 和正常服务命令负责自己的日志生命周期。一次性 App 命令的终端只显示警告和错误，完整日志在命令自己的日志文件里，DEBUG 级别时终端也显示全部（见 [CLI 参考](cli.md#命令生命周期)）。业务模块只取得 Logger，不在 import 时调用 `init_logging()`。
 
 独立 Python 程序可以显式管理：
 

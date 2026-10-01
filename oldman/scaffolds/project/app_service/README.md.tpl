@@ -11,6 +11,8 @@ uv sync
 ./run.sh {{ service_name }} start
 ```
 
+`.python-version` 指定 Python 3.13（框架推荐的版本），`uv sync` 按它选解释器，本机没有时 uv 会自动下载；要用其他受支持的版本（3.12–3.14）就改这个文件。
+
 生成的 `main()` 没有业务逻辑，会立即返回并退出。这是可填写的服务骨架，不是已经开始轮询的 Worker。业务异步流程写入 `main()`，必要的异步资源在生命周期中初始化和关闭。
 
 `run.sh` 只执行本项目虚拟环境中的 `oldman`，不自动运行所有服务。长时间运行时可以 Ctrl+C 停止，或另开终端使用 `./run.sh {{ service_name }} stop`。

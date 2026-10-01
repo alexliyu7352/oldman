@@ -228,6 +228,9 @@ def gate_settings(
     web = payload["web"]
     web["listen_host"] = host
     web["listen_port"] = service_port
+    # Links built for outside the request (password reset mails) must reach this gate's server,
+    # not the address the example names.
+    web["domain"] = f"http://[{host}]:{service_port}" if ":" in host else f"http://{host}:{service_port}"
     web["workers"] = 1
     web["access_log"] = False
     web["security"]["secret_key"] = secrets.token_urlsafe(48)

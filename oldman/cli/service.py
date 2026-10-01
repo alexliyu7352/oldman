@@ -35,9 +35,21 @@ def load_selected_service(
     return load_service_class(definition), context.apps
 
 
+def _service_command_output(service_name: str, command_name: str, result: Any) -> str | None:
+    """What the terminal shows for a lifecycle command's return value."""
+    if command_name == "stop" and isinstance(result, int):
+        # stop() returns the stopped main process's pid, or 0 when nothing ran; scripts that
+        # call it keep that number, the terminal gets a sentence.
+        if result:
+            return gettext("Stopped %(service)s (main process %(pid)s).", service=service_name, pid=result)
+        return gettext("%(service)s is not running.", service=service_name)
+    return str(result) if result else None
+
+
 def _create_service_command_handler(
     service_class: type[Any],
     command_name: str,
+    service_name: str,
 ):
     """Create one legacy-shaped callback for a service lifecycle command."""
 
@@ -53,8 +65,9 @@ def _create_service_command_handler(
         """Execute one registered application command."""
         try:
             result = service_class.execute_command(command_name, *(args or []))
-            if result:
-                typer.echo(str(result))
+            output = _service_command_output(service_name, command_name, result)
+            if output:
+                typer.echo(output)
         except Cancelled as exc:
             error(gettext("Aborted."))
             raise typer.Exit(1) from exc
@@ -127,6 +140,7 @@ def register_application_commands(
     service_class: type[Any],
     app_registry: AppRegistry,
     *,
+    service_name: str,
     command_class: type[TyperCommand],
     reserved_names: AbstractSet[str],
 ) -> None:
@@ -156,7 +170,7 @@ def register_application_commands(
 
     for command_name, (_, description) in service_commands.items():
         localized_description = gettext(description)
-        handler = _create_service_command_handler(service_class, command_name)
+        handler = _create_service_command_handler(service_class, command_name, service_name)
         handler.__doc__ = localized_description
         service_app.command(
             command_name,

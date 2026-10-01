@@ -279,6 +279,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
     def test_each_project_has_one_committed_uuid_and_flat_uv_metadata(self) -> None:
         """Project identity is valid source metadata rather than runtime state."""
         identities: set[UUID] = set()
+        framework_python = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["requires-python"]
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
             for project_type in ProjectType:
@@ -299,6 +300,9 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 project_id = UUID(metadata["tool"]["oldman"]["project_id"])
                 identities.add(project_id)
                 self.assertIs(metadata["tool"]["uv"]["package"], False)
+                # uv picks the recommended interpreter, not just the newest one installed.
+                self.assertEqual("3.13\n", (target / ".python-version").read_text(encoding="utf-8"))
+                self.assertEqual(framework_python, metadata["project"]["requires-python"])
                 self.assertNotIn("migration_apps", metadata["tool"]["oldman"])
 
         self.assertEqual(len(identities), len(ProjectType))
@@ -443,6 +447,9 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
 
         self.assertIn('"oldman>=9.8.7"', pyproject)
         self.assertIn('"oldman-web": "^9.8.7"', frontend)
+        # The build tool oldman-web's SCSS is tested with, declared rather than left to hoisting.
+        oldman_web = json.loads((ROOT / "frontend/packages/oldman-web/package.json").read_text(encoding="utf-8"))
+        self.assertEqual(oldman_web["dependencies"]["sass"], frontend_package["devDependencies"]["sass"])
         self.assertEqual(
             frontend_package["scripts"]["generate:i18n"],
             "../run.sh i18n compile-frontend --service dashboard",

@@ -73,6 +73,15 @@ def run_cli(
 class OldmanCliLocalizationTest(unittest.TestCase):
     """Verify CLI language state remains independent from project i18n."""
 
+    def test_asking_for_the_version_never_asks_for_a_language_first(self) -> None:
+        """A first `oldman --version` at a terminal answers at once; the version has no language."""
+        from oldman.cli.localization import _should_prompt
+        from tests.tui_support import TerminalStream
+
+        with patch.object(sys, "stdin", TerminalStream()), patch.object(sys, "stdout", TerminalStream()):
+            self.assertFalse(_should_prompt(["--version"]))
+            self.assertTrue(_should_prompt(["startproject", "site"]))
+
     def test_public_package_import_is_cold(self) -> None:
         """Importing oldman.cli must not import Typer, Sanic, or Web."""
         completed = subprocess.run(

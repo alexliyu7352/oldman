@@ -65,7 +65,7 @@ app.add_route(DashboardProgrammeTrendChart.as_view(), DashboardProgrammeTrendCha
 
 `ChartResult` 不是 HTTP 响应，它只描述图：`series`（`ChartSeries` 或裸数值序列）、`labels`、`summary`
 （图旁边的几个数字，`ChartSummary(label, value, tone)`）、`chart`（ApexCharts 的 chart 段）、`options`
-（其余 ApexCharts 选项）、`meta`（前端不画但要回显的东西，例如当前 range）。`to_apex_options()` 负责合并，
+（其余 ApexCharts 选项）、`meta`（前端不画、但以"键：值"列表原样显示在图下方的说明，例如当前时间范围；键和值都直接给人看，用已翻译的文字，不要放 `range` 这类标识符）。`to_apex_options()` 负责合并，
 视图不用自己拼 JSON。
 
 ## 数据库

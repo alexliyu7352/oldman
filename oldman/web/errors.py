@@ -27,11 +27,14 @@ async def render_html_error_response(request: Any, exception: Exception):
                 "oldman/errors/default.html",
             )
         )
-        content = (
-            template.render_async(request=request, status_code=status)
-            if environment.is_async
-            else template.render(request=request, status_code=status)
-        )
+        # Only an exception that opts in by carrying page_description puts text on the page;
+        # other messages may hold internal detail and never reach production HTML.
+        context = {
+            "request": request,
+            "status_code": status,
+            "description": getattr(exception, "page_description", None),
+        }
+        content = template.render_async(**context) if environment.is_async else template.render(**context)
         if isawaitable(content):
             content = await content
         return html(content, status=status, headers=getattr(exception, "headers", None))

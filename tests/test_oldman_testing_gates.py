@@ -188,6 +188,8 @@ class GateSettingsTest(unittest.TestCase):
 
             payload = YAML(typ="safe", pure=True).load(config_file.read_text(encoding="utf-8"))
             self.assertEqual(str(state_root / "data"), payload["core"]["data_dir"])
+            # Reset-mail links are built on web.domain; the example's own address is not the gate's.
+            self.assertEqual("http://127.0.0.1:18999", payload["web"]["domain"])
             self.assertEqual(f"sqlite+aiosqlite:///{state_root / 'probe.sqlite3'}", payload["database"]["url"])
             # 每一个别名都要落到门禁自己那台 Redis 的一个独立 database：漏掉一个就会写开发机的真实 Redis。
             # 示例没写的内置别名 DEFAULT 也在内（G4-3），排在写出来的别名后面，已有的编号不变。

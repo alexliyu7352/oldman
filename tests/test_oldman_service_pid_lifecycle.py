@@ -349,7 +349,7 @@ class ServicePidLifecycleTest(unittest.TestCase):
         service = project.start(mode="slow-stop")
         stopped = project.run("stop")
         self.assertEqual(0, stopped.returncode, stopped.stdout + stopped.stderr)
-        self.assertIn(str(service.pid), stopped.stdout.split())
+        self.assertIn(f"Stopped probe (main process {service.pid}).", stopped.stdout)
         self.assertIsNotNone(service.poll(), "stop returned while the service still ran")
         self.assertFalse(project.pid_file.exists())
         self.assertFalse(project.identity_file.exists())
@@ -461,7 +461,7 @@ class ServicePidLifecycleTest(unittest.TestCase):
         project.pid_file.write_text("")
         stopped = project.run("stop")
         self.assertEqual(0, stopped.returncode, stopped.stdout + stopped.stderr)
-        self.assertIn("is not running", stopped.stdout + stopped.stderr)
+        self.assertIn("probe is not running.", stopped.stdout)
 
     def test_an_unreadable_identity_with_nothing_running_is_cleared(self) -> None:
         # A record cut short by a power loss made every stop fail, and restart with it.

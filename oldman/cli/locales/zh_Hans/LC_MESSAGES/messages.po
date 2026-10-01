@@ -806,3 +806,231 @@ msgstr "设置文件 %(path)s 不存在；请先创建它，或用 --service 指
 #, python-format
 msgid "Ignoring the saved answer for %(label)s: %(error)s"
 msgstr "不使用上次保存的「%(label)s」答案：%(error)s"
+
+#: oldman/db/migrations/autogenerate.py:663
+#, python-format
+msgid "Treat managed table %(old)s as renamed to %(new)s?"
+msgstr "把受管理的数据表 %(old)s 视为改名为 %(new)s 吗？"
+
+#: oldman/db/migrations/autogenerate.py:669
+#, python-format
+msgid "Choose the new model table for managed table %(table)s."
+msgstr "为受管理的数据表 %(table)s 选择对应的新模型数据表。"
+
+#: oldman/db/migrations/autogenerate.py:686
+#, python-format
+msgid ""
+"Deleting managed table %(table)s removes its data. Enter %(name)s to "
+"confirm"
+msgstr "删除受管理的数据表 %(table)s 会删掉其中的数据。输入 %(name)s 确认"
+
+#: oldman/db/migrations/autogenerate.py:988
+#, python-format
+msgid "Treat column %(column)s as renamed to %(new)s?"
+msgstr "把列 %(column)s 视为改名为 %(new)s 吗？"
+
+#: oldman/db/migrations/autogenerate.py:1001
+#, python-format
+msgid "Choose the new column for %(column)s."
+msgstr "为 %(column)s 选择对应的新列。"
+
+#: oldman/db/migrations/autogenerate.py:1022
+#, python-format
+msgid "Deleting column %(column)s removes its data. Enter %(name)s to confirm"
+msgstr "删除列 %(column)s 会删掉其中的数据。输入 %(name)s 确认"
+
+#: oldman/db/migrations/commands.py:210
+msgid ""
+"The database has no Oldman migration state. Is this first use or was the "
+"state lost?"
+msgstr "数据库里没有 Oldman 迁移状态。这是首次使用，还是状态丢失了？"
+
+#: oldman/db/migrations/commands.py:393
+#, python-format
+msgid ""
+"The database has no Oldman internal migration state. It contains "
+"%(tables)s non-internal table(s), while source contains %(revisions)s "
+"migration revision(s). Is this first use or was the state lost?"
+msgstr ""
+"数据库里没有 Oldman 内部迁移状态。库中有 %(tables)s 张非内部数据表，源码中有 %(revisions)s "
+"个迁移版本。这是首次使用，还是状态丢失了？"
+
+#: oldman/db/migrations/commands.py:448
+#, python-format
+msgid "Pending migration heads: %(heads)s. Choose the migration scope."
+msgstr "待执行的迁移：%(heads)s。选择迁移范围。"
+
+#: oldman/db/migrations/commands.py:517
+msgid "Choose the applied App to downgrade."
+msgstr "选择要回退的已迁移 App。"
+
+#: oldman/db/migrations/commands.py:529
+#, python-format
+msgid "Choose the target revision for App %(app)s."
+msgstr "为 App %(app)s 选择回退到的迁移版本。"
+
+#: oldman/db/migrations/commands.py:544
+#, python-format
+msgid ""
+"Downgrade will remove revisions %(revisions)s and may alter or delete App"
+" tables recorded in the Registry: %(tables)s."
+msgstr "回退会移除迁移版本 %(revisions)s，并可能修改或删除 Registry 中记录的 App 数据表：%(tables)s。"
+
+#: oldman/db/migrations/commands.py:546 oldman/db/migrations/commands.py:633
+#: oldman/db/migrations/commands.py:636 oldman/db/migrations/commands.py:713
+#: oldman/db/migrations/commands.py:715
+msgid "none"
+msgstr "无"
+
+#: oldman/db/migrations/commands.py:548
+#, python-format
+msgid "Type App label %(app)s to confirm"
+msgstr "输入 App 标签 %(app)s 确认"
+
+#: oldman/db/migrations/commands.py:551
+#, python-format
+msgid "Type target revision %(revision)s to confirm"
+msgstr "输入目标迁移版本 %(revision)s 确认"
+
+#: oldman/db/migrations/commands.py:612
+msgid "Choose the App to retire while retaining its physical tables."
+msgstr "选择要停用的 App（保留它的物理数据表）。"
+
+#: oldman/db/migrations/commands.py:616
+#, python-format
+msgid "Rejected Apps: %(apps)s"
+msgstr "不能停用的 App：%(apps)s"
+
+#: oldman/db/migrations/commands.py:630
+#, python-format
+msgid ""
+"Retire App %(app)s: keep tables %(tables)s, remove migration head "
+"%(head)s, and clear its Registry rows. Afterward remove package "
+"%(package)s from service files %(files)s and from migration_apps if "
+"present."
+msgstr ""
+"停用 App %(app)s：保留数据表 %(tables)s，移除迁移头 %(head)s，并清除它在 Registry "
+"中的记录。之后从服务配置文件 %(files)s 和 migration_apps（如果有）中移除包 %(package)s。"
+
+#: oldman/db/migrations/commands.py:638
+#, python-format
+msgid "Type App label %(app)s to retire permanently"
+msgstr "输入 App 标签 %(app)s 以永久停用"
+
+#: oldman/db/migrations/commands.py:708
+#, python-format
+msgid ""
+"Recovery will stamp source heads %(heads)s and restore Registry rows "
+"%(rows)s. Tables without current models remain external: %(external)s. "
+"Oldman cannot prove that arbitrary blank revisions or data operations "
+"ran; continuing asserts that the current database already matches the "
+"source heads. Recovery will not run business migration DDL."
+msgstr ""
+"恢复会把源码中的迁移头 %(heads)s 记为已执行，并恢复 Registry 记录 "
+"%(rows)s。当前没有模型的数据表保持为外部数据表：%(external)s。Oldman "
+"无法证明任意空白迁移版本或数据操作已经执行过；继续即表示你确认当前数据库已与源码的迁移头一致。恢复不会执行业务迁移的 DDL。"
+
+#: oldman/db/migrations/commands.py:717
+#, python-format
+msgid "Type project name %(name)s to confirm"
+msgstr "输入项目名 %(name)s 确认"
+
+#: oldman/db/migrations/commands.py:721
+#, python-format
+msgid "Type %(phrase)s to rebuild only internal state"
+msgstr "输入 %(phrase)s，只重建内部状态"
+
+#: oldman/db/migrations/commands.py:769
+#, python-format
+msgid ""
+"Was unmanaged table %(table)s always external, or was it released by "
+"Oldman?"
+msgstr "非受管理的数据表 %(table)s 一直是外部数据表，还是由 Oldman 释放的？"
+
+#: oldman/db/migrations/interaction.py:15
+msgid "adopt"
+msgstr "接管"
+
+#: oldman/db/migrations/interaction.py:16
+msgid "all"
+msgstr "全部"
+
+#: oldman/db/migrations/interaction.py:17
+msgid "always external"
+msgstr "一直是外部数据表"
+
+#: oldman/db/migrations/interaction.py:18
+msgid "cancel"
+msgstr "取消"
+
+#: oldman/db/migrations/interaction.py:19
+msgid "first use"
+msgstr "首次使用"
+
+#: oldman/db/migrations/interaction.py:20
+msgid "keep external"
+msgstr "保持外部管理"
+
+#: oldman/db/migrations/interaction.py:21
+msgid "not a rename"
+msgstr "不是改名"
+
+#: oldman/db/migrations/interaction.py:22
+msgid "released"
+msgstr "已释放"
+
+#: oldman/db/migrations/interaction.py:23
+msgid "state lost"
+msgstr "状态丢失"
+
+#: oldman/db/migrations/revisions.py:112
+msgid "Multiple Apps have divergent migration heads."
+msgstr "多个 App 的迁移出现分叉。"
+
+#: oldman/db/migrations/revisions.py:122
+#, python-format
+msgid "App %(app)s has migration heads %(heads)s. Create a merge revision?"
+msgstr "App %(app)s 有多个迁移头 %(heads)s。要创建合并版本吗？"
+
+#: oldman/db/migrations/revisions.py:128 oldman/db/migrations/revisions.py:227
+msgid "Migration description"
+msgstr "迁移说明"
+
+#: oldman/db/migrations/revisions.py:179
+msgid "Multiple Apps have schema changes."
+msgstr "多个 App 有结构变更。"
+
+#: oldman/db/migrations/revisions.py:187
+msgid "Choose the App for the blank revision."
+msgstr "选择空白迁移版本所属的 App。"
+
+#: oldman/db/migrations/revisions.py:191
+#, python-format
+msgid "No schema changes were detected for %(app)s. Create a blank revision?"
+msgstr "没有检测到 %(app)s 的结构变更。要创建一个空白迁移版本吗？"
+
+#: oldman/db/migrations/revisions.py:203
+#, python-format
+msgid "Managed model table %(table)s already exists without Oldman ownership."
+msgstr "受管理的模型数据表 %(table)s 已存在，但不归 Oldman 所有。"
+
+#: oldman/db/migrations/revisions.py:571
+msgid ""
+"The adoption table already exists and matches the model. Skip CREATE and "
+"record ownership?"
+msgstr "要接管的数据表已存在且与模型一致。跳过 CREATE 并记录归属吗？"
+
+#: oldman/cli/service.py:44
+#, python-format
+msgid "Stopped %(service)s (main process %(pid)s)."
+msgstr "已停止 %(service)s（主进程 %(pid)s）。"
+
+#: oldman/cli/service.py:45
+#, python-format
+msgid "%(service)s is not running."
+msgstr "%(service)s 没有在运行。"
+
+#: oldman/cli/_main.py:833
+msgid "Show the installed Oldman version and exit."
+msgstr "显示已安装的 Oldman 版本并退出。"
+

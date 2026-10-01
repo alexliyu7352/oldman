@@ -240,6 +240,22 @@ class ServiceCliTest(unittest.TestCase):
             for removed in ("config", "list", "settings", "static"):
                 self.assertNotIn(f"  {removed} ", completed.stdout)
 
+    def test_version_answers_inside_and_outside_a_project(self) -> None:
+        """`oldman --version` needs no project and imports no service."""
+        from importlib.metadata import version
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            project = root / "project"
+            marker = _create_project(project)
+
+            for directory in (project, root):
+                completed = _run_cli(directory, marker, "--version")
+                with self.subTest(directory=directory.name):
+                    self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+                    self.assertEqual(f"oldman {version('oldman')}", completed.stdout.strip())
+            self.assertFalse(marker.exists())
+
     def test_settings_init_is_cold_and_uses_the_service_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = Path(temporary_directory)
@@ -315,6 +331,28 @@ class ServiceCliTest(unittest.TestCase):
                 ["worker", "worker"],
                 marker.read_text(encoding="utf-8").splitlines(),
             )
+
+    def test_one_off_command_keeps_info_logs_off_the_terminal(self) -> None:
+        """INFO lifecycle lines belong in the command's log file, not between its own output."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            project = Path(temporary_directory)
+            marker = _create_project(project)
+
+            quiet = _run_cli(project, marker, "worker", "probe", "one")
+            self.assertEqual(0, quiet.returncode, quiet.stdout + quiet.stderr)
+            self.assertIn("cli-worker:one", quiet.stdout)
+            self.assertNotIn("[INFO]", quiet.stdout + quiet.stderr)
+            logged = "".join(path.read_text(encoding="utf-8") for path in (project / "logs").glob("*.log"))
+            self.assertIn("[INFO]", logged)
+
+            settings_path = project / "data/worker_settings.yaml"
+            settings_path.write_text(
+                settings_path.read_text(encoding="utf-8").replace("  app_name: cli-worker", "  app_name: cli-worker\n  debug: true"),
+                encoding="utf-8",
+            )
+            verbose = _run_cli(project, marker, "worker", "probe", "one")
+            self.assertEqual(0, verbose.returncode, verbose.stdout + verbose.stderr)
+            self.assertIn("[INFO]", verbose.stdout)
 
     def test_app_command_cannot_replace_a_fixture_command(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

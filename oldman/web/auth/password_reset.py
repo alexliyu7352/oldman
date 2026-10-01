@@ -240,8 +240,10 @@ class PasswordResetFlow:
                 **context,
             )
             response.status = status
-            # The set-password URL carries the token: no link may pass it on and no cache may keep the page.
-            response.headers["Referrer-Policy"] = "no-referrer"
+            # The set-password URL carries the token: no link may pass it to another site and no cache
+            # may keep the page. Not `no-referrer`: under it a browser sends `Origin: null` even on this
+            # page's own form post, and the CSRF same-origin check rightly rejects that.
+            response.headers["Referrer-Policy"] = "same-origin"
             response.headers["Cache-Control"] = "no-store"
             if status == 429:
                 response.headers["Retry-After"] = str(settings.ip_window)

@@ -127,7 +127,8 @@ def _is_completion_invocation(args: list[str]) -> bool:
 
 def _should_prompt(args: list[str]) -> bool:
     """Return whether an unconfigured invocation may ask for a language."""
-    if args[:1] == ["language"] or _is_completion_invocation(args):
+    # Neither answer depends on the language: listing languages, and the installed version.
+    if args[:1] in (["language"], ["--version"]) or _is_completion_invocation(args):
         return False
     # A stream closed when the process started is None.
     return all(stream is not None and stream.isatty() for stream in (sys.stdin, sys.stdout))

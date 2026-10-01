@@ -52,6 +52,7 @@ from oldman.db.migrations.state import (
     rebuild_internal_state,
     set_table_ownership,
 )
+from oldman.i18n import gettext
 
 RECOVERY_CONFIRMATION = "recover migration state"
 
@@ -206,7 +207,7 @@ def makemigrations(
         _validate_applied_revisions(graph, state)
     else:
         choice = interaction.choose(
-            "The database has no Oldman migration state. Is this first use or was the state lost?",
+            gettext("The database has no Oldman migration state. Is this first use or was the state lost?"),
             ("first use", "state lost", "cancel"),
         )
         if choice == "cancel":
@@ -388,9 +389,13 @@ async def _migrate(
             database_table_count = await _database_table_count(engine)
             source_revision_count = sum(len(branch.revisions) for branch in context.graph.branches.values())
             choice = interaction.choose(
-                "The database has no Oldman internal migration state. "
-                f"It contains {database_table_count} non-internal table(s), while source contains "
-                f"{source_revision_count} migration revision(s). Is this first use or was the state lost?",
+                gettext(
+                    "The database has no Oldman internal migration state. It contains %(tables)s "
+                    "non-internal table(s), while source contains %(revisions)s migration revision(s). "
+                    "Is this first use or was the state lost?",
+                    tables=database_table_count,
+                    revisions=source_revision_count,
+                ),
                 ("first use", "state lost", "cancel"),
             )
             if choice == "cancel":
@@ -440,7 +445,7 @@ def _choose_upgrade_plan(
     if _is_interactive(interaction):
         pending_plan = "; ".join(f"{label} -> {graph.branches[label].heads[0].revision}" for label in pending)
         choice = interaction.choose(
-            f"Pending migration heads: {pending_plan}. Choose the migration scope.",
+            gettext("Pending migration heads: %(heads)s. Choose the migration scope.", heads=pending_plan),
             ("all", *pending, "cancel"),
         )
         if choice == "cancel":
@@ -509,7 +514,7 @@ async def _downgrade(
         candidates = tuple(sorted(current_by_app))
         if not candidates:
             return None
-        app_label = interaction.choose("Choose the applied App to downgrade.", candidates)
+        app_label = interaction.choose(gettext("Choose the applied App to downgrade."), candidates)
         if app_label not in current_by_app:
             raise ValueError(f"Unknown downgrade App: {app_label!r}.")
         current = current_by_app[app_label]
@@ -521,7 +526,7 @@ async def _downgrade(
         )
         choices = (*reversed(ancestors), "base")
         target = interaction.choose(
-            f"Choose the target revision for App {app_label!r}.",
+            gettext("Choose the target revision for App %(app)s.", app=repr(app_label)),
             choices,
         )
         if target not in choices:
@@ -535,13 +540,15 @@ async def _downgrade(
         )
         exact = _exact_interaction(interaction, "Downgrade")
         registry_tables = tuple(sorted(table_name for table_name, ownership in state.schema_registry.items() if ownership.app_label == app_label))
-        impact = (
-            f"Downgrade will remove revisions {', '.join(removed)} and may alter or "
-            f"delete App tables recorded in the Registry: {', '.join(registry_tables) or 'none'}."
+        impact = gettext(
+            "Downgrade will remove revisions %(revisions)s and may alter or delete App tables recorded in the Registry: %(tables)s.",
+            revisions=", ".join(removed),
+            tables=", ".join(registry_tables) or gettext("none"),
         )
-        if exact.enter(f"{impact} Type App label {app_label!r} to confirm") != app_label:
+        confirmation = gettext("Type App label %(app)s to confirm", app=repr(app_label))
+        if exact.enter(f"{impact} {confirmation}") != app_label:
             raise MigrationInteractionRequired("Downgrade App confirmation did not match.")
-        if exact.enter(f"Type target revision {target!r} to confirm") != target:
+        if exact.enter(gettext("Type target revision %(revision)s to confirm", revision=repr(target))) != target:
             raise MigrationInteractionRequired("Downgrade target confirmation did not match.")
         alembic_target = f"{app_label}@base" if target == "base" else target
         async with engine.begin() as connection:
@@ -602,8 +609,16 @@ async def _retire(
             details = "; ".join(f"{label}: {reason}" for label, reason in rejected.items())
             raise RetireNotAllowedError(f"No App can be retired. {details}")
         app_label = interaction.choose(
-            "Choose the App to retire while retaining its physical tables. "
-            + ("Rejected Apps: " + "; ".join(f"{label}: {reason}" for label, reason in sorted(rejected.items())) if rejected else ""),
+            gettext("Choose the App to retire while retaining its physical tables.")
+            + (
+                " "
+                + gettext(
+                    "Rejected Apps: %(apps)s",
+                    apps="; ".join(f"{label}: {reason}" for label, reason in sorted(rejected.items())),
+                )
+                if rejected
+                else ""
+            ),
             tuple(sorted(allowed)),
         )
         if app_label not in allowed:
@@ -611,13 +626,17 @@ async def _retire(
         exact = _exact_interaction(interaction, "Retire")
         package = dict(zip(project.apps.labels, project.apps.packages, strict=True))[app_label]
         service_files = tuple(config.config_file for config in project.service_configs if package in config.app_packages)
-        plan = (
-            f"Retire App {app_label!r}: keep tables {', '.join(allowed[app_label]) or 'none'}, "
-            f"remove migration head {current_by_app[app_label]!r}, and clear its Registry rows. "
-            f"Afterward remove package {package!r} from service files "
-            f"{', '.join(str(path) for path in service_files) or 'none'} and from migration_apps if present."
+        plan = gettext(
+            "Retire App %(app)s: keep tables %(tables)s, remove migration head %(head)s, and clear its Registry rows. "
+            "Afterward remove package %(package)s from service files %(files)s and from migration_apps if present.",
+            app=repr(app_label),
+            tables=", ".join(allowed[app_label]) or gettext("none"),
+            head=repr(current_by_app[app_label]),
+            package=repr(package),
+            files=", ".join(str(path) for path in service_files) or gettext("none"),
         )
-        if exact.enter(f"{plan} Type App label {app_label!r} to retire permanently") != app_label:
+        confirmation = gettext("Type App label %(app)s to retire permanently", app=repr(app_label))
+        if exact.enter(f"{plan} {confirmation}") != app_label:
             raise MigrationInteractionRequired("Retire App confirmation did not match.")
 
         remaining_revisions = tuple(revision for label, revision in current_by_app.items() if label != app_label)
@@ -685,18 +704,21 @@ async def _recover(
         )
     exact = _exact_interaction(interaction, "Migration state recovery")
     heads = tuple(branch.heads[0].revision for branch in context.graph.branches.values() if branch.heads)
-    recovery_summary = (
-        f"Recovery will stamp source heads {', '.join(heads) or 'none'} and restore Registry rows "
-        + ", ".join(f"{table_name}->{app_label} managed={managed}" for table_name, app_label, managed in recovery_plan.rows)
-        + ". Tables without current models remain external: "
-        + (", ".join(recovery_plan.external_tables) or "none")
-        + ". Oldman cannot prove that arbitrary blank revisions or data operations ran; "
+    recovery_summary = gettext(
+        "Recovery will stamp source heads %(heads)s and restore Registry rows %(rows)s. "
+        "Tables without current models remain external: %(external)s. "
+        "Oldman cannot prove that arbitrary blank revisions or data operations ran; "
         "continuing asserts that the current database already matches the source heads. "
-        "Recovery will not run business migration DDL."
+        "Recovery will not run business migration DDL.",
+        heads=", ".join(heads) or gettext("none"),
+        rows=", ".join(f"{table_name}->{app_label} managed={managed}" for table_name, app_label, managed in recovery_plan.rows),
+        external=", ".join(recovery_plan.external_tables) or gettext("none"),
     )
-    if exact.enter(f"{recovery_summary} Type project name {project.project_name!r} to confirm") != project.project_name:
+    confirmation = gettext("Type project name %(name)s to confirm", name=repr(project.project_name))
+    if exact.enter(f"{recovery_summary} {confirmation}") != project.project_name:
         raise MigrationInteractionRequired("Recovery project-name confirmation did not match.")
-    if exact.enter(f"Type {RECOVERY_CONFIRMATION!r} to rebuild only internal state") != RECOVERY_CONFIRMATION:
+    # The phrase itself stays as written: it is what must be typed, in every language.
+    if exact.enter(gettext("Type %(phrase)s to rebuild only internal state", phrase=repr(RECOVERY_CONFIRMATION))) != RECOVERY_CONFIRMATION:
         raise MigrationInteractionRequired("Recovery phrase did not match.")
     async with engine.begin() as async_connection:
         await async_connection.run_sync(
@@ -743,7 +765,10 @@ def _plan_recovery_rows(
         key=lambda value: value.table.name,
     ):
         choice = interaction.choose(
-            f"Was unmanaged table {item.table.name!r} always external, or was it released by Oldman?",
+            gettext(
+                "Was unmanaged table %(table)s always external, or was it released by Oldman?",
+                table=repr(item.table.name),
+            ),
             ("always external", "released", "cancel"),
         )
         if choice == "cancel":

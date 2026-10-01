@@ -2,6 +2,7 @@
 //
 // _range-slider.scss
 //
+@use "../plugin-context" as *;
 
 .noUi-connect{
   background: var(--om-color-success);

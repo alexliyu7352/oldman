@@ -117,7 +117,8 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
 
     async def get_result(self, chart_request: ChartRequest) -> ChartResult:
         """返回当前图表结果，业务子类应重写。"""
-        return ChartResult(series=[], meta={"range": chart_request.range_key})
+        del chart_request
+        return ChartResult(series=[])
 
 
 def safe_method_name(value: str) -> str:

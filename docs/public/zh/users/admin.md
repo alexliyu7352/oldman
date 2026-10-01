@@ -24,7 +24,7 @@ pnpm --dir frontend build
 
 init 读取 Demo 的 example YAML 创建本地配置；已有 web_settings.yaml 时跳过 init，不覆盖配置。数据库迁移按交互核对首次使用或现有状态。createsuperuser 通过隐藏输入创建你自己的账号，密码不放到命令参数或 Git。
 
-打开 [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin)，不是 EPG 的 17997。修改密码使用 `./run.sh web changepassword <用户名>`，将占位符替换为你实际创建的用户名。
+打开 [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin)，不是 EPG 的 17997。示例配置的 `web.domain` 是 `http://127.0.0.1:17999`，找回密码邮件里的链接用它拼成；换端口或部署到域名时与 `web.listen_port` 一起改。修改密码使用 `./run.sh web changepassword <用户名>`，将占位符替换为你实际创建的用户名。
 
 bootstrap 的本地源码/发行包选择与 EPG 一致：同级存在 oldman_framwork 或 oldman 源码目录时直接关联源码，否则使用清单中的发行包。不要把两个 Demo 安装到框架自己的环境里。
 

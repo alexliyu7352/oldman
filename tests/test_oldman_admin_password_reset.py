@@ -133,7 +133,7 @@ class AdminPasswordResetTest(unittest.TestCase):
         body = response.body.decode("utf-8")
 
         self.assertEqual(200, response.status)
-        self.assertEqual("no-referrer", response.headers["Referrer-Policy"])
+        self.assertEqual("same-origin", response.headers["Referrer-Policy"])
         self.assertEqual("no-store", response.headers["Cache-Control"])
         self.assertIn('name="email"', body)
         self.assertIn('action="/control/password-reset"', body)
@@ -230,7 +230,7 @@ class AdminPasswordResetTest(unittest.TestCase):
         self.assertIn('name="password"', body)
         self.assertIn('name="confirm_password"', body)
         self.assertIn(f'action="/control/password-reset/{uid}/{token}"', body)
-        self.assertEqual("no-referrer", valid.headers["Referrer-Policy"])
+        self.assertEqual("same-origin", valid.headers["Referrer-Policy"])
         for response in (stale, missing):
             self.assertEqual(200, response.status)
             self.assertIn("This link is no longer valid", response.body.decode("utf-8"))

@@ -220,7 +220,7 @@ class CsrfFollowsTheCredentialTest(unittest.TestCase):
                 self.assertIs(exempt, exempt_from_csrf(request))
 
     def test_enforce_csrf_skips_exempt_requests_and_checks_the_rest(self) -> None:
-        from oldman.web.exceptions import Forbidden
+        from oldman.web.exceptions import CSRFFailure, Forbidden
         from oldman.web.security.csrf.decorators import enforce_csrf
 
         manager = Mock()
@@ -231,8 +231,11 @@ class CsrfFollowsTheCredentialTest(unittest.TestCase):
 
         session_request = decorator_request(session=signed_in_session())
         record_authentication(session_request, Authentication(method="session", user=STAFF))
-        with self.assertRaisesRegex(Forbidden, "CSRF token missing"):
+        with self.assertRaisesRegex(CSRFFailure, "CSRF token missing") as refused:
             enforce_csrf(manager, session_request)
+        # Still a Forbidden for handlers; the page tells the visitor to reload instead of "no permission".
+        self.assertTrue(issubclass(CSRFFailure, Forbidden))
+        self.assertIn("Reload the page and try again.", refused.exception.page_description)
 
 
 if __name__ == "__main__":

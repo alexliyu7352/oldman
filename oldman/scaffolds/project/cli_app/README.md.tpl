@@ -9,6 +9,8 @@ uv sync
 uv run python main.py
 ```
 
+`.python-version` 指定 Python 3.13（框架推荐的版本），`uv sync` 按它选解释器，本机没有时 uv 会自动下载；要用其他受支持的版本（3.12–3.14）就改这个文件。
+
 预期输出 `{{ project_name }} is ready.`。业务逻辑写在 `main()` 或项目自己的模块中。
 
 `uv sync` 需要 `pyproject.toml` 声明的 Oldman 发行版本可用；源码开发可使用独立环境中的 editable 安装，见 [源码安装说明](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md#新项目使用本地-python-源码)。这时用该环境的 Python 执行 `main.py`，不要无意间切换回包索引来源。

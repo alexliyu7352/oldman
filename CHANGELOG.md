@@ -1,5 +1,39 @@
 # Release Notes
 
+## 0.4.1 — 2026-10-01
+
+Fixes found by installing 0.4.0 from PyPI and npm and following the public documentation as a new user would. The browser package and the Python package are updated together.
+
+### Fixed
+
+- **The password reset forms work in browsers again.** Since 0.3.0 both the request form and the set-new-password form returned 403 in Chrome. The reset pages sent `Referrer-Policy: no-referrer`; under that policy a browser sends `Origin: null` with the page's own form posts, and the CSRF check, which matches the Origin against the request's host, rejects `null` as cross-site. The pages now send `Referrer-Policy: same-origin`: the link carrying the token is still never sent to another site as a Referer, and the page's own posts carry their real Origin. The CSRF check itself is unchanged; do not turn off `web.security.csrf.check_referer` to work around a 403, which reopens login CSRF. The built-in Admin's `/admin/password-reset` and every project using `PasswordResetFlow` were affected. The installed-wheel Admin gate now requests a reset, follows the mailed link, sets a new password and logs in with it, in real Chrome.
+- **A rejected CSRF check says what to do.** The 403 page claimed "You do not have permission to access this page."; it now says the page has expired or the request could not be confirmed as coming from this site, and to reload and try again. CSRF failures raise `oldman.web.exceptions.CSRFFailure`, a subclass of `Forbidden`, so handlers of `Forbidden` keep working. Error page templates receive a `description`, set only by an exception that carries `page_description`; other exception messages still never reach the page. JSON error responses are unchanged.
+- **The migration commands ask in the CLI's language.** The questions of `db migrate`, `makemigrations`, `downgrade`, `retire` and state recovery, and their fixed answer options, were English whatever language the CLI used. The options keep their English values, so code that answers by value is unaffected, and an answer may be typed in either language.
+- **One-off commands keep INFO log lines off the terminal.** `createsuperuser`, `loaddata` and other App commands printed lifecycle lines between their questions and results. The terminal now shows warnings and errors; the command's log file keeps every line. With DEBUG logging (`core.debug`, or `logging.level: DEBUG`) the terminal shows everything. Service lifecycle commands are unchanged.
+- **New projects use the Python and Sass versions the framework is tested with.** Every project template writes `.python-version` (3.13) and declares `requires-python = ">=3.12, <3.15"`; `uv sync` used to pick the newest interpreter installed. The dashboard template declares `sass` 1.69.5, the version oldman-web uses, instead of asking you to `pnpm add -D sass`, which installed the newest Sass and fifteen deprecation warnings with it.
+- **oldman-web's SCSS uses the Sass module system.** The select and slider styles imported Sass files with `@import`, which Dart Sass deprecates and warns about in every build with a recent Sass. They use `@use` and `@forward` now; the compiled CSS is byte-for-byte the same.
+- **The dashboard template's build no longer warns about the ApexCharts chunk.** It is about 580 kB and loaded only on pages with a chart; the warning threshold is 600 kB, so any other large chunk is still reported.
+- **The HTTP client logs its initialisation once**, not once in `MultiHttpClient` and again in its backend.
+- **A chart's `meta` is the caption shown under it.** The documentation described it as values echoed back, such as the current `range`, while the chart shell shows keys and values to the reader as they are. It now says both should be translated text, and the placeholder `get_result` no longer returns a raw `range` key.
+- **`oldman.testing.gate_settings` points `web.domain` at the gate's own server**, so links built outside a request, such as reset mails, reach it.
+
+### Changed
+
+- **`stop` reports in a sentence.** It printed the stopped main process's pid alone and nothing when no service ran; it now prints "Stopped web (main process 1234)." or "web is not running." in the CLI's language. `stop()` still returns the pid for code that calls it.
+
+### Added
+
+- **`oldman --version`** prints the installed version, inside or outside a project, without asking for a language first.
+
+### Documentation
+
+- **The uvloop debug-mode limitation is corrected.** With asyncio debug mode on (`core.debug`), uvloop 0.22.1 and 0.23.0 can raise an error or crash when they finalize an async generator that was not closed. Whether it happens depends on the CPython patch release and on the code: the upstream reproduction crashes on 3.12.14, 3.13.15 and 3.14.2, while the framework's own tests crash on 3.13.15 and 3.14.7, so no patch release is safe for all code and the earlier advice to use 3.13.11 or 3.14.2 is withdrawn. Production runs, without debug mode, are not affected; closing async generators explicitly (`contextlib.aclosing`) avoids it.
+- The README mentions that the first command asks for the CLI's language, and the demo setup guides describe `web.domain` and the built-in `DEFAULT` Redis and NATS connections.
+
+### Verification
+
+ruff, pyright and Pyrefly, 2,461 Python tests, the oldman-web (627) and admin (4) frontend test suites, and the boundary, packaging and scaffold matrix checks all pass; the two tests still skipped are the NATS credentials check and the Django interop check. The installed-wheel Admin gate now also requests a password reset, follows the mailed link, sets a new password and logs in with it in real Chrome, and fails against the 0.4.0 reset pages. Both demo apps pass their real-browser acceptance gates, including a new password reset gate in the dashboard demo and the notification gates in Chrome and Firefox.
+
 ## 0.4.0 — 2026-09-30
 
 The browser package and the Python package are updated together. This release includes breaking changes, so the minor version is bumped accordingly.

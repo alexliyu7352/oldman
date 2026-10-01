@@ -1,6 +1,7 @@
 import asyncio
 import fcntl
 import inspect
+import logging
 import os
 import re
 import signal
@@ -484,25 +485,28 @@ class BaseApplication(ABC):
         *,
         stdout_to_stderr: bool = False,
     ) -> None:
-        """Switch an async CLI command instance to command-level log files."""
+        """Switch an async CLI command instance to command-level log files.
+
+        A one-off command answers the person at the terminal through its own output, so the
+        terminal shows warnings and errors only; the command's log file keeps every INFO line.
+        With DEBUG logging (`core.debug`, or `logging.level: DEBUG`) the terminal shows it all.
+        """
         log_file_name = self.safe_pid_name(command_name).lower().replace("-", "_")
         self.log_file_name = log_file_name
+        console: dict[str, Any] = {}
+        overrides: dict[str, Any] = {}
+        if stdout_to_stderr:
+            console["stream"] = "ext://sys.stderr"
+            overrides["formatters"] = {"generic": {"stream": "ext://sys.stderr"}}
+        if self.logger_level > logging.DEBUG:
+            console["level"] = logging.WARNING
+        if console:
+            overrides["handlers"] = {"console": console}
         self.logging_runtime = init_logging(
             log_file_name,
             logger_path=self.log_file_path,
             logger_level=self.logger_level,
-            config=(
-                {
-                    "formatters": {
-                        "generic": {"stream": "ext://sys.stderr"},
-                    },
-                    "handlers": {
-                        "console": {"stream": "ext://sys.stderr"},
-                    },
-                }
-                if stdout_to_stderr
-                else None
-            ),
+            config=overrides or None,
         )
         self.log_config = self.logging_runtime.log_config
         self._logging_closed = False
@@ -785,7 +789,8 @@ class BaseApplication(ABC):
         """Stop the running service and return once its whole process group has exited.
 
         SIGTERM goes to the service's main process; the group is killed after `_stop_timeout()`
-        seconds. Returns the main process's pid, which the CLI prints, or 0 when nothing runs.
+        seconds. Returns the main process's pid, or 0 when nothing runs; the CLI reports either one
+        in a sentence (`Stopped web (main process 123).` / `web is not running.`).
         """
         try:
             recorded = self._identity_path.read_text(encoding="utf-8")

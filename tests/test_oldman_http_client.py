@@ -138,6 +138,16 @@ class IterationCountingCookieJar(CookieJar):
 class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
     """Verify backend-neutral response behavior without network I/O."""
 
+    async def test_initializing_a_client_logs_its_backend_once(self) -> None:
+        """MultiHttpClient and its backend each used to log the same initialization."""
+        client = MultiHttpClient(ClientType.HTTPX, max_connections=3)
+        try:
+            with self.assertLogs("default", level="INFO") as logs:
+                await client.init_client()
+        finally:
+            await client.close_client()
+        self.assertEqual(1, sum("最大连接数: 3" in line for line in logs.output), logs.output)
+
     def test_headers_preserve_duplicates_and_ignore_name_case(self) -> None:
         """Headers expose joined and repeated views without mutation."""
 

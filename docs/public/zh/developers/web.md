@@ -362,7 +362,7 @@ from oldman.web.security.csrf import (
 - 显示表单的 GET 用 `@add_csrf_token()`，把令牌写入 `request.ctx.csrf_token`。
 - 改数据的 POST 用 `@csrf_protect()`；重新渲染时还可加 `@add_csrf_token()`。
 - Oldman Form 自动输出令牌隐藏字段。手写原生表单用 `{% csrf_token %}`。
-- 缺少令牌、过期、绑定不符均为 403，不取消验证来修复久置登录页。
+- 缺少令牌、过期、绑定不符、来源不是本站均为 403，不取消验证来修复久置登录页。抛出的是 `oldman.web.exceptions.CSRFFailure`（`Forbidden` 的子类，原有按 `Forbidden` 处理的代码不变）；HTML 错误页显示"页面已过期，或无法确认请求来自本站，请刷新后重试"，而不是"没有权限"，JSON 响应不变。
 - CSRF 默认有效期为 `settings.web.security.csrf.ttl`，当前为 3600 秒；密钥来自统一 Web security 配置。
 - 令牌绑定到谁：已登录的请求绑定会话中间件记下的 SID，同一用户的另一个会话、退出后再登录都拿不到可用的旧令牌；匿名访客绑定一个只装随机 id 的 cookie（名字是 `web.security.csrf.cookie_name`，默认 `csrf_id`，和 Django 的 CSRF cookie 同理），别的访客的令牌对他无效，已登录用户的令牌拿到匿名请求上也不通过。
 - 已登录时签发的令牌还同时记下浏览器的这个 cookie（和 Django 一样，CSRF cookie 比会话活得久）。表单一直开着、期间会话结束了（过期、在别处退出、被强制下线），提交时请求已是匿名，按 cookie 比对仍能认出是同一个浏览器，于是通过 CSRF，交给视图的登录检查，页面跳到登录页（接口回 401），而不是 CSRF 错误。已登录的请求只比对 SID，所以同一浏览器重新登录后，旧令牌照样失效；别的浏览器（cookie 不同）或不带 cookie 的请求不通过。代价是：不要求登录、但加了 CSRF 保护的接口，在会话结束后仍接受同一浏览器登录时打开的表单。
@@ -393,7 +393,7 @@ WebApplication 已安装 `ErrorPageHandler`，默认 `settings.web.fallback_erro
 3. `errors/default.html`。
 4. `oldman/errors/default.html`。
 
-框架自带的错误页只有一段内联 CSS，不加载任何前端产物，纯 API 服务和网站项目同样可用；取色和字体回退与共享设计 token 一致，并跟随系统明暗。要让错误页带 Dashboard 外壳，按上面的顺序放项目自己的模板。模板上下文只有必要的 `request`、`status_code`，不把异常堆栈或敏感详情交给生产页面。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
+框架自带的错误页只有一段内联 CSS，不加载任何前端产物，纯 API 服务和网站项目同样可用；取色和字体回退与共享设计 token 一致，并跟随系统明暗。要让错误页带 Dashboard 外壳，按上面的顺序放项目自己的模板。模板上下文只有必要的 `request`、`status_code` 和 `description`，不把异常堆栈或敏感详情交给生产页面：`description` 只在异常自己带了 `page_description`（目前只有 `CSRFFailure`，内容是已翻译的处理建议）时有值，其他异常的消息不会出现在页面上。框架的 403 模板有 `description` 时显示它，否则显示"没有权限"；项目自己的 403 模板要用同样的写法才会显示这句建议。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
 
 项目 `errors/default.html` 不会覆盖已经匹配到的框架专用 403/404/500；要定制它们需各放一个专用模板。若要统一覆盖所有框架默认样式，也可覆盖对应的 `oldman/errors/...` 路径。
 

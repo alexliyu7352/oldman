@@ -1,7 +1,7 @@
 [project]
 name = "{{ project_slug }}"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.12, <3.15"
 dependencies = [
     "oldman>={{ framework_version }}",
 {{ db_dependency_line }}

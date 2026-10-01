@@ -137,6 +137,19 @@ class InstalledAdminBrowserGateTest(unittest.TestCase):
         self.assertNotIn(str(ROOT), source)
         self.assertNotIn("PYTHONPATH", source)
 
+    def test_gate_resets_the_password_through_real_form_posts(self) -> None:
+        """Only a browser applies the page's Referrer-Policy to the Origin of a form post."""
+        module = load_gate()
+        runtime_settings = inspect.getsource(module.prepare_runtime_settings)
+        chrome = inspect.getsource(module.verify_with_chrome)
+
+        self.assertIn("oldman.mail.backends.filebased.FileEmailBackend", runtime_settings)
+        self.assertIn('"domain": f"http://{host}:{port}"', runtime_settings)
+        self.assertIn("ensure_superuser(USERNAME, PASSWORD, EMAIL,", module.SERVER_SOURCE)
+        self.assertIn("button.click();", module.form_submit_script({"email": "a@example.test"}))
+        self.assertLess(chrome.index("/admin/password-reset/sent"), chrome.index("reset_link(mail_dir, base_url)"))
+        self.assertLess(chrome.index("/admin/password-reset/done"), chrome.index("RESET_PASSWORD))"))
+
     def test_gate_migrates_the_empty_database_before_starting_admin(self) -> None:
         """The installed server must consume reviewed Auth migrations, never create tables at startup."""
         module = load_gate()

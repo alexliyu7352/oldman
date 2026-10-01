@@ -1,6 +1,5 @@
+@use "../styles/plugins/choices";
 @import "choices.js/public/assets/styles/choices.css" layer(oldman-vendor);
-@import "../styles/plugin-context";
-@import "../styles/plugins/choices";
 
 .om-select-load-more {
   width: 100%;

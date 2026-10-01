@@ -169,7 +169,7 @@ class OldmanWebCsrfDependencyTest(unittest.TestCase):
         same_origin = request_with({"Origin": "https://example.test"})
         self.assertEqual((True, "Valid"), manager.validate_token(same_origin, same_origin.form["csrfmiddlewaretoken"]))
 
-        # no-referrer downgrades a cross-site POST's Origin to the literal "null".
+        # Under no-referrer a browser sends the literal "null" Origin, same-site posts included.
         null_origin = request_with({"Origin": "null"})
         accepted, reason = manager.validate_token(null_origin, null_origin.form["csrfmiddlewaretoken"])
         self.assertFalse(accepted)

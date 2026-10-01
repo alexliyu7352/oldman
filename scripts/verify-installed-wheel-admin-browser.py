@@ -27,6 +27,8 @@ from oldman.testing import ProcessTreeError, ProcessTreeTracker, tracked_popen
 
 ADMIN_USERNAME = "installed_wheel_admin"
 ADMIN_PASSWORD = "InstalledWheelAdmin123"
+ADMIN_EMAIL = "installed-wheel-admin@example.test"
+RESET_PASSWORD = "InstalledWheelReset456"
 ADMIN_STATIC_URL = "/static/oldman/admin"
 REQUIRED_DYNAMIC_ENTRIES = ("date-time-picker", "dropdown", "modal", "table-filter-form")
 
@@ -97,12 +99,14 @@ from oldman.auth.apps import app as auth_app
 from oldman.db import db_manager
 from oldman.providers.redis import redis_client
 from oldman.runtime import bootstrap_service
+from oldman.tasks import BackgroundTaskManager
 from oldman.web.session import Session
 
 HOST = os.environ["OLDMAN_INSTALLED_ADMIN_HOST"]
 PORT = int(os.environ["OLDMAN_INSTALLED_ADMIN_PORT"])
 USERNAME = os.environ["OLDMAN_INSTALLED_ADMIN_USERNAME"]
 PASSWORD = os.environ["OLDMAN_INSTALLED_ADMIN_PASSWORD"]
+EMAIL = os.environ["OLDMAN_INSTALLED_ADMIN_EMAIL"]
 STATIC_ROOT = Path(os.environ["OLDMAN_INSTALLED_ADMIN_STATIC_ROOT"]).resolve()
 STATIC_URL = "/static"
 ADMIN_STATIC_PATH = Path("oldman/admin")
@@ -118,6 +122,8 @@ Extend(
     ),
 )
 app.ctx.app_registry = bootstrap_context.apps
+# As WebApplication does: handlers spawn fire-and-forget work (the reset mail) here.
+app.ctx.tasks = BackgroundTaskManager()
 Session(app)
 app.static(STATIC_URL, str(STATIC_ROOT), name="static")
 install_admin(
@@ -129,7 +135,12 @@ install_admin(
 
 @app.listener("before_server_start")
 async def initialize_admin_user(_app: Sanic, _loop) -> None:
-    await ensure_superuser(USERNAME, PASSWORD, auth_settings=auth_app.settings, db_manager=db_manager)
+    await ensure_superuser(USERNAME, PASSWORD, EMAIL, auth_settings=auth_app.settings, db_manager=db_manager)
+
+
+@app.listener("before_server_stop")
+async def stop_background_tasks(_app: Sanic, _loop) -> None:
+    await app.ctx.tasks.stop_all()
 
 
 @app.listener("after_server_stop")
@@ -287,9 +298,12 @@ def prepare_runtime_settings(
     host: str,
     port: int,
     redis_url: str,
+    mail_dir: Path,
 ) -> None:
     """Replace the migration-only seed with the complete isolated Web config."""
     payload = {
+        # Reset mails land as files the gate reads; their links are built on web.domain.
+        "mail": {"backend": "oldman.mail.backends.filebased.FileEmailBackend", "file_path": str(mail_dir)},
         "apps": ["oldman.auth", "oldman.apps.admin"],
         "app_settings": {
             "auth": {"user_model": "oldman.auth.models.User"},
@@ -303,6 +317,7 @@ def prepare_runtime_settings(
         "web": {
             "listen_host": host,
             "listen_port": port,
+            "domain": f"http://{host}:{port}",
             "access_log": False,
             "security": {
                 "secret_key": secrets.token_urlsafe(48),
@@ -588,6 +603,55 @@ def admin_contract_script(
     """
 
 
+def form_submit_script(fields: Mapping[str, str]) -> str:
+    """Fill the page's post form and press its own submit button, as a person would."""
+    values = json.dumps(dict(fields))
+    return f"""
+    (() => {{
+      const values = {values};
+      const form = document.querySelector('form[method="post"]');
+      const button = form?.querySelector('button[type="submit"]');
+      if (!form || !button || !form.querySelector('input[name="csrfmiddlewaretoken"]')?.value) return {{ submitted: false }};
+      for (const [name, value] of Object.entries(values)) {{
+        const input = form.querySelector(`[name="${{name}}"]`);
+        if (!input) return {{ submitted: false, missing: name }};
+        input.value = value;
+      }}
+      button.click();
+      return {{ submitted: true }};
+    }})()
+    """
+
+
+def submit_form(client: Any, fields: Mapping[str, str], label: str) -> str:
+    """Submit through the browser and return the path it landed on."""
+    client.load_seen = False
+    submission = client.evaluate(form_submit_script(fields))
+    if not isinstance(submission, dict) or not submission.get("submitted"):
+        raise RuntimeError(f"{label} form could not be submitted: {submission}")
+    client.wait_for_load()
+    client.pump(0.25)
+    return str(client.evaluate("location.pathname"))
+
+
+def reset_link(mail_dir: Path, base_url: str) -> str:
+    """The set-password link of the single reset mail the request produced."""
+    from email import message_from_bytes, policy
+
+    if not wait_until(lambda: any(mail_dir.glob("*.eml")), timeout=10.0):
+        raise RuntimeError("The password reset request sent no mail")
+    messages = sorted(mail_dir.glob("*.eml"))
+    if len(messages) != 1:
+        raise RuntimeError(f"Expected one password reset mail, found {len(messages)}")
+    message = message_from_bytes(messages[0].read_bytes(), policy=policy.default)
+    body = message.get_body(preferencelist=("plain",))
+    text = body.get_content() if body is not None else ""
+    links = [word for word in text.split() if word.startswith(f"{base_url}/admin/password-reset/")]
+    if len(links) != 1:
+        raise RuntimeError(f"The reset mail does not carry one link on {base_url}:\n{text}")
+    return links[0]
+
+
 def require_browser_assertion(label: str, state: object) -> None:
     result = state if isinstance(state, dict) else {"failures": ["browser assertion returned no result"]}
     failures = [str(item) for item in result.get("failures", [])]
@@ -600,8 +664,9 @@ def verify_with_chrome(
     contract: ManifestContract,
     environment_root: Path,
     static_root: Path,
+    mail_dir: Path,
 ) -> None:
-    """Exercise login and the async model list in a real isolated Chrome profile."""
+    """Exercise login, the async model list and the mailed password reset in real Chrome."""
     from oldman.testing import BrowserResult, ChromePage, configure_viewport, navigate
 
     browser_result = BrowserResult()
@@ -628,6 +693,33 @@ def verify_with_chrome(
             ),
         )
         client.pump(0.5)
+
+    # Signed out, as someone who forgot the password. The browser decides which Origin a form
+    # post carries from the page's Referrer-Policy, so only real submissions prove the CSRF
+    # check accepts them; a test client sends whatever headers it is given.
+    with ChromePage(browser_result) as client:
+        configure_viewport(client, 1440, 1000, mobile=False)
+        navigate(client, f"{base_url}/admin/password-reset")
+        landed = submit_form(client, {"email": ADMIN_EMAIL}, "Password reset request")
+        if landed != "/admin/password-reset/sent":
+            raise RuntimeError(f"Password reset request ended on {landed}, not /admin/password-reset/sent")
+        navigate(client, reset_link(mail_dir, base_url))
+        landed = submit_form(
+            client,
+            {"password": RESET_PASSWORD, "confirm_password": RESET_PASSWORD},
+            "Set new password",
+        )
+        if landed != "/admin/password-reset/done":
+            raise RuntimeError(f"Setting the new password ended on {landed}, not /admin/password-reset/done")
+        navigate(client, f"{base_url}/admin/login")
+        client.load_seen = False
+        submission = client.evaluate(login_submit_script(ADMIN_USERNAME, RESET_PASSWORD))
+        if not isinstance(submission, dict) or not submission.get("submitted"):
+            raise RuntimeError("Installed Admin login form could not be submitted after the reset")
+        client.wait_for_load()
+        client.pump(0.25)
+        if str(client.evaluate("location.pathname")) == "/admin/login":
+            raise RuntimeError("The password set through the mailed link does not log in")
 
     if not browser_result.ok:
         raise RuntimeError(
@@ -806,6 +898,7 @@ def install_and_verify(wheel: Path) -> None:
         database_path = project_root / "installed_admin.db"
         static_source = project_root / "static-source"
         static_root = project_root / "public-static"
+        mail_dir = project_root / "mail"
         static_source.mkdir()
         environment = clean_environment()
         run(("uv", "venv", str(environment_root), "--python", sys.executable), cwd=root, environment=environment)
@@ -819,6 +912,7 @@ def install_and_verify(wheel: Path) -> None:
         server_environment = clean_environment(environment)
         server_environment.update(
             {
+                "OLDMAN_INSTALLED_ADMIN_EMAIL": ADMIN_EMAIL,
                 "OLDMAN_INSTALLED_ADMIN_HOST": "127.0.0.1",
                 "OLDMAN_INSTALLED_ADMIN_PASSWORD": ADMIN_PASSWORD,
                 "OLDMAN_INSTALLED_ADMIN_PORT": str(port),
@@ -842,6 +936,7 @@ def install_and_verify(wheel: Path) -> None:
                 host="127.0.0.1",
                 port=port,
                 redis_url=redis_url,
+                mail_dir=mail_dir,
             )
             run(
                 (str(python), "-I", "-c", COLLECT_SOURCE),
@@ -867,6 +962,7 @@ def install_and_verify(wheel: Path) -> None:
                         contract,
                         environment_root,
                         static_root,
+                        mail_dir,
                     )
                 except Exception as exc:
                     stdout, stderr, cleanup_errors = stop_server(process, process_tree, port=port)

@@ -218,9 +218,9 @@ class StatelessCSRFManager:
     def _url_host(value: str | None) -> str | None:
         """Host of an Origin or Referer value; None for empty, "null", or unparseable.
 
-        `null` is a real Origin value browsers send for opaque/cross-site navigations
-        (a page with `referrer-policy: no-referrer` downgrades a cross-site POST's Origin
-        to exactly this), so it must resolve to "no host", never to a match.
+        `null` is a real Origin value: a browser sends it for opaque origins and for any
+        form post made from a page whose `referrer-policy` is `no-referrer` — same-site
+        posts included — so it must resolve to "no host", never to a match.
         """
         if not value or value == "null":
             return None
@@ -230,10 +230,12 @@ class StatelessCSRFManager:
     def _validate_same_origin(self, request: Request) -> bool:
         """Reject a cross-origin state-changing request using Origin, then Referer.
 
-        Origin is the primary check: browsers send it on every unsafe-method request and
-        `referrer-policy` cannot suppress it (only the Referer), so it is present exactly
-        when the Referer is not. It is compared for an exact host match against the request
-        host — a foreign host, a `null` value, or a missing host is a cross-site request.
+        Origin is the primary check: browsers send the header on every unsafe-method request,
+        including when `referrer-policy` removes the Referer. Under `no-referrer` its value is
+        `null`, even for a same-site post, so pages that post forms must not use that policy
+        (`same-origin` keeps the Referer off other sites and the real Origin on this one). It is
+        compared for an exact host match against the request host — a foreign host, a `null`
+        value, or a missing host is a cross-site request.
 
         Referer is the fallback for the rare request that carries no Origin. When neither
         is present the request is rejected: a browser issuing a real form POST always sends
@@ -313,7 +315,7 @@ class StatelessCSRFManager:
 
     def validate_token(self, request: Request, token: str) -> tuple[bool, str]:
         """验证 CSRF token"""
-        # 1. 同源检查：Origin 优先，Referer 回退（no-referrer 关不掉 Origin）
+        # 1. 同源检查：Origin 优先，Referer 回退（no-referrer 下 Origin 是 null，按跨站拒绝）
         if not self._validate_same_origin(request):
             return False, "Cross-origin request blocked"
 

@@ -5,6 +5,6 @@
 {% block content %}
   <div class="status" aria-hidden="true">403</div>
   <h1>{{ _("Access denied") }}</h1>
-  <p>{{ _("You do not have permission to access this page.") }}</p>
+  <p>{{ description or _("You do not have permission to access this page.") }}</p>
   <a class="action" href="/">{{ _("Return home") }}</a>
 {% endblock %}

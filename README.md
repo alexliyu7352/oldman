@@ -37,7 +37,7 @@ uv tool install --python 3.13 oldman
 oldman startproject my_site
 ```
 
-命令会询问项目类型和数据库。选择 `api`、`none` 后，在新项目目录执行：
+第一次使用时命令先问 CLI 的显示语言（之后记住，用 `oldman language set <语言>` 修改），然后询问项目类型和数据库。选择 `api`、`none` 后，在新项目目录执行：
 
 ```sh
 cd my_site
@@ -46,7 +46,7 @@ uv sync
 ./run.sh api start
 ```
 
-此时启动的是尚未添加业务路由的服务；`/` 返回 404 是正常结果。添加 API 的接线见[服务创建指南](docs/public/zh/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
+生成的项目带 `.python-version`（3.13），`uv sync` 按它选择解释器，本机没有时 uv 会自动下载。此时启动的是尚未添加业务路由的服务；`/` 返回 404 是正常结果。添加 API 的接线见[服务创建指南](docs/public/zh/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
 
 `run.sh` 只把原样参数交给项目 `.venv` 中的 `oldman`，不替你选服务、迁移数据库或启动前端。`./run.sh api start` 与使用同一虚拟环境运行 `oldman api start` 的语义相同。上面是新建空项目的命令，不是 Demo 启动步骤；Demo 的独立安装与调试见[运行环境与安装](docs/public/zh/users/getting-started.md#运行环境与安装)。
 
@@ -61,7 +61,7 @@ uv sync
 
 普通 API 不要求安装前端包。需要共享 Dashboard UI 时再安装 `oldman-web` 及其声明的依赖；内置 Admin 的默认浏览器资源随 Python 包提供。
 
-当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：uvloop 0.22.1 在 asyncio 调试模式下会在 CPython 3.13.15、3.14.7 及更新的补丁版上崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复），打开 `core.debug` 时请使用已验证的 3.13.11 或 3.14.2，3.12 不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
+当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：打开 `core.debug`（asyncio 调试模式）时，uvloop（0.22.1、0.23.0 都未修复）回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），与 CPython 补丁版和代码写法都有关，没有对所有代码都安全的补丁版，详见[配置参考](docs/public/zh/developers/configuration.md#web-默认值与开关)；默认关闭调试的生产运行不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
 
 ## 完整示例
 

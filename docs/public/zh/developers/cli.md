@@ -8,6 +8,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 
 | 命令 | 用途 |
 | --- | --- |
+| `oldman --version` | 显示已安装的 oldman 版本；不需要在项目目录里 |
 | `oldman startproject <directory>` | 创建新项目，通过交互选择类型及数据库 |
 | `./run.sh startapp <name>` | 创建业务 App，通过交互选择模板及显示名称 |
 | `./run.sh startservice <name>` | 在现有项目增加服务，通过交互选择 simple、web、taskiq_worker 或 taskiq_scheduler |
@@ -69,7 +70,7 @@ EPG Demo 使用 [services/web.py](https://github.com/alexliyu7352/oldman-epg-das
 ./run.sh web shell
 ```
 
-`start` 前台运行；`stop` 读取该服务 PID 并发送停止信号；`restart` 先停止再启动。不要把 `run.sh` 不带参数理解为启动所有服务。
+`start` 前台运行；`stop` 读取该服务 PID 并发送停止信号，等整组进程退出后打印"已停止 web（主进程 …）"，没在运行时打印"web 没有在运行"；`restart` 先停止再启动。不要把 `run.sh` 不带参数理解为启动所有服务。
 
 Demo 另有 task_worker/task_scheduler，使用相同命令层级，例如 `./run.sh task_worker start`、`./run.sh task_scheduler stop`。这两类 stop 会等待并在总截止时间自动强停经核对的进程组；不会要求用户再调用 kill。Worker 的运行保活与 Scheduler 单实例规则见[分布式任务](distributed-tasks.md)。新建入口不会顺便改 App 清单或启动另一个服务。
 
@@ -212,6 +213,8 @@ App 命令的模型已加载，流程为：
 它不运行服务的 `init()`、`prepare()`、`main()`、`prepare_server()` 或 Web 启停监听器，因此不会仅仅为了执行命令就绑定 HTTP 端口。需要服务级命令初始化时，覆盖 `before_command()`；对应资源在 `after_command()` 关闭。普通业务也可以在 `handle()` 内用上下文管理器或 `finally` 关闭自己使用的资源。
 
 Core 只发送/RPC，不因 consume=true 加载 App events 或启动 subscriber；普通命令也不自动加载所有 tasks。功能关闭不建对应连接。初始化、handle 或 after_command 抛错仍进入通信 finally，保留原始错误、另外记录清理错误；自己的 DB/HTTP 等资源仍按原归属关闭。命令中直接导入 bus 使用，不再手工 async with。Settings/帮助、数据库命令和 bootstrap/Shell 不执行这条异步命令运行链路；Shell 显式通信见 [provider 参考](providers.md#shellide-与独立连接)。
+
+命令日志写进 `logging.dir` 下按命令命名的文件，INFO 及以上都在；终端只显示警告和错误，命令要告诉使用者的结果用返回值或 [tui](tui.md) 输出，不靠 `logger.info()`。日志级别为 DEBUG（打开 `core.debug`，或 `logging.level: DEBUG`）时终端显示全部日志。服务的 `start` 不受影响。
 
 不要在 Command 构造函数中连接数据库、读取请求对象或启动任务。命令错误由 CLI 输出并以失败状态退出；不要吞掉异常后返回成功文本。
 

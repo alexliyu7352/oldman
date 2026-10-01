@@ -106,7 +106,7 @@ class PasswordResetRoutesTest(unittest.TestCase):
         request_page = self.call("/account/reset", "GET", self.get("/account/reset"))
         self.assertEqual(200, request_page.status)
         self.assertEqual("no-store", request_page.headers["Cache-Control"])
-        self.assertEqual("no-referrer", request_page.headers["Referrer-Policy"])
+        self.assertEqual("same-origin", request_page.headers["Referrer-Policy"])
         self.assertNotIn("Retry-After", request_page.headers)
         self.assertEqual("request|/account/login|/account/reset|24|/account/reset|email|", request_page.body.decode())
 

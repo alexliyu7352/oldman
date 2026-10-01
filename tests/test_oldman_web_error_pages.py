@@ -15,6 +15,7 @@ from sanic_ext import Config, Extend
 from sanic_ext.extensions.templating.extension import TemplatingExtension
 
 from oldman.web.errors import ErrorPageHandler
+from oldman.web.exceptions import CSRFFailure
 from oldman.web.template import install_template_loaders
 
 
@@ -36,6 +37,42 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIn(str(status), content)
                 self.assertIn('href="/"', content)
                 self.assertNotIn("data-om-page=", content)
+
+    async def test_csrf_failure_page_says_how_to_recover(self) -> None:
+        """A rejected form is not a permission problem; only the opted-in sentence reaches the page."""
+        from jinja2 import Environment
+
+        app = Sanic(f"oldman-csrf-error-page-{uuid4().hex}", error_handler=ErrorPageHandler())
+        app.config.FALLBACK_ERROR_FORMAT = "auto"
+        app.config.TEMPLATING_ENABLE_ASYNC = True
+        Extend(app, config=Config(templating_enable_async=True), extensions=[TemplatingExtension], built_in_extensions=False)
+        install_template_loaders(app.ext.environment)
+
+        @app.post("/form")
+        async def form(_request):
+            raise CSRFFailure("private-csrf-detail", page_description="Reload the page and try again.")
+
+        @app.post("/denied")
+        async def denied(_request):
+            raise Forbidden("private-forbidden-detail")
+
+        _request, rejected = await app.asgi_client.post("/form", headers={"accept": "text/html"})
+        _request, forbidden = await app.asgi_client.post("/denied", headers={"accept": "text/html"})
+
+        self.assertEqual(403, rejected.status)
+        self.assertIn("Reload the page and try again.", rejected.text)
+        self.assertNotIn("You do not have permission", rejected.text)
+        self.assertNotIn("private-csrf-detail", rejected.text)
+        self.assertIn("You do not have permission", forbidden.text)
+        self.assertNotIn("private-forbidden-detail", forbidden.text)
+
+        environment = Environment(enable_async=True)
+        install_template_loaders(environment)
+        dashboard = environment.get_template("oldman/dashboard/errors/403.html")
+        request = SimpleNamespace(ctx=SimpleNamespace(locale="en"))
+        content = await dashboard.render_async(request=request, status_code=403, description="Reload the page and try again.")
+        self.assertIn("Reload the page and try again.", content)
+        self.assertNotIn("You do not have permission", content)
 
     async def test_permission_callers_use_html_templates_or_json_by_resolved_mode(self) -> None:
         """Explicit modes survive Accept conflicts; every shared caller awaits rendering."""

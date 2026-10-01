@@ -799,6 +799,15 @@ def _register_i18n_commands(app: typer.Typer) -> None:
     app.add_typer(i18n_app, name="i18n")
 
 
+def _print_version(value: bool) -> None:
+    """Answer `oldman --version` with the installed distribution, in or out of a project."""
+    if value:
+        from importlib.metadata import version
+
+        typer.echo(f"oldman {version('oldman')}")
+        raise typer.Exit()
+
+
 def create_app(
     language_state: CliLanguageState,
     *,
@@ -814,6 +823,20 @@ def create_app(
         cls=LocalizedTyperGroup,
         rich_markup_mode=None,
     )
+
+    @app.callback(help=gettext("Oldman application framework command line."))
+    def root(
+        version: Annotated[
+            bool,
+            typer.Option(
+                "--version",
+                help=gettext("Show the installed Oldman version and exit."),
+                is_eager=True,
+                callback=_print_version,
+            ),
+        ] = False,
+    ) -> None:
+        del version
     app.command(
         "startproject",
         help=gettext("Create an Oldman project scaffold."),
@@ -871,6 +894,7 @@ def create_app(
                 service_app,
                 service_class,
                 app_registry,
+                service_name=name,
                 command_class=LocalizedTyperCommand,
                 reserved_names={
                     "mail",

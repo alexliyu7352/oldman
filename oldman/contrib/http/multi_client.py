@@ -210,7 +210,7 @@ class MultiHttpClient(BaseHttpClient):
         from .backends import AioHttpClient, CurlCffiClient, HttpxClient
 
         self.client_semaphore = asyncio.Semaphore(self.max_connections)
-        logger.info(f"初始化 {self.client_type} 客户端, 最大连接数: {self.max_connections}")
+        # 每个 backend 的 init_client 自己记一条带最大连接数的日志，这里不再重复。
         # 根据类型创建具体的客户端实现
         if self.client_type == ClientType.HTTPX:
             self._impl = HttpxClient(self)  # type: ignore

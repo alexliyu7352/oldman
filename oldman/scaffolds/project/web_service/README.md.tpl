@@ -13,6 +13,8 @@ uv sync
 ./run.sh startapp pages
 ```
 
+`.python-version` 指定 Python 3.13（框架推荐的版本），`uv sync` 按它选解释器，本机没有时 uv 会自动下载；要用其他受支持的版本（3.12–3.14）就改这个文件。
+
 `startapp` 交互选择 `web`，填写显示名称。把 `apps.pages` 加入当前服务 YAML 的 `apps` 列表，再执行：
 
 ```sh

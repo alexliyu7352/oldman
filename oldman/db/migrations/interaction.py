@@ -6,6 +6,23 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Protocol, runtime_checkable
 
+from oldman.i18n import gettext, gettext_noop
+
+# Fixed option words the migration commands offer. Commands compare and test doubles answer by
+# these English values; only the text shown at the terminal is translated. Dynamic options (App
+# labels, revisions, table and column names) are shown as they are.
+_OPTION_TEXT = {
+    "adopt": gettext_noop("adopt"),
+    "all": gettext_noop("all"),
+    "always external": gettext_noop("always external"),
+    "cancel": gettext_noop("cancel"),
+    "first use": gettext_noop("first use"),
+    "keep external": gettext_noop("keep external"),
+    "not a rename": gettext_noop("not a rename"),
+    "released": gettext_noop("released"),
+    "state lost": gettext_noop("state lost"),
+}
+
 
 class MigrationInteractionRequired(RuntimeError):
     """Raised when a migration decision cannot be made without a real terminal."""
@@ -58,8 +75,9 @@ class ConsoleMigrationInteraction:
         self._require_terminal()
         if not choices:
             raise ValueError("Migration choices cannot be empty.")
+        options = [(choice, gettext(_OPTION_TEXT[choice]) if choice in _OPTION_TEXT else choice) for choice in choices]
         with _terminal_closing_is_an_error():
-            return tui.choose(prompt, choices)
+            return tui.choose(prompt, options)
 
     def confirm(self, prompt: str, *, default: bool = False) -> bool:
         """Ask a yes/no question with an explicit visible default."""

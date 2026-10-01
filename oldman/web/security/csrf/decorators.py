@@ -4,7 +4,7 @@ from functools import wraps
 from oldman.i18n import gettext
 from oldman.utils.decorators import method_adaptor
 from oldman.web.authentication import exempt_from_csrf
-from oldman.web.exceptions import Forbidden
+from oldman.web.exceptions import CSRFFailure
 from oldman.web.request import Request
 
 
@@ -21,12 +21,20 @@ def enforce_csrf(csrf_manager, request: Request) -> None:
     """
     if exempt_from_csrf(request):
         return
+    advice = gettext(
+        "This page has expired, or the request could not be confirmed as coming from this site. "
+        "Reload the page and try again.",
+        request=request,
+    )
     token = csrf_manager.get_token_from_request(request)
     if not token:
-        raise Forbidden(gettext("CSRF token missing", request=request))
+        raise CSRFFailure(gettext("CSRF token missing", request=request), page_description=advice)
     is_valid, error_msg = csrf_manager.validate_token(request, token)
     if not is_valid:
-        raise Forbidden(gettext("CSRF validation failed: %(reason)s", request=request, reason=error_msg))
+        raise CSRFFailure(
+            gettext("CSRF validation failed: %(reason)s", request=request, reason=error_msg),
+            page_description=advice,
+        )
 
 
 def _csrf_protect():

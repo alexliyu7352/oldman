@@ -39,6 +39,7 @@ from oldman.db.migrations.state import (
     MigrationStateRecoveryRequired,
     SchemaOwnership,
 )
+from oldman.i18n import gettext
 
 
 class MigrationSchemaDriftError(RuntimeError):
@@ -659,13 +660,13 @@ def _resolve_table_intent(
         if len(available) == 1 and len(reverse_candidates.get(available[0], ())) == 1:
             candidate = available[0]
             if interaction.confirm(
-                f"Treat managed table {old_name!r} as renamed to {candidate!r}?",
+                gettext("Treat managed table %(old)s as renamed to %(new)s?", old=repr(old_name), new=repr(candidate)),
                 default=False,
             ):
                 new_name = candidate
         elif available:
             choice = interaction.choose(
-                f"Choose the new model table for managed table {old_name!r}.",
+                gettext("Choose the new model table for managed table %(table)s.", table=repr(old_name)),
                 (*available, "not a rename"),
             )
             if choice != "not a rename":
@@ -681,7 +682,11 @@ def _resolve_table_intent(
             continue
         answer = _enter_exact(
             interaction,
-            f"Deleting managed table {old_name!r} removes its data. Enter {old_name} to confirm",
+            gettext(
+                "Deleting managed table %(table)s removes its data. Enter %(name)s to confirm",
+                table=repr(old_name),
+                name=old_name,
+            ),
         )
         if answer != old_name:
             raise MigrationDeletionCancelled(f"Deletion of managed table {old_name!r} was not confirmed.")
@@ -979,7 +984,11 @@ def _resolve_column_intent(
             if len(drops) == 1 and len(available_adds) == 1:
                 candidate = available_adds[0]
                 if interaction.confirm(
-                    f"Treat column {operation.table_name}.{drop.column_name} as renamed to {candidate.column.name}?",
+                    gettext(
+                        "Treat column %(column)s as renamed to %(new)s?",
+                        column=f"{operation.table_name}.{drop.column_name}",
+                        new=candidate.column.name,
+                    ),
                     default=False,
                 ):
                     selected = candidate
@@ -989,7 +998,7 @@ def _resolve_column_intent(
                     "not a rename",
                 )
                 choice = interaction.choose(
-                    f"Choose the new column for {operation.table_name}.{drop.column_name}.",
+                    gettext("Choose the new column for %(column)s.", column=f"{operation.table_name}.{drop.column_name}"),
                     choices,
                 )
                 if choice != "not a rename":
@@ -1009,7 +1018,11 @@ def _resolve_column_intent(
             full_name = f"{operation.table_name}.{drop.column_name}"
             answer = _enter_exact(
                 interaction,
-                f"Deleting column {full_name!r} removes its data. Enter {full_name} to confirm",
+                gettext(
+                    "Deleting column %(column)s removes its data. Enter %(name)s to confirm",
+                    column=repr(full_name),
+                    name=full_name,
+                ),
             )
             if answer != full_name:
                 raise MigrationDeletionCancelled(f"Deletion of column {full_name!r} was not confirmed.")

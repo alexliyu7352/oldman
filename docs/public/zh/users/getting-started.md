@@ -6,7 +6,7 @@
 
 ## 运行环境与安装
 
-使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。需要打开 `core.debug` 时避开 CPython 3.13.15、3.14.7 及更新的补丁版：uvloop 0.22.1 在 asyncio 调试模式下会崩溃（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复），已验证 3.13.11 与 3.14.2 正常，3.12 不受影响。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
+使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。打开 `core.debug` 时注意：uvloop（0.22.1、0.23.0 都未修复）在 asyncio 调试模式下回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），与 CPython 补丁版和代码写法都有关，见[配置参考](../developers/configuration.md#web-默认值与开关)；默认关闭调试时不受影响。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # uv：Python 与依赖管理
@@ -70,7 +70,7 @@ redis:
     redis_url: redis://127.0.0.1:6379/6
 ```
 
-SQLite 保存业务数据，Redis 的 SESSION 连接保存会话，SSE 连接用于实时投递。完整示例还包含CACHE（统计缓存）和TASKIQ（任务结果/计划）别名；按自己的环境逐项核对，不能只修改本节摘出的两个地址。Demo不会替使用者启动或管理外部Redis。演示命令/按钮会修改各自明确说明的缓存键，不清空整个实例。共享Redis时，给每个环境设不同的 `core.namespace`（本服务所有 Redis 键和频道的第一段，未设置时取 `core.app_name`），并检查Taskiq namespace；Pub/Sub不按Redis数据库编号隔离，独立验证优先使用独占实例。
+SQLite 保存业务数据，Redis 的 SESSION 连接保存会话，SSE 连接用于实时投递。完整示例还包含 CACHE（统计缓存）、TASKIQ（任务结果/计划）别名，以及框架内置的 DEFAULT 别名（Redis 与 NATS 各一个，不指定别名的调用使用它）；按自己的环境逐项核对，不能只修改本节摘出的两个地址。Demo不会替使用者启动或管理外部Redis。演示命令/按钮会修改各自明确说明的缓存键，不清空整个实例。共享Redis时，给每个环境设不同的 `core.namespace`（本服务所有 Redis 键和频道的第一段，未设置时取 `core.app_name`），并检查Taskiq namespace；Pub/Sub不按Redis数据库编号隔离，独立验证优先使用独占实例。
 
 ## 2. 建立表，再导入数据
 
@@ -106,7 +106,7 @@ pnpm --dir frontend build
 
 正常的示例数据应出现；只有“页面能打开”但列表为空，并不等于完成了初始化。下一章解释如何查数据来自哪里。
 
-`web start` 在前台运行。在该终端按 Ctrl+C 停止；不要为释放端口终止不属于自己的服务。17997 已被使用时，先确定是否就是现有 Demo；需要独立实例时使用独立目录、数据库和配置，并相应调整地址。
+`web start` 在前台运行。在该终端按 Ctrl+C 停止；不要为释放端口终止不属于自己的服务。17997 已被使用时，先确定是否就是现有 Demo；需要独立实例时使用独立目录、数据库和配置，并相应调整地址：`web.listen_port` 与 `web.domain` 一起改，找回密码邮件里的链接用 `web.domain` 拼成，只改端口时链接会指向旧地址。
 
 ## 4. 本地调试
 

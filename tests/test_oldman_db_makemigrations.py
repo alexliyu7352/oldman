@@ -110,6 +110,51 @@ class ConsoleMigrationInteractionTest(unittest.TestCase):
             self.assertTrue(interaction.is_interactive)
             self.assertEqual("all", interaction.choose("Choose the migration scope.", ("all", "cancel")))
 
+    def test_options_are_shown_translated_but_answered_by_value(self) -> None:
+        """The commands compare English values; only the text at the terminal is translated."""
+        from oldman.cli.localization import use_cli_language
+        from oldman.db.migrations.interaction import ConsoleMigrationInteraction
+
+        interaction = ConsoleMigrationInteraction()
+        for typed in ("1", "首次使用", "first use"):
+            shown = TerminalStream()
+            with self.subTest(typed=typed), use_cli_language("zh-Hans"), patch.object(sys, "stdin", TerminalStream(typed + "\n")), redirect_stdout(shown):
+                self.assertEqual("first use", interaction.choose("?", ("first use", "state lost", "auth", "cancel")))
+            self.assertIn("1. 首次使用", shown.getvalue())
+            self.assertIn("2. 状态丢失", shown.getvalue())
+            self.assertIn("3. auth", shown.getvalue())  # an App label is shown as it is
+            self.assertIn("4. 取消", shown.getvalue())
+
+    def test_every_migration_question_goes_through_gettext(self) -> None:
+        """A prompt written as a plain or f-string literal would reach a Chinese terminal in English."""
+        import ast
+
+        def has_untranslated_text(node: ast.AST) -> bool:
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "gettext":
+                return False
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and any(c.isalpha() for c in node.value):
+                return True
+            return any(has_untranslated_text(child) for child in ast.iter_child_nodes(node))
+
+        questions = 0
+        for name in ("commands.py", "autogenerate.py", "revisions.py"):
+            path = REPOSITORY_ROOT / "oldman" / "db" / "migrations" / name
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not isinstance(node, ast.Call):
+                    continue
+                if isinstance(node.func, ast.Attribute) and node.func.attr in {"choose", "confirm", "text", "enter"}:
+                    prompt = node.args[0] if node.args else None
+                elif isinstance(node.func, ast.Name) and node.func.id == "_enter_exact":
+                    prompt = node.args[1]
+                else:
+                    continue
+                if prompt is None:
+                    continue
+                questions += 1
+                with self.subTest(file=name, line=node.lineno):
+                    self.assertFalse(has_untranslated_text(prompt), ast.unparse(prompt))
+        self.assertGreaterEqual(questions, 20)
+
 
 class OldmanMakemigrationsTests(unittest.TestCase):
     """Keep full-schema comparison separate from one-App revision writing."""

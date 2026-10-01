@@ -40,6 +40,7 @@ from oldman.db.migrations.autogenerate import (
 from oldman.db.migrations.interaction import MigrationInteraction
 from oldman.db.migrations.metadata import load_migration_metadata
 from oldman.db.migrations.project import MigrationProject
+from oldman.i18n import gettext
 
 
 @render.renderers.dispatch_for(ops.RenameTableOp, replace=True)
@@ -108,7 +109,7 @@ def _merge_multiple_heads(
     candidates = tuple(sorted(label for label, branch in graph.branches.items() if len(branch.heads) > 1))
     if not candidates:
         return False, None
-    app_label = candidates[0] if len(candidates) == 1 else interaction.choose("Multiple Apps have divergent migration heads.", candidates)
+    app_label = candidates[0] if len(candidates) == 1 else interaction.choose(gettext("Multiple Apps have divergent migration heads."), candidates)
     if app_label not in candidates:
         raise ValueError(f"Unknown App merge selection: {app_label!r}.")
     try:
@@ -118,13 +119,13 @@ def _merge_multiple_heads(
     heads = tuple(revision.revision for revision in graph.branches[app_label].heads)
     rendered_heads = ", ".join(heads)
     if not interaction.confirm(
-        f"App {app_label!r} has migration heads {rendered_heads}. Create a merge revision?",
+        gettext("App %(app)s has migration heads %(heads)s. Create a merge revision?", app=repr(app_label), heads=rendered_heads),
         default=False,
     ):
         return True, None
     suggested_message = f"merge {app_label} heads"
     message = interaction.text(
-        "Migration description",
+        gettext("Migration description"),
         default=suggested_message,
     ).strip()
     if not message:
@@ -175,7 +176,7 @@ def _make_migration_with_connection(
     changes = collect_schema_changes(project, connection)
     if changes.by_app:
         candidates = tuple(changes.by_app)
-        app_label = candidates[0] if len(candidates) == 1 else interaction.choose("Multiple Apps have schema changes.", candidates)
+        app_label = candidates[0] if len(candidates) == 1 else interaction.choose(gettext("Multiple Apps have schema changes."), candidates)
         if app_label not in changes.by_app:
             raise ValueError(f"Unknown changed App selection: {app_label!r}.")
         selected = changes.by_app[app_label]
@@ -183,11 +184,11 @@ def _make_migration_with_connection(
         candidates = tuple(sorted(project.apps.labels))
         if not candidates:
             raise MigrationRevisionWriteError("The project has no registered App that can own a migration.")
-        app_label = candidates[0] if len(candidates) == 1 else interaction.choose("Choose the App for the blank revision.", candidates)
+        app_label = candidates[0] if len(candidates) == 1 else interaction.choose(gettext("Choose the App for the blank revision."), candidates)
         if app_label not in candidates:
             raise ValueError(f"Unknown App selection: {app_label!r}.")
         if not interaction.confirm(
-            f"No schema changes were detected for {app_label}. Create a blank revision?",
+            gettext("No schema changes were detected for %(app)s. Create a blank revision?", app=app_label),
             default=False,
         ):
             return None
@@ -199,7 +200,7 @@ def _make_migration_with_connection(
 
     for table_name in selected.adoption_tables:
         choice = interaction.choose(
-            f"Managed model table {table_name!r} already exists without Oldman ownership.",
+            gettext("Managed model table %(table)s already exists without Oldman ownership.", table=repr(table_name)),
             ("keep external", "adopt", "cancel"),
         )
         if choice == "keep external":
@@ -223,7 +224,7 @@ def _make_migration_with_connection(
     location = _writable_location(project, app_label)
     suggested_message = _suggest_message(selected)
     message = interaction.text(
-        "Migration description",
+        gettext("Migration description"),
         default=suggested_message,
     ).strip()
     if not message:
@@ -567,7 +568,7 @@ def plan_adoption_execution(
         rendered = "; ".join(f"{table_name}: {', '.join(table_errors)}" for table_name, table_errors in mismatches.items())
         raise MigrationAdoptionConflict(f"Existing adoption table structure changed: {rendered}.")
     if not interaction.confirm(
-        "The adoption table already exists and matches the model. Skip CREATE and record ownership?",
+        gettext("The adoption table already exists and matches the model. Skip CREATE and record ownership?"),
         default=False,
     ):
         raise AdoptionRevisionError("Existing-table adoption was cancelled.")

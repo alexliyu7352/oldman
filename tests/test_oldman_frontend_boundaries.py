@@ -77,6 +77,20 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
 
         self.assertEqual([], verifier.verify_static_package())
 
+    def test_package_scss_uses_the_sass_module_system(self) -> None:
+        """Sass @import of Sass files is deprecated (gone in Dart Sass 3) and warns in every consumer build.
+
+        Sass's own rule decides what stays: an import of a `*.css` URL, or one carrying a modifier
+        such as `layer(...)`, is plain CSS and is not deprecated.
+        """
+        offenders = []
+        for path in sorted((WEB_PACKAGE_ROOT / "src").rglob("*.scss")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                match = re.match(r'\s*@import\s+"([^"]+)"\s*;', line)
+                if match and not match.group(1).endswith(".css"):
+                    offenders.append(f"{path.relative_to(WEB_PACKAGE_ROOT)}:{number}")
+        self.assertEqual([], offenders)
+
     def test_workspace_resolution_matches_published_exports(self) -> None:
         """IDE 与 Vite 只能解析 package.json 已发布的精确入口。"""
         expected = published_source_paths()

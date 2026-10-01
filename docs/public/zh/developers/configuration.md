@@ -290,7 +290,7 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 设置真实 IP header 不表示所有请求都可信。生产反向代理应覆盖该 header，并限制直接绕过代理访问服务的路径。
 
-`core.debug` 为 true 时，Web 服务的 Sanic 会对事件循环调用 `set_debug(True)`。uvloop 0.22.1 在该模式下于 CPython 3.13.15、3.14.7 及更新的补丁版会在回收未关闭的 async generator 时段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)，上游尚未修复）。调试模式请使用已验证的 3.13.11 或 3.14.2，3.12 不受影响；默认关闭调试的生产运行不受影响。
+`core.debug` 为 true 时，Web 服务的 Sanic 会对事件循环调用 `set_debug(True)`。在这个模式下，uvloop 回收没有关闭的 async generator 时可能报 `AttributeError`，也可能直接段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)；到 2026-10-01 为止，0.22.1 与 0.23.0 都没有修复）。出不出现取决于 CPython 补丁版和代码写法，没有哪个受支持的补丁版对所有代码都安全：上游 #715 的复现脚本在 3.12.14、3.13.15、3.14.2 上段错误，在 3.14.7 上不出错；框架自己的测试则在 3.13.15、3.14.7 上崩，在 3.13.11、3.14.2 上通过，CI 因此固定这两个版本。默认关闭调试的生产运行不受影响。调试时遇到回收 async generator 的报错或段错误就是这个问题；把自己代码里的 async generator 显式关闭（`contextlib.aclosing`），不留给垃圾回收，就不会触发。
 
 ### Web 安全配置
 
@@ -306,7 +306,7 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
   默认关是因为打开会波及**现在没有被保护的路由**——webhook、回调这类不经认证流水线识别调用方的接口。
   打开之前先把这些路由标上 `@csrf_exempt`，否则它们会开始返回 403。凭 Bearer 访问令牌认证的请求自动免检，不需要标注。关闭时保护仍按逐路由的 `@csrf_protect` 声明生效。
 - `check_referer` 的语义已扩展:开启时按 **Origin 优先、Referer 回退**做同源校验,两者都缺失即拒绝。
-  仅看 Referer 是不够的——`referrer-policy: no-referrer` 是合法的请求状态,能把 Referer 完全去掉,而 Origin 去不掉。
+  仅看 Referer 是不够的——`referrer-policy: no-referrer` 能把 Referer 完全去掉。浏览器仍会发 Origin 头,但在 `no-referrer` 下它的值是 `null`,本站表单也一样,框架按跨站拒绝;所以有表单要提交的页面不要用 `no-referrer`,需要不把地址泄露给别的站时用 `same-origin`。
 - `web.security.fingerprint`：浏览器指纹时间差、频率限制与异常策略。
 
 安全 token 和 Session 的有效期是不同设置，不能用其中一个代替另一个。
