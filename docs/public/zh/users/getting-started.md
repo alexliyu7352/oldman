@@ -6,7 +6,7 @@
 
 ## 运行环境与安装
 
-使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。打开 `core.debug` 时注意：uvloop（0.22.1、0.23.0 都未修复）在 asyncio 调试模式下回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），与 CPython 补丁版和代码写法都有关，见[配置参考](../developers/configuration.md#web-默认值与开关)；默认关闭调试时不受影响。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
+使用 Linux、Python 3.12 到 3.14（推荐 3.13）、uv、Node.js 20 及以上和 pnpm。打开 `core.debug` 时注意：uvloop（0.22.1、0.23.0 都未修复）在 asyncio 调试模式下回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)），要同时满足调试模式和代码里有没关闭的 async generator 才会出现，见[配置参考](../developers/configuration.md#web-默认值与开关)；默认关闭调试时不受影响。`bootstrap.py` 会直接调用 `uv` 和 `pnpm`，两者都要先在 PATH 里：
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # uv：Python 与依赖管理
