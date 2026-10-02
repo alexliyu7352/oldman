@@ -6,11 +6,13 @@ import asyncio
 import unittest
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from sanic import Sanic
 from sanic.response import json, text
 
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings
 from oldman.web.authentication import (
     ANONYMOUS_USER,
     Authentication,
@@ -144,6 +146,10 @@ class PipelineTest(unittest.TestCase):
 
 class PermissionsReadTheRequestUserTest(unittest.TestCase):
     """Every check answers for whatever the pipeline recorded, not only for a session."""
+
+    def setUp(self) -> None:
+        # A refusal names the site's login page, read from the settings.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
 
     def test_decorators_accept_a_user_from_any_method(self) -> None:
         from oldman.web.auth import login_required, staff_required, superuser_required

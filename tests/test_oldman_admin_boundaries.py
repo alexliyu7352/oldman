@@ -93,7 +93,7 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         """内置 Admin 必须有自己的登录闭环，不依赖业务侧 /login。"""
         source = (ROOT / "oldman" / "apps" / "admin" / "site.py").read_text(encoding="utf-8")
 
-        self.assertIn('login_path = f"{prefix}/login"', source)
+        self.assertIn("login_path = admin_login_path(prefix)", source)
         # Credentials go through the configured login backends, the user table by default.
         self.assertIn("authenticate_credentials(", source)
         self.assertIn("has_staff_access(", source)

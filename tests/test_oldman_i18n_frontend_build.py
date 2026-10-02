@@ -25,6 +25,7 @@ def write_settings(path: Path) -> None:
             """
             i18n:
               default_language: zh-Hans
+              preference_url: /account/language
               languages:
                 en: {}
                 zh-Hans:
@@ -53,6 +54,8 @@ class FrontendI18nBuildTest(unittest.TestCase):
             output = output_file.read_text(encoding="utf-8")
 
         self.assertIn('export const defaultLanguage = "zh-Hans";', output)
+        # The browser posts language choices to the endpoint the settings name, not to its own copy.
+        self.assertIn('export const languagePreferencePath = "/account/language";', output)
         self.assertIn('code: "zh-Hans"', output)
         self.assertIn('locale: "zh-Hans"', output)
         self.assertIn('aliases: ["zh-CN", "zh-SG"]', output)

@@ -36,14 +36,14 @@ def read_i18n_languages(
     settings_file: Path,
 ) -> tuple[str, list[dict[str, object]]]:
     """Read the canonical frontend language contract from project settings."""
-    default_language, languages, _ = read_i18n_contract(settings_file)
+    default_language, languages, _, _ = read_i18n_contract(settings_file)
     return default_language, languages
 
 
 def read_i18n_contract(
     settings_file: Path,
-) -> tuple[str, list[dict[str, object]], str]:
-    """Read one consistent language and static-URL settings snapshot."""
+) -> tuple[str, list[dict[str, object]], str, str]:
+    """Read one consistent snapshot: default language, languages, static URL, language preference endpoint."""
     data = YAML(typ="safe", pure=True).load(settings_file.read_text(encoding="utf-8")) or {}
     i18n = I18nConfig.model_validate(data.get("i18n") or {})
     web = data.get("web") or {}
@@ -67,7 +67,7 @@ def read_i18n_contract(
         raise ValueError(
             f"{settings_file} 中的 i18n.default_language 不属于 i18n.languages"
         )
-    return default_language, languages, static.url
+    return default_language, languages, static.url, i18n.preference_url
 
 
 def build_language_aliases(
@@ -98,12 +98,13 @@ def write_language_manifest(
     settings_file: Path,
 ) -> None:
     """Generate the browser language index without duplicating locale identity."""
-    default_language, languages, static_url = read_i18n_contract(settings_file)
+    default_language, languages, static_url, preference_url = read_i18n_contract(settings_file)
     write_language_manifest_data(
         output_file,
         default_language,
         languages,
         static_url=static_url,
+        preference_url=preference_url,
     )
 
 
@@ -113,8 +114,13 @@ def write_language_manifest_data(
     languages: list[dict[str, object]],
     *,
     static_url: str,
+    preference_url: str,
 ) -> None:
-    """Write a manifest from the same validated settings snapshot as catalogs."""
+    """Write a manifest from the same validated settings snapshot as catalogs.
+
+    `preference_url` is `i18n.preference_url`, the endpoint the browser posts a language
+    choice to; the manifest carries it so the browser does not keep its own copy.
+    """
     aliases = build_language_aliases(languages)
 
     lines = [
@@ -129,6 +135,8 @@ def write_language_manifest_data(
         "}",
         "",
         f"export const defaultLanguage = {js_string(default_language)};",
+        "",
+        f"export const languagePreferencePath = {js_string(preference_url)};",
         "",
         "export const languageDefinitions = [",
     ]
@@ -314,7 +322,7 @@ def build_frontend_i18n(
         raise ValueError(
             f"语言清单不能放在 catalog 目录里（{languages_output}）：发布 {output_dir} 时会整体替换该目录。"
         )
-    default_language, configured_languages, static_url = read_i18n_contract(
+    default_language, configured_languages, static_url, preference_url = read_i18n_contract(
         settings_file
     )
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -345,6 +353,7 @@ def build_frontend_i18n(
             default_language,
             configured_languages,
             static_url=static_url,
+            preference_url=preference_url,
         )
         publish_staged_i18n(
             staged_catalogs,

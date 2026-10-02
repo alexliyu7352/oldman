@@ -12,7 +12,7 @@ import oldman.conf as conf
 from oldman.auth.backends import UserTableBackend, authenticate_with, resolve_login_backends
 from oldman.conf.schemas import DefaultSettings
 
-SIGNED_IN = SimpleNamespace(id=5, username="device")
+SIGNED_IN = SimpleNamespace(id=5, username="device", is_active=True)
 
 
 class DeviceTokenBackend:
@@ -23,6 +23,16 @@ class DeviceTokenBackend:
     async def authenticate(self, request: Any, *, token: Any = None, **credentials: Any) -> Any:
         del request, credentials
         return SIGNED_IN if token == "good" else None
+
+
+class DisabledAccountBackend:
+    """A project backend that vouches for an account someone has since disabled."""
+
+    name = "disabled_account"
+
+    async def authenticate(self, request: Any, *, token: Any = None, **credentials: Any) -> Any:
+        del request, credentials
+        return SimpleNamespace(id=6, username="former", is_active=False) if token == "good" else None
 
 
 class NotABackend:
@@ -72,6 +82,15 @@ class AuthenticateCredentialsTest(unittest.TestCase):
         settings.web.auth.login_backends = [f"{__name__}.DeviceTokenBackend"]
         with patch.dict(conf.__dict__, {"settings": settings}):
             self.assertIs(SIGNED_IN, asyncio.run(authenticate_credentials(SimpleNamespace(), token="good")))
+
+    def test_a_disabled_account_never_signs_in_whichever_backend_vouched_for_it(self) -> None:
+        """Being active is the floor of every login; a project backend may still return a disabled account."""
+        from oldman.web.auth import authenticate_credentials
+
+        settings = DefaultSettings()
+        settings.web.auth.login_backends = [f"{__name__}.DisabledAccountBackend"]
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            self.assertIsNone(asyncio.run(authenticate_credentials(SimpleNamespace(), token="good")))
 
     def test_the_default_is_the_user_table(self) -> None:
         self.assertEqual(["users"], DefaultSettings().web.auth.login_backends)

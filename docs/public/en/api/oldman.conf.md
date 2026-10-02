@@ -282,6 +282,21 @@ Settings schemas for Oldman applications.
 
 Import with `from oldman.conf.schemas import <name>`.
 
+### `AccountConfig`
+
+class · defined in `oldman.conf.schemas`
+
+```python
+class AccountConfig(ConfigModel)
+```
+
+Where the site's own account pages live; the built-in Admin keeps its pages under its own prefix.
+
+Members:
+
+- `login_url: str = Field(default='/login', description='Login page and its submit; requests that need a signed-in user…`
+- `classmethod def validate_login_url(value: str) -> str` — Registered as a route and redirected to, so a plain local path.
+
 ### `APIKeyConfig`
 
 class · defined in `oldman.conf.schemas`
@@ -481,6 +496,8 @@ Members:
 - `use_i18n_path: bool = Field(default=False, description='Enable language-prefixed routes')`
 - `default_language: str = Field(default='en', description='Default language code')`
 - `languages: dict[str, I18nLanguageConfig] = Field(default_factory=_default_i18n_languages, description='Canonical project language definitions')`
+- `preference_url: str = Field(default='/preferences/language', description="Endpoint the browser posts a visitor's language…`
+- `classmethod def validate_preference_url(value: str) -> str` — The browser posts here from any page, signed in or not.
 - `classmethod def normalize_language_keys(value: object) -> object` — Normalize configured canonical codes before building child models.
 - `classmethod def normalize_default_language(value: object) -> str` — Require one standard language tag before resolving project aliases.
 - `def serialize_language_overrides(languages: dict[str, I18nLanguageConfig]) -> dict[str, dict[str, object]]` — Preserve compact user overrides instead of materializing runtime defaults.
@@ -940,6 +957,7 @@ Members:
 - `security: WebSecurityConfig = Field(default_factory=WebSecurityConfig, description='Web security settings')`
 - `session: SessionConfig = Field(default_factory=SessionConfig, description='Web session settings')`
 - `auth: AuthConfig = Field(default_factory=AuthConfig, description='Request authentication settings')`
+- `account: AccountConfig = Field(default_factory=AccountConfig, description="Addresses of the site's account pages")`
 - `messages: MessagesConfig = Field(default_factory=MessagesConfig, description='One-time Web message settings')`
 - `sse: SSEConfig = Field(default_factory=SSEConfig, description='Server-sent event settings')`
 - `template: TemplateConfig = Field(default_factory=TemplateConfig, description='Template settings')`

@@ -65,9 +65,8 @@ class AdminPasswordResetTest(unittest.TestCase):
             self.app,
             db_manager=object(),  # type: ignore[arg-type]
             admin_site=AdminSite("runtime_password_reset_admin"),
-            prefix="/control",
             auth_settings=self.auth_settings,
-            admin_settings=AdminSettings(),
+            admin_settings=AdminSettings(prefix="/control"),
             password_reset_rate_limiter=self.limiter,
         )
         self.generator = PasswordResetTokenGenerator(self.settings.web.security.secret_key, expiry=self.auth_settings.password_reset.expiry)

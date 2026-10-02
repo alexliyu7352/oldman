@@ -15,6 +15,7 @@ from sanic import Request, Sanic
 from sanic.exceptions import Unauthorized
 from sanic.response import HTTPResponse
 
+import oldman.conf as conf
 from oldman.conf.schemas import SSEConfig
 from oldman.i18n import gettext
 from oldman.i18n.serialization import _decode_translatable_msgpack
@@ -126,9 +127,13 @@ class SSEExtension:
         queue_size: int | None = None,
         retry: int | None = None,
         session_guard: bool = False,
-        login_url: SSELoginURL = "/login",
+        login_url: SSELoginURL | None = None,
     ) -> Callable[[SSEHandler], SSEHandler]:
-        """Inject an SSEStream while retaining one native response writer."""
+        """Inject an SSEStream while retaining one native response writer.
+
+        ``login_url`` is where a guarded stream sends a browser whose session ended; omitted,
+        the site's ``web.account.login_url``.
+        """
         if not isinstance(queue_mode, SSEQueueMode):
             raise TypeError("queue_mode must be an SSEQueueMode")
         if queue_size is not None and (type(queue_size) is not int or queue_size <= 0):
@@ -139,7 +144,7 @@ class SSEExtension:
             encode_sse_event(ServerSentEvent(retry=retry))
         if type(session_guard) is not bool:
             raise TypeError("session_guard must be a boolean")
-        if not isinstance(login_url, str) and not callable(login_url):
+        if login_url is not None and not isinstance(login_url, str) and not callable(login_url):
             raise TypeError("login_url must be a path or synchronous callback")
         if callable(login_url) and inspect.iscoroutinefunction(login_url):
             raise TypeError("login_url callback must be synchronous")
@@ -213,7 +218,7 @@ class SSEExtension:
     def _prepare_session_guard(
         self,
         request: Request,
-        login_url: SSELoginURL,
+        login_url: SSELoginURL | None,
     ) -> tuple[int, SSESessionGuard]:
         """Capture trusted Session identity and build the writer's periodic check."""
         data = get_session_data(request, SessionData)
@@ -399,8 +404,10 @@ def _decode_user_target(value: object) -> int:
     return int(value)
 
 
-def _resolve_login_url(value: SSELoginURL, request: Request) -> str:
-    """Resolve one synchronous callback and validate its same-site result."""
+def _resolve_login_url(value: SSELoginURL | None, request: Request) -> str:
+    """Resolve one synchronous callback, or the site's login URL, and validate the same-site result."""
+    if value is None:
+        return conf.settings.web.account.login_url
     resolved = value(request) if callable(value) else value
     if inspect.isawaitable(resolved):
         if inspect.iscoroutine(resolved):

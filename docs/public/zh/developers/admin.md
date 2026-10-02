@@ -18,7 +18,7 @@ from oldman.apps.admin import AdminSite, AdminUserModelAdmin, ModelAdmin, instal
 | `is_registered(model)` | 该模型是否已在这个站点注册 |
 | `get_model_admin(model)` | 返回该模型的管理器 |
 | `register_user_model(model)` | 保留唯一专用 User 管理器，由安装器正常调用 |
-| `await menu_items(request, prefix="/admin")` / `await menu_groups(request, prefix="/admin")` | 从 Registry 展示元数据生成模型菜单及 App 分组，只列出这个请求能查看的模型 |
+| `await menu_items(request)` / `await menu_groups(request)` | 从 Registry 展示元数据生成模型菜单及 App 分组，只列出这个请求能查看的模型；链接位于站点安装时的前缀下，站点未经 `install_admin()` 安装时调用会报错 |
 
 Registry 根据已安装 App 加载 models、views 和命令，不自动导入 `admin.py`。服务必须显式导入并注册业务 ModelAdmin。菜单只是不列出看不了的模型，访问仍由各路由自己检查。
 
@@ -31,7 +31,6 @@ install_admin(
     app,
     db_manager=None,
     admin_site=None,
-    prefix="/admin",
     dev_mode=False,
     dev_server_url="",
     extension_bundle_name=None,
@@ -40,7 +39,7 @@ install_admin(
 )
 ```
 
-`prefix` 末尾的斜杠会被去掉，`/admin` 是首页的规范地址。Oldman Web 运行时以严格斜杠注册路由，Admin 因此额外把 `/admin/` 以 301 转到 `/admin` 并保留查询串；未开启严格斜杠的 Sanic 应用本来就两种写法都能命中，不会重复注册。
+挂载路径来自 Admin 的设置 `app_settings.admin.prefix`（默认 `/admin`；传了 `admin_settings` 时取它的 `prefix`），不是安装器参数；末尾的斜杠会被去掉，根路径 `/` 和站外地址会在加载配置时被拒绝。去掉斜杠后的值（默认 `/admin`）是首页的规范地址。Oldman Web 运行时以严格斜杠注册路由，Admin 因此额外把 `/admin/` 以 301 转到 `/admin` 并保留查询串；未开启严格斜杠的 Sanic 应用本来就两种写法都能命中，不会重复注册。
 
 除 app 外均为关键字参数，返回安装后的 `AdminSite`。默认使用框架数据库管理器和默认 site；Auth/Admin 配置分别来自已注册 App 的强类型 settings。通常不需要逐个传这三项。
 

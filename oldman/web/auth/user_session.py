@@ -105,7 +105,7 @@ async def render_session_password_modal(
 async def update_session_password(
     request: Any,
     *,
-    login_url: str = "/login",
+    login_url: str | None = None,
     success_actions: Sequence[ResponseAction] = (),
     auth_settings: AuthSettings | None = None,
     db_manager: DatabaseManager | None = None,
@@ -121,6 +121,8 @@ async def update_session_password(
     whether the site runs exclusive logins or lets one user hold several, a password change
     leaves nothing behind for a stolen cookie to use, and the browser is simply asked to
     sign in again.
+
+    `login_url` is where the browser goes afterwards; omitted, the site's `web.account.login_url`.
     """
     form = SessionPasswordForm.from_request(request)
     if not await form.validate():
@@ -159,7 +161,7 @@ async def update_session_password(
         ),
         *success_actions,
         CloseModalAction(),
-        RedirectAction(url=login_url, delay_ms=SIGN_IN_AGAIN_DELAY_MS),
+        RedirectAction(url=login_url if login_url is not None else conf.settings.web.account.login_url, delay_ms=SIGN_IN_AGAIN_DELAY_MS),
     ]
     payload = DefaultApiFormResponse(
         error_code=ApiErrorCode.OK,

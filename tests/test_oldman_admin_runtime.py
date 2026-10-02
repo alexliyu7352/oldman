@@ -185,7 +185,8 @@ def runtime_settings(
 
 
 DEFAULT_AUTH_SETTINGS = AuthSettings()
-DEFAULT_ADMIN_SETTINGS = AdminSettings()
+# Every test here installs the Admin under /control, so its URLs are told apart from the default.
+DEFAULT_ADMIN_SETTINGS = AdminSettings(prefix="/control")
 
 
 class MemoryWindowCounter:
@@ -264,7 +265,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         site = AdminSite("runtime_test_admin")
         site.register(RuntimeAdminRecord)
 
-        installed = install_admin(app, db_manager=object(), admin_site=site, prefix="/control")  # type: ignore[arg-type]
+        installed = install_admin(app, db_manager=object(), admin_site=site)  # type: ignore[arg-type]
 
         self.assertIs(site, installed)
         self.assertIsInstance(app.ctx.static_bundle_registry, StaticBundleRegistry)
@@ -321,12 +322,11 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         sign_in_limit = LoginRateLimit(auth_settings=DEFAULT_AUTH_SETTINGS, counter=MemoryWindowCounter())
 
         with patch.object(site, "register_routes") as register_routes:
-            installed = install_admin(app, admin_site=site, prefix="/control", login_rate_limit=sign_in_limit)
+            installed = install_admin(app, admin_site=site, login_rate_limit=sign_in_limit)
 
         self.assertIs(site, installed)
         register_routes.assert_called_once_with(
             app,
-            prefix="/control",
             db_manager=default_db_manager,
             auth_settings=DEFAULT_AUTH_SETTINGS,
             admin_settings=DEFAULT_ADMIN_SETTINGS,
@@ -346,7 +346,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
 
         model_prefix = "/control/test_oldman_admin_runtime_natural_key_record"
@@ -367,10 +366,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         site = AdminSite("runtime_trailing_slash_admin")
         site.register_routes(
             app,
-            prefix="/control/",
             db_manager=cast(Any, object()),
             auth_settings=DEFAULT_AUTH_SETTINGS,
-            admin_settings=DEFAULT_ADMIN_SETTINGS,
+            admin_settings=AdminSettings(prefix="/control/"),
         )
 
         _request, response = asyncio.run(app.asgi_client.get("/control/?page=2"))
@@ -386,7 +384,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         site = AdminSite("runtime_lenient_slash_admin")
         site.register_routes(
             app,
-            prefix="/control",
             db_manager=cast(Any, object()),
             auth_settings=DEFAULT_AUTH_SETTINGS,
             admin_settings=DEFAULT_ADMIN_SETTINGS,
@@ -448,7 +445,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         app = FakeApp()
         site = AdminSite("runtime_csrf_admin")
         site.register(RuntimeAdminRecord)
-        install_admin(app, db_manager=object(), admin_site=site, prefix="/control")  # type: ignore[arg-type]
+        install_admin(app, db_manager=object(), admin_site=site)  # type: ignore[arg-type]
         handler = app.route_handlers[("/control/test_oldman_admin_runtime_record/new", ("POST",))]
         request = SimpleNamespace(
             app=app,
@@ -467,7 +464,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         """成功登录必须把配置和数据库交给登录时间服务。"""
         self.settings.web.session.expiry = 12345
         app = FakeApp()
-        admin_settings = AdminSettings()
+        admin_settings = AdminSettings(prefix="/control")
         auth_settings = AuthSettings()
         site = AdminSite("runtime_login_persistence_admin")
         manager = object()
@@ -475,7 +472,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=manager,  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
             auth_settings=auth_settings,
             admin_settings=admin_settings,
         )
@@ -532,7 +528,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=object(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
             auth_settings=auth_settings,
             login_rate_limit=LoginRateLimit(auth_settings=auth_settings, counter=MemoryWindowCounter()),
         )
@@ -582,7 +577,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=object(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
 
         registry = app.ctx.static_bundle_registry
@@ -606,9 +600,8 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=object(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
             auth_settings=AuthSettings(),
-            admin_settings=AdminSettings(),
+            admin_settings=AdminSettings(prefix="/control"),
         )
         session_manager = SimpleNamespace(
             exclusive_login=AsyncMock(return_value="new-session-id"),
@@ -647,7 +640,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         request = make_request(
             app,
@@ -685,7 +677,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         session = FakeSession(
             user_id=7,
@@ -747,7 +738,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         request = make_request(
             app,
@@ -962,7 +952,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         session = FakeSession(user_id=7, is_active=True, is_staff=True, is_superuser=True)
 
@@ -1007,7 +996,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
                     app,
                     db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
                     admin_site=site,
-                    prefix="/control",
                 )
                 for action, method in (("edit", "GET"), ("edit", "POST"), ("delete", "GET"), ("delete", "POST")):
                     with self.subTest(model=model.__name__, action=action, method=method):
@@ -1041,7 +1029,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             app,
             db_manager=MissingObjectDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         route = f"/control/{admin.model_path}/<object_id>/edit"
         handler = app.route_handlers[(route, ("GET",))]
@@ -1128,7 +1115,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
     def test_a_site_for_superusers_only_refuses_staff_on_model_pages_whatever_their_roles(self) -> None:
         # A staff login can reach the Admin without its sign-in page: a session shared with another service.
         self.enterContext(grants(*USER_MANAGEMENT))
-        app, model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(require_superuser=True))
+        app, model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(prefix="/control", require_superuser=True))
         list_path = f"/control/{model_path}"
 
         def get(session: FakeSession) -> Any:
@@ -1144,7 +1131,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
 
     def test_a_site_for_superusers_only_refuses_staff_on_every_admin_page(self) -> None:
         """G6-1: only model pages checked the site-wide switch; staff reached the index, their session page and their password form."""
-        app, _model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(require_superuser=True))
+        app, _model_path = install_user_admin(make_admin_user(), admin_settings=AdminSettings(prefix="/control", require_superuser=True))
         staff = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=False)
         superuser = FakeSession(user_id=98, is_active=True, is_staff=True, is_superuser=True)
 
@@ -1726,7 +1713,6 @@ def install_user_admin(
         app,
         db_manager=manager,  # type: ignore[arg-type]
         admin_site=site,
-        prefix="/control",
         auth_settings=auth_settings,
         admin_settings=admin_settings,
     )
@@ -1775,7 +1761,6 @@ async def request_oversized_integer_admin_route() -> None:
             app,
             db_manager=RealDatabaseManager(),  # type: ignore[arg-type]
             admin_site=site,
-            prefix="/control",
         )
         route = f"/control/{admin.model_path}/<object_id>/edit"
         object_id = str(10**100)

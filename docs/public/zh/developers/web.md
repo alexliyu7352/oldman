@@ -324,7 +324,7 @@ async def internal_metrics(request: Request):
     ...
 ```
 
-- `authenticated_by(*methods, callers=None, login_url="/login", response_mode=None)`：请求须是被列出的某种方式认出的。
+- `authenticated_by(*methods, callers=None, login_url=None, response_mode=None)`：请求须是被列出的某种方式认出的。
 - `callers` 限定调用方的名字（哪个 key），不限定用户：同时列出 `session` 或 `jwt` 时，已登录用户照常通过。
 - 什么方式都没认出 → 401；被别的方式认出、或是没列出的调用方 → 403。列了 `session` 时，回答按页面的响应模式，与 `login_required` 相同
   （浏览器页面跳登录页）；否则一律 JSON，因为调用方是程序，列了 `http_basic` 时 401 带 `WWW-Authenticate` 质询。
@@ -335,11 +335,13 @@ async def internal_metrics(request: Request):
 
 | 装饰器 | 检查 |
 | --- | --- |
-| `login_required(login_url="/login", response_mode="auto")` | 已登录用户，不论凭什么认证 |
-| `staff_required(login_url="/login", response_mode="auto")` | 已认证且 staff |
-| `superuser_required(login_url="/login", response_mode="auto")` | 已认证、staff 且 superuser |
+| `login_required(login_url=None, response_mode="auto")` | 已登录用户，不论凭什么认证 |
+| `staff_required(login_url=None, response_mode="auto")` | 已认证且 staff |
+| `superuser_required(login_url=None, response_mode="auto")` | 已认证、staff 且 superuser |
 | `api_login_required()` | 已认证，使用 JSON 未登录响应 |
 | `authenticated_by(*methods, callers=None)` | 由列出的某种方式认证；`callers` 限定调用方名字，见[调用方认证](#服务与内部工具调用方认证) |
+
+`login_url` 省略时，未登录的浏览器被送到站点设置 `web.account.login_url`（默认 `/login`）；只有登录页不归站点设置管的宿主（例如挂在自己前缀下的内置 Admin）才需要显式传。
 
 写在路由装饰器下面，例如 `@router.post(...)`、`@staff_required()`、`@csrf_protect()`、视图函数。权限需要覆盖数据、保存、删除和 Modal 内容接口，不只是页面入口。
 

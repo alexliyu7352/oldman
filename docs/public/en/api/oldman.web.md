@@ -369,20 +369,20 @@ Import with `from oldman.web.http import <name>`.
 function · defined in `oldman.web.http`
 
 ```python
-def authentication_required_response(request: Any, response_mode: Literal['html', 'json'], *, login_url: str='/login')
+def authentication_required_response(request: Any, response_mode: Literal['html', 'json'], *, login_url: str | None=None)
 ```
 
-返回未登录响应。
+返回未登录响应;`login_url` 省略时用站点的 `web.account.login_url`。
 
 ### `build_login_url`
 
 function · defined in `oldman.web.http`
 
 ```python
-def build_login_url(request: Any, login_url: str='/login') -> str
+def build_login_url(request: Any, login_url: str | None=None) -> str
 ```
 
-构造包含原始 path/query 的登录跳转地址。
+构造包含原始 path/query 的登录跳转地址;`login_url` 省略时用站点的 `web.account.login_url`。
 
 ### `permission_denied_response`
 

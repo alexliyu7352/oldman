@@ -10,6 +10,8 @@ export interface LanguageDefinition {
 
 export const defaultLanguage = "en";
 
+export const languagePreferencePath = "/preferences/language";
+
 export const languageDefinitions = [
   {
     code: "en",

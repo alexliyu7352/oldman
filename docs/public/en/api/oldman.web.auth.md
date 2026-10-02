@@ -408,7 +408,7 @@ Members:
 function · defined in `oldman.web.auth.user_session`
 
 ```python
-async def update_session_password(request: Any, *, login_url: str='/login', success_actions: Sequence[ResponseAction]=(), auth_settings: AuthSettings | None=None, db_manager: DatabaseManager | None=None)
+async def update_session_password(request: Any, *, login_url: str | None=None, success_actions: Sequence[ResponseAction]=(), auth_settings: AuthSettings | None=None, db_manager: DatabaseManager | None=None)
 ```
 
 Change the current User password, then sign the user out everywhere.

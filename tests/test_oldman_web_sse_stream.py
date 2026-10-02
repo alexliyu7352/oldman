@@ -648,10 +648,15 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         async def guarded(_request: Any, _stream: SSEStream) -> None:
             await asyncio.Future()
 
-        await guarded(cast(Any, request))
+        # No login_url given: the browser is sent to the site's `web.account.login_url`.
+        settings = DefaultSettings()
+        settings.web.account.login_url = "/signin"
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            await guarded(cast(Any, request))
 
         self.assertEqual(1, len(response.frames))
         self.assertIn("event: oldman.session.invalidated", response.frames[0])
+        self.assertIn('"login_url":"/signin"', response.frames[0])
         self.assertEqual(2, manager.validate_session.await_count)  # type: ignore[attr-defined]
 
     async def test_session_redis_failure_closes_without_false_invalidation(self) -> None:

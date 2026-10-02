@@ -37,7 +37,7 @@ async def _call_handler(
 
 
 def _login_required(
-    login_url: str = "/login",
+    login_url: str | None = None,
     *,
     response_mode: ResponseMode = "auto",
     user_keyword: str | None = None,
@@ -76,7 +76,7 @@ def _api_login_required(*, user_keyword: str | None = None):
 
 
 def _staff_required(
-    login_url: str = "/login",
+    login_url: str | None = None,
     *,
     response_mode: ResponseMode = "auto",
     user_keyword: str | None = None,
@@ -116,7 +116,7 @@ def _staff_required(
 
 
 def _superuser_required(
-    login_url: str = "/login",
+    login_url: str | None = None,
     *,
     response_mode: ResponseMode = "auto",
     user_keyword: str | None = None,
@@ -158,7 +158,7 @@ def _superuser_required(
 def _authenticated_by(
     *methods: str,
     callers: Collection[str] | None = None,
-    login_url: str = "/login",
+    login_url: str | None = None,
     response_mode: ResponseMode | None = None,
 ):
     """Admit a request only when it authenticated by one of ``methods``.

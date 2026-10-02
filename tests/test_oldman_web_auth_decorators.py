@@ -8,8 +8,11 @@ import unittest
 from collections.abc import Awaitable
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
+import oldman.conf as conf
 from oldman.auth.models import User
+from oldman.conf.schemas import AccountConfig
 from oldman.web.auth import (
     api_login_required,
     login_required,
@@ -54,7 +57,10 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
         self.assertEqual(600, session.expiry)
 
     def test_login_decorators_return_the_shared_html_and_json_protocols(self) -> None:
-        """Anonymous HTML and API requests should retain the shared 302/401 contract."""
+        """Anonymous HTML and API requests should retain the shared 302/401 contract.
+
+        A decorator given no login_url sends the browser to the site's `web.account.login_url`.
+        """
 
         @login_required(login_url="/account/sign-in")
         async def html_endpoint(request: Any) -> Any:
@@ -66,8 +72,10 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             del request
             return "unreachable"
 
-        html_response = run_async(html_endpoint(make_request(path="/projects", query_string="page=2")))
-        api_response = run_async(api_endpoint(make_request()))
+        settings = SimpleNamespace(web=SimpleNamespace(account=AccountConfig(login_url="/signin")))
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            html_response = run_async(html_endpoint(make_request(path="/projects", query_string="page=2")))
+            api_response = run_async(api_endpoint(make_request()))
         api_payload = json.loads(api_response.body)
 
         self.assertEqual(302, html_response.status)
@@ -76,7 +84,7 @@ class OldmanWebAuthDecoratorsTest(unittest.TestCase):
             html_response.headers["Location"],
         )
         self.assertEqual(401, api_response.status)
-        self.assertEqual({"login_url": "/login"}, api_payload["data"])
+        self.assertEqual({"login_url": "/signin"}, api_payload["data"])
         self.assertEqual([], api_payload["actions"])
 
     def test_login_required_injects_the_integer_session_identity(self) -> None:

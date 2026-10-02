@@ -17,7 +17,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.cache.backends`](oldman.cache.backends.md) | 5 |  |
 | [`oldman.cli`](oldman.cli.md) | 35 | Lazy public entry point for the Oldman command line. |
 | [`oldman.cli.tui`](oldman.cli.tui.md) | 25 | Terminal interaction for Oldman commands and ops tools. |
-| [`oldman.conf`](oldman.conf.md) | 50 | Application settings bootstrap and public configuration API. |
+| [`oldman.conf`](oldman.conf.md) | 51 | Application settings bootstrap and public configuration API. |
 | [`oldman.contrib.http`](oldman.contrib.http.md) | 16 | @author:alex |
 | [`oldman.contrib.http.backends`](oldman.contrib.http.backends.md) | 3 | HTTP客户端后端实现 |
 | [`oldman.contrib.proxy`](oldman.contrib.proxy.md) | 7 | @author:alex |

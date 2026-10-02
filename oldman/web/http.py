@@ -9,6 +9,7 @@ from urllib.parse import quote
 from sanic.exceptions import Forbidden
 from sanic.views import HTTPMethodView as SanicHTTPMethodView
 
+import oldman.conf as conf
 from oldman.i18n import gettext
 from oldman.web.api import ApiErrorCode, DefaultApiResponse
 from oldman.web.authentication import request_user
@@ -37,8 +38,10 @@ def resolve_response_mode(request: Any, default: ResponseMode = "auto") -> Liter
     return "json" if "application/json" in accept else "html"
 
 
-def build_login_url(request: Any, login_url: str = "/login") -> str:
-    """构造包含原始 path/query 的登录跳转地址。"""
+def build_login_url(request: Any, login_url: str | None = None) -> str:
+    """构造包含原始 path/query 的登录跳转地址;`login_url` 省略时用站点的 `web.account.login_url`。"""
+    if login_url is None:
+        login_url = conf.settings.web.account.login_url
     path = str(getattr(request, "path", "") or "/")
     query_string = str(getattr(request, "query_string", "") or "")
     next_url = f"{path}?{query_string}" if query_string else path
@@ -50,9 +53,11 @@ def authentication_required_response(
     request: Any,
     response_mode: Literal["html", "json"],
     *,
-    login_url: str = "/login",
+    login_url: str | None = None,
 ):
-    """返回未登录响应。"""
+    """返回未登录响应;`login_url` 省略时用站点的 `web.account.login_url`。"""
+    if login_url is None:
+        login_url = conf.settings.web.account.login_url
     headers = getattr(request, "headers", {}) or {}
     is_oldman_request = str(headers.get("x-requested-with", "")).lower() == "xmlhttprequest"
     if response_mode == "json" or is_oldman_request:

@@ -63,7 +63,7 @@ Members:
 - `def init_app(app: Sanic) -> None` — Attach once and validate local configuration without opening Redis.
 - `async def after_server_start(_app: Sanic) -> None` — Start the Redis subscriber in the background and return immediately.
 - `async def before_server_stop(_app: Sanic) -> None` — Stop Redis consumption before closing browser streams and provider pools.
-- `def streaming(*, preflight: SSEPreflight | None=None, queue_mode: SSEQueueMode=SSEQueueMode.FIFO, queue_size: int | None=None, retry: int | None=None, session_guard: bool=False, login_url: SSELoginURL='/login') -> Callable[[SSEHandler], SSEHandler]` — Inject an SSEStream while retaining one native response writer.
+- `def streaming(*, preflight: SSEPreflight | None=None, queue_mode: SSEQueueMode=SSEQueueMode.FIFO, queue_size: int | None=None, retry: int | None=None, session_guard: bool=False, login_url: SSELoginURL | None=None) -> Callable[[SSEHandler], SSEHandler]` — Inject an SSEStream while retaining one native response writer.
 - `def user_streams(user_id: int) -> tuple[SSEStream, ...]` — Return this worker's current connections for one authenticated user.
 
 ## `SSEPublishedMessage`

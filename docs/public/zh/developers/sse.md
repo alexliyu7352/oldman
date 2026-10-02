@@ -26,7 +26,7 @@ async def example_realtime_table_events(request: Request, stream: SSEStream) -> 
 
 直接 `stream.send()` 不经过 Redis Pub/Sub，不要求 `web.sse.enabled=true`；该开关只启用**跨进程**发布订阅。但这条实际 Demo 路由启用了 Session 身份检查，因此仍需要 Session 的 Redis。不能把“不使用 Redis transport”说成“整个 Demo 无需 Redis”。
 
-`@sse.streaming(*, preflight=None, queue_mode=SSEQueueMode.FIFO, queue_size=None, retry=None, session_guard=False, login_url="/login")` 在路由处理器的 request 后注入 `SSEStream`，不负责路由注册。`preflight(request)` 是可选异步检查，在发送 HTTP 响应头前执行；一般权限校验直接使用已有权限装饰器，并放在 streaming 外层。
+`@sse.streaming(*, preflight=None, queue_mode=SSEQueueMode.FIFO, queue_size=None, retry=None, session_guard=False, login_url=None)` 在路由处理器的 request 后注入 `SSEStream`，不负责路由注册。`login_url` 是会话失效时浏览器被送去的登录页，省略时用站点设置 `web.account.login_url`。`preflight(request)` 是可选异步检查，在发送 HTTP 响应头前执行；一般权限校验直接使用已有权限装饰器，并放在 streaming 外层。
 
 `stream.send(payload, *, event, id=None)` 接收 `MsgspecModel`，输出 JSON 字符串作为 SSE data。`event` 使用稳定名称，如 `server.metrics`；`id` 是可选字符串。`retry` 在 streaming 装饰器设置，单位毫秒，影响原生 EventSource 重连间隔。`id` 不会让框架自动保存或补发事件。
 

@@ -462,6 +462,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         self.assertNotIn("function readAssetBaseUrl", frontend_main)
         # 语言清单是构建产物，但脚手架自带首份，新项目 install + build 就能跑。
         self.assertIn('export const defaultLanguage = "en";', generated_manifest)
+        self.assertIn('export const languagePreferencePath = "/preferences/language";', generated_manifest)
         self.assertIn('catalogPath: "i18n/en.json",', generated_manifest)
         self.assertTrue(template_exists)
         root_metadata = tomllib.loads(
@@ -550,6 +551,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             published = sorted(item.name for item in output.iterdir())
 
         self.assertIn('export const defaultLanguage = "en";', manifest)
+        self.assertIn('export const languagePreferencePath = "/preferences/language";', manifest)
         self.assertIn('code: "en",', manifest)
         self.assertIn('code: "zh-Hans",', manifest)
         # 清单不在 catalog 目录里，发布目录时不会被一起换掉，也不会多出一份运行时 fetch 的文件。

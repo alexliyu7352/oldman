@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from oldman.apps.admin import crud
 from oldman.apps.admin.model_admin import ModelAdmin
+from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.site import AdminSite
 from oldman.auth import declared_permissions
 from oldman.db.models import APP_LABEL_INFO_KEY, DatabaseModel, ModelMetadata
@@ -282,6 +283,8 @@ class OldmanModelAdminTest(unittest.TestCase):
     def test_admin_site_registers_model_admins_and_menu(self) -> None:
         """AdminSite 应维护模型 registry 和中立菜单。"""
         site = AdminSite()
+        # What install_admin() sets from AdminSettings.prefix; the menu links live under it.
+        site.prefix = "/admin"
         admin = site.register(AdminTestArticle)
 
         self.assertIs(admin, site.get_model_admin(AdminTestArticle))
@@ -301,8 +304,25 @@ class OldmanModelAdminTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             site.register(AdminTestArticle)
 
+    def test_the_menu_needs_the_prefix_the_site_was_installed_under(self) -> None:
+        """Menu links point under AdminSettings.prefix, which a site only has once install_admin() ran."""
+        site = AdminSite()
+        site.register(AdminTestArticle)
+        with self.assertRaisesRegex(RuntimeError, "install_admin"):
+            asyncio.run(site.menu_items(as_user(is_superuser=True)))
+
+    def test_the_prefix_setting_is_a_path_below_the_site_root(self) -> None:
+        """A trailing slash is dropped so pages join the prefix with one; the root and foreign URLs are refused."""
+        self.assertEqual("/control", AdminSettings(prefix="/control/").prefix)
+        self.assertEqual("/admin", AdminSettings().prefix)
+        for value in ("/", "admin", "//evil.example/admin", "https://evil.example/admin", "/admin?x=1"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                AdminSettings(prefix=value)
+
     def test_the_menu_lists_only_what_the_user_may_view(self) -> None:
         site = AdminSite()
+        # What install_admin() sets from AdminSettings.prefix; the menu links live under it.
+        site.prefix = "/admin"
         admin = site.register(AdminTestArticle)
         # Registering declares the model's permissions, so roles can be given them at once.
         self.assertEqual(
@@ -363,7 +383,7 @@ class OldmanModelAdminTest(unittest.TestCase):
         self.addCleanup(table.info.pop, APP_LABEL_INFO_KEY)
 
         with self.assertRaisesRegex(RuntimeError, "before its App's models were loaded"):
-            site.register_routes(Mock(), prefix="/control")
+            site.register_routes(Mock(), admin_settings=AdminSettings(prefix="/control"))
 
     def test_two_models_never_share_one_admin_permission(self) -> None:
         # Two Apps may both define a Twin; loaded without their Apps the names would meet.
@@ -431,6 +451,8 @@ class OldmanModelAdminTest(unittest.TestCase):
             get_by_label=lambda label: app_config,
         )
         site = AdminSite(app_registry=cast(Any, registry))
+        # What install_admin() sets from AdminSettings.prefix; the menu links live under it.
+        site.prefix = "/admin"
         site.register(AdminTestArticle)
         site.register(AdminMetaReport)
 

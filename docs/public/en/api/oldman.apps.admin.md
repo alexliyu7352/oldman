@@ -32,9 +32,9 @@ Members:
 - `def register_user_model(model: type[Any]) -> ModelAdmin` — Register the configured Admin user model as the sole user manager.
 - `def get_model_admin(model: type[Any]) -> ModelAdmin` — Return admin for model.
 - `def each_model_admin() -> list[RegisteredModelAdmin]` — Return registered admins in menu order.
-- `async def menu_items(request: Any, prefix: str='/admin') -> list[dict[str, Any]]` — Return neutral menu metadata for the models this request may view.
-- `async def menu_groups(request: Any, prefix: str='/admin') -> list[dict[str, Any]]` — Group the models this request may view under their owning App for sidebar rendering.
-- `def register_routes(app: WebApp, *, prefix: str='/admin', db_manager: DatabaseManager | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, notifications_enabled: bool=False, sse_enabled: bool=False, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> str | None` — Install neutral Admin CRUD routes into a Sanic app.
+- `async def menu_items(request: Any) -> list[dict[str, Any]]` — Return neutral menu metadata for the models this request may view, under the installed prefix.
+- `async def menu_groups(request: Any) -> list[dict[str, Any]]` — Group the models this request may view under their owning App for sidebar rendering.
+- `def register_routes(app: WebApp, *, db_manager: DatabaseManager | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, notifications_enabled: bool=False, sse_enabled: bool=False, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> str | None` — Install neutral Admin CRUD routes into a Sanic app, under `admin_settings.prefix`.
 
 ## `AdminUserManagementError`
 
@@ -90,10 +90,10 @@ Members:
 function · defined in `oldman.apps.admin.runtime`
 
 ```python
-def install_admin(app: Any, *, db_manager: DatabaseManager | None=None, admin_site: AdminSite | None=None, prefix: str='/admin', dev_mode: bool=False, dev_server_url: str='', extension_bundle_name: str | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> AdminSite
+def install_admin(app: Any, *, db_manager: DatabaseManager | None=None, admin_site: AdminSite | None=None, dev_mode: bool=False, dev_server_url: str='', extension_bundle_name: str | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> AdminSite
 ```
 
-Install Admin routes, templates and the collected frontend bundle.
+Install Admin routes, templates and the collected frontend bundle under `AdminSettings.prefix`.
 
 ## `ModelAdmin`
 
@@ -275,6 +275,8 @@ Configure access policy specific to the built-in Admin UI.
 Members:
 
 - `require_superuser: bool = Field(default=False, description='Require superuser access to Admin')`
+- `prefix: str = Field(default='/admin', description='URL path the Admin is mounted under; its own pages (login, sig…`
+- `classmethod def validate_prefix(value: str) -> str` — A same-site path below the site root; a trailing slash is dropped so pages join it with one.
 
 ## Module `oldman.apps.admin.staticfiles`
 

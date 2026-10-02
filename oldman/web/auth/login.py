@@ -131,9 +131,16 @@ async def authenticate_credentials(request: Any, **credentials: Any) -> Abstract
     The backends named in ``web.auth.login_backends`` are tried in order and the first to
     accept the credential decides. Pass the credential as keyword arguments —
     ``username=`` and ``password=`` for the built-in ``users`` backend.
+
+    A disabled account never signs in, whichever backend vouched for it: that is the floor
+    every login stands on (the built-in Admin's staff rule and a dashboard's "any active
+    user" both build on it), and a request user is taken to be active from then on.
     """
     backends = resolve_login_backends(tuple(conf.settings.web.auth.login_backends))
-    return await authenticate_with(backends, request, **credentials)
+    user = await authenticate_with(backends, request, **credentials)
+    if user is None or not bool(user.is_active):
+        return None
+    return user
 
 
 async def login_user(

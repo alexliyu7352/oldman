@@ -184,10 +184,10 @@ def project_frontend_paths(project_root: Path, *, service: str='web') -> dict[st
 function · defined in `oldman.web.i18n.frontend_build`
 
 ```python
-def read_i18n_contract(settings_file: Path) -> tuple[str, list[dict[str, object]], str]
+def read_i18n_contract(settings_file: Path) -> tuple[str, list[dict[str, object]], str, str]
 ```
 
-Read one consistent language and static-URL settings snapshot.
+Read one consistent snapshot: default language, languages, static URL, language preference endpoint.
 
 ### `validate_catalog_directory`
 
@@ -224,7 +224,7 @@ Generate the browser language index without duplicating locale identity.
 function · defined in `oldman.web.i18n.frontend_build`
 
 ```python
-def write_language_manifest_data(output_file: Path, default_language: str, languages: list[dict[str, object]], *, static_url: str) -> None
+def write_language_manifest_data(output_file: Path, default_language: str, languages: list[dict[str, object]], *, static_url: str, preference_url: str) -> None
 ```
 
 Write a manifest from the same validated settings snapshot as catalogs.

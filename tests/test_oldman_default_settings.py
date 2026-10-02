@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from oldman.conf.schemas import DefaultSettings
+from pydantic import ValidationError
+
+from oldman.conf.schemas import AccountConfig, DefaultSettings, I18nConfig
 
 
 class DefaultSettingsTest(unittest.TestCase):
@@ -26,6 +28,18 @@ class DefaultSettingsTest(unittest.TestCase):
         self.assertEqual(10, settings.proxy.read_timeout)
         self.assertEqual("en", settings.i18n.default_language)
         self.assertFalse(settings.i18n.use_i18n)
+        self.assertEqual("/login", settings.web.account.login_url)
+        self.assertEqual("/preferences/language", settings.i18n.preference_url)
+
+    def test_page_addresses_are_plain_same_site_paths(self) -> None:
+        """Routes are registered at these and browsers redirected to them, so nothing but a local path."""
+        for value in ("login", "//evil.example/login", "https://evil.example/login", "/login?next=/", "/login#form"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValidationError):
+                    AccountConfig(login_url=value)
+                with self.assertRaises(ValidationError):
+                    I18nConfig(preference_url=value)
+        self.assertEqual("/signin", AccountConfig(login_url="/signin").login_url)
 
     def test_root_schema_has_apps_but_no_profile_or_hash_api(self) -> None:
         settings = DefaultSettings()

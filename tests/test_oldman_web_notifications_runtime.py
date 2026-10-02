@@ -72,7 +72,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
             )
 
         self.root_routes = init_app(self.app)
-        self.admin_routes = init_app(self.app, url_prefix="/admin")
+        self.admin_routes = init_app(self.app, url_prefix="/admin", login_url="/admin/login")
 
     def tearDown(self) -> None:
         Sanic.unregister_app(self.app)
@@ -207,6 +207,16 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(topbar.headers["location"].startswith("/login?next="))
         self.assertEqual(401, read.status)
         self.assertEqual(1401, read.json["error_code"])
+
+    async def test_signed_out_browsers_go_to_the_hosts_login_page(self) -> None:
+        """The site's routes follow `web.account.login_url`; a host such as the Admin passes its own."""
+        self.settings.web.account.login_url = "/signin"
+        anonymous = {"x-test-anonymous": "1"}
+        _request, site_topbar = await self.app.asgi_client.get(self.root_routes.topbar_url, headers=anonymous)
+        _request, admin_topbar = await self.app.asgi_client.get(self.admin_routes.topbar_url, headers=anonymous)
+
+        self.assertTrue(site_topbar.headers["location"].startswith("/signin?next="))
+        self.assertTrue(admin_topbar.headers["location"].startswith("/admin/login?next="))
 
     async def test_read_and_delete_accept_only_exact_json_shapes(self) -> None:
         """Body IDs are deduplicated and a caller can never select a user ID."""

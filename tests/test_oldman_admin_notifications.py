@@ -80,14 +80,12 @@ class AdminNotificationInstallerTest(TestCase):
                 app,
                 admin_site=site,
                 auth_settings=AuthSettings(),
-                admin_settings=AdminSettings(),
-                prefix="/control",
+                admin_settings=AdminSettings(prefix="/control"),
             )
 
-        installer.assert_called_once_with(app, url_prefix="/control")
+        installer.assert_called_once_with(app, url_prefix="/control", login_url="/control/login")
         register_routes.assert_called_once_with(
             app,
-            prefix="/control",
             db_manager=register_routes.call_args.kwargs["db_manager"],
             auth_settings=register_routes.call_args.kwargs["auth_settings"],
             admin_settings=register_routes.call_args.kwargs["admin_settings"],
@@ -118,8 +116,7 @@ class AdminNotificationInstallerTest(TestCase):
                 app,
                 admin_site=site,
                 auth_settings=AuthSettings(),
-                admin_settings=AdminSettings(),
-                prefix="/control",
+                admin_settings=AdminSettings(prefix="/control"),
             )
 
         installer.assert_not_called()
@@ -151,11 +148,10 @@ class AdminNotificationInstallerTest(TestCase):
                 app,
                 admin_site=site,
                 auth_settings=AuthSettings(),
-                admin_settings=AdminSettings(),
-                prefix="/control",
+                admin_settings=AdminSettings(prefix="/control"),
             )
 
-        installer.assert_called_once_with(app, url_prefix="/control")
+        installer.assert_called_once_with(app, url_prefix="/control", login_url="/control/login")
         self.assertTrue(register_routes.call_args.kwargs["notifications_enabled"])
         self.assertFalse(register_routes.call_args.kwargs["sse_enabled"])
         self.assertIs(app.ctx.admin_notification_routes, routes)
@@ -174,8 +170,7 @@ class AdminNotificationInstallerTest(TestCase):
                 app,
                 admin_site=AdminSite("notification_without_session"),
                 auth_settings=AuthSettings(),
-                admin_settings=AdminSettings(),
-                prefix="/control",
+                admin_settings=AdminSettings(prefix="/control"),
             )
 
 
@@ -202,9 +197,8 @@ class AdminNotificationRoutesTest(TestCase):
 
         site.register_routes(
             cast(Sanic, app),
-            prefix="/control",
             auth_settings=AuthSettings(),
-            admin_settings=AdminSettings(),
+            admin_settings=AdminSettings(prefix="/control"),
             notifications_enabled=True,
         )
         handler = app.route_handlers[("/control/user-notifications", ("GET",))]
@@ -252,9 +246,8 @@ class AdminNotificationRoutesTest(TestCase):
         with patch("oldman.apps.admin.site.sse.streaming", side_effect=streaming):
             user_events_url = site.register_routes(
                 cast(Sanic, app),
-                prefix="/control",
                 auth_settings=AuthSettings(),
-                admin_settings=AdminSettings(require_superuser=False),
+                admin_settings=AdminSettings(prefix="/control", require_superuser=False),
                 sse_enabled=True,
             )
 
@@ -308,6 +301,7 @@ class AdminNotificationRoutesTest(TestCase):
                 render_admin_template(
                     "admin/index.html",
                     cast(Request, request),
+                    admin_prefix="/control",
                 )
             )
 

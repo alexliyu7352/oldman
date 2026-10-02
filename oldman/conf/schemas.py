@@ -26,6 +26,7 @@ from pydantic_settings import SettingsConfigDict
 from oldman.conf.base import YamlBaseSettings
 from oldman.conf.constants import PROJECT_ROOT
 from oldman.i18n.registry import LanguageRegistry, canonical_language_code
+from oldman.utils.http import is_plain_site_path
 
 
 class ConfigModel(BaseModel):
@@ -374,6 +375,13 @@ class SSEConfig(ConfigModel):
     max_message_size: int = Field(default=65536, gt=0, description="Maximum encoded Redis event size in bytes")
 
 
+def _plain_site_path(value: str, setting: str) -> str:
+    """A same-site absolute path without query or fragment: routes are registered at it and browsers sent to it."""
+    if not is_plain_site_path(value):
+        raise ValueError(f"{setting} must be a same-site path such as /login, without a query or fragment")
+    return value
+
+
 class TemplateConfig(ConfigModel):
     """Template config."""
 
@@ -432,6 +440,16 @@ class I18nConfig(ConfigModel):
         default_factory=_default_i18n_languages,
         description="Canonical project language definitions",
     )
+    preference_url: str = Field(
+        default="/preferences/language",
+        description="Endpoint the browser posts a visitor's language choice to after switching",
+    )
+
+    @field_validator("preference_url")
+    @classmethod
+    def validate_preference_url(cls, value: str) -> str:
+        """The browser posts here from any page, signed in or not."""
+        return _plain_site_path(value, "i18n.preference_url")
 
     @field_validator("languages", mode="before")
     @classmethod
@@ -1110,6 +1128,21 @@ class AuthConfig(ConfigModel):
         return self
 
 
+class AccountConfig(ConfigModel):
+    """Where the site's own account pages live; the built-in Admin keeps its pages under its own prefix."""
+
+    login_url: str = Field(
+        default="/login",
+        description="Login page and its submit; requests that need a signed-in user are sent here",
+    )
+
+    @field_validator("login_url")
+    @classmethod
+    def validate_login_url(cls, value: str) -> str:
+        """Registered as a route and redirected to, so a plain local path."""
+        return _plain_site_path(value, "web.account.login_url")
+
+
 class WebConfig(ConfigModel):
     """Web server and browser-facing service config."""
 
@@ -1144,6 +1177,7 @@ class WebConfig(ConfigModel):
     )
     session: SessionConfig = Field(default_factory=SessionConfig, description="Web session settings")
     auth: AuthConfig = Field(default_factory=AuthConfig, description="Request authentication settings")
+    account: AccountConfig = Field(default_factory=AccountConfig, description="Addresses of the site's account pages")
     messages: MessagesConfig = Field(default_factory=MessagesConfig, description="One-time Web message settings")
     sse: SSEConfig = Field(default_factory=SSEConfig, description="Server-sent event settings")
     template: TemplateConfig = Field(default_factory=TemplateConfig, description="Template settings")
@@ -1251,6 +1285,7 @@ __all__ = [
     "APIKeyConfig",
     "HTTPBasicConfig",
     "AuthConfig",
+    "AccountConfig",
     "WebConfig",
     "DefaultSettings",
 ]

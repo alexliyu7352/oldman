@@ -7,7 +7,7 @@ from typing import Any
 import oldman.conf as conf
 from oldman.apps import AppNotInstalledError
 from oldman.apps.admin.settings import AdminSettings
-from oldman.apps.admin.site import AdminSite
+from oldman.apps.admin.site import AdminSite, admin_login_path
 from oldman.apps.admin.site import site as default_admin_site
 from oldman.apps.admin.staticfiles import (
     ADMIN_ENTRY_PATH,
@@ -32,7 +32,6 @@ def install_admin(
     *,
     db_manager: DatabaseManager | None = None,
     admin_site: AdminSite | None = None,
-    prefix: str = "/admin",
     dev_mode: bool = False,
     dev_server_url: str = "",
     extension_bundle_name: str | None = None,
@@ -41,7 +40,7 @@ def install_admin(
     password_reset_rate_limiter: RateLimiter | None = None,
     login_rate_limit: LoginRateLimit | None = None,
 ) -> AdminSite:
-    """Install Admin routes, templates and the collected frontend bundle."""
+    """Install Admin routes, templates and the collected frontend bundle under `AdminSettings.prefix`."""
     resolved_site = admin_site if admin_site is not None else default_admin_site
     manager = db_manager if db_manager is not None else default_db_manager
     app_registry = getattr(app.ctx, "app_registry", None)
@@ -104,11 +103,14 @@ def install_admin(
         except AppNotInstalledError:
             pass
         else:
-            notification_routes = install_notifications(app, url_prefix=prefix)
+            notification_routes = install_notifications(
+                app,
+                url_prefix=admin_settings.prefix,
+                login_url=admin_login_path(admin_settings.prefix),
+            )
 
     user_events_url = resolved_site.register_routes(
         app,
-        prefix=prefix,
         db_manager=manager,
         auth_settings=auth_settings,
         admin_settings=admin_settings,

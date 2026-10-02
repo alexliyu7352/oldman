@@ -53,7 +53,7 @@ class AdminModelTable(SQLAlchemyTableView):
         )
         self.model_admin = model_admin
         self.model = model_admin.model
-        self.admin_prefix = admin_prefix.rstrip("/") or "/admin"
+        self.admin_prefix = admin_prefix
         self.route_path = f"{self.admin_prefix}/{model_admin.model_path}/table"
         self.columns = tuple(model_admin.get_table_columns()) + (
             Column(name="action", label=gettext("Action"), field_path=None, callback="get_column_action_data", exportable=False, hideable=False),

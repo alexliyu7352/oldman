@@ -6,14 +6,21 @@ import asyncio
 import json
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from sanic.response import text
 
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings
 from oldman.web.session import SessionData
 
 
 class OldmanHTTPViewTest(unittest.TestCase):
     """验证组件 HTTP 基类的响应模式和权限协议。"""
+
+    def setUp(self) -> None:
+        # The login responses read the site's login page from the settings.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
 
     def test_response_mode_prefers_query_parameter_then_accept_header(self) -> None:
         """response_mode 参数优先，缺省时才使用 Accept。"""
@@ -40,6 +47,18 @@ class OldmanHTTPViewTest(unittest.TestCase):
         request = make_request(path="/channels-epg", query_string="page=2&q=bbc")
 
         self.assertEqual(build_login_url(request), "/login?next=%2Fchannels-epg%3Fpage%3D2%26q%3Dbbc")
+
+    def test_the_login_page_defaults_to_the_site_setting(self) -> None:
+        """No login_url given: the redirect and the JSON 401 both use `web.account.login_url`."""
+        from oldman.web.http import authentication_required_response, build_login_url
+
+        settings = DefaultSettings()
+        settings.web.account.login_url = "/signin"
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            self.assertEqual("/signin?next=%2Freports", build_login_url(make_request(path="/reports")))
+            response = authentication_required_response(make_request(path="/reports"), "json")
+        assert response.body is not None
+        self.assertEqual("/signin", json.loads(response.body)["data"]["login_url"])
 
     def test_json_authentication_required_response_exposes_login_entry_only(self) -> None:
         """JSON 未登录响应由前端补充当前页面 next，不执行响应动作。"""
@@ -285,6 +304,7 @@ class DenialMessageTranslationTest(unittest.TestCase):
         locales = Path(__file__).resolve().parents[1] / "oldman/apps/admin/locales"
         token = bind_translations(Translations.load(str(locales), ["zh_Hans"]))
         self.addCleanup(reset_translations, token)
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
 
     @staticmethod
     def message(response) -> str:

@@ -237,3 +237,12 @@ def is_same_site_path(value: object) -> bool:
     except ValueError:
         return False
     return not parsed.scheme and not parsed.netloc
+
+
+def is_plain_site_path(value: object) -> bool:
+    """Return whether a value is a same-site path with no query or fragment.
+
+    For paths a route is registered at as well as redirected to, such as the login page in the
+    settings: `is_same_site_path` plus nothing after the path.
+    """
+    return is_same_site_path(value) and "?" not in str(value) and "#" not in str(value)

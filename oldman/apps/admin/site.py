@@ -122,6 +122,8 @@ class AdminSite:
         self._app_registry = app_registry
         # Set from AdminSettings when the routes are installed; model pages honour it as well as the login.
         self.require_superuser = False
+        # The path the routes are installed under (AdminSettings.prefix); None until then.
+        self.prefix: str | None = None
         # The database the routes are installed on: roles missing from the permission cache are read there.
         self.db_manager: DatabaseManager | None = None
 
@@ -179,9 +181,11 @@ class AdminSite:
         """Return registered admins in menu order."""
         return [RegisteredModelAdmin(model=model, admin=admin) for model, admin in self._registry.items()]
 
-    async def menu_items(self, request: Any, prefix: str = "/admin") -> list[dict[str, Any]]:
-        """Return neutral menu metadata for the models this request may view."""
-        resolved_prefix = prefix.rstrip("/") or "/admin"
+    async def menu_items(self, request: Any) -> list[dict[str, Any]]:
+        """Return neutral menu metadata for the models this request may view, under the installed prefix."""
+        if self.prefix is None:
+            raise RuntimeError("The Admin site has no URLs until install_admin() installs its routes")
+        resolved_prefix = self.prefix
         items: list[dict[str, Any]] = []
         for registered in self.each_model_admin():
             if not await registered.admin.has_view_permission(request):
@@ -200,10 +204,10 @@ class AdminSite:
             )
         return items
 
-    async def menu_groups(self, request: Any, prefix: str = "/admin") -> list[dict[str, Any]]:
+    async def menu_groups(self, request: Any) -> list[dict[str, Any]]:
         """Group the models this request may view under their owning App for sidebar rendering."""
         groups: dict[str, dict[str, Any]] = {}
-        for item in await self.menu_items(request, prefix):
+        for item in await self.menu_items(request):
             app_label = str(item["app_label"] or "models")
             group = groups.setdefault(
                 app_label,
@@ -221,7 +225,6 @@ class AdminSite:
         self,
         app: WebApp,
         *,
-        prefix: str = "/admin",
         db_manager: DatabaseManager | None = None,
         auth_settings: AuthSettings | None = None,
         admin_settings: AdminSettings | None = None,
@@ -230,10 +233,9 @@ class AdminSite:
         password_reset_rate_limiter: RateLimiter | None = None,
         login_rate_limit: LoginRateLimit | None = None,
     ) -> str | None:
-        """Install neutral Admin CRUD routes into a Sanic app."""
+        """Install neutral Admin CRUD routes into a Sanic app, under `admin_settings.prefix`."""
         for registered in self.each_model_admin():
             registered.admin._check_permission_names()
-        prefix = prefix.rstrip("/") or "/admin"
         manager = db_manager if db_manager is not None else default_db_manager
         self.db_manager = manager
         if auth_settings is None:
@@ -244,7 +246,9 @@ class AdminSite:
             from oldman.apps.admin.apps import app as admin_app
 
             admin_settings = admin_app.settings
-        login_path = f"{prefix}/login"
+        prefix = admin_settings.prefix
+        self.prefix = prefix
+        login_path = admin_login_path(prefix)
         self.require_superuser = admin_settings.require_superuser
         permission_required = superuser_required if admin_settings.require_superuser else staff_required
 
@@ -277,7 +281,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=await self.menu_items(request, prefix),
+                menu_items=await self.menu_items(request),
                 login_form=LoginForm(request=request),
                 login_error=login_error_message(error),
                 next_url=next_url,
@@ -347,7 +351,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=await self.menu_items(request, prefix),
+                menu_items=await self.menu_items(request),
                 **context,
             )
 
@@ -397,7 +401,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=await self.menu_items(request, prefix),
+                menu_items=await self.menu_items(request),
                 session_profile=session_profile(request_session),
                 session_path=f"{prefix}/user-session",
                 password_modal_path=f"{prefix}/user-session/password-modal",
@@ -437,7 +441,7 @@ class AdminSite:
                 request,
                 admin_prefix=prefix,
                 site=self,
-                menu_items=await self.menu_items(request, prefix),
+                menu_items=await self.menu_items(request),
             )
 
         app.add_route(cast(Any, index), prefix, methods=["GET"], name=f"{self.name}_index")
@@ -480,7 +484,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=await self.menu_items(request, prefix),
+                    menu_items=await self.menu_items(request),
                     model_admin=current_admin,
                     can_add=await current_admin.has_add_permission(request),
                     admin_user_management=user_admin is not None,
@@ -522,7 +526,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=await self.menu_items(request, prefix),
+                    menu_items=await self.menu_items(request),
                     model_admin=current_admin,
                     admin_user_management=user_admin is not None,
                     form_html=form_html,
@@ -557,7 +561,7 @@ class AdminSite:
                             request,
                             admin_prefix=prefix,
                             site=self,
-                            menu_items=await self.menu_items(request, prefix),
+                            menu_items=await self.menu_items(request),
                             model_admin=current_admin,
                             admin_user_management=user_admin is not None,
                             form_html=form_html,
@@ -611,7 +615,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=await self.menu_items(request, prefix),
+                    menu_items=await self.menu_items(request),
                     model_admin=current_admin,
                     admin_user_management=user_admin is not None,
                     form_html=form_html,
@@ -659,7 +663,7 @@ class AdminSite:
                             request,
                             admin_prefix=prefix,
                             site=self,
-                            menu_items=await self.menu_items(request, prefix),
+                            menu_items=await self.menu_items(request),
                             model_admin=current_admin,
                             admin_user_management=user_admin is not None,
                             form_html=form_html,
@@ -725,7 +729,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=await self.menu_items(request, prefix),
+                    menu_items=await self.menu_items(request),
                     model_admin=current_admin,
                     object=instance,
                 )
@@ -1043,7 +1047,7 @@ class AdminSite:
                     request,
                     admin_prefix=prefix,
                     site=self,
-                    menu_items=await self.menu_items(request, prefix),
+                    menu_items=await self.menu_items(request),
                     notification_center_content=content,
                 )
 
@@ -1084,12 +1088,9 @@ async def render_admin_template(template_name: str, request: Request, **context:
     is_authenticated = has_admin_permission(request, require_superuser=isinstance(site, AdminSite) and site.require_superuser)
     context.setdefault("admin_bundle_name", "oldman:admin")
     context.setdefault("admin_is_authenticated", is_authenticated)
-    context.setdefault("admin_prefix", "/admin")
     if isinstance(site, AdminSite):
-        context.setdefault(
-            "menu_groups",
-            await site.menu_groups(request, str(context["admin_prefix"])),
-        )
+        context.setdefault("admin_prefix", site.prefix)
+        context.setdefault("menu_groups", await site.menu_groups(request))
     context.setdefault(
         "admin_extension_bundle_name",
         getattr(request.app.ctx, "admin_extension_bundle_name", None),
@@ -1156,6 +1157,11 @@ def safe_next_url(raw_next_url: object, prefix: str) -> str:
     return safe_same_site_url(raw_next_url, prefix)
 
 
+def admin_login_path(prefix: str) -> str:
+    """The Admin's own login page under its prefix; the notification routes it installs send signed-out browsers there too."""
+    return f"{prefix}/login"
+
+
 def admin_login_url(login_path: str, request: Request) -> str:
     """Build an Admin login URL preserving the current request path."""
     next_url = safe_next_url(f"{request.path}?{request.query_string}" if request.query_string else request.path, login_path.rsplit("/", 1)[0])
@@ -1182,13 +1188,12 @@ async def admin_access_denied_response(request: Request, login_path: str):
 
 def admin_i18n_bootstrap(request: Request, prefix: str) -> dict[str, Any]:
     """Build settings-driven language metadata for the packaged Admin runtime."""
-    normalized_prefix = prefix.rstrip("/") or "/admin"
     registry = language_registry(request)
     default_language = registry.resolve(conf.settings.i18n.default_language) or registry.codes[0]
     current = current_language(request)
     languages = language_menu_items(request)
     for definition in languages:
-        definition["catalogPath"] = f"{normalized_prefix}/i18n/{quote(str(definition['code']), safe='')}.json"
+        definition["catalogPath"] = f"{prefix}/i18n/{quote(str(definition['code']), safe='')}.json"
     current_definition = next(item for item in languages if item["code"] == current)
     catalog = admin_translation_catalog(request, str(current_definition["code"]), current)
     return {
@@ -1196,7 +1201,7 @@ def admin_i18n_bootstrap(request: Request, prefix: str) -> dict[str, Any]:
         "currentLanguage": current,
         "defaultLanguage": default_language,
         "languages": languages,
-        "preferencePath": f"{normalized_prefix}/preferences/language",
+        "preferencePath": f"{prefix}/preferences/language",
     }
 
 

@@ -14,7 +14,7 @@ from sqlalchemy.schema import Table
 import oldman.conf as conf
 from oldman.auth.models import User
 from oldman.auth.settings import AuthSettings
-from oldman.conf.schemas import DatabaseConfig, SessionConfig
+from oldman.conf.schemas import AccountConfig, DatabaseConfig, SessionConfig
 from oldman.db.session import DatabaseManager
 from oldman.i18n import LanguageRegistry
 from oldman.web.auth import (
@@ -201,13 +201,19 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        response = await update_session_password(
-            request,
-            auth_settings=self.auth_settings,
-            db_manager=self.manager,
-        )
+        # The browser is sent to the site's login page, read from the settings.
+        settings = SimpleNamespace(web=SimpleNamespace(account=AccountConfig(login_url="/signin")))
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            response = await update_session_password(
+                request,
+                auth_settings=self.auth_settings,
+                db_manager=self.manager,
+            )
 
         self.assertEqual(200, response.status)
+        assert response.body is not None
+        redirects = [action["url"] for action in json.loads(response.body)["actions"] if action.get("action") == "redirect"]
+        self.assertEqual(["/signin"], redirects)
         # Every session the user held, wherever it was opened...
         self.session_interface.force_logout_user.assert_awaited_once_with(self.user_id)
         # ...and this request's own cookie, so no new one is issued to take its place.

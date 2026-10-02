@@ -20,6 +20,7 @@ from sqlmodel import select
 import oldman.conf as conf
 from oldman.apps import AppNotInstalledError
 from oldman.apps.admin.roles import RoleModelAdmin
+from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.site import AdminSite
 from oldman.apps.roles.forms import RoleForm, permission_choices
 from oldman.apps.roles.models import Role, UserRole
@@ -137,7 +138,7 @@ class AdminWithRolesCase(unittest.IsolatedAsyncioTestCase):
         self.app = FakeApp()
         self.app.ctx.app_registry = FakeRegistry()
         self.site = AdminSite("role_admin_test")
-        install_admin(self.app, db_manager=self.database, admin_site=self.site, prefix="/control")
+        install_admin(self.app, db_manager=self.database, admin_site=self.site, admin_settings=AdminSettings(prefix="/control"))
         self.enterContext(patch("oldman.apps.admin.site.render_template", side_effect=render_with_request_environment))
 
     async def asyncTearDown(self) -> None:
@@ -177,7 +178,7 @@ class RoleAdminTest(AdminWithRolesCase):
         without_roles = FakeApp()
         without_roles.ctx.app_registry = FakeRegistry(labels=("auth", "admin"))
         plain_site = AdminSite("role_admin_test_without_roles")
-        install_admin(without_roles, db_manager=self.database, admin_site=plain_site, prefix="/control")
+        install_admin(without_roles, db_manager=self.database, admin_site=plain_site, admin_settings=AdminSettings(prefix="/control"))
         self.assertFalse(plain_site.is_registered(Role))
 
     async def test_saving_and_deleting_a_role_rewrites_and_drops_its_cache_key(self) -> None:

@@ -11,7 +11,7 @@ Import with `from oldman.web.messages.notifications import <name>`.
 function · defined in `oldman.web.messages.notifications.runtime`
 
 ```python
-def init_app(app: Sanic, *, url_prefix: str='') -> NotificationRoutes
+def init_app(app: Sanic, *, url_prefix: str='', login_url: str | None=None) -> NotificationRoutes
 ```
 
 Install shared endpoints once and return shared and host-wrapper URLs.

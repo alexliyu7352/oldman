@@ -126,8 +126,12 @@ def _invalid_request(message: str) -> Response:
     )
 
 
-def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
-    """Install shared endpoints once and return shared and host-wrapper URLs."""
+def init_app(app: Sanic, *, url_prefix: str = "", login_url: str | None = None) -> NotificationRoutes:
+    """Install shared endpoints once and return shared and host-wrapper URLs.
+
+    ``login_url`` is where a signed-out browser is sent: the host's own login page (the Admin
+    passes its one); omitted, the site's ``web.account.login_url``.
+    """
     prefix = _normalize_prefix(url_prefix)
     installed = getattr(app.ctx, _ROUTES_CONTEXT_ATTRIBUTE, None)
     if isinstance(installed, dict) and prefix in installed:
@@ -146,7 +150,7 @@ def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
     )
 
     @login_required(
-        login_url=f"{prefix}/login",
+        login_url=login_url,
         user_keyword="user_id",
     )
     async def topbar(request: Request, *, user_id: int) -> Response:
@@ -174,7 +178,7 @@ def init_app(app: Sanic, *, url_prefix: str = "") -> NotificationRoutes:
         return api_response(DefaultApiResponse(data={"changed": changed}))
 
     @login_required(
-        login_url=f"{prefix}/login",
+        login_url=login_url,
         user_keyword="user_id",
     )
     async def open_notification(
