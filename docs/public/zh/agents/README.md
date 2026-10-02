@@ -14,7 +14,7 @@
 | 开发 Dashboard CRUD/Modal Form | [接线指南](dashboard-crud.md)，覆盖权限、数据库、两种 Table、响应和浏览器验证 |
 | 添加现有 UI 或字段增强 | [组件用法](../users/components.md)与[字段参考](../developers/forms.md)，复用当前 loader/Widget |
 | 构建应用样式、图标及翻译 | [资源参考](../developers/assets.md)，在应用工程安装和构建，不复制框架产物 |
-| 修改模型、准备 fixture 或接入文件 | [数据与文件指南](data-and-files.md)，核对迁移范围、事务和文件生命周期 |
+| 修改模型、准备 fixture 或接入文件 | [数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)，核对迁移范围、事务和文件生命周期 |
 | 缓存、请求上游或使用 Redis/NATS | [缓存与网络指南](cache-and-network.md)，选择现有客户端、配置隔离、管理连接与失败 |
 | 接入服务间事件/RPC | [通信教程](../users/service-communication.md)及[接线清单](cache-and-network.md#nats按真实-demo-接线)，对照接收 App、共享消息、配置和真实进程 |
 | 执行后台工作或外部程序 | [后台任务指南](background-work.md)，按进程寿命选择接口，验证执行结果与退出 |
