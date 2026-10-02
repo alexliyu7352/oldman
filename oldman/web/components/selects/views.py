@@ -41,8 +41,9 @@ async def select_provider_payload(
 class SelectProviderView(HTTPMethodView):
     """Select/Autocomplete 中心 provider endpoint。"""
 
+    # The framework's floor is a signed-in user; staff, roles or permissions are the endpoint's to add.
     require_authenticated = True
-    require_staff = True
+    require_staff = False
     response_mode = "json"
 
     def __init__(self, *, registry: SelectRegistry = select_registry, secret_key: str) -> None:

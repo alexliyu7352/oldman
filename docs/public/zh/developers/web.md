@@ -349,7 +349,7 @@ async def internal_metrics(request: Request):
 
 对象级权限仍由业务查询保证。不能因为用户已登录，就信任 URL 中任何记录 ID。ExampleProject 教程采用所有 staff 共用项目数据，不暗示已实现个人或租户隔离；添加私有业务时，应在列表和保存/删除对象查询中同时限定访问范围，而不是只隐藏操作按钮。
 
-`HTTPMethodView` 从 `oldman.web` 导入，是 Sanic 同名类的子类，加了登录与 staff 协议，两项都关闭时行为与 Sanic 原类相同；可使用 `as_view()` 注册；设置 `require_authenticated`、`require_staff`，或覆盖异步 `check_permission(request, *, method_name, route_kwargs)` 返回 `(allowed, message)`。Table 基类默认要求登录和 staff；直接调用实例 `get()` 不经过 `dispatch_request()` 的权限检查，因此应用应使用 `as_view()` 或自己明确保护包装视图。
+`HTTPMethodView` 从 `oldman.web` 导入，是 Sanic 同名类的子类，加了登录与 staff 协议，两项都关闭时行为与 Sanic 原类相同；可使用 `as_view()` 注册；设置 `require_authenticated`、`require_staff`，或覆盖异步 `check_permission(request, *, method_name, route_kwargs)` 返回 `(allowed, message)`。Table、Chart 与 Select 的基类默认只要求登录（`require_staff = False`），staff 或权限由端点自己加；内置 Admin 的表格设了 `require_staff = True`；直接调用实例 `get()` 不经过 `dispatch_request()` 的权限检查，因此应用应使用 `as_view()` 或自己明确保护包装视图。
 
 ## CSRF
 

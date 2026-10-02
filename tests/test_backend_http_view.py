@@ -229,19 +229,39 @@ class OldmanHTTPViewTest(unittest.TestCase):
         from oldman.web.components.tables import BaseTableView
         from oldman.web.http import HTTPMethodView
 
+        # The framework's floor is a signed-in user; staff is the endpoint's to require.
         self.assertTrue(issubclass(BaseTableView, HTTPMethodView))
         self.assertTrue(BaseTableView.require_authenticated)
-        self.assertTrue(BaseTableView.require_staff)
+        self.assertFalse(BaseTableView.require_staff)
 
         self.assertTrue(issubclass(BaseChartView, HTTPMethodView))
         self.assertTrue(BaseChartView.require_authenticated)
-        self.assertTrue(BaseChartView.require_staff)
+        self.assertFalse(BaseChartView.require_staff)
         self.assertEqual(BaseChartView.response_mode, "json")
 
         self.assertTrue(issubclass(SelectProviderView, HTTPMethodView))
         self.assertTrue(SelectProviderView.require_authenticated)
-        self.assertTrue(SelectProviderView.require_staff)
+        self.assertFalse(SelectProviderView.require_staff)
         self.assertEqual(SelectProviderView.response_mode, "json")
+
+    def test_a_signed_in_user_who_is_not_staff_reaches_a_table_unless_it_asks_for_staff(self) -> None:
+        """A dashboard admits every active user; a table that wants staff says so, as the Admin's does."""
+        from oldman.apps.admin.table import AdminModelTable
+        from oldman.web.components.tables import BaseTableView
+
+        class OpenTable(BaseTableView):
+            columns = ("id",)
+
+            async def get(self, request, **route_kwargs: object):
+                return text("rows")
+
+        class StaffTable(OpenTable):
+            require_staff = True
+
+        ordinary = make_request(session=authenticated_session(is_staff=False), headers={"accept": "application/json"})
+        self.assertEqual(200, asyncio.run(OpenTable().dispatch_request(ordinary)).status)
+        self.assertEqual(403, asyncio.run(StaffTable().dispatch_request(ordinary)).status)
+        self.assertTrue(AdminModelTable.require_staff)
 
     def test_unauthenticated_component_endpoints_return_login_protocol_before_business_logic(self) -> None:
         """未登录请求不能进入组件业务逻辑，应直接返回 401 登录入口。"""

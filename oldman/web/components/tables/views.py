@@ -78,8 +78,9 @@ class TableValidationError(Exception):
 class BaseTableView(DataEndpointMixin, HTTPMethodView):
     """支持结构化数据源的无主题 Table 基类。"""
 
+    # The framework's floor is a signed-in user; staff, roles or permissions are the endpoint's to add.
     require_authenticated = True
-    require_staff = True
+    require_staff = False
     route_name: str = ""
     route_path: str = ""
     columns: list[object] | tuple[object, ...] = ()

@@ -22,8 +22,9 @@ from .results import ChartResult
 class BaseChartView(DataEndpointMixin, HTTPMethodView):
     """支持独立 endpoint 的无主题 Chart 基类。"""
 
+    # The framework's floor is a signed-in user; staff, roles or permissions are the endpoint's to add.
     require_authenticated = True
-    require_staff = True
+    require_staff = False
     response_mode = "json"
     route_name: str = ""
     route_path: str = ""

@@ -54,7 +54,7 @@ select 来自 SQLAlchemy，selectinload 来自 sqlalchemy.orm。在 [views/table
 router.add_route(ExampleProjectTable.as_view(), ExampleProjectTable.route_path, name=ExampleProjectTable.route_name)
 ```
 
-`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`、`require_staff=True`，Demo 的 check_auth 另外检查登录 Session，并不取消基类 staff 检查。Demo 是 staff 共用数据；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
+`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`、`require_staff=False`：框架的底线是已登录，要求 staff 就设 `require_staff = True`，要求权限就覆盖 `check_permission()` 或 `check_auth()`。Demo 的登录只接受 staff，它的表格数据因此只有 staff 能取；Demo 是 staff 共用数据；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
 
 同一个 views/tables.py 用以下辅助函数创建请求级 Table，FILTER_NAMES 是该文件列出的 team_id、status、priority、is_active：
 

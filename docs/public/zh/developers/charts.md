@@ -76,7 +76,7 @@ app.add_route(DashboardProgrammeTrendChart.as_view(), DashboardProgrammeTrendCha
 
 ## 权限
 
-`require_authenticated` 和 `require_staff` 默认都是 True，走的是和其他视图同一套 `oldman.web.HTTPMethodView`
+`require_authenticated` 默认是 True、`require_staff` 默认是 False（框架的底线是已登录，需要 staff 时自己设为 True），走的是和其他视图同一套 `oldman.web.HTTPMethodView`
 权限；拒绝时返回 403 的 JSON 错误协议，不跳登录页。需要更细的规则就覆盖 `check_auth()`。
 
 ## 不做的事

@@ -22,6 +22,8 @@ from oldman.web.components.tables.views import TableInvalidRequest
 class AdminModelTable(SQLAlchemyTableView):
     """Expose a ModelAdmin through the framework Table renderer and protocol."""
 
+    # The Admin's floor is staff; check_auth then applies the model's own permissions.
+    require_staff = True
     renderer_class = TailwindTableRenderer
     route_name = ""
     route_path = ""
