@@ -638,3 +638,12 @@ class RedisSettings:
         """Return an inclusive decoded range from a settings list."""
         raw = await (await self._connection()).lrange(self._key(key), start, stop)
         return [self._load(value) for value in raw]
+
+
+__all__ = [
+    "AsyncConfigDict",
+    "RedisSet",
+    "RedisSettings",
+    "RedisStore",
+    "YamlStore",
+]

@@ -1214,3 +1214,43 @@ class DefaultSettings(YamlBaseSettings):
             if not isinstance(configured, Mapping) or "default" not in configured:
                 raise ValueError("explicit storages settings must define 'default'")
         return value
+
+
+__all__ = [
+    "CoreConfig",
+    "LoggingConfig",
+    "ProcessConfig",
+    "CSRFConfig",
+    "FingerprintRateLimitConfig",
+    "FingerprintSecurityConfig",
+    "WebSecurityConfig",
+    "SessionConfig",
+    "SSEConfig",
+    "TemplateConfig",
+    "StaticConfig",
+    "I18nLanguageConfig",
+    "I18nConfig",
+    "DatabaseConfig",
+    "RedisConnectionConfig",
+    "RedisConfig",
+    "RedisCacheConfig",
+    "NATSConnectionConfig",
+    "NATSConfig",
+    "NATSBusConfig",
+    "TaskiqConfig",
+    "HttpClientConfig",
+    "StorageBackendConfig",
+    "StoragesConfig",
+    "MediaConfig",
+    "ProxyConfig",
+    "SMTPMailConfig",
+    "MailConfig",
+    "FrontendConfig",
+    "MessagesConfig",
+    "JWTConfig",
+    "APIKeyConfig",
+    "HTTPBasicConfig",
+    "AuthConfig",
+    "WebConfig",
+    "DefaultSettings",
+]

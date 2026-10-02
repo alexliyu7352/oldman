@@ -109,3 +109,8 @@ class ElapsedTimer:
         elapsed_seconds = time.perf_counter() - self.start_time
         self.start_time = None
         return round(elapsed_seconds / _SECONDS_PER_UNIT[unit], ndigits)
+
+
+__all__ = [
+    "naive_utcnow",
+]

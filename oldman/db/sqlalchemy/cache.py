@@ -1068,3 +1068,11 @@ def cached_model(
         return cls
 
     return decorator
+
+
+__all__ = [
+    "CacheStats",
+    "CacheableModel",
+    "cached_model",
+    "wait_for_invalidations",
+]
