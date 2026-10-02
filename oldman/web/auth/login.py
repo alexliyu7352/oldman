@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
+
+from sanic import Sanic
+from sanic.response import HTTPResponse
 
 import oldman.conf as conf
 from oldman.auth import AbstractUser, touch_last_login, user_identity
@@ -13,13 +17,19 @@ from oldman.auth.settings import AuthSettings, LoginSettings
 from oldman.db import DatabaseManager
 from oldman.i18n import gettext
 from oldman.providers.redis import redis_key
+from oldman.web.auth.forms import LoginForm
+from oldman.web.auth.password_reset import PageRenderer, session_is_authenticated
 from oldman.web.auth.permissions import role_ids_for_login
+from oldman.web.auth.redirects import safe_next_url
 from oldman.web.auth.session import session_data_for_user
 from oldman.web.authentication import forget_session_authentication, record_authentication, session_authentication
 from oldman.web.request import client_ip, get_arg
 from oldman.web.response import redirect_response
+from oldman.web.routing import Router, router
+from oldman.web.security.csrf import add_csrf_token, csrf_protect
 from oldman.web.security.rate_limiter import WindowCounter, redis_rate_limiter, window_retry_after
 from oldman.web.session import Session, SessionData
+from oldman.web.template import render_template
 
 INVALID_CREDENTIALS = "invalid_credentials"
 RATE_LIMITED = "rate_limited"
@@ -182,8 +192,127 @@ async def logout_user(request: Any, redirect_to: str) -> Any:
     return redirect_response(redirect_to)
 
 
+@dataclass
+class LoginFlow:
+    """The login page, its submit and sign-out for one site.
+
+    Every login stands on one floor, an active account, which `authenticate_credentials`
+    enforces. `accept_user` is what a site adds on top: None admits every active user (a
+    dashboard's default), the built-in Admin passes its staff rule. Failed sign-ins count
+    against `rate_limit`, by default the limits of `auth_settings`.
+
+    A dashboard takes the paths from `settings.web.account`; the Admin passes the ones under its
+    prefix. `home_path` is where a sign-in lands without a safe `next`.
+    """
+
+    login_path: str
+    logout_path: str
+    home_path: str
+    password_reset_path: str | None = None
+    accept_user: Callable[[AbstractUser], bool] | None = None
+    rate_limit: LoginRateLimit | None = None
+    auth_settings: AuthSettings | None = None
+    db_manager: DatabaseManager | None = None
+
+    def limiter(self) -> LoginRateLimit:
+        """The failed sign-in limits the submit applies."""
+        if self.rate_limit is None:
+            self.rate_limit = LoginRateLimit(auth_settings=self.auth_settings)
+        return self.rate_limit
+
+    def register_routes(
+        self,
+        app: Sanic | Router | None = None,
+        *,
+        render: PageRenderer | None = None,
+        template_prefix: str | None = None,
+        is_authenticated: Callable[[Any], bool] = session_is_authenticated,
+        name_prefix: str = "",
+    ) -> None:
+        """Install the login page and its submit at `login_path`, and sign-out at `logout_path`.
+
+        The page renders through `render(request, "login", **context)` or, without one, through
+        `render_template("<template_prefix>/login.html")`. The context carries `login_form`,
+        `login_url`, `next_url`, `login_error` and `password_reset_url`. A browser that
+        `is_authenticated` (by default: its session is signed in) skips the page for its `next`.
+        Route names are `<name_prefix>login`, `..._login_submit` and `..._logout`; `app` omitted,
+        the routes register through `oldman.web.router`.
+        """
+        if (render is None) == (template_prefix is None):
+            raise ValueError("register_routes takes exactly one of render= or template_prefix=")
+        if render is None:
+            page_prefix = cast(str, template_prefix).rstrip("/")
+
+            async def render_page(request: Any, page: str, /, **context: Any) -> HTTPResponse:
+                return await render_template(f"{page_prefix}/{page}.html", context={"request": request, **context})
+
+            render = render_page
+        render_view = render
+
+        async def login_page(request: Any, *, error: object, next_url: str) -> HTTPResponse:
+            return await render_view(
+                request,
+                "login",
+                login_form=LoginForm(request=request),
+                login_url=self.login_path,
+                next_url=next_url,
+                login_error=login_error_message(error),
+                password_reset_url=self.password_reset_path,
+            )
+
+        @add_csrf_token()
+        async def login(request: Any):
+            next_url = safe_next_url(request.args.get("next"), self.home_path)
+            if is_authenticated(request):
+                return redirect_response(next_url)
+            return await login_page(request, error=request.args.get("error"), next_url=next_url)
+
+        @csrf_protect()
+        @add_csrf_token()
+        async def login_submit(request: Any):
+            next_url = safe_next_url(form_value(request, "next", str(request.args.get("next", "") or "")), self.home_path)
+            username = form_value(request, "username").strip()
+            limiter = self.limiter()
+            # Before the password is checked, so a spent budget costs no PBKDF2 round.
+            retry_after = await limiter.retry_after(request, username)
+            if retry_after is not None:
+                response = await login_page(request, error=RATE_LIMITED, next_url=next_url)
+                response.status = 429
+                response.headers["Retry-After"] = str(retry_after)
+                return response
+            user = await authenticate_credentials(
+                request,
+                username=username,
+                password=form_value(request, "password"),
+                auth_settings=self.auth_settings,
+                db_manager=self.db_manager,
+            )
+            # Refused by the site's own rule, an account gets the wrong-password answer: telling
+            # them apart would confirm the password was right.
+            if user is None or (self.accept_user is not None and not self.accept_user(user)):
+                await limiter.record_failure(request, username)
+                return redirect_response(login_error_url(self.login_path, next_url, INVALID_CREDENTIALS), status=303)
+            return await login_user(
+                request,
+                user,
+                response=redirect_response(next_url),
+                remember=remember_me_requested(request),
+                auth_settings=self.auth_settings,
+                db_manager=self.db_manager,
+            )
+
+        async def logout(request: Any):
+            return await logout_user(request, self.login_path)
+
+        target = app if app is not None else router
+        target.add_route(cast(Any, login), self.login_path, methods=["GET"], name=f"{name_prefix}login")
+        target.add_route(cast(Any, login_submit), self.login_path, methods=["POST"], name=f"{name_prefix}login_submit")
+        target.add_route(cast(Any, logout), self.logout_path, methods=["GET"], name=f"{name_prefix}logout")
+
+
 __all__ = [
     "INVALID_CREDENTIALS",
+    "LoginFlow",
     "authenticate_credentials",
     "LOGIN_RATE_LIMIT_PATH",
     "RATE_LIMITED",

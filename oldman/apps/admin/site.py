@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 
 from babel.support import Translations
 from markupsafe import escape
@@ -19,7 +19,7 @@ from oldman.apps.admin.model_admin import (
     ModelAdmin,
     request_user_id,
 )
-from oldman.apps.admin.permissions import has_admin_permission, is_authenticated, is_superuser
+from oldman.apps.admin.permissions import has_admin_permission, is_superuser
 from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.table import AdminModelTable, _AdminUserModelTable
 from oldman.auth import (
@@ -52,7 +52,6 @@ from oldman.web.api import (
 from oldman.web.auth import (
     SIGN_IN_AGAIN_DELAY_MS,
     PasswordResetFlow,
-    authenticate_credentials,
     authenticated_session,
     render_session_password_modal,
     revoke_user_logins,
@@ -64,22 +63,10 @@ from oldman.web.auth import (
     user_delete_modal_response,
     user_status_modal_response,
 )
-from oldman.web.auth.forms import LoginForm
-from oldman.web.auth.login import (
-    INVALID_CREDENTIALS,
-    RATE_LIMITED,
-    LoginRateLimit,
-    form_value,
-    login_error_message,
-    login_error_url,
-    login_user,
-    logout_user,
-    remember_me_requested,
-)
+from oldman.web.auth.login import LoginFlow, LoginRateLimit, form_value
 from oldman.web.auth.password_reset import RateLimiter
-from oldman.web.auth.redirects import safe_next_url as safe_same_site_url
 from oldman.web.exceptions import NotFound
-from oldman.web.http import permission_denied_response, resolve_response_mode
+from oldman.web.http import access_denied_response, resolve_response_mode
 from oldman.web.i18n import current_language, language_menu_items, language_registry
 from oldman.web.messages.actions import DashboardActivityAction
 from oldman.web.messages.notifications import render_center_content
@@ -272,65 +259,20 @@ class AdminSite:
             """Whether the request may use the Admin at all; model pages add their own permission on top."""
             return has_admin_permission(request, require_superuser=self.require_superuser)
 
-        sign_in_limit = login_rate_limit if login_rate_limit is not None else LoginRateLimit(auth_settings=auth_settings)
+        login_flow = LoginFlow(
+            login_path=login_path,
+            logout_path=f"{prefix}/sign-out",
+            home_path=prefix,
+            password_reset_path=f"{prefix}/password-reset",
+            # Every login requires an active account; the Admin adds staff (or superuser) on top.
+            accept_user=lambda user: has_staff_access(user, require_superuser=admin_settings.require_superuser),
+            rate_limit=login_rate_limit,
+            auth_settings=auth_settings,
+            db_manager=manager,
+        )
 
-        async def render_login_page(request: Request, *, error: str, next_url: str):
-            """The login page itself, which both the GET route and a refused POST render."""
-            return await render_admin_template(
-                "admin/login.html",
-                request,
-                admin_prefix=prefix,
-                site=self,
-                menu_items=await self.menu_items(request),
-                login_form=LoginForm(request=request),
-                login_error=login_error_message(error),
-                next_url=next_url,
-            )
-
-        @add_csrf_token()
-        async def login_page(request: Request):
-            next_url = safe_next_url(request.args.get("next"), prefix)
-            # A staff login on a site for superusers stays here: the pages it would go on to refuse it.
-            if admitted(request):
-                return redirect_response(next_url)
-            return await render_login_page(request, error=str(request.args.get("error") or ""), next_url=next_url)
-
-        @csrf_protect()
-        @add_csrf_token()
-        async def login_submit(request: Request):
-            next_url = safe_next_url(form_value(request, "next", str(request.args.get("next", "") or "")), prefix)
-            username = form_value(request, "username").strip()
-            # Before the password is checked, so a spent budget costs no PBKDF2 round.
-            retry_after = await sign_in_limit.retry_after(request, username)
-            if retry_after is not None:
-                response = await render_login_page(request, error=RATE_LIMITED, next_url=next_url)
-                response.status = 429
-                response.headers["Retry-After"] = str(retry_after)
-                return response
-            user = await authenticate_credentials(
-                request,
-                username=username,
-                password=form_value(request, "password"),
-                auth_settings=auth_settings,
-                db_manager=manager,
-            )
-            if user is None or not has_staff_access(
-                user,
-                require_superuser=admin_settings.require_superuser,
-            ):
-                await sign_in_limit.record_failure(request, username)
-                return redirect_response(login_error_url(login_path, next_url, INVALID_CREDENTIALS), status=303)
-            return await login_user(
-                request,
-                user,
-                response=redirect_response(next_url),
-                remember=remember_me_requested(request),
-                auth_settings=auth_settings,
-                db_manager=manager,
-            )
-
-        async def sign_out(request: Request):
-            return await logout_user(request, login_path)
+        async def render_login(request: Request, page: str, /, **context: Any):
+            return await render_admin_template(f"admin/{page}.html", request, admin_prefix=prefix, site=self, **context)
 
         reset_flow = PasswordResetFlow(
             request_path=f"{prefix}/password-reset",
@@ -346,14 +288,7 @@ class AdminSite:
         )
 
         async def render_password_reset(request: Request, page: str, /, **context: Any):
-            return await render_admin_template(
-                f"admin/password_reset/{page}.html",
-                request,
-                admin_prefix=prefix,
-                site=self,
-                menu_items=await self.menu_items(request),
-                **context,
-            )
+            return await render_admin_template(f"admin/password_reset/{page}.html", request, admin_prefix=prefix, site=self, **context)
 
         async def language_catalog(request: Request, language: str, ext: str):
             del ext
@@ -394,7 +329,7 @@ class AdminSite:
         @add_csrf_token()
         async def user_session_page(request: Request):
             if not admitted(request):
-                return await admin_access_denied_response(request, login_path)
+                return await access_denied_response(request, login_url=login_path)
             request_session = authenticated_session(request)
             return await render_admin_template(
                 "admin/user_session.html",
@@ -411,7 +346,7 @@ class AdminSite:
         @add_csrf_token()
         async def user_session_password_modal(request: Request):
             if not admitted(request):
-                return await admin_access_denied_response(request, login_path)
+                return await access_denied_response(request, login_url=login_path)
             return await render_session_password_modal(
                 request,
                 action=f"{prefix}/user-session/password",
@@ -423,7 +358,7 @@ class AdminSite:
         @add_csrf_token()
         async def user_session_password_submit(request: Request):
             if not admitted(request):
-                return await admin_access_denied_response(request, login_path)
+                return await access_denied_response(request, login_url=login_path)
             # No activity entry: the change signs this browser out, so anything added to the
             # dashboard's transient menu would be replaced by the login page before it is read.
             return await update_session_password(
@@ -435,7 +370,7 @@ class AdminSite:
 
         async def index(request: Request):
             if not admitted(request):
-                return await admin_access_denied_response(request, login_path)
+                return await access_denied_response(request, login_url=login_path)
             return await render_admin_template(
                 "admin/index.html",
                 request,
@@ -467,7 +402,7 @@ class AdminSite:
 
             async def list_view(request: Request, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_view_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 table = _admin_table_class(current_admin)(request, model_admin=current_admin, db_manager=manager, admin_prefix=prefix)
                 table_id = f"admin-{current_admin.model_path}-table"
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
@@ -498,14 +433,14 @@ class AdminSite:
                     model_admin=current_admin,
                     db_manager=manager,
                     admin_prefix=prefix,
-                    permission_denied_response=lambda current_request: admin_access_denied_response(current_request, login_path),
+                    permission_denied_response=lambda current_request: access_denied_response(current_request, login_url=login_path),
                 )
                 return await table.get(request)
 
             @add_csrf_token()
             async def create_form(request: Request, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_add_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 cancel_url = f"{prefix}/{current_admin.model_path}"
                 feedback_target = f"#admin-{current_admin.model_path}-form-feedback"
@@ -537,7 +472,7 @@ class AdminSite:
             @add_csrf_token()
             async def create_submit(request: Request, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_add_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_session() as session:
                     form = current_admin.build_form(request, session=session)
@@ -587,7 +522,7 @@ class AdminSite:
             @add_csrf_token()
             async def edit_form(request: Request, object_id: str, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
@@ -596,7 +531,7 @@ class AdminSite:
                             return redirect_response(f"{prefix}/{current_admin.model_path}")
                         raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
                     if not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     form = current_admin.build_form(request, instance=instance, session=session)
                     action = current_admin.get_object_url(instance, admin_prefix=prefix, action="edit")
                     form_html = await form.render(
@@ -628,7 +563,7 @@ class AdminSite:
             @add_csrf_token()
             async def edit_submit(request: Request, object_id: str, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
@@ -640,7 +575,7 @@ class AdminSite:
                             )
                         raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
                     if not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     form = current_admin.build_form(request, instance=instance, session=session)
                     if not await form.validate():
                         if resolve_response_mode(request) == "json" if user_admin is not None else accepts_json_form_response(request):
@@ -703,11 +638,11 @@ class AdminSite:
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
                 if not await current_admin.has_delete_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is not None and not await current_admin.has_delete_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     return await user_delete_modal_response(
                         request,
                         instance,
@@ -717,13 +652,13 @@ class AdminSite:
             @add_csrf_token()
             async def delete_form(request: Request, object_id: str, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_delete_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
                         raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
                     if not await current_admin.has_delete_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                 return await render_admin_template(
                     "admin/model/confirm_delete.html",
                     request,
@@ -738,7 +673,7 @@ class AdminSite:
             @add_csrf_token()
             async def delete_submit(request: Request, object_id: str, current_admin: ModelAdmin = admin):
                 if not await current_admin.has_delete_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 username: str | None = None
                 target_user_id: int | None = None
@@ -752,7 +687,7 @@ class AdminSite:
                             )
                         raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
                     if not await current_admin.has_delete_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     if user_admin is not None:
                         # Staff and superuser accounts are managed by superusers only.
                         if not is_superuser(request) and not is_ordinary_user(instance):
@@ -797,7 +732,7 @@ class AdminSite:
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
@@ -806,7 +741,7 @@ class AdminSite:
                             gettext("User not found.", request=request),
                         )
                     if not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     form = current_admin.build_password_form(request, session=session)
                     modal_html = await render_fragment(
                         request,
@@ -826,7 +761,7 @@ class AdminSite:
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
@@ -835,7 +770,7 @@ class AdminSite:
                             status=404,
                         )
                     if not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     if not is_superuser(request) and not is_ordinary_user(instance):
                         return form_error_response(gettext("Permission denied", request=request))
                     form = current_admin.build_password_form(request, session=session)
@@ -885,11 +820,11 @@ class AdminSite:
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_read_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is not None and not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                 return await user_status_modal_response(
                     request,
                     instance,
@@ -904,7 +839,7 @@ class AdminSite:
                 current_admin: AdminUserModelAdmin = cast(AdminUserModelAdmin, admin),
             ):
                 if not await current_admin.has_change_permission(request):
-                    return await admin_access_denied_response(request, login_path)
+                    return await access_denied_response(request, login_url=login_path)
                 async with manager.get_session() as session:
                     instance = await load_admin_object(current_admin, session, object_id)
                     if instance is None:
@@ -913,7 +848,7 @@ class AdminSite:
                             status=404,
                         )
                     if not await current_admin.has_change_permission(request, instance):
-                        return await admin_access_denied_response(request, login_path)
+                        return await access_denied_response(request, login_url=login_path)
                     if not is_superuser(request) and not is_ordinary_user(instance):
                         return form_error_response(gettext("Permission denied", request=request))
                     target_active = form_value(request, "is_active").strip().lower() in {"1", "true", "yes", "on"}
@@ -996,9 +931,7 @@ class AdminSite:
                     name=f"{self.name}_{admin.model_path}_status_modal",
                 )
 
-        app.add_route(cast(Any, login_page), login_path, methods=["GET"], name=f"{self.name}_login")
-        app.add_route(cast(Any, login_submit), login_path, methods=["POST"], name=f"{self.name}_login_submit")
-        app.add_route(cast(Any, sign_out), f"{prefix}/sign-out", methods=["GET"], name=f"{self.name}_sign_out")
+        login_flow.register_routes(app, render=render_login, is_authenticated=admitted, name_prefix=f"{self.name}_")
         reset_flow.register_routes(app, render=render_password_reset, is_authenticated=admitted, name_prefix=f"{self.name}_")
         app.add_route(
             cast(Any, user_session_page),
@@ -1085,9 +1018,7 @@ class AdminSite:
 async def render_admin_template(template_name: str, request: Request, **context: Any):
     """Render Admin template with common neutral context."""
     site = context.get("site")
-    is_authenticated = has_admin_permission(request, require_superuser=isinstance(site, AdminSite) and site.require_superuser)
     context.setdefault("admin_bundle_name", "oldman:admin")
-    context.setdefault("admin_is_authenticated", is_authenticated)
     if isinstance(site, AdminSite):
         context.setdefault("admin_prefix", site.prefix)
         context.setdefault("menu_groups", await site.menu_groups(request))
@@ -1095,7 +1026,6 @@ async def render_admin_template(template_name: str, request: Request, **context:
         "admin_extension_bundle_name",
         getattr(request.app.ctx, "admin_extension_bundle_name", None),
     )
-    context.setdefault("dashboard_body_classes", "" if is_authenticated else " oldman-auth-page")
     i18n_bootstrap = admin_i18n_bootstrap(request, str(context["admin_prefix"]))
     context.setdefault("admin_i18n", i18n_bootstrap)
     context.setdefault("locale", i18n_bootstrap["currentLanguage"])
@@ -1152,38 +1082,9 @@ def admin_modal_success_response(message: str, *, table_target: str, notificatio
     )
 
 
-def safe_next_url(raw_next_url: object, prefix: str) -> str:
-    """Return a safe same-site redirect target, the Admin prefix when the value is not one."""
-    return safe_same_site_url(raw_next_url, prefix)
-
-
 def admin_login_path(prefix: str) -> str:
     """The Admin's own login page under its prefix; the notification routes it installs send signed-out browsers there too."""
     return f"{prefix}/login"
-
-
-def admin_login_url(login_path: str, request: Request) -> str:
-    """Build an Admin login URL preserving the current request path."""
-    next_url = safe_next_url(f"{request.path}?{request.query_string}" if request.query_string else request.path, login_path.rsplit("/", 1)[0])
-    return f"{login_path}?{urlencode({'next': next_url})}"
-
-
-async def admin_access_denied_response(request: Request, login_path: str):
-    """Return the Admin-owned authentication or permission response."""
-    response_mode = resolve_response_mode(request)
-    if is_authenticated(request):
-        return await permission_denied_response(request, response_mode)
-
-    headers = getattr(request, "headers", {}) or {}
-    is_oldman_request = str(headers.get("x-requested-with", "")).lower() == "xmlhttprequest"
-    if response_mode == "json" or is_oldman_request:
-        payload = DefaultApiResponse(
-            error_code=ApiErrorCode.AUTHENTICATION_REQUIRED,
-            message=gettext("Authentication required", request=request),
-            data={"login_url": login_path},
-        )
-        return json_response(payload.to_dict(), status=401)
-    return redirect_response(admin_login_url(login_path, request), status=302)
 
 
 def admin_i18n_bootstrap(request: Request, prefix: str) -> dict[str, Any]:

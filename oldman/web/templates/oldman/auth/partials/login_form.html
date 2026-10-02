@@ -1,0 +1,31 @@
+{#
+  The sign-in form both hosts use; the heading and the explanation above it are each page's own.
+  Context from LoginFlow: `login_form`, `login_url`, `next_url`, `login_error`, `password_reset_url`
+  (None: no "Forgot password?" link).
+#}
+{% if login_error %}
+  <div class="om-alert-danger mt-5">{{ login_error }}</div>
+{% endif %}
+
+{# Signing in replaces the session, so the post leaves Turbo for a full-page navigation. #}
+<form action="{{ login_url }}" method="post" data-turbo="false" data-om-component="form" class="mt-6 space-y-4">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next_url }}">
+
+  <div>
+    {{ login_form.render_field("username") }}
+  </div>
+
+  <div>
+    {{ login_form.render_field("password") }}
+  </div>
+
+  <div class="flex items-center justify-between gap-3">
+    {{ login_form.render_field("remember_me") }}
+    {% if password_reset_url %}
+      <a class="om-link text-sm" href="{{ password_reset_url }}">{{ _("Forgot password?") }}</a>
+    {% endif %}
+  </div>
+
+  <button class="om-button om-button-primary om-button-lg mt-2 w-full" type="submit">{{ _("Sign In") }}</button>
+</form>

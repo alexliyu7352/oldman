@@ -17,7 +17,6 @@ from oldman.auth import AuthSettings, PasswordResetTokenGenerator, encode_user_i
 from oldman.conf.schemas import MailConfig
 from oldman.mail import use_mail_config
 from oldman.tasks import BackgroundTaskManager
-from oldman.web.auth.forms import LoginForm
 from oldman.web.session import Session
 from tests.test_oldman_admin_runtime import (
     FakeApp,
@@ -109,23 +108,18 @@ class AdminPasswordResetTest(unittest.TestCase):
             "/control/password-reset/<uidb64:str>/<token:str>",
         ):
             self.assertIn(path, routes)
-        request = self.get("/control/login")
-        login_html = self.app.ext.environment.get_template("admin/login.html").render(
-            admin_prefix="/control",
-            admin_bundle_name="oldman:admin",
-            admin_is_authenticated=False,
-            admin_extension_bundle_name=None,
-            admin_i18n={},
-            dashboard_body_classes=" oldman-auth-page",
-            page_entry="admin",
-            request=request,
-            menu_items=[],
-            login_error="",
-            next_url="/control",
-            login_form=LoginForm(request=request),
-        )
+        # The Admin's login page comes from the shared LoginFlow, which links to the reset page it was given.
+        response = asyncio.run(self.handler("/control/login", "GET")(self.get("/control/login")))  # type: ignore[operator]
+        login_html = response.body.decode("utf-8")
+        self.assertEqual(200, response.status)
         self.assertIn('href="/control/password-reset"', login_html)
         self.assertIn("Forgot password?", login_html)
+        self.assertIn('data-om-page="login"', login_html)
+        # A standalone auth page: the Admin bundle, its prefix and its translations, no shell.
+        self.assertIn('<meta name="oldman-admin-base" content="/control">', login_html)
+        self.assertIn('id="oldman-admin-i18n"', login_html)
+        self.assertNotIn("oldman-sidebar", login_html)
+        self.assertNotIn("oldman-auth-page", login_html)
 
     def test_request_page_renders_the_email_form_with_no_referrer(self) -> None:
         response = asyncio.run(self.handler("/control/password-reset", "GET")(self.get("/control/password-reset")))  # type: ignore[operator]

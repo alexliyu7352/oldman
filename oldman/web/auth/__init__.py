@@ -19,6 +19,7 @@ from oldman.web.auth.forms import (
 from oldman.web.auth.login import (
     INVALID_CREDENTIALS,
     RATE_LIMITED,
+    LoginFlow,
     LoginRateLimit,
     authenticate_credentials,
     form_value,
@@ -55,6 +56,7 @@ __all__ = [
     "INVALID_CREDENTIALS",
     "RATE_LIMITED",
     "SIGN_IN_AGAIN_DELAY_MS",
+    "LoginFlow",
     "LoginForm",
     "LoginRateLimit",
     "authenticate_credentials",

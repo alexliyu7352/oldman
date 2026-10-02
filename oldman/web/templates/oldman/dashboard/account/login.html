@@ -1,0 +1,9 @@
+{% extends "oldman/dashboard/account/auth_base.html" %}
+
+{% block title %}{{ _("Sign In") }}{% endblock %}
+
+{% block auth_card %}
+  <h1 class="oldman-auth-title">{% block auth_heading %}{{ _("Sign in") }}{% endblock %}</h1>
+  <p class="oldman-auth-description">{% block auth_description %}{{ _("Sign in with your account to continue.") }}{% endblock %}</p>
+  {% include "oldman/auth/partials/login_form.html" %}
+{% endblock %}

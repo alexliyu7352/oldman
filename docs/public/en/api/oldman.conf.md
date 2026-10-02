@@ -295,7 +295,10 @@ Where the site's own account pages live; the built-in Admin keeps its pages unde
 Members:
 
 - `login_url: str = Field(default='/login', description='Login page and its submit; requests that need a signed-in user…`
-- `classmethod def validate_login_url(value: str) -> str` — Registered as a route and redirected to, so a plain local path.
+- `logout_url: str = Field(default='/logout', description='Signs the browser out and returns it to the login page')`
+- `login_redirect_url: str = Field(default='/', description="Where a sign-in lands without a safe 'next', and where a signed-in …`
+- `password_reset_url: str | None = Field(default=None, description='The password reset request page; set, the login page links to it (…`
+- `classmethod def validate_paths(value: str | None, info: ValidationInfo) -> str | None` — Registered as routes and redirected to, so plain local paths.
 
 ### `APIKeyConfig`
 

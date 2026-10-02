@@ -1,0 +1,33 @@
+{#
+  Standalone page for login, password reset and the like: no sidebar, topbar or session-bound
+  parts. Each host wraps it once (oldman/dashboard/account/auth_base.html, admin/auth_base.html)
+  to name its bundle and brand; overriding a wrapper restyles that host's auth pages only.
+
+  A wrapper names its brand with `{% set auth_brand_name = "..." %}`; the brand links to the
+  login page (`login_url`, which every auth flow puts in the context) unless `auth_brand_href` is set.
+#}
+{% from "oldman/auth/partials/auth_layout.html" import auth_layout with context %}
+<!doctype html>
+<html lang="{{ current_language(request) }}" data-layout="vertical" data-theme="light" data-sidenav-color="light" data-sidenav-size="default" data-topbar="light" data-sidebar-size="lg" data-preloader="enable">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# Reached from a Turbo-driven dashboard (sign-out redirects here): load it as a whole page, never from cache. #}
+    <meta name="turbo-cache-control" content="no-cache">
+    <meta name="turbo-visit-control" content="reload">
+    {# Pages without a form (password reset "sent", "done") still post the language choice. #}
+    <meta name="csrf-token" content="{{ csrf_token_for(request) }}">
+    {% block auth_head_meta %}{% endblock %}
+    {% include "oldman/dashboard/partials/theme_boot.html" %}
+    {% include "oldman/dashboard/partials/preloader_critical_css.html" %}
+    <link rel="icon" href="data:,">
+    <title>{% block title %}{% endblock %}</title>
+    {% block auth_head_assets %}{% endblock %}
+  </head>
+  <body class="oldman-shell" data-om-page="login">
+    {% include "oldman/dashboard/partials/preloader.html" %}
+    {% call auth_layout(auth_brand_href | default(login_url), auth_brand_name | default("Oldman")) %}
+      {% block auth_card %}{% endblock %}
+    {% endcall %}
+  </body>
+</html>

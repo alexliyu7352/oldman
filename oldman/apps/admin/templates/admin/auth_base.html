@@ -1,0 +1,17 @@
+{#
+  The Admin's auth pages (login, password reset): the shared standalone base with the Admin
+  bundle, the prefix its frontend reads and the translations it embeds. Override this file to restyle
+  the Admin's auth pages without touching the dashboard's.
+#}
+{% extends "oldman/auth/base.html" %}
+{% set auth_brand_name = "Oldman Admin" %}
+
+{% block auth_head_meta %}
+  <meta name="oldman-asset-base" content="{{ bundle_asset_base_url(admin_bundle_name) }}">
+  <meta name="oldman-admin-base" content="{{ admin_prefix }}">
+  <script id="oldman-admin-i18n" type="application/json">{{ admin_i18n | tojson }}</script>
+{% endblock %}
+
+{% block auth_head_assets %}
+  {% include "admin/partials/assets.html" %}
+{% endblock %}

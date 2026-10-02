@@ -153,5 +153,7 @@ class OldmanAdminStaticBundleTest(unittest.TestCase):
         self.assertNotIn("/static/oldman-admin/", built_css)
         self.assertNotIn("/static/oldman-admin/", built_javascript)
         self.assertIn(".app-menu", built_css)
-        self.assertIn(".oldman-auth-page", built_css)
+        # The auth pages stand alone on the shared auth layout; nothing hides a shell any more.
+        self.assertIn(".oldman-auth-layout", built_css)
+        self.assertNotIn(".oldman-auth-page", built_css)
         self.assertIn(".om-button-primary", built_css)

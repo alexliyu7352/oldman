@@ -364,6 +364,16 @@ Oldman 后端组件 HTTP 视图基类。
 
 Import with `from oldman.web.http import <name>`.
 
+### `access_denied_response`
+
+function · defined in `oldman.web.http`
+
+```python
+async def access_denied_response(request: Any, *, login_url: str | None=None, response_mode: ResponseMode='auto')
+```
+
+Turn away a request a page's own check refused: 403 when signed in, the login protocol otherwise.
+
 ### `authentication_required_response`
 
 function · defined in `oldman.web.http`

@@ -40,6 +40,10 @@ class DefaultSettingsTest(unittest.TestCase):
                 with self.assertRaises(ValidationError):
                     I18nConfig(preference_url=value)
         self.assertEqual("/signin", AccountConfig(login_url="/signin").login_url)
+        for field in ("logout_url", "login_redirect_url", "password_reset_url"):
+            with self.subTest(field=field), self.assertRaises(ValidationError):
+                AccountConfig(**{field: "https://evil.example/"})
+        self.assertIsNone(AccountConfig().password_reset_url)
 
     def test_root_schema_has_apps_but_no_profile_or_hash_api(self) -> None:
         settings = DefaultSettings()

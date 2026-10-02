@@ -17,6 +17,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_serializer,
     field_validator,
     model_validator,
@@ -1135,12 +1136,21 @@ class AccountConfig(ConfigModel):
         default="/login",
         description="Login page and its submit; requests that need a signed-in user are sent here",
     )
+    logout_url: str = Field(default="/logout", description="Signs the browser out and returns it to the login page")
+    login_redirect_url: str = Field(
+        default="/",
+        description="Where a sign-in lands without a safe 'next', and where a signed-in visitor of the login page goes",
+    )
+    password_reset_url: str | None = Field(
+        default=None,
+        description="The password reset request page; set, the login page links to it (install the reset flow there)",
+    )
 
-    @field_validator("login_url")
+    @field_validator("login_url", "logout_url", "login_redirect_url", "password_reset_url")
     @classmethod
-    def validate_login_url(cls, value: str) -> str:
-        """Registered as a route and redirected to, so a plain local path."""
-        return _plain_site_path(value, "web.account.login_url")
+    def validate_paths(cls, value: str | None, info: ValidationInfo) -> str | None:
+        """Registered as routes and redirected to, so plain local paths."""
+        return None if value is None else _plain_site_path(value, f"web.account.{info.field_name}")
 
 
 class WebConfig(ConfigModel):

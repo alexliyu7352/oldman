@@ -27,7 +27,7 @@ import oldman.conf as conf
 from oldman.apps.admin.model_admin import AdminUserModelAdmin, ModelAdmin, encode_admin_path_segment
 from oldman.apps.admin.runtime import install_admin as _install_admin
 from oldman.apps.admin.settings import AdminSettings
-from oldman.apps.admin.site import AdminSite, admin_i18n_bootstrap, safe_next_url
+from oldman.apps.admin.site import AdminSite, admin_i18n_bootstrap
 from oldman.auth import AuthSettings
 from oldman.auth.models import User
 from oldman.conf.schemas import (
@@ -394,7 +394,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertNotIn("runtime_lenient_slash_admin_index_trailing_slash", {name.rsplit(".", 1)[-1] for name in names})
 
     def test_safe_next_url_rejects_browser_normalized_cross_origin_paths(self) -> None:
-        """Protocol-relative paths must remain blocked after browser slash normalization."""
+        """Protocol-relative paths must remain blocked after browser slash normalization (the Admin's login uses the shared check)."""
+        from oldman.web.auth import safe_next_url
+
         for value in ("//evil.example/path", "///evil.example/path", "/\\evil.example/path", "/\tevil.example/path"):
             with self.subTest(value=value):
                 self.assertEqual("/control", safe_next_url(value, "/control"))
@@ -497,7 +499,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         handler = app.route_handlers[("/control/login", ("POST",))]
 
         with (
-            patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=user)),
+            patch("oldman.web.auth.login.authenticate_credentials", AsyncMock(return_value=user)),
             patch("oldman.web.auth.login.touch_last_login", AsyncMock()) as touch_last_login_mock,
         ):
             response = asyncio.run(handler(request))  # type: ignore[operator]
@@ -547,7 +549,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             return asyncio.run(handler(request))  # type: ignore[operator]
 
         with (
-            patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=None)) as authenticate,
+            patch("oldman.web.auth.login.authenticate_credentials", AsyncMock(return_value=None)) as authenticate,
             # The refusal renders the login page again; this unit test is about the decision, not the template.
             patch("oldman.apps.admin.site.render_admin_template", AsyncMock(side_effect=lambda *_a, **_k: sanic_html("login"))),
         ):
@@ -623,7 +625,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
                 request.ip = "127.0.0.1"
                 request.client_ip = None
                 with (
-                    patch("oldman.apps.admin.site.authenticate_credentials", AsyncMock(return_value=user)),
+                    patch("oldman.web.auth.login.authenticate_credentials", AsyncMock(return_value=user)),
                     patch("oldman.web.auth.login.touch_last_login", AsyncMock()),
                 ):
                     response = asyncio.run(handler(request))  # type: ignore[operator]

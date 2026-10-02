@@ -10,22 +10,3 @@
 @source "../../../../oldman/apps/admin/**/*.py";
 @source "../../../../oldman/web/templates";
 @source "./**/*.ts";
-
-@layer components {
-  .oldman-auth-page .oldman-sidebar,
-  .oldman-auth-page .oldman-topbar {
-    @apply hidden;
-  }
-
-  .oldman-auth-page .oldman-page-content {
-    @apply ml-0 min-h-screen lg:ml-0;
-  }
-
-  .oldman-auth-page .oldman-main {
-    @apply w-full max-w-none p-0;
-  }
-
-  .oldman-auth-page .oldman-page-container {
-    @apply block;
-  }
-}

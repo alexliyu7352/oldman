@@ -96,20 +96,26 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         source = (ROOT / "oldman" / "apps" / "admin" / "site.py").read_text(encoding="utf-8")
 
         self.assertIn("login_path = admin_login_path(prefix)", source)
-        # Credentials go through the configured login backends, the user table by default.
-        self.assertIn("authenticate_credentials(", source)
+        # The Admin's login is the shared LoginFlow at its own path; staff is the Admin's rule on top
+        # of the active-account floor every login has.
+        self.assertIn("LoginFlow(", source)
+        self.assertIn("login_path=login_path", source)
         self.assertIn("has_staff_access(", source)
-        # The session steps themselves belong to the framework's login helpers, which the Admin calls.
-        self.assertIn("login_user(", source)
-        self.assertIn("logout_user(", source)
+        self.assertIn("login_flow.register_routes(", source)
+        # Credentials go through the configured login backends, and the session steps are the framework's.
         login_helpers = (ROOT / "oldman" / "web" / "auth" / "login.py").read_text(encoding="utf-8")
+        self.assertIn("authenticate_credentials(", login_helpers)
+        self.assertIn("login_user(", login_helpers)
+        self.assertIn("logout_user(", login_helpers)
         self.assertIn("session_data_for_user(", login_helpers)
         self.assertIn("exclusive_login(", login_helpers)
         self.assertIn("logout_session(", login_helpers)
-        self.assertIn("admin_login_url(login_path, request)", source)
-        self.assertIn("ApiErrorCode.AUTHENTICATION_REQUIRED", source)
-        self.assertIn('data={"login_url": login_path}', source)
-        self.assertIn("status=401", source)
+        # A refusal names the Admin's own login page: a JSON request gets 401 with that login_url.
+        self.assertIn("access_denied_response(request, login_url=login_path)", source)
+        http_helpers = (ROOT / "oldman" / "web" / "http.py").read_text(encoding="utf-8")
+        self.assertIn("ApiErrorCode.AUTHENTICATION_REQUIRED", http_helpers)
+        self.assertIn('data={"login_url": login_url}', http_helpers)
+        self.assertIn("status=401", http_helpers)
         self.assertNotIn('redirect("/login")', source)
 
     def test_admin_user_modals_reuse_source_validation_and_feedback_contracts(self) -> None:

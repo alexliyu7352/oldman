@@ -104,16 +104,16 @@ class OldmanDashboardBoundaryTest(unittest.TestCase):
         from oldman.web.template import register_component_filters
 
         shared_base = (ROOT / "oldman" / "web" / "templates" / "oldman" / "dashboard" / "base.html").read_text(encoding="utf-8")
-        login = (ROOT / "oldman" / "apps" / "admin" / "templates" / "admin" / "login.html").read_text(encoding="utf-8")
+        auth_base = (ROOT / "oldman" / "web" / "templates" / "oldman" / "auth" / "base.html").read_text(encoding="utf-8")
         footer = (ROOT / "oldman" / "web" / "templates" / "oldman" / "dashboard" / "partials" / "footer.html").read_text(encoding="utf-8")
 
         self.assertIn("block dashboard_footer", shared_base)
         self.assertIn('include "oldman/dashboard/partials/footer.html"', shared_base)
-        # 认证页的页脚在共享的 auth_layout 宏里，登录模板只负责调用它。
+        # 认证页的页脚在共享的 auth_layout 宏里，由共享认证基础模板调用；两个宿主的登录页都继承它。
         auth_layout = (ROOT / "oldman" / "web" / "templates" / "oldman" / "auth" / "partials" / "auth_layout.html").read_text(encoding="utf-8")
         self.assertIn('include "oldman/dashboard/partials/footer.html"', auth_layout)
         self.assertIn("oldman-footer-auth", auth_layout)
-        self.assertIn("auth_layout(", login)
+        self.assertIn("auth_layout(", auth_base)
         self.assertIn("current_year()", footer)
 
         environment = Environment(autoescape=True)

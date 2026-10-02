@@ -79,6 +79,18 @@ async def permission_denied_response(request: Any, response_mode: Literal["html"
     return await render_html_error_response(request, Forbidden(message))
 
 
+async def access_denied_response(request: Any, *, login_url: str | None = None, response_mode: ResponseMode = "auto"):
+    """Turn away a request a page's own check refused: 403 when signed in, the login protocol otherwise.
+
+    For checks the decorators do not express, such as the built-in Admin's "may use the Admin at
+    all" or an account page's `allow`. `login_url` omitted, the site's `web.account.login_url`.
+    """
+    resolved_mode = resolve_response_mode(request, response_mode)
+    if request_user(request).is_authenticated:
+        return await permission_denied_response(request, resolved_mode)
+    return authentication_required_response(request, resolved_mode, login_url=login_url)
+
+
 class HTTPMethodView(SanicHTTPMethodView):
     """Sanic 的 HTTPMethodView 加上 Oldman 的登录与 staff 权限协议。
 
@@ -154,6 +166,7 @@ class HTTPMethodView(SanicHTTPMethodView):
 
 __all__ = [
     "HTTPMethodView",
+    "access_denied_response",
     "authentication_required_response",
     "build_login_url",
     "permission_denied_response",

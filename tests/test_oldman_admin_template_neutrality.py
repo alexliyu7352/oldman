@@ -46,16 +46,20 @@ class OldmanAdminTemplateNeutralityTest(unittest.TestCase):
         """Admin 必须组合共享 Dashboard 壳层，不得复制业务通知界面。"""
         source = Path("oldman/apps/admin/templates/admin/base.html").read_text(encoding="utf-8")
         topbar = Path("oldman/apps/admin/templates/admin/partials/topbar.html").read_text(encoding="utf-8")
+        # The shell and the auth pages load the same bundle tags from one partial.
+        assets = Path("oldman/apps/admin/templates/admin/partials/assets.html").read_text(encoding="utf-8")
+        auth_base = Path("oldman/apps/admin/templates/admin/auth_base.html").read_text(encoding="utf-8")
 
-        self.assertLess(source.index("bundle_modulepreload(admin_bundle_name)"), source.index("bundle_styles(admin_bundle_name)"))
-        self.assertLess(source.index("bundle_styles(admin_bundle_name)"), source.index("bundle_script(admin_bundle_name)"))
+        self.assertLess(assets.index("bundle_modulepreload(admin_bundle_name)"), assets.index("bundle_styles(admin_bundle_name)"))
+        self.assertLess(assets.index("bundle_styles(admin_bundle_name)"), assets.index("bundle_script(admin_bundle_name)"))
+        self.assertIn('{% include "admin/partials/assets.html" %}', source)
+        self.assertIn('{% include "admin/partials/assets.html" %}', auth_base)
         self.assertIn('{% extends "oldman/dashboard/base.html" %}', source)
         self.assertIn("dashboard_sidebar", source)
         self.assertIn("dashboard_main_frame", source)
         self.assertIn("group.icon", source)
         self.assertNotIn('class="ri-database-2-line oldman-menu-icon"', source)
         self.assertIn('{% include "admin/partials/topbar.html" %}', source)
-        self.assertIn("{% block dashboard_back_to_top %}", source)
         self.assertIn("{{ super() }}", source)
         self.assertIn("dashboard_topbar", topbar)
         self.assertIn("admin_language_switcher", topbar)

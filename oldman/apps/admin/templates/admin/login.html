@@ -1,42 +1,9 @@
-{% extends "admin/base.html" %}
-{% from "oldman/auth/partials/auth_layout.html" import auth_layout with context %}
+{% extends "admin/auth_base.html" %}
 
 {% block title %}{{ _("Sign In") }} · Oldman Admin{% endblock %}
 
-{% block dashboard_head_meta %}
-  {{ super() }}
-  <meta name="turbo-cache-control" content="no-cache">
-  <meta name="turbo-visit-control" content="reload">
-{% endblock %}
-
-{% block content %}
-  {% call auth_layout(admin_prefix ~ "/login", "Oldman Admin") %}
-    <h1 class="oldman-auth-title">{{ _("Sign in") }}</h1>
-    <p class="oldman-auth-description">{{ _("Use a staff account to continue.") }}</p>
-
-    {% if login_error %}
-      <div class="om-alert-danger mt-5">{{ login_error }}</div>
-    {% endif %}
-
-    {# Authentication changes the Session, so preserve the fixed source's full-page navigation boundary. #}
-    <form action="{{ admin_prefix }}/login" method="post" data-turbo="false" data-om-component="form" class="mt-6 space-y-4">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ next_url }}">
-
-      <div>
-        {{ login_form.render_field("username") }}
-      </div>
-
-      <div>
-        {{ login_form.render_field("password") }}
-      </div>
-
-      <div class="flex items-center justify-between gap-3">
-        {{ login_form.render_field("remember_me") }}
-        <a class="om-link text-sm" href="{{ admin_prefix }}/password-reset">{{ _("Forgot password?") }}</a>
-      </div>
-
-      <button class="om-button om-button-primary om-button-lg mt-2 w-full" type="submit">{{ _("Sign In") }}</button>
-    </form>
-  {% endcall %}
+{% block auth_card %}
+  <h1 class="oldman-auth-title">{{ _("Sign in") }}</h1>
+  <p class="oldman-auth-description">{{ _("Use a staff account to continue.") }}</p>
+  {% include "oldman/auth/partials/login_form.html" %}
 {% endblock %}

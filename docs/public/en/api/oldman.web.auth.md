@@ -128,6 +128,29 @@ async def login_user(request: Any, user: Any, *, response: Any, remember: bool=F
 
 Open the exclusive session for an authenticated user and attach its cookie to `response`.
 
+## `LoginFlow`
+
+class · defined in `oldman.web.auth.login`
+
+```python
+class LoginFlow
+```
+
+The login page, its submit and sign-out for one site.
+
+Members:
+
+- `login_path: str`
+- `logout_path: str`
+- `home_path: str`
+- `password_reset_path: str | None = None`
+- `accept_user: Callable[[AbstractUser], bool] | None = None`
+- `rate_limit: LoginRateLimit | None = None`
+- `auth_settings: AuthSettings | None = None`
+- `db_manager: DatabaseManager | None = None`
+- `def limiter() -> LoginRateLimit` — The failed sign-in limits the submit applies.
+- `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, is_authenticated: Callable[[Any], bool]=session_is_authenticated, name_prefix: str='') -> None` — Install the login page and its submit at `login_path`, and sign-out at `logout_path`.
+
 ## `LoginForm`
 
 class · defined in `oldman.web.auth.forms`

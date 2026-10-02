@@ -125,6 +125,10 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 
 项目模板 loader 在前，共享模板和 Admin 模板作为后备。可在项目的模板目录提供 `admin/login.html`、`admin/index.html` 或实际使用的其他同名路径。覆盖者须保留所需布局、CSRF、Form message、bundle 和页面入口约定；不能只复制外观丢掉协议。
 
+Admin 的页面分两类基础模板：登录与找回密码继承 `admin/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏、顶栏，`data-om-page="login"`，自带 Turbo、`csrf-token`、主题这几项 head 内容）；其余页面继承 `admin/base.html`（Admin 外壳）。只想改 Admin 登录页的外观，覆盖 `admin/auth_base.html` 或 `admin/login.html` 即可，不影响 dashboard 的认证页。登录表单本身是共享部件 `oldman/auth/partials/login_form.html`，覆盖它会同时改到 dashboard。
+
+覆盖某个页面又只想改其中一个块时，继承框架原版：名字前加 `framework:` 就只在框架自带的模板目录（共享模板与已安装的 Admin 模板）里查找，例如项目里的 `admin/login.html` 写 `{% extends "framework:admin/login.html" %}`，再重写需要的块。Jinja 按名字缓存模板，新增覆盖文件后要重启服务才生效。
+
 正常生产使用当前发行包内的 Admin 构建文件，运行本服务 `static collect`。`dev_mode=True` 时必须提供合法的 HTTP(S) `dev_server_url`，指向实际运行的 Admin Vite 服务；生产不可依赖开发服务器。
 
 扩展 CSS 时，先向当前 `app.ctx.static_bundle_registry` 注册应用自己的 `StaticBundle`，再传 `extension_bundle_name="app:admin-style"`。该 bundle 的入口必须是 `.css`，且构建可用。默认 Admin 主入口仍为 `oldman:admin`，不能用第二套私有 JS 重写公共交互。

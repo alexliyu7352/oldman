@@ -464,8 +464,9 @@ def login_page_script(contract: ManifestContract) -> str:
     (() => {{
       const config = {config};
       const failures = [];
-      if (document.body.dataset.omPage !== "admin") failures.push("login template did not declare the Admin page");
-      if (!document.body.classList.contains("oldman-auth-page")) failures.push("login template is missing its auth layout");
+      if (document.body.dataset.omPage !== "login") failures.push("login template did not declare the auth page");
+      if (!document.querySelector(".oldman-auth-layout")) failures.push("login template is missing its auth layout");
+      if (document.querySelector(".oldman-sidebar, .oldman-topbar")) failures.push("login template renders the Admin shell");
       if (!document.querySelector('form input[name="csrfmiddlewaretoken"]')) failures.push("login template is missing CSRF");
       if (!document.querySelector('input[name="username"]')) failures.push("login template is missing username");
       if (!document.querySelector('input[name="password"]')) failures.push("login template is missing password");

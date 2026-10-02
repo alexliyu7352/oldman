@@ -76,10 +76,9 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_permission_callers_use_html_templates_or_json_by_resolved_mode(self) -> None:
         """Explicit modes survive Accept conflicts; every shared caller awaits rendering."""
-        from oldman.apps.admin.site import admin_access_denied_response
         from oldman.apps.admin.table import AdminModelTable
         from oldman.web.auth import staff_required, superuser_required
-        from oldman.web.http import HTTPMethodView, permission_denied_response, resolve_response_mode
+        from oldman.web.http import HTTPMethodView, access_denied_response, permission_denied_response, resolve_response_mode
         from oldman.web.session import SessionData
 
         app = Sanic(f"permission-pages-{uuid4().hex}", error_handler=ErrorPageHandler())
@@ -119,13 +118,13 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
 
         @app.get("/admin")
         async def admin(request):
-            return await admin_access_denied_response(request, "/admin/login")
+            return await access_denied_response(request, login_url="/admin/login")
 
         @app.get("/admin-table")
         async def admin_table(request):
             # Exercise the adapter's callback bridge without touching a database.
             table = object.__new__(AdminModelTable)
-            table._permission_denied_response = lambda current: admin_access_denied_response(current, "/admin/login")
+            table._permission_denied_response = lambda current: access_denied_response(current, login_url="/admin/login")
             return await table.render_permission_denied_response(request)
 
         for path in ("/permission", "/staff", "/superuser", "/view", "/admin", "/admin-table"):

@@ -1,0 +1,14 @@
+{#
+  The dashboard's auth pages: the shared standalone base with the project's own bundle
+  (`app_main_bundle`, the template global the project's service sets). Override this file to
+  restyle the dashboard's login and password reset pages without touching the built-in Admin.
+#}
+{% extends "oldman/auth/base.html" %}
+
+{% block auth_head_meta %}
+  <meta name="oldman-asset-base" content="{{ bundle_asset_base_url(app_main_bundle) }}">
+{% endblock %}
+
+{% block auth_head_assets %}
+  {{ bundle_entry(app_main_bundle, include_dev_client=true) }}
+{% endblock %}
