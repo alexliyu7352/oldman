@@ -12,7 +12,7 @@
 
 ## 常用问题
 
-- 怎样先运行完整示例？读[EPG Demo 运行教程](users/getting-started.md)。从零创建空 API 则看[服务创建指南](agents/create-service.md)。
+- 怎样先运行完整示例？读[EPG Demo 运行教程](users/getting-started.md)。从零创建空 API 则看[服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)。
 - 页面上的数据从哪里来？读[Demo 的模型、迁移与查询](users/tutorial-tasks.md)。
 - 登录、表格和编辑弹窗怎样连接？对照[Demo 的 Table/Modal 教程](users/tutorial-dashboard.md)。
 - 想复制某个现有功能，应该看哪些文件？查 [Demo 页面与源码索引](users/demo-examples.md)。

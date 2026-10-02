@@ -1,6 +1,6 @@
 # 任务指南：后台执行与进程
 
-先读取[服务接线](create-service.md#后台示例的当前边界)，再按需求选择[进程与任务](../developers/background.md)的一个入口。持久分布式任务已有独立[Taskiq Demo](distributed-tasks.md)，本地协程也有[background-stats 实例](../users/background-work.md#实际运行一个本地后台协程)，常驻 SimpleApplication 接线可参考 NATS 接收服务。不要因为用户说“后台”就同时引入 Redis、NATS、Worker 和新数据库表。
+先读取[服务接线](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)，再按需求选择[进程与任务](../developers/background.md)的一个入口。持久分布式任务已有独立[Taskiq Demo](distributed-tasks.md)，本地协程也有[background-stats 实例](../users/background-work.md#实际运行一个本地后台协程)，常驻 SimpleApplication 接线可参考 NATS 接收服务。不要因为用户说“后台”就同时引入 Redis、NATS、Worker 和新数据库表。
 
 本地协程先对照 Demo `apps/examples/background.py` 和 `commands.py`：有限 CLI 进程注册并启动项目计数，实际读两次数据库，保存运行快照后停止任务，最后关闭监控与连接。缺失团队测试真实异常和清理。扩展时先决定生命周期所有者；这个命令可拥有整个单例，但活 Web 请求不能借用它的 start_all/stop_all 去停止其他任务。只需一次异步调用时直接 await，不为所有函数强套管理器。
 

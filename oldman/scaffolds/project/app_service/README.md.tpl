@@ -27,6 +27,6 @@ uv sync
 
 需要数据库时，先填写 `database.url`、声明并注册模型，再执行 `./run.sh db makemigrations` 与 `./run.sh db migrate`。没有数据库业务时不要为了启动服务执行迁移。
 
-普通一次性管理操作优先写成 App 的 `Command`，无需额外长期服务。完整接线见 [创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md)。
+普通一次性管理操作优先写成 App 的 `Command`，无需额外长期服务。完整接线见 [创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)。
 
-`uv sync` 需要声明的发行包可用。使用框架源码时，在本项目自己的 `.venv` 中 editable 安装，具体命令见[本地 Python 源码安装](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md#新项目使用本地-python-源码)。真实 YAML 密钥和连接信息不提交到公开仓库。
+`uv sync` 需要声明的发行包可用。使用框架源码时，在本项目自己的 `.venv` 中 editable 安装，具体命令见[本地 Python 源码安装](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md#using-a-local-framework-checkout-instead-of-the-published-package)。真实 YAML 密钥和连接信息不提交到公开仓库。

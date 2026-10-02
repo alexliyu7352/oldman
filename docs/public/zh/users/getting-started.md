@@ -2,7 +2,7 @@
 
 本教程直接使用 [EPG Dashboard Demo](https://github.com/alexliyu7352/oldman-epg-dashboard)，不要求另建一套教程项目。后面的模型、表单、表格、模板和 Page 都能在这个仓库找到，浏览器操作的也是这些代码。链接是项目仓库地址；应使用与当前框架相配的Demo提交，本文不证明尚未推送的本地改动已出现在远端。
 
-这是包含真实数据库和登录功能的 Dashboard，不是只返回固定 JSON 的最小 API。只想创建空项目时，使用 [服务创建指南](../agents/create-service.md)；不要为了运行本教程把 Demo 的 App、Redis 或前端初始化删掉。
+这是包含真实数据库和登录功能的 Dashboard，不是只返回固定 JSON 的最小 API。只想创建空项目时，使用 [服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)；不要为了运行本教程把 Demo 的 App、Redis 或前端初始化删掉。
 
 ## 运行环境与安装
 

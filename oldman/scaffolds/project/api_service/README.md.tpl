@@ -14,7 +14,7 @@ uv sync
 
 `.python-version` 指定 Python 3.13（框架推荐的版本），`uv sync` 按它选解释器，本机没有时 uv 会自动下载；要用其他受支持的版本（3.12–3.14）就改这个文件。
 
-以上安装需要 `pyproject.toml` 中的 Oldman 版本在包索引可用。使用框架源码开发时，改用自己的 `.venv` 和 editable 安装，见 [服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md#新项目的命令流程)。
+以上安装需要 `pyproject.toml` 中的 Oldman 版本在包索引可用。使用框架源码开发时，改用自己的 `.venv` 和 editable 安装，见 [服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md#starting-a-new-project)。
 
 脚手架已经生成最小 YAML，因此先用 `sync` 补字段及密钥。只有文件不存在时才用 `settings init`。真实配置包含秘密，不提交到公开仓库。
 

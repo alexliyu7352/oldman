@@ -14,6 +14,6 @@ oldman startproject my_project
 
 按交互选择 cli、service、api、web 或 dashboard 及适用的数据库选项；不使用 --type 参数。生成后进入项目，按其 README 安装、配置并运行具体服务。
 
-需要可以逐步运行的完整代码，使用[EPG Demo 入门](../../docs/public/zh/users/getting-started.md)、[数据库教程](../../docs/public/zh/users/tutorial-tasks.md)、[Dashboard 教程](../../docs/public/zh/users/tutorial-dashboard.md)或 [Admin 教程](../../docs/public/zh/users/admin.md)。从零创建空 API 另看[服务创建指南](../../docs/public/zh/agents/create-service.md)。完整 UI Demo 是根 [README](../../README.md)中链接的独立项目。
+需要可以逐步运行的完整代码，使用[EPG Demo 入门](../../docs/public/zh/users/getting-started.md)、[数据库教程](../../docs/public/zh/users/tutorial-tasks.md)、[Dashboard 教程](../../docs/public/zh/users/tutorial-dashboard.md)或 [Admin 教程](../../docs/public/zh/users/admin.md)。从零创建空 API 另看[服务创建指南](../../docs/public/en/agents/create-service.md)。完整 UI Demo 是根 [README](../../README.md)中链接的独立项目。
 
 不要为了尝试这些片段而在框架根目录新增业务 config、services、数据库或虚拟环境。

@@ -6,7 +6,7 @@
 
 | 任务 | 阅读与交付 |
 | --- | --- |
-| 新建 API 或后台服务 | [创建服务指南](create-service.md)，完成配置、App、入口和实际请求或命令验证 |
+| 新建 API 或后台服务 | [创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)，完成配置、App、入口和实际请求或命令验证 |
 | 给服务增加持久数据 | [Demo 数据教程](../users/tutorial-tasks.md)，对照 ExampleProject 的模型、迁移与事务接线 |
 | 给 App 增加配置 | [配置参考](../developers/configuration.md#app-settings)，直接导入该 App 的强类型实例 |
 | 增加项目命令 | [Command 合同](../developers/cli.md#自定义-app-命令)，使用 Registry 已有发现机制 |

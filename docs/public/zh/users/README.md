@@ -13,7 +13,7 @@
 7. [分布式任务](distributed-tasks.md)：运行真实 Taskiq Worker/Scheduler，操作项目摘要、导出、队列、广播、计划、结果和重复业务效果。
 8. [服务通信](service-communication.md)：启动两个真实 Simple 接收服务，操作 NATS RPC、竞争/广播、失败和任务内 RPC。
 
-核心教程直接使用独立 EPG Demo，不另建一套教学业务。每章标明源码文件与节选边界；更多页面见 [Demo 示例索引](demo-examples.md)。在 Demo 自己的环境运行，不在框架源码根目录创建业务文件。需要从零创建空 API 时另看[服务创建指南](../agents/create-service.md)。
+核心教程直接使用独立 EPG Demo，不另建一套教学业务。每章标明源码文件与节选边界；更多页面见 [Demo 示例索引](demo-examples.md)。在 Demo 自己的环境运行，不在框架源码根目录创建业务文件。需要从零创建空 API 时另看[服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)。
 
 ## 按问题查阅
 

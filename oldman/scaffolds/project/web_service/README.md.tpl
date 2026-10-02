@@ -37,6 +37,6 @@ uv sync
 
 ## 依赖来源与翻译
 
-`uv sync` 使用项目声明的发行包。当前版本尚未发布或需要源码调试时，参照 [源码安装说明](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/create-service.md#新项目使用本地-python-源码)，使用本项目独立的 editable 环境。
+`uv sync` 使用项目声明的发行包。当前版本尚未发布或需要源码调试时，参照 [源码安装说明](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md#using-a-local-framework-checkout-instead-of-the-published-package)，使用本项目独立的 editable 环境。
 
 在项目根运行 `./run.sh i18n extract`、`./run.sh i18n init <locale>`、`./run.sh i18n update`、`./run.sh i18n compile` 管理翻译。仅创建模板不会自动开启 Web 多语言，相关设置在 YAML 的 `i18n` 节点。
