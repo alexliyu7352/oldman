@@ -17,7 +17,7 @@
 | 修改模型、准备 fixture 或接入文件 | [数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)，核对迁移范围、事务和文件生命周期 |
 | 缓存、请求上游或使用 Redis/NATS | [缓存与网络指南](cache-and-network.md)，选择现有客户端、配置隔离、管理连接与失败 |
 | 接入服务间事件/RPC | [通信教程](../users/service-communication.md)及[接线清单](cache-and-network.md#nats按真实-demo-接线)，对照接收 App、共享消息、配置和真实进程 |
-| 执行后台工作或外部程序 | [后台任务指南](background-work.md)，按进程寿命选择接口，验证执行结果与退出 |
+| 执行后台工作或外部程序 | [后台任务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/background-work.md)，按进程寿命选择接口，验证执行结果与退出 |
 | 将异步工作交给持久队列/定时执行 | [Taskiq 接线](distributed-tasks.md)，对照 Demo 配置、任务、服务、权限和真实运行 |
 | SSE 更新 Table 或接入通知 | [实时页面指南](realtime.md)，复用稳定 DOM、请求权限、用户连接和持久通知 API |
 | 接入管理站点或扩展 ModelAdmin | [Admin 指南](admin.md)，区分 App 注册、模型管理与路由安装 |
