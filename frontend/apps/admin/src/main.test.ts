@@ -30,8 +30,10 @@ describe("oldman-admin frontend", () => {
     expect(source).not.toContain("/static/oldman-admin/");
     expect(source).toContain("readAdminBasePath()");
     expect(source).toContain("sidebarOptions: { defaultDashboardPath: adminBasePath }");
-    expect(source).toContain("emptyNotificationTemplate: adminNotificationEmptyState");
-    expect(source).toContain('class="empty-notification-elem om-empty om-empty-sm"');
+    // Startup, the empty notification state and the login redirect come from oldman-web.
+    expect(source).toContain("startDashboard({");
+    expect(source).not.toContain("emptyNotificationTemplate");
+    expect(source).not.toContain("/login");
     expect(source).not.toContain('defaultDashboardPath: "/admin"');
     expect(source).not.toContain("pageLoader: async () => undefined");
   });

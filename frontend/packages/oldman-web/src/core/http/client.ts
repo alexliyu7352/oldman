@@ -109,7 +109,7 @@ export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
     async (error: unknown) => {
       disposeCombinedSignal((error as { config?: unknown } | undefined)?.config);
       if (isCancel(error)) return Promise.reject(error);
-      const authRedirected = handleAuthRedirect(error, options.onAuthRedirect, options.authLoginPath ?? "/login");
+      const authRedirected = handleAuthRedirect(error, options.onAuthRedirect, options.authLoginPath);
       if (authRedirected) return Promise.reject(error);
       try {
         await options.onError?.(normalizeHttpError(error));
@@ -218,7 +218,8 @@ export function httpErrorMessage(error: unknown, i18n: { t(message: string): str
 function handleAuthRedirect(
   error: unknown,
   onAuthRedirect: ((url: string) => void) | undefined,
-  authLoginPath: string
+  // The server names its login page in the 401 (`data.login_url`); this is only for one that does not.
+  authLoginPath: string | undefined
 ): boolean {
   if (!onAuthRedirect || !isAxiosError(error)) return false;
   if ((error.config as HttpRequestConfig | undefined)?.redirectOnAuth === false) {

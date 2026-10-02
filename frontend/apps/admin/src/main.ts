@@ -1,35 +1,13 @@
 import "./admin.css";
-import {
-  createFetchCatalogLoader,
-  createHttpClient,
-  createI18n,
-  createOldmanContext,
-  escapeHtml,
-  getOldmanContext,
-  readAssetBaseUrl,
-  setOldmanContext,
-  setupPage,
-  startOldman,
-  type LanguageDefinition,
-  type TranslationCatalog
-} from "oldman-web/core";
-import { createDashboardCrudComponentLoaders, DashboardPage } from "oldman-web/dashboard";
+import { setupPage, type LanguageDefinition, type OldmanApp, type TranslationCatalog } from "oldman-web/core";
+import { createDashboardCrudComponentLoaders, DashboardPage, startDashboard } from "oldman-web/dashboard";
 
 interface AdminI18nBootstrap {
   catalog: TranslationCatalog;
   currentLanguage: string;
   defaultLanguage: string;
   languages: readonly LanguageDefinition[];
-  preferencePath: string;
-}
-
-function adminNotificationEmptyState(): string {
-  const message = escapeHtml(getOldmanContext().i18n.t("No notifications"));
-  return `
-    <div class="empty-notification-elem om-empty om-empty-sm">
-      <p class="om-empty-description">${message}</p>
-    </div>
-  `;
+  preferencePath: string | null;
 }
 
 class AdminPage extends DashboardPage {
@@ -52,10 +30,7 @@ class AdminPage extends DashboardPage {
         tooltip: async () => (await import("oldman-web/components/tooltip")).Tooltip
       }),
       sidebarOptions: { defaultDashboardPath: adminBasePath },
-      topbarOptions: {
-        defaultNotificationHref: adminBasePath,
-        emptyNotificationTemplate: adminNotificationEmptyState
-      },
+      topbarOptions: { defaultNotificationHref: adminBasePath },
       root
     });
   }
@@ -63,39 +38,20 @@ class AdminPage extends DashboardPage {
 
 setupPage("admin", AdminPage);
 
-async function startAdmin(): Promise<void> {
-  const authLoginPath = `${readAdminBasePath().replace(/\/+$/, "")}/login`;
-  const httpOptions = {
-    authLoginPath,
-    onAuthRedirect: (url: string) => window.location.assign(url)
-  };
-  const http = createHttpClient(httpOptions);
+function startAdmin(): Promise<OldmanApp> {
   const i18nBootstrap = readAdminI18nBootstrap();
-  const i18n = createI18n({
-    // 目录路径相对站点根，不相对 bundle 目录，所以这里不传 assetBaseUrl。
-    catalogLoader: createFetchCatalogLoader({
-      initialCatalog: i18nBootstrap.catalog,
-      initialLanguage: i18nBootstrap.currentLanguage
-    }),
-    defaultLanguage: i18nBootstrap.defaultLanguage,
-    document,
-    http,
-    initialCatalog: i18nBootstrap.catalog,
-    languagePreferencePath: i18nBootstrap.preferencePath,
-    languages: i18nBootstrap.languages
+  return startDashboard({
+    // Catalog paths are site-absolute ({prefix}/i18n/...); the asset base only serves the bundle's own files.
+    assetBaseFallback: new URL(/* @vite-ignore */ "./", import.meta.url).toString(),
+    // Any entry name the templates use that is not registered still mounts the Admin shell.
+    fallbackPage: AdminPage,
+    i18n: {
+      defaultLanguage: i18nBootstrap.defaultLanguage,
+      initialCatalog: { catalog: i18nBootstrap.catalog, language: i18nBootstrap.currentLanguage },
+      languagePreferencePath: i18nBootstrap.preferencePath,
+      languages: i18nBootstrap.languages
+    }
   });
-  const context = createOldmanContext({
-    assetBaseUrl: readAssetBaseUrl({ fallback: new URL(/* @vite-ignore */ "./", import.meta.url).toString() }),
-    document,
-    http,
-    httpOptions,
-    i18n
-  });
-  setOldmanContext(context);
-  await context.i18n.init();
-  // Any entry name the templates use that is not registered still mounts the Admin shell.
-  await startOldman({ context, fallbackPage: AdminPage });
-  document.documentElement.dataset.omReady = "true";
 }
 
 function readAdminBasePath(): string {
@@ -119,7 +75,8 @@ function readAdminI18nBootstrap(): AdminI18nBootstrap {
         name: language
       }
     ],
-    preferencePath: `${readAdminBasePath().replace(/\/+$/, "")}/preferences/language`
+    // Without the server's bootstrap there is no endpoint to name: the choice stays in this browser.
+    preferencePath: null
   };
   const source = document.querySelector<HTMLScriptElement>("#oldman-admin-i18n")?.textContent;
   if (!source) return fallback;

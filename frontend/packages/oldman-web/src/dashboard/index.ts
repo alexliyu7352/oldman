@@ -346,6 +346,9 @@ export {
   DashboardTopbar
 };
 export { createDashboardComponentLoaders, createDashboardCrudComponentLoaders } from "./loaders";
+export { AuthPage } from "./auth-page";
+export { AUTH_PAGE_NAME, startDashboard, stopDashboard } from "./start";
+export type { DashboardI18nOptions, StartDashboardOptions } from "./start";
 export type { DashboardBackToTopOptions } from "./back-to-top";
 export type { DashboardFeedbackOptions } from "./feedback";
 export type { DashboardModalOptions } from "./modal";

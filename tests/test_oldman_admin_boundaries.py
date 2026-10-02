@@ -54,8 +54,10 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
         self.assertFalse((ROOT / "frontend" / "packages" / "oldman-web" / "src" / "components" / "form-modal.ts").exists())
         self.assertFalse((ROOT / "frontend" / "packages" / "oldman-web" / "src" / "dashboard" / "form-modal.ts").exists())
         self.assertIn("dropdown:", source)
-        self.assertIn("emptyNotificationTemplate: adminNotificationEmptyState", source)
-        self.assertIn('class="empty-notification-elem om-empty om-empty-sm"', source)
+        # Startup, the empty notification state and the login redirect come from oldman-web's startDashboard.
+        self.assertIn("startDashboard({", source)
+        self.assertNotIn("emptyNotificationTemplate", source)
+        self.assertNotIn("/login", source)
         self.assertIn('"oldman-web/styles/tailwind.css"', css_source)
         self.assertNotIn('"oldman-web/components/sidebar-menu"', source)
         self.assertNotIn("@app/", source)

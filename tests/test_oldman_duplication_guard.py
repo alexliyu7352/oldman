@@ -239,12 +239,13 @@ class ConvergedImplementationTest(unittest.TestCase):
         helpers = (frontend / "packages/oldman-web/src/core/dom/helpers.ts").read_text(encoding="utf-8")
         self.assertIn("export function escapeHtml(", helpers)
 
+        # The topbar renders the empty notification state the Admin used to draw itself, with the shared helper.
         topbar = (frontend / "packages/oldman-web/src/dashboard/topbar.ts").read_text(encoding="utf-8")
         self.assertNotIn("protected escapeHtml", topbar)
+        self.assertIn('import { Component, type ComponentOptions, escapeHtml } from "../core/index";', topbar)
 
         admin = (frontend / "apps/admin/src/main.ts").read_text(encoding="utf-8")
         self.assertNotIn("function escapeHtml", admin, "the admin app declares its own copy again")
-        self.assertIn("escapeHtml", admin, "the admin app should import the shared one")
 
     def test_ujson_is_gone_from_the_tree_and_the_dependencies(self) -> None:
         """ujson parsed the fingerprint payload - the one JSON input an attacker shapes."""

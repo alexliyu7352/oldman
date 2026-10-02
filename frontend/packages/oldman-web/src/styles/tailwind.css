@@ -2213,6 +2213,23 @@
     @apply min-h-80;
   }
 
+  /* The summary and meta lines the chart component fills under the canvas (oldman/charts/default/shell.html). */
+  [data-om-chart-summary]:not([hidden]) {
+    @apply mt-3 flex flex-wrap gap-3 border-t border-default-200 pt-3;
+  }
+
+  [data-om-chart-summary-item] {
+    @apply flex min-w-32 items-baseline justify-between gap-3 rounded bg-default-50 px-3 py-2;
+  }
+
+  [data-om-chart-summary-value] {
+    @apply font-semibold text-default-800;
+  }
+
+  [data-om-chart-meta]:not([hidden]) {
+    @apply mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-default-500;
+  }
+
   [data-om-scoped-preloader] {
     @apply absolute inset-0 flex min-h-24 items-center justify-center gap-2 font-medium text-content backdrop-blur-[1px];
     z-index: var(--om-layer-loading);

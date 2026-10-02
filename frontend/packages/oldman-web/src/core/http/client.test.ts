@@ -416,7 +416,7 @@ describe("createHttpClient", () => {
     expect(onAuthRedirect).toHaveBeenCalledWith("/login?next=%2Fusers%3Fpage%3D2%23row");
   });
 
-  it("falls back to login when 401 auth response omits redirect url", async () => {
+  it("uses the configured login path only when a 401 names no login page, and guesses none", async () => {
     const adapter = vi.fn<AxiosAdapter>(async (config) => {
       throw new AxiosError("Authentication required", "ERR_BAD_REQUEST", config, {}, {
         data: { error_code: 1401 },
@@ -427,12 +427,17 @@ describe("createHttpClient", () => {
         request: {}
       });
     });
-    const onAuthRedirect = vi.fn();
+    const unconfigured = vi.fn();
+    const configured = vi.fn();
 
-    const http = createHttpClient({ adapter, onAuthRedirect });
-    await expect(http.getJson("/users")).rejects.toBeInstanceOf(AxiosError);
+    await expect(createHttpClient({ adapter, onAuthRedirect: unconfigured }).getJson("/users")).rejects.toBeInstanceOf(AxiosError);
+    await expect(
+      createHttpClient({ adapter, authLoginPath: "/signin", onAuthRedirect: configured }).getJson("/users")
+    ).rejects.toBeInstanceOf(AxiosError);
 
-    expect(onAuthRedirect).toHaveBeenCalledWith("/login?next=%2F");
+    // The server's settings own the login page; the client keeps no copy of it.
+    expect(unconfigured).not.toHaveBeenCalled();
+    expect(configured).toHaveBeenCalledWith("/signin?next=%2F");
   });
 
   it("does not call auth redirect handler for 403 responses", async () => {

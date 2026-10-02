@@ -154,6 +154,30 @@ describe("DashboardTopbar", () => {
     expect(configured.renderNotification({ href: "/explicit", title: "Notice" })).toContain('href="/explicit"');
   });
 
+  it("shows a translated empty state by default and the consumer's own when it brings one", async () => {
+    const list = `
+      <section data-om-activity-notifications>
+        <div data-om-activity-notification-list></div>
+        <span data-om-activity-notification-count>0</span>
+      </section>
+    `;
+    document.body.innerHTML = list;
+    const neutral = new DashboardTopbar(document.body);
+    await neutral.start();
+    const empty = document.querySelector(".empty-notification-elem");
+    expect(empty?.classList.contains("om-empty")).toBe(true);
+    expect(empty?.textContent?.trim()).toBe("No notifications");
+    await neutral.stop();
+
+    document.body.innerHTML = list;
+    const themed = new DashboardTopbar(document.body, {
+      emptyNotificationTemplate: () => `<div class="empty-notification-elem">Nothing new</div>`
+    });
+    await themed.start();
+    expect(document.querySelector(".empty-notification-elem")?.textContent).toBe("Nothing new");
+    await themed.stop();
+  });
+
   it("keeps runtime activity separate from persistent user notifications", async () => {
     document.body.innerHTML = `
       <span data-om-user-notification-count>8</span>

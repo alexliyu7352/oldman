@@ -297,7 +297,12 @@ export class DashboardTopbar extends Component {
   }
 
   protected emptyNotificationTemplate(): string {
-    return this.customEmptyNotificationTemplate?.() ?? "";
+    if (this.customEmptyNotificationTemplate) return this.customEmptyNotificationTemplate();
+    return `
+      <div class="empty-notification-elem om-empty om-empty-sm">
+        <p class="om-empty-description">${escapeHtml(this.i18n.t("No notifications"))}</p>
+      </div>
+    `;
   }
 
   private safeToken(value: string, fallback: string): string {

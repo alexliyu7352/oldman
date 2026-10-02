@@ -196,8 +196,8 @@
       "plural": null,
       "locations": [
         {
-          "path": "frontend/apps/admin/src/main.ts",
-          "line": 27
+          "path": "frontend/packages/oldman-web/src/dashboard/topbar.ts",
+          "line": 303
         }
       ]
     },
