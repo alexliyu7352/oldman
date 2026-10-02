@@ -60,5 +60,5 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.web.session`](oldman.web.session.md) | 5 | Public Web session extension and typed request accessor. |
 | [`oldman.web.sse`](oldman.web.sse.md) | 18 | Server-Sent Events support. |
 | [`oldman.web.staticfiles`](oldman.web.staticfiles.md) | 19 | Static asset bundle registry. |
-| [`oldman.web.template`](oldman.web.template.md) | 12 | Template integration. |
+| [`oldman.web.template`](oldman.web.template.md) | 15 | Template integration. |
 | [`oldman.web.websocket`](oldman.web.websocket.md) | 2 | WebSocket routing and connection protocol. |

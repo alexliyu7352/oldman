@@ -6,6 +6,16 @@ Template integration.
 
 Import with `from oldman.web.template import <name>`.
 
+## `add_framework_template_dir`
+
+function · defined in `oldman.web.template`
+
+```python
+def add_framework_template_dir(environment: Environment, directory: str | Path) -> None
+```
+
+Add an installed framework App's template directory (the Admin's) to the `framework:` names.
+
 ## `build_template_loader`
 
 function · defined in `oldman.web.template`
@@ -25,6 +35,26 @@ def default_template_environment() -> Environment
 ```
 
 Create async component template environment for tests and no-app rendering.
+
+## `framework_template_dirs`
+
+function · defined in `oldman.web.template`
+
+```python
+def framework_template_dirs(environment: Environment) -> tuple[Path, ...]
+```
+
+The directories `framework:` names resolve in, in lookup order: the shared templates, then installed framework Apps.
+
+## `FRAMEWORK_TEMPLATE_PREFIX`
+
+value · defined in `oldman.web.template`
+
+```python
+FRAMEWORK_TEMPLATE_PREFIX = 'framework'
+```
+
+Names starting with this and a colon (``framework:oldman/...``) are looked up only in the framework's own template directories. A project that overrides a page can still extend the framework's original of that page and change one block.
 
 ## `get_template_environment`
 

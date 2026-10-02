@@ -375,4 +375,4 @@ function · defined in `oldman.apps.admin.template`
 def install_admin_template_loader(environment: Environment) -> Environment
 ```
 
-Add Admin templates after the consumer's override-capable loader.
+Add Admin templates after the consumer's override-capable loader, and under `framework:` names.

@@ -7,11 +7,27 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from jinja2 import DictLoader, Environment, nodes
+from jinja2 import BaseLoader, ChoiceLoader, DictLoader, Environment, PrefixLoader, TemplateNotFound, nodes
 from jinja2.ext import Extension
 
+from oldman.apps.admin.template import admin_template_dir, install_admin_template_loader
 from oldman.web.package_data import package_template_dir
-from oldman.web.template import build_template_loader, install_template_loaders, render_component_template_sync, template_globals
+from oldman.web.template import (
+    build_template_loader,
+    framework_template_dirs,
+    install_template_loaders,
+    render_component_template_sync,
+    template_globals,
+)
+
+
+def prefix_loaders(loader: BaseLoader | None) -> list[PrefixLoader]:
+    """Every PrefixLoader in a loader tree, however deeply the installs wrapped it."""
+    if isinstance(loader, PrefixLoader):
+        return [loader]
+    if isinstance(loader, ChoiceLoader):
+        return [found for child in loader.loaders for found in prefix_loaders(child)]
+    return []
 
 
 class MarkerExtension(Extension):
@@ -128,6 +144,49 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
             self.assertIsNotNone(
                 environment.get_template("oldman/forms/default/form.html")
             )
+
+    def test_a_project_page_extends_the_framework_original_and_changes_one_block(self) -> None:
+        """`framework:` reaches the framework's own copy even where the project overrides the same path."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            override = Path(tmp_dir) / "oldman" / "errors" / "403.html"
+            override.parent.mkdir(parents=True)
+            override.write_text('{% extends "framework:oldman/errors/403.html" %}{% block title %}Members only{% endblock %}', encoding="utf-8")
+            # The original extends its base by the ordinary name, so the project's base applies to it.
+            (Path(tmp_dir) / "oldman" / "errors" / "_base.html").write_text(
+                "<title>{% block title %}{% endblock %}</title><main>{% block content %}{% endblock %}</main>", encoding="utf-8"
+            )
+            environment = install_template_loaders(Environment(), tmp_dir)
+
+            html = environment.get_template("oldman/errors/403.html").render(description=None)
+
+        self.assertIn("<title>Members only</title>", html)
+        self.assertIn('<div class="status" aria-hidden="true">403</div>', html)
+        self.assertTrue(html.startswith("<title>"), "the project's base wraps the framework page")
+
+    def test_framework_names_reach_only_framework_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            (Path(tmp_dir) / "sample.html").write_text("project only", encoding="utf-8")
+            environment = install_template_loaders(Environment(), tmp_dir)
+
+            with self.assertRaises(TemplateNotFound):
+                environment.get_template("framework:sample.html")
+            with self.assertRaises(TemplateNotFound):
+                environment.get_template("framework:oldman/no-such-page.html")
+        self.assertEqual((package_template_dir(),), framework_template_dirs(environment))
+
+    def test_the_framework_prefix_is_installed_once_and_takes_the_admin_templates(self) -> None:
+        """Services, the Admin, notifications and error pages each install the loaders; one prefix serves them all."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            environment = install_template_loaders(Environment(), tmp_dir)
+            install_template_loaders(environment)
+            install_admin_template_loader(environment)
+            install_admin_template_loader(environment)
+            # A component render after the Admin replaced the loader wraps it once more.
+            install_template_loaders(environment)
+
+            self.assertEqual(1, len(prefix_loaders(environment.loader)))
+            self.assertEqual((package_template_dir(), admin_template_dir()), framework_template_dirs(environment))
+            self.assertIsNotNone(environment.get_template("framework:admin/login.html"))
 
     def test_sync_component_rendering_preserves_async_app_environment(self) -> None:
         """Sync component fragments must retain an async app's loader and customizations."""

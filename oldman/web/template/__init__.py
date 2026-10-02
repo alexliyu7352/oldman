@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, select_autoescape
+from jinja2 import BaseLoader, ChoiceLoader, Environment, FileSystemLoader, PrefixLoader, select_autoescape
 from markupsafe import Markup
 from sanic_ext import render as render_template
 
@@ -21,6 +21,12 @@ from oldman.web.template_globals import template_globals
 
 _TEMPLATE_LOADERS_MARKER = "_oldman_template_loaders_installed"
 _SYNC_ENVIRONMENT_MARKER = "_oldman_sync_template_environment"
+_FRAMEWORK_LOADER_MARKER = "_oldman_framework_template_loader"
+
+#: Names starting with this and a colon (``framework:oldman/...``) are looked up only in the
+#: framework's own template directories. A project that overrides a page can still extend the
+#: framework's original of that page and change one block.
+FRAMEWORK_TEMPLATE_PREFIX = "framework"
 
 
 def project_template_dir() -> Path:
@@ -31,12 +37,18 @@ def project_template_dir() -> Path:
         return package_template_dir()
 
 
+def _framework_prefix_loader(framework_loader: ChoiceLoader) -> PrefixLoader:
+    """Serve `framework:<name>` from the framework directories behind `framework_loader`."""
+    return PrefixLoader({FRAMEWORK_TEMPLATE_PREFIX: framework_loader}, delimiter=":")
+
+
 def build_template_loader(project_dir: str | Path | None = None) -> ChoiceLoader:
     """Build loader with project templates taking priority over package templates."""
-    loaders = []
+    loaders: list[BaseLoader] = []
     resolved_project_dir = Path(project_dir) if project_dir is not None else project_template_dir()
     loaders.append(FileSystemLoader(str(resolved_project_dir)))
     loaders.append(FileSystemLoader(str(package_template_dir())))
+    loaders.append(_framework_prefix_loader(ChoiceLoader([FileSystemLoader(str(package_template_dir()))])))
     return ChoiceLoader(loaders)
 
 
@@ -47,7 +59,7 @@ def install_template_loaders(environment: Environment, project_dir: str | Path |
         register_component_filters(environment)
         return environment
 
-    loaders = []
+    loaders: list[BaseLoader] = []
     if project_dir is not None:
         loaders.append(FileSystemLoader(str(Path(project_dir))))
     if environment.loader is not None:
@@ -55,10 +67,42 @@ def install_template_loaders(environment: Environment, project_dir: str | Path |
     elif project_dir is None:
         loaders.append(FileSystemLoader(str(project_template_dir())))
     loaders.append(FileSystemLoader(str(package_template_dir())))
+    # One `framework:` loader per environment. A second call wraps the previous loader, which
+    # already holds it, so it is added only the first time.
+    if getattr(environment, _FRAMEWORK_LOADER_MARKER, None) is None:
+        framework_loader = ChoiceLoader([FileSystemLoader(str(package_template_dir()))])
+        setattr(environment, _FRAMEWORK_LOADER_MARKER, framework_loader)
+        loaders.append(_framework_prefix_loader(framework_loader))
     environment.loader = ChoiceLoader(loaders)
     register_component_filters(environment)
     setattr(environment, _TEMPLATE_LOADERS_MARKER, environment.loader)
     return environment
+
+
+def add_framework_template_dir(environment: Environment, directory: str | Path) -> None:
+    """Add an installed framework App's template directory (the Admin's) to the `framework:` names.
+
+    The project's own templates still come first for ordinary names; this only decides what a
+    `framework:` name can reach. Adding the same directory again changes nothing.
+    """
+    install_template_loaders(environment)
+    framework_loader: ChoiceLoader = getattr(environment, _FRAMEWORK_LOADER_MARKER)
+    path = str(Path(directory))
+    if path not in _framework_search_paths(framework_loader):
+        framework_loader.loaders = [*framework_loader.loaders, FileSystemLoader(path)]
+
+
+def framework_template_dirs(environment: Environment) -> tuple[Path, ...]:
+    """The directories `framework:` names resolve in, in lookup order: the shared templates, then installed framework Apps."""
+    framework_loader = getattr(environment, _FRAMEWORK_LOADER_MARKER, None)
+    if framework_loader is None:
+        return ()
+    return tuple(Path(path) for path in _framework_search_paths(framework_loader))
+
+
+def _framework_search_paths(framework_loader: ChoiceLoader) -> list[str]:
+    """Every search path of the file loaders behind the `framework:` prefix."""
+    return [path for loader in framework_loader.loaders if isinstance(loader, FileSystemLoader) for path in loader.searchpath]
 
 
 def get_template_environment(owner: Any = None) -> Environment:
@@ -166,9 +210,12 @@ def sync_component_environment(environment: Environment) -> Environment:
 
 
 __all__ = [
+    "FRAMEWORK_TEMPLATE_PREFIX",
     "I18nExtension",
+    "add_framework_template_dir",
     "build_template_loader",
     "default_template_environment",
+    "framework_template_dirs",
     "get_template_environment",
     "install_template_loaders",
     "register_component_filters",
