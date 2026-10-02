@@ -2,6 +2,8 @@
 
 这里定义公开入口、加载顺序和扩展合同。首次建项目可以先看[用户教程](../users/getting-started.md)，不用先读完全部参考。
 
+一个名字是否公开，以导出它的包或模块的 `__all__` 为准，并从那个包或模块导入；模块路径里有任何一段以下划线开头（例如 `oldman.cli._main`），就是内部模块。全部公开名字、签名和导入位置见仓库里由源码生成的接口索引 `docs/public/en/api/README.md`。
+
 | 主题 | 内容 |
 | --- | --- |
 | [应用与生命周期](applications.md) | 服务发现、AppConfig、Registry、Web/SimpleApplication、Shell 和资源归属 |
