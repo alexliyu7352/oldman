@@ -55,13 +55,9 @@ APP_NAME = _required_environment("OLDMAN_WEB_BENCH_APP_NAME")
 VARIANT = _handler_variant(_required_environment("OLDMAN_WEB_BENCH_VARIANT"))
 WORKERS = int(_required_environment("OLDMAN_WEB_BENCH_WORKERS"))
 PORT = int(_required_environment("OLDMAN_WEB_BENCH_PORT"))
-NESTED_ASYNC_RECORDS = int(
-    os.environ.get("OLDMAN_WEB_BENCH_NESTED_ASYNC_RECORDS", "100")
-)
+NESTED_ASYNC_RECORDS = int(os.environ.get("OLDMAN_WEB_BENCH_NESTED_ASYNC_RECORDS", "100"))
 NESTED_ASYNC_RUNS = int(os.environ.get("OLDMAN_WEB_BENCH_NESTED_ASYNC_RUNS", "1"))
-NESTED_SUBPROCESS_BYTES = int(
-    os.environ.get("OLDMAN_WEB_BENCH_NESTED_SUBPROCESS_BYTES", "65536")
-)
+NESTED_SUBPROCESS_BYTES = int(os.environ.get("OLDMAN_WEB_BENCH_NESTED_SUBPROCESS_BYTES", "65536"))
 FAULT = os.environ.get("OLDMAN_WEB_BENCH_FAULT", "none")
 
 if FAULT not in {"none", "skip_database"}:
@@ -116,9 +112,7 @@ for _handler_name in FILE_HANDLER_NAMES:
     _handler_config["when"] = FUTURE_ROTATION_WHEN
     _handler_config["interval"] = FUTURE_ROTATION_INTERVAL
     if VARIANT == "timed_reference":
-        _handler_config["class"] = (
-            "logging.handlers.TimedRotatingFileHandler"
-        )
+        _handler_config["class"] = "logging.handlers.TimedRotatingFileHandler"
 
 from sanic.request import Request
 from sanic.response import json as json_response
@@ -156,9 +150,7 @@ def _runtime_named_handlers() -> dict[str, logging.Handler]:
             handlers[str(handler.name)] = handler
     expected = {*FILE_HANDLER_NAMES, *CONSOLE_HANDLER_NAMES}
     if set(handlers) != expected:
-        raise RuntimeError(
-            f"benchmark handler names mismatch: {sorted(handlers)}"
-        )
+        raise RuntimeError(f"benchmark handler names mismatch: {sorted(handlers)}")
     return handlers
 
 
@@ -170,9 +162,7 @@ def _validate_and_pin_handlers() -> dict[str, dict[str, dict[str, Any]]]:
         handler = named_handlers[name]
         if VARIANT in {"current", "no_logging"}:
             if not isinstance(handler, AtomicAppendFileHandler):
-                raise RuntimeError(
-                    f"current {name} handler is {type(handler).__name__}"
-                )
+                raise RuntimeError(f"current {name} handler is {type(handler).__name__}")
             policy = handler.rotation_policy
             if policy is None or policy.kind != "time":
                 raise RuntimeError(f"current {name} has no timed rotation policy")
@@ -182,9 +172,7 @@ def _validate_and_pin_handlers() -> dict[str, dict[str, dict[str, Any]]]:
             rollover_at: int | None = None
         else:
             if type(handler) is not TimedRotatingFileHandler:
-                raise RuntimeError(
-                    f"reference {name} handler is {type(handler).__name__}"
-                )
+                raise RuntimeError(f"reference {name} handler is {type(handler).__name__}")
             handler.rolloverAt = REFERENCE_ROLLOVER_AT
             rotation_when = handler.when
             rotation_interval = handler.interval
@@ -194,11 +182,7 @@ def _validate_and_pin_handlers() -> dict[str, dict[str, dict[str, Any]]]:
         formatter = handler.formatter
         file_result[name] = {
             "class": f"{type(handler).__module__}.{type(handler).__qualname__}",
-            "formatter": (
-                None
-                if formatter is None
-                else f"{type(formatter).__module__}.{type(formatter).__qualname__}"
-            ),
+            "formatter": (None if formatter is None else f"{type(formatter).__module__}.{type(formatter).__qualname__}"),
             "level": handler.level,
             "rotation": {
                 "when": rotation_when,
@@ -215,11 +199,7 @@ def _validate_and_pin_handlers() -> dict[str, dict[str, dict[str, Any]]]:
         formatter = handler.formatter
         console_result[name] = {
             "class": f"{type(handler).__module__}.{type(handler).__qualname__}",
-            "formatter": (
-                None
-                if formatter is None
-                else f"{type(formatter).__module__}.{type(formatter).__qualname__}"
-            ),
+            "formatter": (None if formatter is None else f"{type(formatter).__module__}.{type(formatter).__qualname__}"),
             "level": handler.level,
         }
     return {"files": file_result, "console": console_result}
@@ -243,10 +223,7 @@ def _publish_primary_state() -> None:
             if isinstance(events, list):
                 _PRIMARY_STATE[count_field] = len(events)
         payload = json.dumps(_PRIMARY_STATE, sort_keys=True)
-        temporary = STATE_FILE.with_name(
-            f"{STATE_FILE.name}.tmp-{os.getpid()}-"
-            f"{next(_STATE_WRITE_SEQUENCE)}"
-        )
+        temporary = STATE_FILE.with_name(f"{STATE_FILE.name}.tmp-{os.getpid()}-{next(_STATE_WRITE_SEQUENCE)}")
         try:
             temporary.write_text(payload, encoding="utf-8")
             temporary.replace(STATE_FILE)
@@ -278,11 +255,7 @@ def _exception_summary(exc: BaseException, *, with_traceback: bool) -> dict[str,
     return {
         "type": type(exc).__name__,
         "message": str(exc),
-        "traceback": (
-            "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-            if with_traceback
-            else None
-        ),
+        "traceback": ("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)) if with_traceback else None),
     }
 
 
@@ -326,11 +299,7 @@ def _finish_event(
     if event is None:
         return
     try:
-        exception_state = (
-            None
-            if exception is None
-            else _exception_summary(exception, with_traceback=False)
-        )
+        exception_state = None if exception is None else _exception_summary(exception, with_traceback=False)
         event.update(
             {
                 "original_returned": original_returned,
@@ -515,10 +484,7 @@ def _process_group_pids(process_group: int) -> list[int]:
 
 async def _nested_subprocess_output(byte_count: int) -> dict[str, Any]:
     """Measure inherited and PIPE output inside a real Sanic server worker."""
-    source = (
-        "import os,sys; n=int(sys.argv[1]); data=b'x'*n; "
-        "os.write(1,data); os.write(2,data)"
-    )
+    source = "import os,sys; n=int(sys.argv[1]); data=b'x'*n; os.write(1,data); os.write(2,data)"
     children_before = _usage_snapshot(resource.RUSAGE_CHILDREN)
     inherited_started = time.perf_counter()
     inherited = await create_subprocess_exec(
@@ -577,11 +543,7 @@ async def _nested_subprocess_output(byte_count: int) -> dict[str, Any]:
 
 async def _nested_subprocess_cleanup() -> dict[str, Any]:
     """Prove timeout and cancellation remove a subprocess and its descendant."""
-    source = (
-        "import subprocess,sys,time; "
-        "subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); "
-        "time.sleep(60)"
-    )
+    source = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); time.sleep(60)"
     timeout_process = await create_subprocess_exec(
         sys.executable,
         "-c",
@@ -629,19 +591,11 @@ async def _wait_for_pipe_readers() -> list[str]:
     """Wait for AsyncProcessManager's raw-output reader threads to reach EOF."""
     deadline = time.monotonic() + 3.0
     while time.monotonic() < deadline:
-        names = [
-            thread.name
-            for thread in threading.enumerate()
-            if isinstance(thread, ParentLogPipeReader)
-        ]
+        names = [thread.name for thread in threading.enumerate() if isinstance(thread, ParentLogPipeReader)]
         if not names:
             return []
         await asyncio.sleep(0.02)
-    return [
-        thread.name
-        for thread in threading.enumerate()
-        if isinstance(thread, ParentLogPipeReader)
-    ]
+    return [thread.name for thread in threading.enumerate() if isinstance(thread, ParentLogPipeReader)]
 
 
 async def _nested_process_route(request: Request, token: str) -> Any:
@@ -807,9 +761,7 @@ def main() -> None:
     try:
         application.run()
     except BaseException as exc:
-        _safe_merge_primary_state(
-            {"unhandled_exception": _exception_summary(exc, with_traceback=True)}
-        )
+        _safe_merge_primary_state({"unhandled_exception": _exception_summary(exc, with_traceback=True)})
         raise
     else:
         serve_returned = True

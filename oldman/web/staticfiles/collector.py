@@ -70,11 +70,7 @@ def collect_project_static(
     sources: list[StaticSource] = []
     if not same_project_root:
         sources.append(project_static_source(project_root))
-    sources.extend(
-        framework_static_sources()
-        if packaged_sources is None
-        else packaged_sources
-    )
+    sources.extend(framework_static_sources() if packaged_sources is None else packaged_sources)
     return collect_static(
         sources,
         public_root,
@@ -161,13 +157,8 @@ def _resolve_public_root(destination: str | Path) -> Path:
 
 def _validate_collection_roots(project_root: Path, public_root: Path) -> None:
     """Reject recursive layouts while retaining the equal-root contract."""
-    if project_root != public_root and (
-        public_root.is_relative_to(project_root)
-        or project_root.is_relative_to(public_root)
-    ):
-        raise ValueError(
-            "settings.web.static.dir and settings.web.static.root must not overlap"
-        )
+    if project_root != public_root and (public_root.is_relative_to(project_root) or project_root.is_relative_to(public_root)):
+        raise ValueError("settings.web.static.dir and settings.web.static.root must not overlap")
 
 
 def _validate_static_sources(
@@ -179,18 +170,10 @@ def _validate_static_sources(
         if not isinstance(source.root, Path):
             continue
         if source.root.is_symlink():
-            raise ValueError(
-                f"static source {source.name} must not be a symbolic link"
-            )
+            raise ValueError(f"static source {source.name} must not be a symbolic link")
         source_root = source.root.resolve()
-        if (
-            source_root == public_root
-            or source_root.is_relative_to(public_root)
-            or public_root.is_relative_to(source_root)
-        ):
-            raise ValueError(
-                f"static source {source.name} and destination must not overlap"
-            )
+        if source_root == public_root or source_root.is_relative_to(public_root) or public_root.is_relative_to(source_root):
+            raise ValueError(f"static source {source.name} and destination must not overlap")
 
 
 def _build_collection_plan(
@@ -231,16 +214,8 @@ def _validated_source_path(source_file: StaticSourceFile) -> PurePosixPath:
     """Reject custom Traversable paths that could escape the public root."""
     logical_path = source_file.relative_path
     serialized = logical_path.as_posix()
-    if (
-        not logical_path.parts
-        or logical_path.is_absolute()
-        or ".." in logical_path.parts
-        or "\\" in serialized
-    ):
-        raise ValueError(
-            f"invalid static source path from {source_file.source_name}: "
-            f"{serialized!r}"
-        )
+    if not logical_path.parts or logical_path.is_absolute() or ".." in logical_path.parts or "\\" in serialized:
+        raise ValueError(f"invalid static source path from {source_file.source_name}: {serialized!r}")
     return logical_path
 
 
@@ -269,9 +244,7 @@ def _stage_existing_output(
     preserve_existing: bool,
 ) -> int:
     """Create a complete staging tree without changing the current public root."""
-    should_copy_existing = public_root.exists() and (
-        not clear or preserve_existing
-    )
+    should_copy_existing = public_root.exists() and (not clear or preserve_existing)
     if should_copy_existing:
         _reject_tree_symlinks(public_root)
         shutil.copytree(public_root, staged_root)
@@ -289,21 +262,14 @@ def _reject_tree_symlinks(root: Path) -> None:
     """Reject inherited public symlinks before copying an incremental tree."""
     for path in root.rglob("*"):
         if path.is_symlink():
-            raise ValueError(
-                f"settings.web.static.root contains symbolic link: "
-                f"{path.relative_to(root).as_posix()}"
-            )
+            raise ValueError(f"settings.web.static.root contains symbolic link: {path.relative_to(root).as_posix()}")
 
 
 def _count_files(root: Path) -> int:
     """Count files removed by a clear publication without following directories."""
     if not root.is_dir():
         return 0
-    return sum(
-        1
-        for path in root.rglob("*")
-        if path.is_file() or path.is_symlink()
-    )
+    return sum(1 for path in root.rglob("*") if path.is_file() or path.is_symlink())
 
 
 def _remove_managed_files(
@@ -313,9 +279,7 @@ def _remove_managed_files(
     """Remove only unchanged managed files from an equal source/output staging tree."""
     removed = 0
     for relative_path, entry in previous_manifest.items():
-        output_file = staged_root.joinpath(
-            *PurePosixPath(relative_path).parts
-        )
+        output_file = staged_root.joinpath(*PurePosixPath(relative_path).parts)
         if not output_file.is_file():
             continue
         expected_digest = entry.get("digest")
@@ -339,9 +303,7 @@ def _apply_collection_plan(
     copied = 0
     unchanged = 0
     next_manifest: dict[str, dict[str, str]] = {
-        path: entry
-        for path, entry in previous_manifest.items()
-        if (staged_root / PurePosixPath(path)).is_file()
+        path: entry for path, entry in previous_manifest.items() if (staged_root / PurePosixPath(path)).is_file()
     }
 
     for logical_path, planned_file in planned_files.items():
@@ -380,10 +342,7 @@ def _apply_collection_plan(
             next_manifest.pop(logical_path.as_posix(), None)
             continue
 
-        if (
-            output_file.is_file()
-            and _file_digest(output_file) == planned_file.digest
-        ):
+        if output_file.is_file() and _file_digest(output_file) == planned_file.digest:
             unchanged += 1
         else:
             atomic_write(output_file, planned_file.payload, follow_symlinks=False)
@@ -408,9 +367,7 @@ def _prepare_output_path(
     for part in logical_path.parts[:-1]:
         current /= part
         if current.is_file():
-            relative_current = PurePosixPath(
-                *current.relative_to(staged_root).parts
-            )
+            relative_current = PurePosixPath(*current.relative_to(staged_root).parts)
             if preserve_existing and not _is_unchanged_managed_file(
                 current,
                 relative_current,
@@ -441,11 +398,7 @@ def _is_unchanged_managed_file(
     """Return whether a path is still identical to its managed manifest entry."""
     entry = manifest.get(logical_path.as_posix())
     expected_digest = entry.get("digest") if entry is not None else None
-    return bool(
-        expected_digest
-        and path.is_file()
-        and _file_digest(path) == expected_digest
-    )
+    return bool(expected_digest and path.is_file() and _file_digest(path) == expected_digest)
 
 
 def _contains_only_unchanged_managed_files(
@@ -544,35 +497,23 @@ def _remove_empty_parents(directory: Path, stop: Path) -> None:
 def _read_manifest(path: Path) -> dict[str, dict[str, str]]:
     """Load a validated private collection manifest or ignore an absent one."""
     if path.is_symlink():
-        raise RuntimeError(
-            f"static collection manifest must not be a symbolic link: {path}"
-        )
+        raise RuntimeError(f"static collection manifest must not be a symbolic link: {path}")
     if not path.is_file():
         return {}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"invalid static collection manifest: {path}") from exc
-    if (
-        not isinstance(payload, dict)
-        or payload.get("version") != _MANIFEST_VERSION
-    ):
+    if not isinstance(payload, dict) or payload.get("version") != _MANIFEST_VERSION:
         raise RuntimeError(f"unsupported static collection manifest: {path}")
     raw_files = payload.get("files")
     if not isinstance(raw_files, dict):
-        raise RuntimeError(
-            f"invalid static collection manifest files: {path}"
-        )
+        raise RuntimeError(f"invalid static collection manifest files: {path}")
 
     files: dict[str, dict[str, str]] = {}
     for relative_path, raw_entry in raw_files.items():
-        if (
-            not isinstance(relative_path, str)
-            or not isinstance(raw_entry, dict)
-        ):
-            raise RuntimeError(
-                f"invalid static collection manifest entry: {path}"
-            )
+        if not isinstance(relative_path, str) or not isinstance(raw_entry, dict):
+            raise RuntimeError(f"invalid static collection manifest entry: {path}")
         _validate_manifest_relative_path(relative_path, path)
         digest = raw_entry.get("digest")
         source = raw_entry.get("source")
@@ -582,9 +523,7 @@ def _read_manifest(path: Path) -> dict[str, dict[str, str]]:
             or any(character not in "0123456789abcdef" for character in digest)
             or not isinstance(source, str)
         ):
-            raise RuntimeError(
-                f"invalid static collection manifest entry: {path}"
-            )
+            raise RuntimeError(f"invalid static collection manifest entry: {path}")
         files[relative_path] = {"digest": digest, "source": source}
     return files
 
@@ -595,15 +534,8 @@ def _validate_manifest_relative_path(
 ) -> None:
     """Reject manifest entries that could escape the configured static root."""
     logical_path = PurePosixPath(relative_path)
-    if (
-        not logical_path.parts
-        or logical_path.is_absolute()
-        or ".." in logical_path.parts
-        or "\\" in relative_path
-    ):
-        raise RuntimeError(
-            f"invalid static collection manifest path: {manifest}"
-        )
+    if not logical_path.parts or logical_path.is_absolute() or ".." in logical_path.parts or "\\" in relative_path:
+        raise RuntimeError(f"invalid static collection manifest path: {manifest}")
 
 
 def _write_manifest(

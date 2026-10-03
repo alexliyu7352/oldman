@@ -160,9 +160,7 @@ class CacheResponseTest(unittest.IsolatedAsyncioTestCase):
     async def test_get_and_head_share_the_same_key(self) -> None:
         """HEAD must use the GET representation key rather than a second entry."""
         backend = AsyncMock()
-        backend.get.return_value = cache_utils._DecodedCacheHit(
-            {"body": "", "status": 200, "content_type": "text/plain", "headers": {}}
-        )
+        backend.get.return_value = cache_utils._DecodedCacheHit({"body": "", "status": 200, "content_type": "text/plain", "headers": {}})
 
         @cache_response("items")
         async def item(request: Any) -> Any:

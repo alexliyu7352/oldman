@@ -57,10 +57,7 @@ TERMINATE_TIMEOUT_SECONDS = 5.0
 
 LOGGER_NAME = "oldman.handler.performance"
 FORMAT = "%(message)s"
-PAYLOAD = (
-    "HANDLER_BENCHMARK producer=%d sequence=%06d "
-    "payload=Oldman-中文-café-\x1b[31mplain\x1b[0m"
-)
+PAYLOAD = "HANDLER_BENCHMARK producer=%d sequence=%06d payload=Oldman-中文-café-\x1b[31mplain\x1b[0m"
 EXPECTED_LINE = re.compile(
     r"HANDLER_BENCHMARK producer=(\d+) sequence=(\d{6}) "
     r"payload=Oldman-中文-café-plain"
@@ -90,10 +87,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--candidate-source",
         type=Path,
-        help=(
-            "load AtomicAppendFileHandler from this standalone source file; "
-            "intended for a git-show historical diagnostic only"
-        ),
+        help=("load AtomicAppendFileHandler from this standalone source file; intended for a git-show historical diagnostic only"),
     )
     return parser
 
@@ -126,9 +120,7 @@ def _candidate_handler_class(candidate_source: str | None) -> HandlerFactory:
     module = _load_standalone_module(Path(candidate_source))
     handler_class = getattr(module, "AtomicAppendFileHandler", None)
     if not isinstance(handler_class, type) or not issubclass(handler_class, logging.Handler):
-        raise BenchmarkFailure(
-            "candidate source does not define an AtomicAppendFileHandler subclass"
-        )
+        raise BenchmarkFailure("candidate source does not define an AtomicAppendFileHandler subclass")
     return cast(HandlerFactory, handler_class)
 
 
@@ -209,29 +201,21 @@ def _cpu_usage_delta(
 ) -> JsonObject:
     """Normalize a process CPU delta by records and the measured wall window."""
     user_seconds = float(after["user_seconds"]) - float(before["user_seconds"])
-    system_seconds = float(after["system_seconds"]) - float(
-        before["system_seconds"]
-    )
+    system_seconds = float(after["system_seconds"]) - float(before["system_seconds"])
     total_seconds = user_seconds + system_seconds
     errors: list[str] = []
     if user_seconds < 0 or system_seconds < 0:
         errors.append("CPU counters moved backwards")
     if record_count <= 0 or elapsed_seconds <= 0:
-        errors.append(
-            f"invalid CPU denominators: records={record_count} elapsed={elapsed_seconds}"
-        )
+        errors.append(f"invalid CPU denominators: records={record_count} elapsed={elapsed_seconds}")
     if total_seconds <= 0:
         errors.append("CPU delta is zero")
     return {
         "user_seconds": user_seconds,
         "system_seconds": system_seconds,
         "total_seconds": total_seconds,
-        "seconds_per_record": (
-            total_seconds / record_count if record_count > 0 else None
-        ),
-        "average_cores": (
-            total_seconds / elapsed_seconds if elapsed_seconds > 0 else None
-        ),
+        "seconds_per_record": (total_seconds / record_count if record_count > 0 else None),
+        "average_cores": (total_seconds / elapsed_seconds if elapsed_seconds > 0 else None),
         "errors": errors,
         "passed": not errors,
     }
@@ -254,12 +238,7 @@ def _run_private_sequence(
 
 def _decode_mount_field(value: str) -> str:
     """Decode the octal escapes used for paths and sources in mountinfo."""
-    return (
-        value.replace("\\040", " ")
-        .replace("\\011", "\t")
-        .replace("\\012", "\n")
-        .replace("\\134", "\\")
-    )
+    return value.replace("\\040", " ").replace("\\011", "\t").replace("\\012", "\n").replace("\\134", "\\")
 
 
 def _filesystem_information(path: Path) -> JsonObject:
@@ -350,9 +329,7 @@ def _validate_environment(machine: JsonObject) -> None:
     if kernel["system"] != "Linux":
         raise BenchmarkFailure("handler performance gate requires Linux")
     if not filesystem["local"]:
-        raise BenchmarkFailure(
-            f"handler performance gate requires a local filesystem, got {filesystem['type']}"
-        )
+        raise BenchmarkFailure(f"handler performance gate requires a local filesystem, got {filesystem['type']}")
 
 
 def _validate_output(
@@ -361,9 +338,7 @@ def _validate_output(
     records_per_producer: int,
 ) -> JsonObject:
     """Check complete unique records and prove that no timed sidecar was created."""
-    rotation_files = sorted(
-        candidate.name for candidate in path.parent.glob(f"{path.name}.*")
-    )
+    rotation_files = sorted(candidate.name for candidate in path.parent.glob(f"{path.name}.*"))
     try:
         payload = path.read_bytes()
     except OSError as exc:
@@ -412,11 +387,7 @@ def _validate_output(
             continue
         observed[(int(match.group(1)), int(match.group(2)))] += 1
 
-    expected = {
-        (producer, sequence)
-        for producer in range(producer_count)
-        for sequence in range(records_per_producer)
-    }
+    expected = {(producer, sequence) for producer in range(producer_count) for sequence in range(records_per_producer)}
     observed_pairs = set(observed)
     duplicate_count = sum(count - 1 for count in observed.values() if count > 1)
     missing = expected - observed_pairs
@@ -542,9 +513,7 @@ def _multiprocess_worker(
                 "pid": os.getpid(),
                 "producer": producer,
                 "elapsed_seconds": measurement["elapsed_seconds"],
-                "records_per_second": (
-                    RECORDS_PER_WORKER / measurement["elapsed_seconds"]
-                ),
+                "records_per_second": (RECORDS_PER_WORKER / measurement["elapsed_seconds"]),
                 "cpu": measurement["cpu"],
             },
         )
@@ -589,11 +558,7 @@ def _encode_worker_report(report: JsonObject) -> bytes:
     truncated: JsonObject = {
         "ok": bool(report.get("ok", False)),
         "pid": report.get("pid") if isinstance(report.get("pid"), int) else None,
-        "producer": (
-            report.get("producer")
-            if isinstance(report.get("producer"), int)
-            else None
-        ),
+        "producer": (report.get("producer") if isinstance(report.get("producer"), int) else None),
         "error_type": error_type,
         "error": error_text[:512],
         "traceback_head": traceback_text[:1200],
@@ -610,20 +575,12 @@ def _encode_worker_report(report: JsonObject) -> bytes:
         for field_name in ("error", "traceback_head", "traceback_tail"):
             value = str(truncated[field_name])
             reduced_length = len(value) // 2
-            truncated[field_name] = (
-                value[-reduced_length:]
-                if field_name == "traceback_tail" and reduced_length
-                else value[:reduced_length]
-            )
+            truncated[field_name] = value[-reduced_length:] if field_name == "traceback_tail" and reduced_length else value[:reduced_length]
 
     fallback: JsonObject = {
         "ok": bool(report.get("ok", False)),
         "pid": report.get("pid") if isinstance(report.get("pid"), int) else None,
-        "producer": (
-            report.get("producer")
-            if isinstance(report.get("producer"), int)
-            else None
-        ),
+        "producer": (report.get("producer") if isinstance(report.get("producer"), int) else None),
         "error_type": error_type[:64],
         "error": error_text[:64],
         "traceback_head": traceback_text[:128],
@@ -648,9 +605,7 @@ def _decode_worker_report(payload: bytes) -> JsonObject:
     try:
         report = json.loads(payload.decode("utf-8", errors="strict"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise BenchmarkFailure(
-            f"multiprocess worker returned invalid JSON: {type(exc).__name__}: {exc}"
-        ) from exc
+        raise BenchmarkFailure(f"multiprocess worker returned invalid JSON: {type(exc).__name__}: {exc}") from exc
     if not isinstance(report, dict):
         raise BenchmarkFailure("multiprocess worker returned a non-object report")
     return report
@@ -661,9 +616,7 @@ def _worker_report_key(report: JsonObject) -> str:
     pid = report.get("pid")
     producer = report.get("producer")
     if not isinstance(pid, int) or not isinstance(producer, int):
-        raise BenchmarkFailure(
-            "multiprocess worker report lacks integer pid/producer identity"
-        )
+        raise BenchmarkFailure("multiprocess worker report lacks integer pid/producer identity")
     return f"pid={pid}:producer={producer}"
 
 
@@ -712,9 +665,7 @@ def _drain_worker_reports(
                 continue
             except (OSError, ValueError) as exc:
                 pending.remove(connection)
-                errors.append(
-                    f"report drain receive failed: {type(exc).__name__}: {exc}"
-                )
+                errors.append(f"report drain receive failed: {type(exc).__name__}: {exc}")
                 continue
             try:
                 report = _decode_worker_report(payload)
@@ -770,20 +721,12 @@ def _unsafe_report_drain_reason(
     """Explain why receiving framed bytes is unsafe until every writer is reaped."""
     reasons: list[str] = []
     if cleanup_error is not None:
-        reasons.append(
-            f"cleanup raised {type(cleanup_error).__name__}: {cleanup_error}"
-        )
+        reasons.append(f"cleanup raised {type(cleanup_error).__name__}: {cleanup_error}")
     if len(cleanup) != len(processes):
-        reasons.append(
-            f"cleanup entries {len(cleanup)} do not match processes {len(processes)}"
-        )
+        reasons.append(f"cleanup entries {len(cleanup)} do not match processes {len(processes)}")
     if len(connections) != len(processes):
-        reasons.append(
-            f"connections {len(connections)} do not match processes {len(processes)}"
-        )
-    alive_pids = [
-        item.get("pid") for item in cleanup if item.get("alive_after_cleanup") is not False
-    ]
+        reasons.append(f"connections {len(connections)} do not match processes {len(processes)}")
+    alive_pids = [item.get("pid") for item in cleanup if item.get("alive_after_cleanup") is not False]
     if alive_pids:
         reasons.append(f"writers remain or are unverified: {alive_pids}")
     if not reasons:
@@ -812,9 +755,7 @@ def _aggregate_worker_cpu(
         except (KeyError, TypeError, ValueError):
             errors.append(f"worker report {index} has invalid CPU values: {cpu!r}")
     if record_count <= 0 or elapsed_seconds <= 0:
-        errors.append(
-            f"invalid CPU denominators: records={record_count} elapsed={elapsed_seconds}"
-        )
+        errors.append(f"invalid CPU denominators: records={record_count} elapsed={elapsed_seconds}")
     total_seconds = user_seconds + system_seconds
     if total_seconds <= 0:
         errors.append("aggregate worker CPU delta is zero")
@@ -823,12 +764,8 @@ def _aggregate_worker_cpu(
         "user_seconds": user_seconds,
         "system_seconds": system_seconds,
         "total_seconds": total_seconds,
-        "seconds_per_record": (
-            total_seconds / record_count if record_count > 0 else None
-        ),
-        "average_cores": (
-            total_seconds / elapsed_seconds if elapsed_seconds > 0 else None
-        ),
+        "seconds_per_record": (total_seconds / record_count if record_count > 0 else None),
+        "average_cores": (total_seconds / elapsed_seconds if elapsed_seconds > 0 else None),
         "errors": errors,
         "passed": not errors,
     }
@@ -923,9 +860,7 @@ def _multiprocess_run(
                 try:
                     connection.close()
                 except OSError as exc:
-                    drain_errors.append(
-                        f"report connection close failed: {type(exc).__name__}: {exc}"
-                    )
+                    drain_errors.append(f"report connection close failed: {type(exc).__name__}: {exc}")
 
     result["pid_cleanup"] = cleanup
     result["report_drain_errors"] = drain_errors
@@ -940,35 +875,19 @@ def _multiprocess_run(
 
     errors: list[str] = []
     child_failures = [report for report in reports if not report.get("ok")]
-    lifecycle_failed = any(
-        item["alive_after_cleanup"]
-        or item["exit_code"] != 0
-        or item["action"] != "joined"
-        for item in cleanup
-    )
+    lifecycle_failed = any(item["alive_after_cleanup"] or item["exit_code"] != 0 or item["action"] != "joined" for item in cleanup)
     if primary_error is not None:
-        errors.append(
-            f"multiprocess run failed: {type(primary_error).__name__}: {primary_error}; "
-            f"cleanup={cleanup}"
-        )
+        errors.append(f"multiprocess run failed: {type(primary_error).__name__}: {primary_error}; cleanup={cleanup}")
     if cleanup_error is not None:
-        errors.append(
-            f"multiprocess cleanup failed: {type(cleanup_error).__name__}: "
-            f"{cleanup_error}"
-        )
+        errors.append(f"multiprocess cleanup failed: {type(cleanup_error).__name__}: {cleanup_error}")
     if drain_errors:
         errors.append(f"multiprocess report drain failed: {drain_errors}")
     if duplicate_reports:
-        errors.append(
-            "multiprocess duplicate worker reports: "
-            f"{[report['report_key'] for report in duplicate_reports]}"
-        )
+        errors.append(f"multiprocess duplicate worker reports: {[report['report_key'] for report in duplicate_reports]}")
     if child_failures:
         errors.append(f"multiprocess child failure: {child_failures}")
     if len(reports) != WORKER_COUNT:
-        errors.append(
-            f"expected {WORKER_COUNT} worker reports, got {len(reports)}"
-        )
+        errors.append(f"expected {WORKER_COUNT} worker reports, got {len(reports)}")
     if lifecycle_failed:
         errors.append(f"multiprocess PID cleanup failed: {cleanup}")
     cpu = result.get("cpu")
@@ -1058,9 +977,7 @@ def _record_run_failure(
 ) -> bool:
     """Mark a retained raw run as fatal after its details are already appended."""
     correctness = run.get("correctness")
-    correctness_failed = (
-        isinstance(correctness, dict) and not correctness.get("passed", False)
-    )
+    correctness_failed = isinstance(correctness, dict) and not correctness.get("passed", False)
     error = run.get("error")
     if error is None and correctness_failed:
         error = f"correctness failed: {correctness}"
@@ -1068,9 +985,7 @@ def _record_run_failure(
     if error is None:
         return False
     scenario_result["status"] = "failed"
-    scenario_result["failure_kind"] = (
-        "correctness" if correctness_failed else "execution"
-    )
+    scenario_result["failure_kind"] = "correctness" if correctness_failed else "execution"
     scenario_result["errors"].append(f"{label}: {error}")
     return True
 
@@ -1082,27 +997,13 @@ def _scenario_summary(runs: list[JsonObject]) -> JsonObject:
     if len(current_runs) != ROUNDS or len(reference_runs) != ROUNDS:
         raise BenchmarkFailure("scenario did not produce exactly five A/B rounds")
     current_elapsed = statistics.median(run["elapsed_seconds"] for run in current_runs)
-    reference_elapsed = statistics.median(
-        run["elapsed_seconds"] for run in reference_runs
-    )
-    current_rate = statistics.median(
-        run["records_per_second"] for run in current_runs
-    )
-    reference_rate = statistics.median(
-        run["records_per_second"] for run in reference_runs
-    )
-    current_cpu_per_record = statistics.median(
-        run["cpu"]["seconds_per_record"] for run in current_runs
-    )
-    reference_cpu_per_record = statistics.median(
-        run["cpu"]["seconds_per_record"] for run in reference_runs
-    )
-    current_average_cores = statistics.median(
-        run["cpu"]["average_cores"] for run in current_runs
-    )
-    reference_average_cores = statistics.median(
-        run["cpu"]["average_cores"] for run in reference_runs
-    )
+    reference_elapsed = statistics.median(run["elapsed_seconds"] for run in reference_runs)
+    current_rate = statistics.median(run["records_per_second"] for run in current_runs)
+    reference_rate = statistics.median(run["records_per_second"] for run in reference_runs)
+    current_cpu_per_record = statistics.median(run["cpu"]["seconds_per_record"] for run in current_runs)
+    reference_cpu_per_record = statistics.median(run["cpu"]["seconds_per_record"] for run in reference_runs)
+    current_average_cores = statistics.median(run["cpu"]["average_cores"] for run in current_runs)
+    reference_average_cores = statistics.median(run["cpu"]["average_cores"] for run in reference_runs)
     ratio = current_rate / reference_rate
     return {
         "current": {
@@ -1119,9 +1020,7 @@ def _scenario_summary(runs: list[JsonObject]) -> JsonObject:
             "reference_median_seconds_per_record": reference_cpu_per_record,
             "current_median_average_cores": current_average_cores,
             "reference_median_average_cores": reference_average_cores,
-            "current_to_reference_ratio": (
-                current_cpu_per_record / reference_cpu_per_record
-            ),
+            "current_to_reference_ratio": (current_cpu_per_record / reference_cpu_per_record),
             "lower_is_better": True,
             "gating": False,
         },
@@ -1143,11 +1042,7 @@ def _run_scenario(
             run = _warmup_run(scenario, variant, root, candidate_source)
         except BaseException as exc:
             producer_count = 1 if scenario == "single_process" else WORKER_COUNT
-            records_per_producer = (
-                SINGLE_WARMUP_RECORDS
-                if scenario == "single_process"
-                else RECORDS_PER_WORKER
-            )
+            records_per_producer = SINGLE_WARMUP_RECORDS if scenario == "single_process" else RECORDS_PER_WORKER
             run = _exception_run_result(
                 variant,
                 path,
@@ -1168,11 +1063,7 @@ def _run_scenario(
 
     flat_runs: list[JsonObject] = []
     for round_index in range(ROUNDS):
-        order = (
-            ["current", "reference"]
-            if round_index % 2 == 0
-            else ["reference", "current"]
-        )
+        order = ["current", "reference"] if round_index % 2 == 0 else ["reference", "current"]
         round_result: JsonObject = {
             "round": round_index + 1,
             "order": order,
@@ -1181,10 +1072,7 @@ def _run_scenario(
         # Append the round before running either side so an exception cannot erase it.
         scenario_result["rounds"].append(round_result)
         for order_index, variant in enumerate(order):
-            path = root / (
-                f"measured-{scenario}-round-{round_index + 1}-"
-                f"order-{order_index + 1}-{variant}.log"
-            )
+            path = root / (f"measured-{scenario}-round-{round_index + 1}-order-{order_index + 1}-{variant}.log")
             try:
                 if scenario == "single_process":
                     run = _single_run(variant, path, candidate_source)
@@ -1194,11 +1082,7 @@ def _run_scenario(
                     raise BenchmarkFailure(f"unknown benchmark scenario: {scenario}")
             except BaseException as exc:
                 producer_count = 1 if scenario == "single_process" else WORKER_COUNT
-                records_per_producer = (
-                    SINGLE_RECORDS
-                    if scenario == "single_process"
-                    else RECORDS_PER_WORKER
-                )
+                records_per_producer = SINGLE_RECORDS if scenario == "single_process" else RECORDS_PER_WORKER
                 run = _exception_run_result(
                     variant,
                     path,
@@ -1226,9 +1110,7 @@ def _run_scenario(
         ratio = summary["current_to_reference_ratio"]
         scenario_result["status"] = "failed"
         scenario_result["failure_kind"] = "threshold"
-        scenario_result["errors"].append(
-            f"current/reference ratio {ratio:.6f} is below {MINIMUM_RATIO:.2f}"
-        )
+        scenario_result["errors"].append(f"current/reference ratio {ratio:.6f} is below {MINIMUM_RATIO:.2f}")
     return scenario_result
 
 
@@ -1286,11 +1168,7 @@ def _execute(candidate_source: Path | None) -> tuple[JsonObject, int]:
         "errors": [],
     }
     try:
-        candidate_source_text = (
-            str(candidate_source.resolve(strict=True))
-            if candidate_source is not None
-            else None
-        )
+        candidate_source_text = str(candidate_source.resolve(strict=True)) if candidate_source is not None else None
         with tempfile.TemporaryDirectory(
             prefix=".logging-handler-benchmark-",
             dir=Path.cwd(),
@@ -1309,9 +1187,7 @@ def _execute(candidate_source: Path | None) -> tuple[JsonObject, int]:
             if single["failure_kind"] in {"correctness", "execution"}:
                 four["status"] = "not_run"
                 four["failure_kind"] = "dependency"
-                four["errors"].append(
-                    "not run after fatal single-process correctness/execution failure"
-                )
+                four["errors"].append("not run after fatal single-process correctness/execution failure")
             else:
                 _run_scenario(
                     "four_process",
@@ -1326,18 +1202,11 @@ def _execute(candidate_source: Path | None) -> tuple[JsonObject, int]:
             if scenario_result["status"] == "pending":
                 scenario_result["status"] = "not_run"
                 scenario_result["failure_kind"] = "execution"
-                scenario_result["errors"].append(
-                    "not run because benchmark execution raised an exception"
-                )
+                scenario_result["errors"].append("not run because benchmark execution raised an exception")
 
     for scenario_name, scenario_result in result["scenarios"].items():
-        result["errors"].extend(
-            f"{scenario_name}: {error}" for error in scenario_result["errors"]
-        )
-    result["passed"] = not result["errors"] and all(
-        scenario_result["passed"]
-        for scenario_result in result["scenarios"].values()
-    )
+        result["errors"].extend(f"{scenario_name}: {error}" for error in scenario_result["errors"])
+    result["passed"] = not result["errors"] and all(scenario_result["passed"] for scenario_result in result["scenarios"].values())
     return result, 0 if result["passed"] else 1
 
 

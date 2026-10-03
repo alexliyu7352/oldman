@@ -107,7 +107,7 @@ def verify_generation() -> None:
         assert_true("oldman-web/styles/tailwind.css" in dashboard_css, "dashboard Tailwind entry must consume the public oldman-web style export")
         assert_true("oldman-web/styles/icons.css" in dashboard_css, "dashboard entry must consume the shared oldman-web icon export")
         assert_true("./generated/icons.css" in dashboard_css, "dashboard entry must consume its generated business icons")
-        assert_true('../../apps/**/*.py' in dashboard_css, "dashboard Tailwind entry must scan business Python emitters")
+        assert_true("../../apps/**/*.py" in dashboard_css, "dashboard Tailwind entry must scan business Python emitters")
         dashboard_package = json.loads((dashboard_project / "frontend" / "package.json").read_text(encoding="utf-8"))
         assert_true("oldman-web-icons" in dashboard_package["scripts"]["generate:icons"], "dashboard must generate consumer icons")
         assert_true((dashboard_project / "frontend" / "src" / "generated" / "icons.css").exists(), "dashboard must include initial generated icons")
@@ -128,7 +128,9 @@ def verify_generation() -> None:
 
         assert_true((api_project / "apps" / "report_api" / "apps.py").exists(), "api startapp must create App metadata")
         assert_true((api_project / "services" / "report_api.py").exists(), "startservice must create a service entry")
-        assert_true((dashboard_project / "frontend" / "src" / "pages" / "admin_area.ts").exists(), "dashboard startapp must create frontend page stub")
+        assert_true(
+            (dashboard_project / "frontend" / "src" / "pages" / "admin_area.ts").exists(), "dashboard startapp must create frontend page stub"
+        )
         assert_true(not (dashboard_project / "services" / "admin_area.py").exists(), "dashboard startapp must not create a service entry")
         dashboard_page = (dashboard_project / "frontend" / "src" / "pages" / "admin_area.ts").read_text(encoding="utf-8")
         assert_true("DashboardPage" in dashboard_page, "dashboard page must use the shared DashboardPage")

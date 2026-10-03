@@ -152,9 +152,7 @@ class OldmanI18nSerializationTest(unittest.TestCase):
                 reset_translations(chinese)
 
             generic = _decode_translatable_msgpack(decoded.to_msgpack())
-            connection_json = msgspec.json.decode(
-                _encode_json_with_translations(generic, _Catalog("connection"))
-            )
+            connection_json = msgspec.json.decode(_encode_json_with_translations(generic, _Catalog("connection")))
 
             self.assertEqual("en:Imported 3 records", english_json["title"])
             self.assertEqual("en:2 warnings", english_json["body"])
@@ -165,16 +163,12 @@ class OldmanI18nSerializationTest(unittest.TestCase):
             reset_translations(outer)
 
         self.assertEqual("Save", gettext("Save"))
-        fallback = msgspec.json.decode(
-            TitlePayload(title=gettext_lazy("Source title")).to_json_bytes()
-        )
+        fallback = msgspec.json.decode(TitlePayload(title=gettext_lazy("Source title")).to_json_bytes())
         self.assertEqual("Source title", fallback["title"])
 
     def test_explicit_json_catalog_is_restored_after_translation_failure(self) -> None:
         """One broken connection translation must not leak into later work."""
-        generic = _decode_translatable_msgpack(
-            TitlePayload(title=gettext_lazy("Title")).to_msgpack()
-        )
+        generic = _decode_translatable_msgpack(TitlePayload(title=gettext_lazy("Title")).to_msgpack())
         outer = bind_translations(_Catalog("outer"))
         try:
             with self.assertRaisesRegex(RuntimeError, "cannot translate Title"):
@@ -238,9 +232,7 @@ class OldmanI18nSerializationTest(unittest.TestCase):
             with self.subTest(wire=wire), self.assertRaises(msgspec.DecodeError):
                 TitlePayload.from_msgpack(malformed)
 
-        unknown = msgspec.msgpack.encode(
-            {"title": msgspec.msgpack.Ext(127, b"unsupported")}
-        )
+        unknown = msgspec.msgpack.encode({"title": msgspec.msgpack.Ext(127, b"unsupported")})
         with self.assertRaises(msgspec.DecodeError):
             _decode_translatable_msgpack(unknown)
 

@@ -94,10 +94,7 @@ def run(
         output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
         returncode = completed.returncode
     except subprocess.TimeoutExpired as exc:
-        output = "\n".join(
-            part.decode(errors="replace") if isinstance(part, bytes) else part or ""
-            for part in (exc.stdout, exc.stderr)
-        ).strip()
+        output = "\n".join(part.decode(errors="replace") if isinstance(part, bytes) else part or "" for part in (exc.stdout, exc.stderr)).strip()
         returncode = -1
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text(
@@ -125,15 +122,10 @@ def declared_supported_python_minors(root: Path) -> tuple[str, ...]:
         specifier = SpecifierSet(requires_python)
     except (OSError, tomllib.TOMLDecodeError, InvalidSpecifier) as exc:
         raise RuntimeError(f"Cannot read supported Python range: {exc}") from exc
-    declared = tuple(
-        f"3.{minor}"
-        for minor in range(8, 21)
-        if specifier.contains(Version(f"3.{minor}.0"), prereleases=True)
-    )
+    declared = tuple(f"3.{minor}" for minor in range(8, 21) if specifier.contains(Version(f"3.{minor}.0"), prereleases=True))
     if declared != SUPPORTED_PYTHON_MINORS:
         raise RuntimeError(
-            "Python release gate matrix must be updated with project.requires-python; "
-            f"declared={declared}, gate={SUPPORTED_PYTHON_MINORS}"
+            f"Python release gate matrix must be updated with project.requires-python; declared={declared}, gate={SUPPORTED_PYTHON_MINORS}"
         )
     return declared
 

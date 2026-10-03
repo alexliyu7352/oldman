@@ -63,5 +63,6 @@ class OldmanWebBoundaryInventoryTest(unittest.TestCase):
 
             self.assertEqual([production], self.verifier.source_files(root))
 
+
 if __name__ == "__main__":
     unittest.main()

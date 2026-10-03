@@ -32,8 +32,7 @@ class OldmanTailwindInventoryTest(unittest.TestCase):
         self.assertEqual(
             set(),
             set(expected) - set(actual),
-            "framework utilities missing from the published inventory; "
-            "run `python scripts/oldman_tailwind_inventory.py --write`",
+            "framework utilities missing from the published inventory; run `python scripts/oldman_tailwind_inventory.py --write`",
         )
         for utility in (
             "-translate-y-1/2",
@@ -56,7 +55,7 @@ class OldmanTailwindInventoryTest(unittest.TestCase):
         switcher = source.index("  .om-auth-language-switcher {")
 
         self.assertLess(dropdown, switcher)
-        self.assertIn("@apply absolute right-4 top-4 z-20;", source[switcher:switcher + 200])
+        self.assertIn("@apply absolute right-4 top-4 z-20;", source[switcher : switcher + 200])
 
     def test_base_layer_gives_enabled_click_targets_the_pointer_cursor(self) -> None:
         # Tailwind 4 preflight dropped the hand cursor from buttons; the framework restores it once,
@@ -90,13 +89,8 @@ class OldmanTailwindInventoryTest(unittest.TestCase):
         self.assertIn("max-w-[26rem]", admin)
         self.assertNotIn("max-w-[26rem]", shared)
 
-        admin_assets = (
-            ROOT / "oldman" / "apps" / "admin" / "static" / "oldman" / "admin" / "assets"
-        )
-        built_css = "\n".join(
-            path.read_text(encoding="utf-8")
-            for path in admin_assets.glob("*.css")
-        )
+        admin_assets = ROOT / "oldman" / "apps" / "admin" / "static" / "oldman" / "admin" / "assets"
+        built_css = "\n".join(path.read_text(encoding="utf-8") for path in admin_assets.glob("*.css"))
         self.assertTrue(built_css, "Admin CSS bundle must be built and tracked")
         for utility in admin:
             self.assertIn(css_class_selector(utility), built_css, utility)
@@ -133,7 +127,7 @@ class OldmanTailwindInventoryTest(unittest.TestCase):
         self.assertEqual(("-translate-y-1/2", "flex", "min-h-[41px]", "pe-11", "px-7", "sm:flex-row"), utilities)
         self.assertNotIn("max-w-[913px]", utilities)
         block = render_inventory_block(root=ROOT)
-        self.assertIn('/* oldman-tailwind-inventory:start */', block)
+        self.assertIn("/* oldman-tailwind-inventory:start */", block)
         self.assertIn('@source inline("min-w-[680px]");', block)
 
 

@@ -42,11 +42,7 @@ def _app_owner(
     package_labels: Mapping[str, str],
 ) -> str | None:
     """Resolve a definition module by the longest registered package boundary."""
-    matches = [
-        (package, label)
-        for package, label in package_labels.items()
-        if module_name == package or module_name.startswith(f"{package}.")
-    ]
+    matches = [(package, label) for package, label in package_labels.items() if module_name == package or module_name.startswith(f"{package}.")]
     if not matches:
         return None
     return max(matches, key=lambda item: len(item[0]))[1]
@@ -89,15 +85,10 @@ def _display_name(
     value = _model_meta_value(model, field_name, default)
     if isinstance(value, LazyTranslation):
         if not value.singular.strip():
-            raise ValueError(
-                f"{model.__module__}.{model.__qualname__}.Meta.{field_name} cannot be empty."
-            )
+            raise ValueError(f"{model.__module__}.{model.__qualname__}.Meta.{field_name} cannot be empty.")
         return value
     if not isinstance(value, str) or not value.strip():
-        raise TypeError(
-            f"{model.__module__}.{model.__qualname__}.Meta.{field_name} "
-            "must be a non-empty string or LazyTranslation."
-        )
+        raise TypeError(f"{model.__module__}.{model.__qualname__}.Meta.{field_name} must be a non-empty string or LazyTranslation.")
     return value
 
 
@@ -138,12 +129,8 @@ def assign_model_table_app_labels(
         mapped_class = mapper.class_
         label = _app_owner(mapped_class.__module__, package_labels)
         if label is None:
-            qualified_name = (
-                f"{mapped_class.__module__}.{mapped_class.__qualname__}"
-            )
-            raise RuntimeError(
-                f"Mapped class {qualified_name!r} is not defined by a registered App."
-            )
+            qualified_name = f"{mapped_class.__module__}.{mapped_class.__qualname__}"
+            raise RuntimeError(f"Mapped class {qualified_name!r} is not defined by a registered App.")
         table = cast(Table, mapper.local_table)
         mapped_table_labels.setdefault(table, set()).add(label)
         mapped_classes.append((mapped_class, table, label))
@@ -152,38 +139,25 @@ def assign_model_table_app_labels(
     for table, labels in mapped_table_labels.items():
         if len(labels) != 1:
             rendered = ", ".join(sorted(labels))
-            raise RuntimeError(
-                f"Table {table.fullname!r} is mapped by multiple Apps: {rendered}."
-            )
+            raise RuntimeError(f"Table {table.fullname!r} is mapped by multiple Apps: {rendered}.")
         table_labels[table] = next(iter(labels))
 
-    module_tables = {
-        package: _module_tree_tables(module_name)
-        for package, module_name in model_modules.items()
-    }
+    module_tables = {package: _module_tree_tables(module_name) for package, module_name in model_modules.items()}
     for table in Base.metadata.tables.values():
         if table in table_labels:
             continue
-        candidates = {
-            package_labels[package]
-            for package, tables in module_tables.items()
-            if table in tables
-        }
+        candidates = {package_labels[package] for package, tables in module_tables.items() if table in tables}
         if len(candidates) != 1:
             rendered = ", ".join(sorted(candidates)) or "none"
             raise RuntimeError(
-                f"Standalone Table {table.fullname!r} must be bound in exactly "
-                f"one registered App model module tree; found: {rendered}."
+                f"Standalone Table {table.fullname!r} must be bound in exactly one registered App model module tree; found: {rendered}."
             )
         table_labels[table] = next(iter(candidates))
 
     for table, label in table_labels.items():
         configured_label = table.info.get(APP_LABEL_INFO_KEY)
         if configured_label is not None and configured_label != label:
-            raise RuntimeError(
-                f"Table {table.fullname!r} declares App {configured_label!r}, "
-                f"but its model definition belongs to {label!r}."
-            )
+            raise RuntimeError(f"Table {table.fullname!r} declares App {configured_label!r}, but its model definition belongs to {label!r}.")
         table.info[APP_LABEL_INFO_KEY] = label
 
     metadata: list[ModelMetadata] = []
@@ -195,20 +169,15 @@ def assign_model_table_app_labels(
         singular, plural = resolve_model_display_names(model)
         managed = _model_meta_value(model, "managed", True)
         if not isinstance(managed, bool):
-            raise TypeError(
-                f"{model.__module__}.{model.__qualname__}.Meta.managed must be a bool."
-            )
+            raise TypeError(f"{model.__module__}.{model.__qualname__}.Meta.managed must be a bool.")
 
         previous_managed = table_managed.setdefault(table, managed)
         if previous_managed is not managed:
-            raise RuntimeError(
-                f"Mappers sharing Table {table.fullname!r} disagree on Meta.managed."
-            )
+            raise RuntimeError(f"Mappers sharing Table {table.fullname!r} disagree on Meta.managed.")
         configured_managed = table.info.get(MANAGED_INFO_KEY)
         if configured_managed is not None and configured_managed is not managed:
             raise RuntimeError(
-                f"Table {table.fullname!r} declares managed={configured_managed!r}, "
-                f"but model {model.__qualname__} declares managed={managed!r}."
+                f"Table {table.fullname!r} declares managed={configured_managed!r}, but model {model.__qualname__} declares managed={managed!r}."
             )
         table.info[MANAGED_INFO_KEY] = managed
         metadata.append(
@@ -227,10 +196,7 @@ def assign_model_table_app_labels(
             continue
         managed = table.info.get(MANAGED_INFO_KEY, True)
         if not isinstance(managed, bool):
-            raise TypeError(
-                f"Standalone Table {table.fullname!r} info[{MANAGED_INFO_KEY!r}] "
-                "must be a bool."
-            )
+            raise TypeError(f"Standalone Table {table.fullname!r} info[{MANAGED_INFO_KEY!r}] must be a bool.")
         table.info[MANAGED_INFO_KEY] = managed
     return tuple(metadata)
 

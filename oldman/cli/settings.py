@@ -48,13 +48,7 @@ def get_settings_manager(
     """Create a manager for one cold-discovered service definition."""
     settings_class = load_project_settings_schema()
     project_root = service_definition.module_path.parent.parent
-    resolved_config = (
-        Path(config_file)
-        if config_file is not None
-        else project_root
-        / "data"
-        / f"{service_definition.module_name}_settings.yaml"
-    )
+    resolved_config = Path(config_file) if config_file is not None else project_root / "data" / f"{service_definition.module_name}_settings.yaml"
     return SettingsManager(
         settings_class,
         service_definition,

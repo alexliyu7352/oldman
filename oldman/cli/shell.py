@@ -21,10 +21,7 @@ def open_service_shell(
         config_file=config_file,
     )
     code.interact(
-        banner=(
-            f"Oldman service {service_module!r} is bootstrapped. "
-            "Available names: context, settings, apps."
-        ),
+        banner=(f"Oldman service {service_module!r} is bootstrapped. Available names: context, settings, apps."),
         local={
             "context": context,
             "settings": context.settings,

@@ -134,9 +134,7 @@ class SSEPublisher:
         )
         encoded = envelope.to_msgpack()
         if len(encoded) > self.config.max_message_size:
-            raise SSEMessageTooLargeError(
-                f"encoded SSE message exceeds the {self.config.max_message_size}-byte limit"
-            )
+            raise SSEMessageTooLargeError(f"encoded SSE message exceeds the {self.config.max_message_size}-byte limit")
 
         try:
             connection = await redis_alias.async_get_bin_conn()

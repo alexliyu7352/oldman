@@ -21,11 +21,13 @@ class TaskiqConfigTest(unittest.TestCase):
         """Root configuration is offline, including when credentials files are absent."""
         with patch("socket.socket", side_effect=AssertionError("configuration must not connect")):
             default = DefaultSettings()
-            settings = DefaultSettings.model_validate({
-                "nats": {"jobs": {"nats_url": "tls://localhost:4222", "tls_ca_file": "/missing/ca.pem"}},
-                "redis": {"jobs": {"redis_url": "redis://localhost:6379/8"}},
-                "taskiq": {"enabled": True, "namespace": "EPG-dev_1", "nats_alias": "jobs", "redis_alias": "jobs"},
-            })
+            settings = DefaultSettings.model_validate(
+                {
+                    "nats": {"jobs": {"nats_url": "tls://localhost:4222", "tls_ca_file": "/missing/ca.pem"}},
+                    "redis": {"jobs": {"redis_url": "redis://localhost:6379/8"}},
+                    "taskiq": {"enabled": True, "namespace": "EPG-dev_1", "nats_alias": "jobs", "redis_alias": "jobs"},
+                }
+            )
         self.assertFalse(default.taskiq.enabled)
         self.assertIsNone(default.taskiq.namespace)
         self.assertEqual("nats://localhost:4222", default.nats["DEFAULT"].nats_url)
@@ -39,12 +41,24 @@ class TaskiqConfigTest(unittest.TestCase):
     def test_invalid_task_configurations_are_rejected(self) -> None:
         """Subject injection, absent dependencies and unbounded waits fail early."""
         for value in (
-            {"enabled": True}, {"namespace": " padded "}, {"namespace": "中文"},
-            {"namespace": "a.b"}, {"consume_queues": []}, {"consume_queues": ["default", "default"]},
-            {"consume_queues": [">", "x"]}, {"workers": 0}, {"max_async_tasks": -1},
-            {"max_prefetch": -1}, {"startup_attempts": 0}, {"result_ex_time": 0},
-            {"schedule_update_interval": 0}, {"stream_max_bytes": 0}, {"stream_max_bytes": -2},
-            {"stream_replicas": 2}, {"max_ack_pending": 0}, {"duplicate_window": 9},
+            {"enabled": True},
+            {"namespace": " padded "},
+            {"namespace": "中文"},
+            {"namespace": "a.b"},
+            {"consume_queues": []},
+            {"consume_queues": ["default", "default"]},
+            {"consume_queues": [">", "x"]},
+            {"workers": 0},
+            {"max_async_tasks": -1},
+            {"max_prefetch": -1},
+            {"startup_attempts": 0},
+            {"result_ex_time": 0},
+            {"schedule_update_interval": 0},
+            {"stream_max_bytes": 0},
+            {"stream_max_bytes": -2},
+            {"stream_replicas": 2},
+            {"max_ack_pending": 0},
+            {"duplicate_window": 9},
         ):
             with self.subTest(value=value), self.assertRaises(ValidationError):
                 TaskiqConfig.model_validate(value)
@@ -72,7 +86,9 @@ class TaskiqConfigTest(unittest.TestCase):
                     with self.assertRaises(ValidationError) as caught:
                         build(values)
                     self.assertNotIn("secret", str(caught.exception))
-        self.assertEqual("nats://localhost:4222", DefaultSettings.model_validate({"nats": {"DEFAULT": {"connect_timeout": 4}}}).nats["DEFAULT"].nats_url)
+        self.assertEqual(
+            "nats://localhost:4222", DefaultSettings.model_validate({"nats": {"DEFAULT": {"connect_timeout": 4}}}).nats["DEFAULT"].nats_url
+        )
 
     def test_init_and_sync_preserve_explicit_task_settings(self) -> None:
         """Existing service rules generate defaults but never enable or overwrite jobs."""
@@ -85,7 +101,9 @@ class TaskiqConfigTest(unittest.TestCase):
             raw = manager.read_config()
             self.assertFalse(raw["taskiq"]["enabled"])
             self.assertNotIn("web", raw)
-            path.write_text("taskiq:\n  enabled: true\n  namespace: Custom_1\n  workers: 4\nnats:\n  DEFAULT:\n    connect_timeout: 7\n", encoding="utf-8")
+            path.write_text(
+                "taskiq:\n  enabled: true\n  namespace: Custom_1\n  workers: 4\nnats:\n  DEFAULT:\n    connect_timeout: 7\n", encoding="utf-8"
+            )
             manager.sync_config()
             loaded = manager.load()
             self.assertTrue(loaded.taskiq.enabled)

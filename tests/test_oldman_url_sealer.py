@@ -72,7 +72,7 @@ class UrlSealerTest(unittest.TestCase):
         for index in range(len(token)):
             swapped = "A" if token[index] != "A" else "B"
             with self.subTest(index=index):
-                self.assertIsNone(self.sealer.unseal(token[:index] + swapped + token[index + 1:]))
+                self.assertIsNone(self.sealer.unseal(token[:index] + swapped + token[index + 1 :]))
 
     def test_truncated_and_malformed_tokens_are_rejected(self) -> None:
         """Bad input returns None rather than raising into the request handler."""

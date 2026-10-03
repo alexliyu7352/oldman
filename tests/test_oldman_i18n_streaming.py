@@ -63,9 +63,7 @@ class OldmanI18nStreamingTest(unittest.IsolatedAsyncioTestCase):
 
             self.assertIsNone(result)
             self.assertEqual(gettext("Save"), "outer:Save")
-            self.assertFalse(
-                hasattr(request.ctx, "_oldman_i18n_catalog_token")
-            )
+            self.assertFalse(hasattr(request.ctx, "_oldman_i18n_catalog_token"))
         finally:
             reset_translations(outer)
 

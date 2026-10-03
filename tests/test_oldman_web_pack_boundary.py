@@ -41,9 +41,7 @@ def write_pack_fixture(
 ) -> dict[str, bytes]:
     expected = module.expected_pack_files(module.load_package_json())
     expected_payloads = {name: source.read_bytes() for name, source in expected.items()}
-    expected_payloads["package/package.json"] = module.expected_pnpm_packed_package_json(
-        module.load_package_json()
-    )
+    expected_payloads["package/package.json"] = module.expected_pnpm_packed_package_json(module.load_package_json())
     archive_buffer = io.BytesIO()
     with tarfile.open(fileobj=archive_buffer, mode="w") as archive:
         for name in expected:
@@ -171,9 +169,7 @@ class OldmanWebPackBoundaryTest(unittest.TestCase):
             )
             artifact = output / completed.stdout.strip().splitlines()[-1]
             expected_payloads = self.verifier.snapshot_expected_pack_files(self.verifier.load_package_json())
-            expected_payloads["package/package.json"] = self.verifier.expected_pnpm_packed_package_json(
-                self.verifier.load_package_json()
-            )
+            expected_payloads["package/package.json"] = self.verifier.expected_pnpm_packed_package_json(self.verifier.load_package_json())
             self.assertEqual(
                 [],
                 self.verifier.verify_pack_artifact(artifact, expected_payloads=expected_payloads),
@@ -202,18 +198,21 @@ class OldmanWebPackBoundaryTest(unittest.TestCase):
                     self.verifier.verify_checkout_matches_revision(checkout, "HEAD")
 
     def test_isolated_node_environment_removes_injection_channels_case_insensitively(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ,
-            {
-                "PATH": os.environ.get("PATH", ""),
-                "NODE_OPTIONS": "--require=/tmp/inject.js",
-                "NODE_PATH": "/tmp/modules",
-                "npm_config_userconfig": "/tmp/evil-npmrc",
-                "NPM_CONFIG_REGISTRY": "https://evil.invalid",
-                "PnPm_HoMe": "/tmp/evil-pnpm",
-                "GIT_CONFIG_COUNT": "1",
-            },
-            clear=True,
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            mock.patch.dict(
+                os.environ,
+                {
+                    "PATH": os.environ.get("PATH", ""),
+                    "NODE_OPTIONS": "--require=/tmp/inject.js",
+                    "NODE_PATH": "/tmp/modules",
+                    "npm_config_userconfig": "/tmp/evil-npmrc",
+                    "NPM_CONFIG_REGISTRY": "https://evil.invalid",
+                    "PnPm_HoMe": "/tmp/evil-pnpm",
+                    "GIT_CONFIG_COUNT": "1",
+                },
+                clear=True,
+            ),
         ):
             environment = self.verifier.isolated_node_environment(Path(temp_dir))
 
@@ -247,9 +246,7 @@ class OldmanWebPackBoundaryTest(unittest.TestCase):
 
         self.assertEqual([], errors)
         self.assertEqual(
-            subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True
-            ).stdout.strip(),
+            subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip(),
             inventory["revision"],
         )
 

@@ -96,5 +96,6 @@ class CurrentReleaseScaffoldMatrixGateTest(unittest.TestCase):
         self.assertNotIn("glob(", source)
         self.assertNotIn("latest", source)
 
+
 if __name__ == "__main__":
     unittest.main()

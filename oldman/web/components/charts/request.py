@@ -48,4 +48,3 @@ class ChartRequest:
         window_end = end or naive_utcnow()
         midnight = window_end.replace(hour=0, minute=0, second=0, microsecond=0)
         return midnight - dt.timedelta(days=self.range_days() - 1)
-

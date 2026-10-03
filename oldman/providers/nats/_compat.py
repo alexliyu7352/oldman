@@ -92,11 +92,7 @@ async def _close(self: Client, status: int, do_cbs: bool = True) -> None:
     if self._reading_task is not None and not self._reading_task.cancelled() and self._reading_task is not current:
         self._reading_task.cancel()
 
-    if (
-        self._ping_interval_task is not None
-        and not self._ping_interval_task.cancelled()
-        and self._ping_interval_task is not current
-    ):
+    if self._ping_interval_task is not None and not self._ping_interval_task.cancelled() and self._ping_interval_task is not current:
         self._ping_interval_task.cancel()
 
     if self._flusher_task is not None and not self._flusher_task.cancelled() and self._flusher_task is not current:

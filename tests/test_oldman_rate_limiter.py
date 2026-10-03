@@ -240,12 +240,8 @@ class FingerprintIPRateLimiterTest(unittest.IsolatedAsyncioTestCase):
         limiter = FingerprintIPRateLimiter(FailingScriptClient(RedisError("unavailable")))
 
         with patch("oldman.web.security.rate_limiter.fingerprint.logger.exception"):
-            first = await limiter.check(
-                "fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG
-            )
-            second = await limiter.check(
-                "fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG
-            )
+            first = await limiter.check("fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG)
+            second = await limiter.check("fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG)
 
         self.assertEqual("redis_error_degraded", first.reason)
         self.assertTrue(first.allowed)
@@ -264,9 +260,7 @@ class FingerprintIPRateLimiterTest(unittest.IsolatedAsyncioTestCase):
             patch("oldman.web.security.rate_limiter.fingerprint.logger.exception"),
             self.assertRaisesRegex(RedisError, "unavailable"),
         ):
-            await limiter.check(
-                "fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG
-            )
+            await limiter.check("fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG)
 
     async def test_malformed_lua_results_are_not_treated_as_redis_degradation(self) -> None:
         """Programming and wire-format errors must not silently allow traffic."""
@@ -274,9 +268,7 @@ class FingerprintIPRateLimiterTest(unittest.IsolatedAsyncioTestCase):
         limiter = FingerprintIPRateLimiter(FakeScriptClient(script))
 
         with self.assertRaises(IndexError):
-            await limiter.check(
-                "fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG
-            )
+            await limiter.check("fp", "127.0.0.1", "/demo", DEFAULT_FINGERPRINT_CONFIG)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,15 @@ from oldman.web.auth import UserTable, user_cell_value, user_row_actions
 
 
 def make_user(**overrides: Any) -> User:
-    values: dict[str, Any] = {"id": 7, "username": "ada", "email": "ada@example.test", "password_hash": "", "is_active": True, "is_staff": True, "is_superuser": False}
+    values: dict[str, Any] = {
+        "id": 7,
+        "username": "ada",
+        "email": "ada@example.test",
+        "password_hash": "",
+        "is_active": True,
+        "is_staff": True,
+        "is_superuser": False,
+    }
     values.update(overrides)
     return User(**values)
 
@@ -23,7 +31,9 @@ def make_user(**overrides: Any) -> User:
 class UserCellTest(unittest.TestCase):
     def test_standard_columns_render_link_badges_and_dates(self) -> None:
         user = make_user(last_login_at=dt.datetime(2026, 9, 17, 8, 30))
-        self.assertEqual('<a class="link-primary font-medium" href="/users/7/edit">ada</a>', str(user_cell_value(user, "username", edit_url="/users/7/edit")))
+        self.assertEqual(
+            '<a class="link-primary font-medium" href="/users/7/edit">ada</a>', str(user_cell_value(user, "username", edit_url="/users/7/edit"))
+        )
         self.assertEqual("ada", user_cell_value(user, "username"))
         self.assertEqual('<span class="om-badge om-badge-success">Active</span>', str(user_cell_value(user, "is_active")))
         self.assertEqual('<span class="om-badge om-badge-info">Staff</span>', str(user_cell_value(user, "is_staff")))
@@ -34,7 +44,15 @@ class UserCellTest(unittest.TestCase):
         self.assertIsNone(user_cell_value(user, "email"))
 
     def test_row_actions_cover_edit_password_status_and_delete(self) -> None:
-        html = str(user_row_actions(make_user(is_active=False), edit_url="/u/7/edit", password_modal_url="/u/7/password-modal", status_modal_url="/u/7/status-modal", delete_modal_url="/u/7/delete-modal"))
+        html = str(
+            user_row_actions(
+                make_user(is_active=False),
+                edit_url="/u/7/edit",
+                password_modal_url="/u/7/password-modal",
+                status_modal_url="/u/7/status-modal",
+                delete_modal_url="/u/7/delete-modal",
+            )
+        )
         self.assertIn('<span class="sr-only">User actions</span>', html)
         self.assertIn('href="/u/7/edit"', html)
         self.assertIn('data-om-modal-target="#user-password-modal" data-om-modal-url="/u/7/password-modal"', html)

@@ -80,11 +80,7 @@ _UTILITY_PREFIXES = (
 
 
 def _literal_strings(node: ast.AST) -> list[str]:
-    return [
-        child.value
-        for child in ast.walk(node)
-        if isinstance(child, ast.Constant) and isinstance(child.value, str)
-    ]
+    return [child.value for child in ast.walk(node) if isinstance(child, ast.Constant) and isinstance(child.value, str)]
 
 
 def _target_mentions_class(target: ast.AST) -> bool:
@@ -128,11 +124,7 @@ def is_tailwind_utility(token: str) -> bool:
     if not token or any(character in token for character in "{}%<>=|\"'"):
         return False
     base = _base_utility(token).removeprefix("-")
-    return (
-        base in _EXACT_UTILITIES
-        or base.startswith(_UTILITY_PREFIXES)
-        or _SPACING_UTILITY.fullmatch(base) is not None
-    )
+    return base in _EXACT_UTILITIES or base.startswith(_UTILITY_PREFIXES) or _SPACING_UTILITY.fullmatch(base) is not None
 
 
 def tailwind_utilities_for_roots(root: Path, relative_roots: tuple[Path, ...]) -> tuple[str, ...]:

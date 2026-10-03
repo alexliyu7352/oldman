@@ -386,11 +386,7 @@ def select_options(field: Field) -> list[dict[str, object]]:
 
 def autocomplete_input_attrs(field: Field, attrs: dict[str, Any]) -> dict[str, Any]:
     """生成 autocomplete 可见输入框属性。"""
-    input_attrs = {
-        key: value
-        for key, value in attrs.items()
-        if not key.startswith("data-om-select-") and key not in {"data-om-component"}
-    }
+    input_attrs = {key: value for key, value in attrs.items() if not key.startswith("data-om-select-") and key not in {"data-om-component"}}
     input_attrs.update(
         {
             "id": field.id,

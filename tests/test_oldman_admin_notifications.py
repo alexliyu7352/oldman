@@ -215,7 +215,9 @@ class AdminNotificationRoutesTest(TestCase):
             session=FakeSession(user_id=17, is_active=True, is_staff=True),
         )
         with (
-            patch("oldman.web.messages.notifications.render_center_content", new=AsyncMock(return_value=Markup("<section>center</section>"))) as renderer,
+            patch(
+                "oldman.web.messages.notifications.render_center_content", new=AsyncMock(return_value=Markup("<section>center</section>"))
+            ) as renderer,
             patch("oldman.apps.admin.site.render_admin_template", new=AsyncMock(return_value="rendered")) as render_page,
         ):
             response = asyncio.run(handler(staff_request))  # type: ignore[operator]

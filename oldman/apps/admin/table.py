@@ -43,9 +43,7 @@ class AdminModelTable(SQLAlchemyTableView):
         query = str((getattr(request, "args", {}) or {}).get("q", "") or "").strip()
         args = getattr(request, "args", {}) or {}
         initial_filters: dict[str, object] = {
-            name: str(args.get(name, "") or "").strip()
-            for name in self._filter_fields
-            if str(args.get(name, "") or "").strip()
+            name: str(args.get(name, "") or "").strip() for name in self._filter_fields if str(args.get(name, "") or "").strip()
         }
         super().__init__(
             request,

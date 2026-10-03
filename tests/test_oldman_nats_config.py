@@ -91,13 +91,60 @@ class NATSTLSIntegrationTest(unittest.IsolatedAsyncioTestCase):
             encoding="utf-8",
         )
         commands = [
-            ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-config", "ca.conf", "-extensions", "v3_ca", "-days", "1"],
+            [
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-keyout",
+                "ca.key",
+                "-out",
+                "ca.crt",
+                "-config",
+                "ca.conf",
+                "-extensions",
+                "v3_ca",
+                "-days",
+                "1",
+            ],
         ]
         for name in ("server", "client"):
-            commands.extend([
-                ["req", "-newkey", "rsa:2048", "-nodes", "-keyout", f"{name}.key", "-out", f"{name}.csr", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost"],
-                ["x509", "-req", "-in", f"{name}.csr", "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial", "-out", f"{name}.crt", "-days", "1", "-extfile", "extensions.conf"],
-            ])
+            commands.extend(
+                [
+                    [
+                        "req",
+                        "-newkey",
+                        "rsa:2048",
+                        "-nodes",
+                        "-keyout",
+                        f"{name}.key",
+                        "-out",
+                        f"{name}.csr",
+                        "-subj",
+                        "/CN=localhost",
+                        "-addext",
+                        "subjectAltName=DNS:localhost",
+                    ],
+                    [
+                        "x509",
+                        "-req",
+                        "-in",
+                        f"{name}.csr",
+                        "-CA",
+                        "ca.crt",
+                        "-CAkey",
+                        "ca.key",
+                        "-CAcreateserial",
+                        "-out",
+                        f"{name}.crt",
+                        "-days",
+                        "1",
+                        "-extfile",
+                        "extensions.conf",
+                    ],
+                ]
+            )
         for command in commands:
             subprocess.run(["openssl", *command], cwd=cls.root, check=True, capture_output=True, timeout=15)
 
@@ -164,10 +211,15 @@ class NATSTLSIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     def config(self, **changes: Any) -> NATSConnectionConfig:
         """Construct production settings, with short waits only for this experiment."""
-        return NATSConnectionConfig.model_validate({
-            "nats_url": f"tls://localhost:{self.port}", "tls_ca_file": self.root / "ca.crt",
-            "connect_timeout": 1, "reconnect_time_wait": 0.1, **changes,
-        })
+        return NATSConnectionConfig.model_validate(
+            {
+                "nats_url": f"tls://localhost:{self.port}",
+                "tls_ca_file": self.root / "ca.crt",
+                "connect_timeout": 1,
+                "reconnect_time_wait": 0.1,
+                **changes,
+            }
+        )
 
     async def connect(self, config: NATSConnectionConfig, *, reconnect: bool = False) -> Client:
         """Use production conversion and both instance hooks before native connect."""

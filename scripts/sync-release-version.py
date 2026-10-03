@@ -162,9 +162,7 @@ def synchronize(root: Path, *, write: bool) -> list[str]:
     locked_version = editable_lock_version(root)
     expected_locked_version = python_distribution_version(version)
     if locked_version != expected_locked_version:
-        failures.append(
-            f"{root / 'uv.lock'}: expected editable oldman version {expected_locked_version}, found {locked_version}"
-        )
+        failures.append(f"{root / 'uv.lock'}: expected editable oldman version {expected_locked_version}, found {locked_version}")
     return failures
 
 

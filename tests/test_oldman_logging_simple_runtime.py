@@ -91,27 +91,15 @@ class OldmanLoggingSimpleRuntimeTest(unittest.TestCase):
                     log_dir / f"{app_name}.log.matrix",
                     log_dir / f"{app_name}_database.log",
                 )
-                diagnostics = "\n".join(
-                    f"{path.name}:\n{_read_existing(path)}"
-                    for path in diagnostic_paths
-                )
+                diagnostics = "\n".join(f"{path.name}:\n{_read_existing(path)}" for path in diagnostic_paths)
                 observed_pids = {
                     process.pid,
-                    *(
-                        int(pid)
-                        for pid in re.findall(r"(?:MATRIX_CHILD_PID:|MATRIX_BASE_TICK:.*:)(\d+)", diagnostics)
-                    ),
+                    *(int(pid) for pid in re.findall(r"(?:MATRIX_CHILD_PID:|MATRIX_BASE_TICK:.*:)(\d+)", diagnostics)),
                 }
-                remaining = sorted(
-                    pid for pid in observed_pids if Path(f"/proc/{pid}").exists()
-                )
+                remaining = sorted(pid for pid in observed_pids if Path(f"/proc/{pid}").exists())
                 os.killpg(process.pid, signal.SIGKILL)
                 stdout, stderr = process.communicate(timeout=5)
-                self.fail(
-                    "Simple fixture hung\n"
-                    f"stdout:\n{stdout}\nstderr:\n{stderr}\n"
-                    f"logs:\n{diagnostics}\nremaining_pids_before_kill:{remaining}"
-                )
+                self.fail(f"Simple fixture hung\nstdout:\n{stdout}\nstderr:\n{stderr}\nlogs:\n{diagnostics}\nremaining_pids_before_kill:{remaining}")
 
             self.assertEqual(0, process.returncode, f"stdout:\n{stdout}\nstderr:\n{stderr}")
             self.assertTrue(result_file.is_file(), f"missing result\nstdout:\n{stdout}\nstderr:\n{stderr}")
@@ -196,11 +184,7 @@ class OldmanLoggingSimpleRuntimeTest(unittest.TestCase):
             with self.subTest(matrix="C1"):
                 self.assertEqual([], payload["after_run"]["rotation_threads"])
                 self.assertEqual([], payload["after_run"]["pipe_reader_threads"])
-                remaining = {
-                    pid
-                    for pid in _owned_pids(payload, combined)
-                    if Path(f"/proc/{pid}").exists()
-                }
+                remaining = {pid for pid in _owned_pids(payload, combined) if Path(f"/proc/{pid}").exists()}
                 self.assertFalse(remaining)
 
             self.assertNotIn("\x1b[", combined + database)

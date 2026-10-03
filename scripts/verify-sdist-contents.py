@@ -363,9 +363,7 @@ def verify_sdist(
         names = {archive_relative_path(member.name) for member in members if member.isfile()}
         errors.extend(sdist_metadata_errors(archive, root, expected_source_files))
 
-    package_names = set(expected_inventory) if expected_inventory is not None else {
-        name for name in names if name.startswith("oldman/")
-    }
+    package_names = set(expected_inventory) if expected_inventory is not None else {name for name in names if name.startswith("oldman/")}
     allowed_names = package_names | set(RELEASE_SOURCE_FILES) | {"PKG-INFO"}
     errors.extend(f"Source distribution contains unexpected member: {name}" for name in sorted(names - allowed_names))
     errors.extend(f"Source distribution is missing expected member: {name}" for name in sorted(allowed_names - names))

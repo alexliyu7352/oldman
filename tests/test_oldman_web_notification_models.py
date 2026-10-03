@@ -133,10 +133,7 @@ class NotificationAppAndPayloadTest(unittest.TestCase):
                     "id",
                 ),
             },
-            {
-                index.name: tuple(column.name for column in index.columns)
-                for index in table.indexes
-            },
+            {index.name: tuple(column.name for column in index.columns) for index in table.indexes},
         )
         singular, plural = resolve_model_display_names(Notification)
         self.assertEqual("Notification", cast(LazyTranslation, singular).singular)

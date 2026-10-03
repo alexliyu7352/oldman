@@ -185,9 +185,7 @@ class ModelAdmin:
             field_name = explicit_primary_key.key
             primary_key_field = model_field_for_column(explicit_primary_key, mapper=self.mapper)
             validators = list(primary_key_field.kwargs.get("validators", []))
-            if primary_key_field.field_class is not BooleanField and not any(
-                isinstance(validator, InputRequired) for validator in validators
-            ):
+            if primary_key_field.field_class is not BooleanField and not any(isinstance(validator, InputRequired) for validator in validators):
                 primary_key_field.kwargs["validators"] = [InputRequired(), *validators]
             attributes[field_name] = primary_key_field
 
@@ -584,11 +582,7 @@ def is_text_column(column: Column[Any]) -> bool:
 def encode_admin_path_segment(value: Any) -> str:
     """Percent-encode one primary-key path segment, including a literal slash."""
     raw_value = str(value)
-    if isinstance(value, str) and (
-        raw_value in {".", ".."}
-        or "%" in raw_value
-        or raw_value.startswith(ENCODED_STRING_KEY_PREFIX)
-    ):
+    if isinstance(value, str) and (raw_value in {".", ".."} or "%" in raw_value or raw_value.startswith(ENCODED_STRING_KEY_PREFIX)):
         encoded = base64.urlsafe_b64encode(raw_value.encode("utf-8")).decode("ascii").rstrip("=")
         return f"{ENCODED_STRING_KEY_PREFIX}{encoded}"
     return quote(raw_value, safe="")

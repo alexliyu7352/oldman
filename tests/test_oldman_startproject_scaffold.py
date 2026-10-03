@@ -29,14 +29,7 @@ from oldman.version import __VERSION__
 from tests.tui_support import without_preset_answers
 
 ROOT = Path(__file__).resolve().parents[1]
-I18N_CLI = (
-    ROOT
-    / "frontend"
-    / "packages"
-    / "oldman-web"
-    / "bin"
-    / "oldman-web-i18n.mjs"
-)
+I18N_CLI = ROOT / "frontend" / "packages" / "oldman-web" / "bin" / "oldman-web-i18n.mjs"
 PROJECT_DATABASES = {
     ProjectType.CLI: (),
     ProjectType.SERVICE: tuple(DatabaseChoice),
@@ -77,11 +70,7 @@ def cli_env() -> dict[str, str]:
     """Return a subprocess environment that imports the working framework."""
     environment = os.environ.copy()
     python_path = environment.get("PYTHONPATH")
-    environment["PYTHONPATH"] = (
-        str(ROOT)
-        if not python_path
-        else f"{ROOT}{os.pathsep}{python_path}"
-    )
+    environment["PYTHONPATH"] = str(ROOT) if not python_path else f"{ROOT}{os.pathsep}{python_path}"
     environment["OLDMAN_CLI_LANGUAGE"] = "en"
     environment["XDG_CONFIG_HOME"] = str(ROOT / ".test-cli-config")
     return environment
@@ -136,11 +125,7 @@ class StartProjectInteractionTests(unittest.TestCase):
                         project_type=project_type,
                         database=database,
                     ):
-                        name = (
-                            f"{project_type.value}_{database.value}"
-                            if database is not None
-                            else project_type.value
-                        )
+                        name = f"{project_type.value}_{database.value}" if database is not None else project_type.value
                         result = invoke_startproject(
                             parent,
                             name,
@@ -270,8 +255,11 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     )
                     output = target / "messages.pot"
                     _extract_catalog(
-                        config="babel.cfg", output=output, source=".",
-                        keywords=KEYWORDS, cwd=target,
+                        config="babel.cfg",
+                        output=output,
+                        source=".",
+                        keywords=KEYWORDS,
+                        cwd=target,
                     )
                     with output.open("rb") as stream:
                         self.assertIn("Scaffold form", read_po(stream))
@@ -283,20 +271,14 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
             for project_type in ProjectType:
-                database = (
-                    DatabaseChoice.SQLITE
-                    if project_type != ProjectType.CLI
-                    else DatabaseChoice.NONE
-                )
+                database = DatabaseChoice.SQLITE if project_type != ProjectType.CLI else DatabaseChoice.NONE
                 with working_directory(parent):
                     target = start_project(
                         project_type.value,
                         project_type=project_type,
                         db=database,
                     )
-                metadata = tomllib.loads(
-                    (target / "pyproject.toml").read_text(encoding="utf-8")
-                )
+                metadata = tomllib.loads((target / "pyproject.toml").read_text(encoding="utf-8"))
                 project_id = UUID(metadata["tool"]["oldman"]["project_id"])
                 identities.add(project_id)
                 self.assertIs(metadata["tool"]["uv"]["package"], False)
@@ -319,15 +301,9 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                         db=DatabaseChoice.SQLITE,
                     )
 
-                schema = (target / "config" / "schemas.py").read_text(
-                    encoding="utf-8"
-                )
-                settings = (target / "config" / "settings.py").read_text(
-                    encoding="utf-8"
-                )
-                service = (
-                    target / "services" / f"{service_name}.py"
-                ).read_text(encoding="utf-8")
+                schema = (target / "config" / "schemas.py").read_text(encoding="utf-8")
+                settings = (target / "config" / "settings.py").read_text(encoding="utf-8")
+                service = (target / "services" / f"{service_name}.py").read_text(encoding="utf-8")
                 run_script = target / "run.sh"
 
                 self.assertIn("class Settings(DefaultSettings):", schema)
@@ -369,33 +345,24 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
 
                 seed_path = target / "data" / "api_settings.yaml"
                 seed = read_yaml(seed_path)
-                metadata = tomllib.loads(
-                    (target / "pyproject.toml").read_text(encoding="utf-8")
-                )
+                metadata = tomllib.loads((target / "pyproject.toml").read_text(encoding="utf-8"))
                 dependencies = metadata["project"]["dependencies"]
                 self.assertEqual(seed, {"apps": [], "database": {"url": url}})
                 self.assertEqual(stat.S_IMODE(seed_path.stat().st_mode), 0o600)
                 driver = expected_drivers[database]
                 self.assertEqual(
-                    any(
-                        dependency.startswith(("aiomysql", "asyncpg"))
-                        for dependency in dependencies
-                    ),
+                    any(dependency.startswith(("aiomysql", "asyncpg")) for dependency in dependencies),
                     driver is not None,
                 )
                 if driver is not None:
-                    self.assertTrue(
-                        any(item.startswith(driver) for item in dependencies)
-                    )
+                    self.assertTrue(any(item.startswith(driver) for item in dependencies))
 
             dashboard = start_project(
                 str(parent / "dashboard"),
                 project_type=ProjectType.DASHBOARD,
                 db=DatabaseChoice.SQLITE,
             )
-            dashboard_seed = read_yaml(
-                dashboard / "data" / "dashboard_settings.yaml"
-            )
+            dashboard_seed = read_yaml(dashboard / "data" / "dashboard_settings.yaml")
             self.assertEqual(
                 dashboard_seed["apps"],
                 ["oldman.auth", "oldman.apps.admin"],
@@ -419,9 +386,12 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         """The settings refactor does not replace the established dashboard assets."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
-            with working_directory(parent), patch(
-                "oldman.cli.scaffold.FRAMEWORK_VERSION",
-                "9.8.7",
+            with (
+                working_directory(parent),
+                patch(
+                    "oldman.cli.scaffold.FRAMEWORK_VERSION",
+                    "9.8.7",
+                ),
             ):
                 target = start_project(
                     "control_desk",
@@ -430,19 +400,11 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 )
 
             pyproject = (target / "pyproject.toml").read_text(encoding="utf-8")
-            frontend = (target / "frontend" / "package.json").read_text(
-                encoding="utf-8"
-            )
+            frontend = (target / "frontend" / "package.json").read_text(encoding="utf-8")
             frontend_package = json.loads(frontend)
-            frontend_main = (
-                target / "frontend" / "src" / "main.ts"
-            ).read_text(encoding="utf-8")
-            generated_manifest = (
-                target / "frontend" / "src" / "i18n" / "generated.ts"
-            ).read_text(encoding="utf-8")
-            i18n_builder_exists = (
-                target / "scripts" / "build_frontend_i18n.py"
-            ).exists()
+            frontend_main = (target / "frontend" / "src" / "main.ts").read_text(encoding="utf-8")
+            generated_manifest = (target / "frontend" / "src" / "i18n" / "generated.ts").read_text(encoding="utf-8")
+            i18n_builder_exists = (target / "scripts" / "build_frontend_i18n.py").exists()
             template_exists = (target / "templates" / "base.html").exists()
 
         self.assertIn('"oldman>=9.8.7"', pyproject)
@@ -465,9 +427,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         self.assertIn('export const languagePreferencePath = "/preferences/language";', generated_manifest)
         self.assertIn('catalogPath: "i18n/en.json",', generated_manifest)
         self.assertTrue(template_exists)
-        root_metadata = tomllib.loads(
-            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        )
+        root_metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(__VERSION__, root_metadata["project"]["version"])
 
     def test_dashboard_builds_filtered_catalogs_from_messages_po(self) -> None:
@@ -501,24 +461,18 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 ("en", "Loading..."),
                 ("zh_Hans", "正在加载..."),
             ):
-                po_file = (
-                    target
-                    / "locales"
-                    / locale
-                    / "LC_MESSAGES"
-                    / "messages.po"
-                )
+                po_file = target / "locales" / locale / "LC_MESSAGES" / "messages.po"
                 po_file.parent.mkdir(parents=True)
                 po_file.write_text(
-                    '\n'.join(
+                    "\n".join(
                         (
                             'msgid ""',
                             'msgstr ""',
                             f'"Language: {locale}\\n"',
-                            '',
+                            "",
                             'msgid "Loading..."',
                             f'msgstr "{translation}"',
-                            '',
+                            "",
                             'msgid "Backend only"',
                             'msgstr "Not for browsers"',
                         )
@@ -526,28 +480,16 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     encoding="utf-8",
                 )
 
-            package_bin = (
-                target
-                / "frontend"
-                / "node_modules"
-                / "oldman-web"
-                / "bin"
-            )
+            package_bin = target / "frontend" / "node_modules" / "oldman-web" / "bin"
             package_bin.mkdir(parents=True)
             (package_bin / "oldman-web-i18n.mjs").symlink_to(I18N_CLI)
             # 生成的项目用 `oldman i18n compile-frontend` 构建，这里直接调它的实现。
             build_frontend_catalogs(project_root=target, service="dashboard")
 
             output = target / "frontend" / "public" / "i18n"
-            manifest = (
-                target / "frontend" / "src" / "i18n" / "generated.ts"
-            ).read_text(encoding="utf-8")
-            english = json.loads(
-                (output / "en.json").read_text(encoding="utf-8")
-            )
-            chinese = json.loads(
-                (output / "zh-hans.json").read_text(encoding="utf-8")
-            )
+            manifest = (target / "frontend" / "src" / "i18n" / "generated.ts").read_text(encoding="utf-8")
+            english = json.loads((output / "en.json").read_text(encoding="utf-8"))
+            chinese = json.loads((output / "zh-hans.json").read_text(encoding="utf-8"))
             published = sorted(item.name for item in output.iterdir())
 
         self.assertIn('export const defaultLanguage = "en";', manifest)

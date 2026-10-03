@@ -300,9 +300,7 @@ class FoundationIntegrationsTest(unittest.TestCase):
             failing_client = FakeRateClient()
             failing_client.conn.incr = AsyncMock(side_effect=RuntimeError("redis failed"))
             with self.assertRaisesRegex(RuntimeError, "redis failed"):
-                await RedisFixedWindowRateLimiter(failing_client).is_rate_limited(
-                    "user", "/api/users", limit=1, period=60
-                )
+                await RedisFixedWindowRateLimiter(failing_client).is_rate_limited("user", "/api/users", limit=1, period=60)
 
             with self.assertRaisesRegex(ValueError, "period"):
                 await limiter.is_rate_limited(7, "/api", limit=1, period=0)

@@ -154,8 +154,7 @@ def register_database_commands(
             gettext(
                 "Remove %(package)s from: %(files)s",
                 package=result.package,
-                files=", ".join(str(path) for path in result.service_config_files)
-                or "the project migration App list",
+                files=", ".join(str(path) for path in result.service_config_files) or "the project migration App list",
             )
         )
 
@@ -210,13 +209,9 @@ def register_database_commands(
             for revision in app_history.revisions:
                 relationships = []
                 if revision.down_revisions:
-                    relationships.append(
-                        "down=" + ",".join(revision.down_revisions)
-                    )
+                    relationships.append("down=" + ",".join(revision.down_revisions))
                 if revision.dependencies:
-                    relationships.append(
-                        "depends=" + ",".join(revision.dependencies)
-                    )
+                    relationships.append("depends=" + ",".join(revision.dependencies))
                 suffix = f" ({'; '.join(relationships)})" if relationships else ""
                 message = f" - {revision.message}" if revision.message else ""
                 typer.echo(f"  {revision.revision}{suffix}{message}")

@@ -32,10 +32,7 @@ def sha256_bytes(value: bytes) -> str:
 
 def inventory_digest(files: dict[str, str]) -> str:
     """Hash a path-and-content inventory without depending on JSON whitespace."""
-    encoded = b"".join(
-        path.encode("utf-8") + b"\0" + digest.encode("ascii") + b"\n"
-        for path, digest in sorted(files.items())
-    )
+    encoded = b"".join(path.encode("utf-8") + b"\0" + digest.encode("ascii") + b"\n" for path, digest in sorted(files.items()))
     return sha256_bytes(encoded)
 
 
@@ -166,13 +163,9 @@ def compare_package_inventories(
     actual_label: str,
 ) -> list[str]:
     """Return complete file-set and content differences."""
-    errors = [
-        f"{actual_label} is missing {expected_label} package file: {path}"
-        for path in sorted(expected.keys() - actual.keys())
-    ]
+    errors = [f"{actual_label} is missing {expected_label} package file: {path}" for path in sorted(expected.keys() - actual.keys())]
     errors.extend(
-        f"{actual_label} contains unexpected package file absent from {expected_label}: {path}"
-        for path in sorted(actual.keys() - expected.keys())
+        f"{actual_label} contains unexpected package file absent from {expected_label}: {path}" for path in sorted(actual.keys() - expected.keys())
     )
     errors.extend(
         f"{actual_label} package content differs from {expected_label}: {path}"

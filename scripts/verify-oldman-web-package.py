@@ -118,7 +118,7 @@ CLEAN_CONSUMER_COMMANDS = (
     ("pnpm", "exec", "vite", "build"),
 )
 
-CLEAN_CONSUMER_SOURCE = '''import "./app.css";
+CLEAN_CONSUMER_SOURCE = """import "./app.css";
 import { createDashboardCrudComponentLoaders, DashboardPage, DashboardTopbar } from "oldman-web/dashboard";
 import { DashboardFeedback } from "oldman-web/dashboard/feedback";
 import { DashboardModal } from "oldman-web/dashboard/modal";
@@ -150,7 +150,7 @@ console.info(
   Table,
   Select
 );
-'''
+"""
 
 CLEAN_CONSUMER_TSCONFIG: dict[str, object] = {
     "compilerOptions": {
@@ -214,7 +214,7 @@ def clean_consumer_contract_errors(
         errors.append("Clean consumer tsconfig must not extend a workspace configuration")
 
     required_source_fragments = (
-        'new DashboardPage({',
+        "new DashboardPage({",
         "backToTopOptions: {",
         'buttonSelector: "[data-consumer-back-to-top]"',
         "sidebarOptions: {",
@@ -232,6 +232,7 @@ def clean_consumer_contract_errors(
     if normalized_commands != CLEAN_CONSUMER_COMMANDS:
         errors.append("Clean consumer commands must install, run explicit tsc --noEmit, then build with Vite")
     return errors
+
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -494,11 +495,7 @@ def load_package_json() -> dict[str, Any]:
 
 def iter_workspace_package_jsons(root: Path = ROOT) -> list[Path]:
     """Return frontend workspace package manifests."""
-    return sorted(
-        path
-        for path in (root / "frontend").rglob("package.json")
-        if "node_modules" not in path.parts and "dist" not in path.parts
-    )
+    return sorted(path for path in (root / "frontend").rglob("package.json") if "node_modules" not in path.parts and "dist" not in path.parts)
 
 
 def export_targets(export_value: Any) -> list[str]:
@@ -532,10 +529,7 @@ def tailwind_inventory_errors(
     actual = inventory_utilities(css)
     expected_set = set(expected)
     actual_set = set(actual)
-    return [
-        f"{label} is missing framework Tailwind utility: {utility}"
-        for utility in sorted(expected_set - actual_set)
-    ]
+    return [f"{label} is missing framework Tailwind utility: {utility}" for utility in sorted(expected_set - actual_set)]
 
 
 def verify_static_package(
@@ -593,10 +587,7 @@ def verify_static_package(
         if export_name not in exports:
             errors.append(f"Missing component export: {export_name}")
 
-    package_source = "\n".join(
-        path.read_text(encoding="utf-8", errors="ignore")
-        for path in (package_root / "src").rglob("*.ts")
-    )
+    package_source = "\n".join(path.read_text(encoding="utf-8", errors="ignore") for path in (package_root / "src").rglob("*.ts"))
     for token in FORBIDDEN_SOURCE_TOKENS:
         if token in package_source:
             errors.append(f"oldman-web source contains forbidden business token: {token}")
@@ -651,10 +642,7 @@ def expected_pack_files(
     if not isinstance(declared, list) or not all(isinstance(value, str) for value in declared):
         raise RuntimeError("oldman-web package.json files must be an explicit string list")
     if tuple(declared) != PACK_FILE_ENTRIES:
-        raise RuntimeError(
-            "oldman-web package.json files must equal the verifier-owned publish roots: "
-            f"{list(PACK_FILE_ENTRIES)!r}"
-        )
+        raise RuntimeError(f"oldman-web package.json files must equal the verifier-owned publish roots: {list(PACK_FILE_ENTRIES)!r}")
 
     expected: dict[str, Path] = {}
     for value in PACK_FILE_ENTRIES:
@@ -692,10 +680,7 @@ def snapshot_expected_pack_files(
     package_root: Path = PACKAGE_ROOT,
 ) -> dict[str, bytes]:
     """Freeze the independently rebuilt publish tree before reading the selected tarball."""
-    return {
-        name: source.read_bytes()
-        for name, source in expected_pack_files(package_json, package_root=package_root).items()
-    }
+    return {name: source.read_bytes() for name, source in expected_pack_files(package_json, package_root=package_root).items()}
 
 
 def expected_pnpm_packed_package_json(package_json: Mapping[str, object]) -> bytes:
@@ -703,9 +688,7 @@ def expected_pnpm_packed_package_json(package_json: Mapping[str, object]) -> byt
     packed = dict(package_json)
     scripts = packed.pop("scripts", None)
     if scripts is not None:
-        if not isinstance(scripts, dict) or not all(
-            isinstance(name, str) and isinstance(command, str) for name, command in scripts.items()
-        ):
+        if not isinstance(scripts, dict) or not all(isinstance(name, str) and isinstance(command, str) for name, command in scripts.items()):
             raise RuntimeError("oldman-web package scripts must be a string mapping")
         packed["scripts"] = {name: command for name, command in scripts.items() if name != "prepack"}
     return json.dumps(packed, ensure_ascii=False, indent=2).encode("utf-8")
@@ -768,11 +751,7 @@ def verify_pack_artifact(
     if not isinstance(declared, list) or tuple(declared) != PACK_FILE_ENTRIES:
         return ["Frozen oldman-web package.json files do not match the verifier-owned publish roots"]
     allowed_exact = {"package/LICENSE", "package/README.md", "package/package.json"}
-    unexpected_snapshot = [
-        name
-        for name in expected_payloads
-        if name not in allowed_exact and not name.startswith(("package/bin/", "package/dist/"))
-    ]
+    unexpected_snapshot = [name for name in expected_payloads if name not in allowed_exact and not name.startswith(("package/bin/", "package/dist/"))]
     if unexpected_snapshot:
         return [f"Frozen oldman-web publish snapshot escaped the verifier-owned roots: {unexpected_snapshot}"]
 
@@ -970,9 +949,7 @@ def verify_clean_consumer_build(
         built_css = "\n".join(path.read_text(encoding="utf-8") for path in (root / "dist" / "assets").glob("*.css"))
         published_stylesheet = root / "node_modules" / "oldman-web" / "dist" / "styles" / "tailwind.css"
         published_inline_utilities = (
-            declared_inline_utilities(published_stylesheet.read_text(encoding="utf-8"))
-            if published_stylesheet.is_file()
-            else ()
+            declared_inline_utilities(published_stylesheet.read_text(encoding="utf-8")) if published_stylesheet.is_file() else ()
         )
         built_font_names = {path.name for path in (root / "dist" / "assets").glob("*.woff2")}
         # 样式表自己定义的选择器：它们不依赖扫描，缺了就是打包漏了组件样式或 base 层。
@@ -1006,11 +983,7 @@ def verify_clean_consumer_build(
         )
         errors.extend(
             f"Clean Dashboard consumer CSS is missing framework-emitted utility selector: {utility}"
-            for utility in (
-                framework_tailwind_utilities(ROOT)
-                if expected_tailwind_utilities is None
-                else expected_tailwind_utilities
-            )
+            for utility in (framework_tailwind_utilities(ROOT) if expected_tailwind_utilities is None else expected_tailwind_utilities)
             if css_class_selector(utility) not in built_css
         )
         errors.extend(
@@ -1134,15 +1107,9 @@ def rebuild_pack_snapshot(
             raise RuntimeError(f"Frozen npm pack did not create its exact artifact: {independent_pack}")
         with tarfile.open(independent_pack, "r:gz") as archive:
             members = archive.getmembers()
-            if len({member.name for member in members}) != len(members) or any(
-                member.type != tarfile.REGTYPE for member in members
-            ):
+            if len({member.name for member in members}) != len(members) or any(member.type != tarfile.REGTYPE for member in members):
                 raise RuntimeError("Frozen npm pack contains duplicate or non-regular members")
-            payloads = {
-                member.name: extracted.read()
-                for member in members
-                if (extracted := archive.extractfile(member)) is not None
-            }
+            payloads = {member.name: extracted.read() for member in members if (extracted := archive.extractfile(member)) is not None}
         if set(payloads) != set(source_payloads):
             raise RuntimeError("Frozen npm pack member set differs from its rebuilt publish source tree")
         for name, payload in source_payloads.items():
@@ -1179,9 +1146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "startedAt": started_at,
             },
         )
-        expected_payloads, source_inventory, frozen_package_json, static_errors, expected_tailwind = (
-            rebuild_pack_snapshot(evidence_dir)
-        )
+        expected_payloads, source_inventory, frozen_package_json, static_errors, expected_tailwind = rebuild_pack_snapshot(evidence_dir)
         write_json(evidence_dir / "source-inventory.json", source_inventory)
         errors = static_errors + verify_pack_artifact(
             npm_tarball,

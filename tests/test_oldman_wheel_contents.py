@@ -78,9 +78,7 @@ def write_closed_wheel(
     files: dict[str, bytes] = {
         "oldman/__init__.py": b"fixture\n",
         "oldman/py.typed": b"",
-        f"{module.ADMIN_STATIC_PREFIX}.vite/manifest.json": json.dumps(
-            manifest
-        ).encode(),
+        f"{module.ADMIN_STATIC_PREFIX}.vite/manifest.json": json.dumps(manifest).encode(),
         f"{module.ADMIN_STATIC_PREFIX}assets/main.js": b"export {};\n",
     }
     for name in module.REQUIRED_FILES:
@@ -90,15 +88,11 @@ def write_closed_wheel(
     source_files = module.release_source_files(ROOT)
     project = module.project_table(source_files)
     dist_info = f"{project['name']}-{python_distribution_version(project['version'])}.dist-info"
-    entry_points = "[console_scripts]\n" + "".join(
-        f"{name} = {target}\n" for name, target in project["scripts"].items()
-    )
+    entry_points = "[console_scripts]\n" + "".join(f"{name} = {target}\n" for name, target in project["scripts"].items())
     files.update(
         {
             f"{dist_info}/METADATA": core_metadata_fixture(source_files),
-            f"{dist_info}/WHEEL": (
-                b"Wheel-Version: 1.0\nGenerator: hatchling 1.31.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
-            ),
+            f"{dist_info}/WHEEL": (b"Wheel-Version: 1.0\nGenerator: hatchling 1.31.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"),
             f"{dist_info}/entry_points.txt": entry_points.encode(),
             f"{dist_info}/licenses/LICENSE": source_files["LICENSE"],
         }
@@ -137,11 +131,7 @@ def write_closed_wheel(
             info.create_system = 3
             info.external_attr = (stat.S_IFLNK | 0o777) << 16
             archive.writestr(info, b"target")
-    return {
-        name: hashlib.sha256(payload).hexdigest()
-        for name, payload in files.items()
-        if name.startswith("oldman/")
-    }
+    return {name: hashlib.sha256(payload).hexdigest() for name, payload in files.items() if name.startswith("oldman/")}
 
 
 def rewrite_real_wheel_with_valid_record(source: Path, target: Path) -> None:
@@ -179,93 +169,33 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
         required_paths = [
             ROOT / "oldman" / "web" / "templates" / "oldman" / "forms" / "default",
             ROOT / "oldman" / "apps" / "admin" / "templates",
-            ROOT
-            / "oldman"
-            / "apps"
-            / "admin"
-            / "static"
-            / "oldman"
-            / "admin"
-            / ".vite"
-            / "manifest.json",
+            ROOT / "oldman" / "apps" / "admin" / "static" / "oldman" / "admin" / ".vite" / "manifest.json",
             ROOT / "oldman" / "scaffolds" / "project" / "dashboard",
             ROOT / "oldman" / "scaffolds" / "app" / "dashboard_app",
             ROOT / "oldman" / "auth" / "migrations" / "__init__.py",
-            ROOT
-            / "oldman"
-            / "web"
-            / "messages"
-            / "notifications"
-            / "locales"
-            / "messages.pot",
-            ROOT
-            / "oldman"
-            / "web"
-            / "messages"
-            / "notifications"
-            / "locales"
-            / "zh_Hans"
-            / "LC_MESSAGES"
-            / "messages.mo",
-            ROOT
-            / "oldman"
-            / "web"
-            / "messages"
-            / "notifications"
-            / "locales"
-            / "zh_Hant"
-            / "LC_MESSAGES"
-            / "messages.mo",
-            ROOT
-            / "oldman"
-            / "web"
-            / "templates"
-            / "oldman"
-            / "messages"
-            / "notifications"
-            / "center_content.html",
-            ROOT
-            / "oldman"
-            / "web"
-            / "templates"
-            / "oldman"
-            / "messages"
-            / "notifications"
-            / "topbar_fragment.html",
+            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "messages.pot",
+            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "zh_Hans" / "LC_MESSAGES" / "messages.mo",
+            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "zh_Hant" / "LC_MESSAGES" / "messages.mo",
+            ROOT / "oldman" / "web" / "templates" / "oldman" / "messages" / "notifications" / "center_content.html",
+            ROOT / "oldman" / "web" / "templates" / "oldman" / "messages" / "notifications" / "topbar_fragment.html",
         ]
 
         for path in required_paths:
             self.assertTrue(path.exists(), path)
         self.assertTrue((ROOT / "oldman" / "db" / "migrations" / "templates" / "env.py").is_file())
         self.assertTrue((ROOT / "oldman" / "db" / "migrations" / "templates" / "script.py.mako").is_file())
-        auth_revisions = tuple(
-            path
-            for path in (ROOT / "oldman" / "auth" / "migrations").glob("*.py")
-            if path.name != "__init__.py"
-        )
+        auth_revisions = tuple(path for path in (ROOT / "oldman" / "auth" / "migrations").glob("*.py") if path.name != "__init__.py")
         self.assertEqual(len(auth_revisions), 1)
         self.assertFalse((ROOT / "oldman" / "dashboard").exists())
         self.assertFalse((ROOT / "frontend" / "scaffolds").exists())
 
     def test_admin_manifest_references_packaged_files(self) -> None:
         """Admin manifest references must point to existing static files."""
-        static_dir = (
-            ROOT
-            / "oldman"
-            / "apps"
-            / "admin"
-            / "static"
-            / "oldman"
-            / "admin"
-        )
+        static_dir = ROOT / "oldman" / "apps" / "admin" / "static" / "oldman" / "admin"
         manifest = json.loads((static_dir / ".vite" / "manifest.json").read_text(encoding="utf-8"))
 
         self.assertIn("src/main.ts", manifest)
-        dynamic_entries = {
-            entry.get("name")
-            for entry in manifest.values()
-            if isinstance(entry, dict) and entry.get("isDynamicEntry") is True
-        }
+        dynamic_entries = {entry.get("name") for entry in manifest.values() if isinstance(entry, dict) and entry.get("isDynamicEntry") is True}
         self.assertTrue({"date-time-picker", "dropdown", "table-filter-form"}.issubset(dynamic_entries))
         for entry in manifest.values():
             if not isinstance(entry, dict):
@@ -279,15 +209,7 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
     def test_admin_static_filenames_are_neutral(self) -> None:
         """Admin packaged asset filenames must not contain demo or business tokens."""
         forbidden = ("epg", "channels", "catalog", "logo", "match-decisions", "component-coverage")
-        static_root = (
-            ROOT
-            / "oldman"
-            / "apps"
-            / "admin"
-            / "static"
-            / "oldman"
-            / "admin"
-        )
+        static_root = ROOT / "oldman" / "apps" / "admin" / "static" / "oldman" / "admin"
         for path in static_root.rglob("*"):
             if path.is_file():
                 lower = path.relative_to(static_root).as_posix().lower()
@@ -418,10 +340,7 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
     def test_wheel_rejects_notification_translation_sources(self) -> None:
         """Wheels carry compiled catalogs but not editable PO/POT sources."""
         module = load_verify_wheel_module()
-        source_name = (
-            "oldman/web/messages/notifications/locales/"
-            "zh_Hans/LC_MESSAGES/messages.po"
-        )
+        source_name = "oldman/web/messages/notifications/locales/zh_Hans/LC_MESSAGES/messages.po"
         with tempfile.TemporaryDirectory() as tmp:
             wheel = Path(tmp) / "oldman.whl"
             expected = write_closed_wheel(
@@ -490,21 +409,11 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
                 "oldman/web/messages/notifications/locales/zh_Hant/LC_MESSAGES/messages.mo",
                 names,
             )
-            self.assertFalse(
-                any(
-                    name.startswith(
-                        "oldman/web/messages/notifications/locales/"
-                    )
-                    and name.endswith((".po", ".pot"))
-                    for name in names
-                )
-            )
+            self.assertFalse(any(name.startswith("oldman/web/messages/notifications/locales/") and name.endswith((".po", ".pot")) for name in names))
             auth_revisions = {
                 name
                 for name in names
-                if name.startswith("oldman/auth/migrations/")
-                and name.endswith(".py")
-                and name != "oldman/auth/migrations/__init__.py"
+                if name.startswith("oldman/auth/migrations/") and name.endswith(".py") and name != "oldman/auth/migrations/__init__.py"
             }
             self.assertEqual(len(auth_revisions), 1)
 

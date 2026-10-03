@@ -118,7 +118,12 @@ class ConsoleMigrationInteractionTest(unittest.TestCase):
         interaction = ConsoleMigrationInteraction()
         for typed in ("1", "首次使用", "first use"):
             shown = TerminalStream()
-            with self.subTest(typed=typed), use_cli_language("zh-Hans"), patch.object(sys, "stdin", TerminalStream(typed + "\n")), redirect_stdout(shown):
+            with (
+                self.subTest(typed=typed),
+                use_cli_language("zh-Hans"),
+                patch.object(sys, "stdin", TerminalStream(typed + "\n")),
+                redirect_stdout(shown),
+            ):
                 self.assertEqual("first use", interaction.choose("?", ("first use", "state lost", "auth", "cancel")))
             self.assertIn("1. 首次使用", shown.getvalue())
             self.assertIn("2. 状态丢失", shown.getvalue())

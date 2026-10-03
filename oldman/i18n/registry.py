@@ -58,39 +58,23 @@ class LanguageDefinition:
         canonical_code = canonical_language_code(code)
         profile = BUILTIN_LANGUAGE_PROFILES.get(canonical_code, {})
 
-        raw_aliases = (
-            _config_value(config, "aliases", ())
-            if _has_config_override(config, "aliases")
-            else profile.get("aliases", ())
-        )
+        raw_aliases = _config_value(config, "aliases", ()) if _has_config_override(config, "aliases") else profile.get("aliases", ())
         if isinstance(raw_aliases, str) or not isinstance(raw_aliases, (list, tuple)):
             raise TypeError(f"i18n.languages.{canonical_code}.aliases must be a list")
         if not all(isinstance(alias, str) for alias in raw_aliases):
-            raise TypeError(
-                f"i18n.languages.{canonical_code}.aliases must contain strings"
-            )
+            raise TypeError(f"i18n.languages.{canonical_code}.aliases must contain strings")
         aliases = tuple(canonical_language_code(alias) for alias in raw_aliases)
         if len(aliases) != len(set(aliases)):
-            raise ValueError(
-                f"i18n.languages.{canonical_code}.aliases contains duplicates"
-            )
+            raise ValueError(f"i18n.languages.{canonical_code}.aliases contains duplicates")
 
-        configured_name = (
-            _config_value(config, "name", "")
-            if _has_config_override(config, "name")
-            else profile.get("name", "")
-        )
+        configured_name = _config_value(config, "name", "") if _has_config_override(config, "name") else profile.get("name", "")
         if not isinstance(configured_name, str):
             raise TypeError(f"i18n.languages.{canonical_code}.name must be a string")
         name = (configured_name or language_display_name(canonical_code)).strip()
         if not name:
             raise ValueError(f"i18n.languages.{canonical_code}.name must not be blank")
 
-        configured_flag = (
-            _config_value(config, "flag", "")
-            if _has_config_override(config, "flag")
-            else profile.get("flag", "")
-        )
+        configured_flag = _config_value(config, "flag", "") if _has_config_override(config, "flag") else profile.get("flag", "")
         if not isinstance(configured_flag, str):
             raise TypeError(f"i18n.languages.{canonical_code}.flag must be a string")
 
@@ -119,13 +103,9 @@ class LanguageRegistry:
         for definition in self._definitions.values():
             for candidate in (definition.code, *definition.aliases):
                 if candidate != definition.code and candidate in self._definitions:
-                    raise ValueError(
-                        f"language alias {candidate!r} conflicts with a canonical language code"
-                    )
+                    raise ValueError(f"language alias {candidate!r} conflicts with a canonical language code")
                 if candidate == definition.code and candidate in definition.aliases:
-                    raise ValueError(
-                        f"language alias {candidate!r} duplicates its canonical language code"
-                    )
+                    raise ValueError(f"language alias {candidate!r} duplicates its canonical language code")
                 for variant in language_code_variants(candidate):
                     current = self._aliases.get(variant)
                     if current is not None and current != definition.code:

@@ -34,8 +34,7 @@ class OptionalResultBackend(RedisAsyncResultBackend[Any]):
         super().__init__(redis_url, **options)
         self._redis_url = redis_url
         self._pool_options = {
-            key: value for key, value in options.items()
-            if key not in {"serializer", "prefix_str", "result_ex_time", "keep_results"}
+            key: value for key, value in options.items() if key not in {"serializer", "prefix_str", "result_ex_time", "keep_results"}
         }
         self._pool_options["max_connections"] = self._pool_options.pop("max_connection_pool_size")
         self.closed = False

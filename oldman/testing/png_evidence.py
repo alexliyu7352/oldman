@@ -67,9 +67,7 @@ def require_png(path: Path, *, min_width: int = 300, min_height: int = 200) -> P
     ihdr = chunks[0][1]
     if len(ihdr) != 13:
         raise PngEvidenceError(f"PNG evidence has an invalid IHDR: {path}")
-    width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(
-        ">IIBBBBB", ihdr
-    )
+    width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(">IIBBBBB", ihdr)
     if width < min_width or height < min_height or width > 10_000 or height > 10_000:
         raise PngEvidenceError(f"PNG evidence dimensions are outside the browser contract: {width}x{height}: {path}")
     if color_type not in CHANNELS or bit_depth not in BIT_DEPTHS[color_type]:

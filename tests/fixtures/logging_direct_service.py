@@ -23,11 +23,7 @@ from oldman.tasks.worker import BaseWorker
 
 def rotation_thread_names() -> list[str]:
     """Return Oldman coordinator threads visible in the current process."""
-    return sorted(
-        thread.name
-        for thread in threading.enumerate()
-        if thread.name == "oldman-log-rotation"
-    )
+    return sorted(thread.name for thread in threading.enumerate() if thread.name == "oldman-log-rotation")
 
 
 def matrix_runtime_probe() -> dict[str, Any]:

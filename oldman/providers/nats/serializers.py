@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 # 共用 DI Serializer — dict → handler 类型参数注入
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class _StructDISerializer(Serializer):
     """
     基于 msgspec.convert() 的 DI 参数注入序列化器。
@@ -115,6 +116,7 @@ class _StructDISerializer(Serializer):
 # 模式一：JSON（msgspec.json，替代 stdlib json，兼容性最好）
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class MsgspecJsonNatsSerializer(SerializerProto):
     """
     用 MsgspecModel 内置 JSON 编码器完成序列化，消除 stdlib json 中间层。
@@ -156,6 +158,7 @@ async def msgspec_json_decoder(msg: StreamMessage[Any]) -> Any:
 # ─────────────────────────────────────────────────────────────────────────────
 # 模式二：Msgpack（纯二进制，Python-to-Python 内部服务最优选）
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class MsgpackNatsSerializer(SerializerProto):
     """

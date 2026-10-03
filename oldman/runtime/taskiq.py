@@ -112,15 +112,27 @@ class TaskiqWorkerApplication(_TaskiqServiceLifecycle):
 
         config = self.bootstrap_context.settings.taskiq
         native_args = WorkerArgs(
-            broker="oldman.tasks.distributed:broker", modules=[], configure_logging=False,
-            workers=config.workers, max_async_tasks=config.max_async_tasks, max_prefetch=config.max_prefetch,
-            shutdown_timeout=config.shutdown_timeout, max_fails=-1, wait_tasks_timeout=None, hardkill_count=sys.maxsize,
+            broker="oldman.tasks.distributed:broker",
+            modules=[],
+            configure_logging=False,
+            workers=config.workers,
+            max_async_tasks=config.max_async_tasks,
+            max_prefetch=config.max_prefetch,
+            shutdown_timeout=config.shutdown_timeout,
+            max_fails=-1,
+            wait_tasks_timeout=None,
+            hardkill_count=sys.maxsize,
         )
         manager = TaskiqProcessManager(
             native_args,
-            partial(_worker_entry, service=self.bootstrap_context.service_module, config_file=self.bootstrap_context.config_file,
-                    logging_context=self.logging_runtime.child_context),
-            attempts=config.startup_attempts, startup_timeout=config.startup_timeout,
+            partial(
+                _worker_entry,
+                service=self.bootstrap_context.service_module,
+                config_file=self.bootstrap_context.config_file,
+                logging_context=self.logging_runtime.child_context,
+            ),
+            attempts=config.startup_attempts,
+            startup_timeout=config.startup_timeout,
         )
         native_interrupt = signal.getsignal(signal.SIGINT)
 
@@ -207,9 +219,11 @@ class TaskiqSchedulerApplication(_TaskiqServiceLifecycle, SimpleApplication):
                     await bus._connect()
                 await scheduler.startup()
                 logger.info("Taskiq Scheduler is ready")
-                running = asyncio.create_task(scheduler.loop.run(
-                    update_interval=timedelta(seconds=broker.config.schedule_update_interval),
-                ))
+                running = asyncio.create_task(
+                    scheduler.loop.run(
+                        update_interval=timedelta(seconds=broker.config.schedule_update_interval),
+                    )
+                )
                 stopping = asyncio.create_task(self._scheduler_stop.wait())
                 await asyncio.wait((running, stopping), return_when=asyncio.FIRST_COMPLETED)
             finally:

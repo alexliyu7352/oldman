@@ -54,11 +54,11 @@ class OldmanDashboardBoundaryTest(unittest.TestCase):
     def test_dashboard_entry_uses_lazy_heavy_component_loaders(self) -> None:
         """dashboard 入口不得静态导入图表、select、日期选择等重依赖。"""
         forbidden_static_imports = (
-            "from \"apexcharts\"",
+            'from "apexcharts"',
             "from 'apexcharts'",
-            "from \"choices.js\"",
+            'from "choices.js"',
             "from 'choices.js'",
-            "from \"flatpickr\"",
+            'from "flatpickr"',
             "from 'flatpickr'",
             "import ApexCharts",
             "import Choices",
@@ -93,7 +93,6 @@ class OldmanDashboardBoundaryTest(unittest.TestCase):
             shared_base.index('include "oldman/dashboard/partials/theme_boot.html"'),
             shared_base.index('include "oldman/dashboard/partials/preloader_critical_css.html"'),
         )
-
 
     def test_shell_footer_partial_is_included_and_dated_per_render(self) -> None:
         """The footer is one overridable partial fed by a per-render year global."""

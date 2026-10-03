@@ -46,7 +46,7 @@ def _app(label: str) -> str:
 
         class Config(AppConfig):
             label = {label!r}
-            display_name = {label.replace('_', ' ').title()!r}
+            display_name = {label.replace("_", " ").title()!r}
 
         app = Config()
     """

@@ -33,6 +33,7 @@ from tests.nats_support import require_nats_server
 
 class Payload(MsgspecModel):
     """A body peer_id is business data, distinct from the injected source."""
+
     value: str
     peer_id: str = "body"
 
@@ -84,7 +85,8 @@ class NatsCloseTest(unittest.IsolatedAsyncioTestCase):
         """Start or restart only this case's server and its existing store."""
         return subprocess.Popen(
             [require_nats_server(), "-a", "127.0.0.1", "-p", str(self.port), "-js", "-sd", self.directory.name],
-            stdout=self.log, stderr=self.log,
+            stdout=self.log,
+            stderr=self.log,
         )
 
     async def stop_server(self) -> None:

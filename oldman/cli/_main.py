@@ -837,6 +837,7 @@ def create_app(
         ] = False,
     ) -> None:
         del version
+
     app.command(
         "startproject",
         help=gettext("Create an Oldman project scaffold."),
@@ -887,9 +888,7 @@ def create_app(
             from oldman.cli.service import register_application_commands
 
             if app_registry is None:
-                raise RuntimeError(
-                    "Selected service commands require its bootstrapped App Registry."
-                )
+                raise RuntimeError("Selected service commands require its bootstrapped App Registry.")
             register_application_commands(
                 service_app,
                 service_class,
@@ -1078,15 +1077,9 @@ def run(
         # directory its settings name. settings, shell, mail and static take --config; a script
         # can call bootstrap_service(..., config_file=...).
         try:
-            service_class, app_registry = load_selected_service(
-                selected_definition
-            )
+            service_class, app_registry = load_selected_service(selected_definition)
         except SettingsFileMissingError:
-            config_file = (
-                selected_definition.module_path.parent.parent
-                / "data"
-                / f"{selected_definition.module_name}_settings.yaml"
-            )
+            config_file = selected_definition.module_path.parent.parent / "data" / f"{selected_definition.module_name}_settings.yaml"
             typer.echo(
                 gettext(
                     "Error: Settings file does not exist: %(path)s. Run `oldman %(service)s settings init` first.",
@@ -1115,11 +1108,7 @@ def run(
             app = create_app(
                 language_state,
                 definitions=definitions,
-                selected_service=(
-                    selected_definition.module_name
-                    if selected_definition is not None
-                    else None
-                ),
+                selected_service=(selected_definition.module_name if selected_definition is not None else None),
                 service_class=service_class,
                 app_registry=app_registry,
             )

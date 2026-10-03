@@ -118,9 +118,7 @@ class StartAppScaffoldTests(unittest.TestCase):
             )
 
             self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
-            metadata = (
-                project / "apps" / "server_monitor" / "apps.py"
-            ).read_text(encoding="utf-8")
+            metadata = (project / "apps" / "server_monitor" / "apps.py").read_text(encoding="utf-8")
             self.assertIn("Server Monitor", result.output)
             self.assertIn("display_name = _('Server Monitor')", metadata)
 
@@ -128,7 +126,7 @@ class StartAppScaffoldTests(unittest.TestCase):
         """Quotes in a human-facing name cannot corrupt generated source."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             project = create_web_project(Path(temporary_directory))
-            display_name = "Team's \"Reports\""
+            display_name = 'Team\'s "Reports"'
             result = invoke_startapp(
                 project,
                 "reports",
@@ -137,9 +135,7 @@ class StartAppScaffoldTests(unittest.TestCase):
             )
 
             self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
-            source = (project / "apps" / "reports" / "apps.py").read_text(
-                encoding="utf-8"
-            )
+            source = (project / "apps" / "reports" / "apps.py").read_text(encoding="utf-8")
             ast.parse(source)
             self.assertIn(repr(display_name), source)
 

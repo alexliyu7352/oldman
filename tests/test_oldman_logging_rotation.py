@@ -75,10 +75,7 @@ class RotationCoordinatorTest(unittest.TestCase):
                 coordinator.run_once()
                 attached_logger.warning("after")
 
-            combined = "".join(
-                file.read_text(encoding="utf-8")
-                for file in sorted(Path(directory).glob("app.log*"))
-            )
+            combined = "".join(file.read_text(encoding="utf-8") for file in sorted(Path(directory).glob("app.log*")))
             self.assertIn("before", combined)
             self.assertIn("after", combined)
             self.assertTrue(Path(directory, "app.log.1").exists())
@@ -183,11 +180,7 @@ class RotationCoordinatorTest(unittest.TestCase):
                     "loggers": {"default": {"handlers": ["file"]}},
                 },
             )
-            file_handlers = {
-                handler
-                for handler in cast(Any, runtime)._handlers
-                if isinstance(handler, AtomicAppendFileHandler)
-            }
+            file_handlers = {handler for handler in cast(Any, runtime)._handlers if isinstance(handler, AtomicAppendFileHandler)}
             self.assertTrue(file_handlers)
             self.assertEqual(
                 {1.0},
@@ -242,15 +235,8 @@ class RotationCoordinatorTest(unittest.TestCase):
                         process.terminate()
                         process.join(2)
 
-            combined = b"".join(
-                path.read_bytes()
-                for path in sorted(Path(directory).glob("rotation_pressure.log*"))
-            )
-            expected = {
-                (producer, sequence)
-                for producer in producers
-                for sequence in range(records_per_phase * 2)
-            }
+            combined = b"".join(path.read_bytes() for path in sorted(Path(directory).glob("rotation_pressure.log*")))
+            expected = {(producer, sequence) for producer in producers for sequence in range(records_per_phase * 2)}
             observed = _rotation_record_counts(combined)
             self.assertNotEqual(inode_before, inode_after)
             self.assertEqual(
@@ -262,9 +248,7 @@ class RotationCoordinatorTest(unittest.TestCase):
             for reopen_probe in reopen_probes:
                 self.assertEqual(1, combined.count(reopen_probe.encode()))
             self.assertTrue(Path(directory, "rotation_pressure.log.1").exists())
-            self.assertTrue(
-                all(line.endswith(b"\n") for line in combined.splitlines(keepends=True))
-            )
+            self.assertTrue(all(line.endswith(b"\n") for line in combined.splitlines(keepends=True)))
 
     def tearDown(self) -> None:
         """Close a runtime left active by a failed pressure assertion."""

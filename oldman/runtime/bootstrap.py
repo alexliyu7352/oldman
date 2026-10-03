@@ -30,9 +30,7 @@ _bootstrap_context: ServiceBootstrapContext | None = None
 def _get_bootstrap_context() -> ServiceBootstrapContext:
     """Return the sole process context required by Application construction."""
     if _bootstrap_context is None:
-        raise RuntimeError(
-            "Oldman service bootstrap has not completed; call bootstrap_service() first."
-        )
+        raise RuntimeError("Oldman service bootstrap has not completed; call bootstrap_service() first.")
     return _bootstrap_context
 
 
@@ -47,22 +45,15 @@ def bootstrap_service(
     project_root = _find_project_root()
     definition = get_service_definition(service_module, project_root)
     selected_config = (
-        Path(config_file)
-        if config_file is not None
-        else project_root / "data" / f"{service_module}_settings.yaml"
-    ).expanduser().resolve()
+        (Path(config_file) if config_file is not None else project_root / "data" / f"{service_module}_settings.yaml").expanduser().resolve()
+    )
 
     with _BOOTSTRAP_LOCK:
         if _bootstrap_context is not None:
-            if (
-                _bootstrap_context.service_module == service_module
-                and _bootstrap_context.config_file == selected_config
-            ):
+            if _bootstrap_context.service_module == service_module and _bootstrap_context.config_file == selected_config:
                 return _bootstrap_context
             raise RuntimeError(
-                "Oldman is already bootstrapped for service "
-                f"{_bootstrap_context.service_module!r} with "
-                f"{str(_bootstrap_context.config_file)!r}."
+                f"Oldman is already bootstrapped for service {_bootstrap_context.service_module!r} with {str(_bootstrap_context.config_file)!r}."
             )
 
         settings_class = conf._load_project_settings_class()

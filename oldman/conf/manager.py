@@ -102,14 +102,8 @@ class SettingsManager[T_Settings: DefaultSettings]:
         if self.config_file.exists():
             raise FileExistsError(f"settings.yaml 已存在：{self.config_file}")
 
-        example_file = self.config_file.with_name(
-            f"{self.config_file.stem}.example{self.config_file.suffix}"
-        )
-        initial = (
-            self._read_config_file(example_file)
-            if example_file.is_file()
-            else CommentedMap()
-        )
+        example_file = self.config_file.with_name(f"{self.config_file.stem}.example{self.config_file.suffix}")
+        initial = self._read_config_file(example_file) if example_file.is_file() else CommentedMap()
         self._write_config_file(self._synchronize_config(initial))
 
     def sync_config(self) -> None:

@@ -33,7 +33,7 @@ def _migration_api(test_case: unittest.TestCase):
 
 def _pyproject(*, project_id: str | None = PROJECT_ID, migration_apps: tuple[str, ...] = ()) -> str:
     """Build the minimal committed project metadata used by database commands."""
-    lines = ['[project]', 'name = "migration-demo"', 'version = "0.1.0"', '', '[tool.oldman]']
+    lines = ["[project]", 'name = "migration-demo"', 'version = "0.1.0"', "", "[tool.oldman]"]
     if project_id is not None:
         lines.append(f"project_id = {json.dumps(project_id)}")
     if migration_apps:
@@ -62,11 +62,7 @@ def _temporary_project(files: dict[str, str]) -> Iterator[Path]:
             yield root
         finally:
             sys.path.remove(str(root))
-            package_roots = {
-                Path(path).parts[0]
-                for path in files
-                if "/" in path and Path(path).parts[0] not in {"data", "services"}
-            }
+            package_roots = {Path(path).parts[0] for path in files if "/" in path and Path(path).parts[0] not in {"data", "services"}}
             for module_name in tuple(sys.modules):
                 if any(module_name == package or module_name.startswith(f"{package}.") for package in package_roots):
                     sys.modules.pop(module_name, None)
@@ -98,7 +94,7 @@ def _app_source(label: str) -> str:
 
         class Config(AppConfig):
             label = {label!r}
-            display_name = {label.replace('_', ' ').title()!r}
+            display_name = {label.replace("_", " ").title()!r}
 
         app = Config()
     """

@@ -30,7 +30,9 @@ class CellPrimitiveTest(unittest.TestCase):
 
     def test_text_helpers(self) -> None:
         self.assertEqual('<span class="text-default-500">Never</span>', str(muted("Never")))
-        self.assertEqual('<span class="text-default-500 truncate inline-block" style="max-width: 120px;">-</span>', str(truncated(None, max_width=120)))
+        self.assertEqual(
+            '<span class="text-default-500 truncate inline-block" style="max-width: 120px;">-</span>', str(truncated(None, max_width=120))
+        )
         self.assertEqual('<a class="link-primary font-medium" href="/users/1/edit">a&amp;b</a>', str(link("/users/1/edit", "a&b")))
 
     def test_date_cell_returns_display_and_iso_raw(self) -> None:
@@ -53,7 +55,10 @@ class CellPrimitiveTest(unittest.TestCase):
                 label="Row actions",
             )
         )
-        self.assertIn('<div class="om-dropdown"><button class="om-button om-button-ghost-secondary om-button-sm om-button-icon" type="button" data-om-dropdown-toggle aria-expanded="false">', html)
+        self.assertIn(
+            '<div class="om-dropdown"><button class="om-button om-button-ghost-secondary om-button-sm om-button-icon" type="button" data-om-dropdown-toggle aria-expanded="false">',
+            html,
+        )
         self.assertIn('<span class="sr-only">Row actions</span>', html)
         self.assertIn('<li><a class="om-dropdown-item" href="/rows/1/edit"><i class="ri-pencil-fill" aria-hidden="true"></i>Edit</a></li>', html)
         self.assertIn(
@@ -63,7 +68,10 @@ class CellPrimitiveTest(unittest.TestCase):
         self.assertTrue(html.endswith("</ul></div>"))
 
         hinted = str(RowAction("Preview", icon="ri-image-line", attrs={"data-om-feedback-message": 'Use the "edit" page'}).render())
-        self.assertEqual('<li><button class="om-dropdown-item" type="button" data-om-feedback-message="Use the &#34;edit&#34; page"><i class="ri-image-line" aria-hidden="true"></i>Preview</button></li>', hinted)
+        self.assertEqual(
+            '<li><button class="om-dropdown-item" type="button" data-om-feedback-message="Use the &#34;edit&#34; page"><i class="ri-image-line" aria-hidden="true"></i>Preview</button></li>',
+            hinted,
+        )
 
 
 class FilterParserTest(unittest.TestCase):

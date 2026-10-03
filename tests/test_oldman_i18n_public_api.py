@@ -223,14 +223,7 @@ class OldmanI18nPublicApiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             settings_file = Path(temporary_directory) / "settings.yaml"
             settings_file.write_text(
-                "i18n:\n"
-                "  use_i18n: true\n"
-                "  default_language: en\n"
-                "  languages:\n"
-                "    en: {}\n"
-                "    zh-Hans:\n"
-                "      aliases: []\n"
-                '      flag: ""\n',
+                'i18n:\n  use_i18n: true\n  default_language: en\n  languages:\n    en: {}\n    zh-Hans:\n      aliases: []\n      flag: ""\n',
                 encoding="utf-8",
             )
             definition = ServiceDefinition(
@@ -312,15 +305,7 @@ class OldmanI18nPublicApiTest(unittest.TestCase):
         """The generic Web switcher must not localize or replace an explicit name."""
         service = _new_translation_service()
         environment = Environment(
-            loader=DictLoader(
-                {
-                    "switcher.html": (
-                        "{% for language in languages %}"
-                        "{{ language.name }}={{ language.flagUrl }};"
-                        "{% endfor %}"
-                    )
-                }
-            ),
+            loader=DictLoader({"switcher.html": ("{% for language in languages %}{{ language.name }}={{ language.flagUrl }};{% endfor %}")}),
             enable_async=True,
         )
         app = cast(

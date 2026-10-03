@@ -173,12 +173,7 @@ class MigrationCliReadOnlyTests(unittest.TestCase):
             )
             completed = run_cli(root, root / ".config", "db", "status")
             with sqlite3.connect(database_path) as connection:
-                tables = {
-                    row[0]
-                    for row in connection.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    )
-                }
+                tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("not initialized", completed.stdout.lower())

@@ -129,18 +129,22 @@ class CompareBrowserVisualsTest(unittest.TestCase):
             self.assertEqual(["user-form.png"], drifted["failed"])
 
     def test_cli_rejects_thresholds_looser_than_the_review_boundary(self) -> None:
-        with patch(
-            "sys.argv",
-            [
-                "compare_browser_visuals.py",
-                "source",
-                "target",
-                "--source-revision",
-                "source-commit",
-                "--max-changed-pixel-ratio",
-                "0.061",
-            ],
-        ), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "compare_browser_visuals.py",
+                    "source",
+                    "target",
+                    "--source-revision",
+                    "source-commit",
+                    "--max-changed-pixel-ratio",
+                    "0.061",
+                ],
+            ),
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit),
+        ):
             parse_args()
 
 

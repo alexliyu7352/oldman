@@ -102,5 +102,6 @@ class StorageSettingsTest(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 _manager(DefaultSettings, settings_file).load()
 
+
 if __name__ == "__main__":
     unittest.main()

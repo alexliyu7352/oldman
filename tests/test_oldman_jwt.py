@@ -26,9 +26,9 @@ class OldmanJwtTest(unittest.TestCase):
         header, payload, signature = token.split(".")
         decoded_payload = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
         decoded_payload["sub"] = "user-2"
-        tampered_payload = base64.urlsafe_b64encode(
-            json.dumps(decoded_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-        ).rstrip(b"=").decode("ascii")
+        tampered_payload = (
+            base64.urlsafe_b64encode(json.dumps(decoded_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).rstrip(b"=").decode("ascii")
+        )
 
         with self.assertRaisesRegex(InvalidTokenError, "signature"):
             jwt_decode(".".join((header, tampered_payload, signature)), "secret")

@@ -32,7 +32,7 @@ class ProcessCancellationTests(unittest.IsolatedAsyncioTestCase):
                 task = asyncio.create_task(manager.run_with_timeout(slow_target, (str(marker),), _timeout=30))
                 async with asyncio.timeout(5):
                     while not marker.exists() or not marker.read_text():
-                        await asyncio.sleep(.02)
+                        await asyncio.sleep(0.02)
                 pid = int(marker.read_text())
                 started = time.monotonic()
                 task.cancel()

@@ -34,7 +34,6 @@ class RenderFragmentTest(unittest.TestCase):
 
         self.assertEqual("sync:3", str(html))
 
-
     def test_a_framework_partial_renders_without_the_app_installing_loaders(self) -> None:
         """普通 web service 没装过模板 loader 时，也要能渲染框架自带的片段。"""
         environment = Environment(loader=DictLoader({"row.html": "<li></li>"}), enable_async=True)

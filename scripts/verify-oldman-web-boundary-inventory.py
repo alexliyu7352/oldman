@@ -55,6 +55,7 @@ FORBIDDEN_WEB_TOKENS = (
     "component-coverage",
 )
 
+
 def source_files(root: Path) -> list[Path]:
     """Return production frontend source files below *root*."""
     suffixes = {".css", ".js", ".jsx", ".scss", ".ts", ".tsx"}

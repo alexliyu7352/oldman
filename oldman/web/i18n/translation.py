@@ -271,11 +271,7 @@ def language_switch_url(request: Any, language: str, *, default_language: str, u
     target_path = clean_path
     if use_i18n_path and language != default_language:
         target_path = f"/{quote(language, safe='')}{clean_path}"
-    query_items = [
-        (key, value)
-        for key, value in parse_qsl(str(getattr(request, "query_string", "") or ""), keep_blank_values=True)
-        if key != "lang"
-    ]
+    query_items = [(key, value) for key, value in parse_qsl(str(getattr(request, "query_string", "") or ""), keep_blank_values=True) if key != "lang"]
     query = urlencode(query_items)
     return f"{target_path}?{query}" if query else target_path
 

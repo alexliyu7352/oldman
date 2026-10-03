@@ -23,7 +23,9 @@ async def select_provider_payload(
     """验证 bind 并分发 provider，返回 JSON payload 和 HTTP status。"""
     provider_cls = registry.get(provider_name)
     if provider_cls is None:
-        return api_error(ApiErrorCode.NOT_FOUND, "Select provider not found", {"provider": "Select provider not found"}, {"provider": provider_name}), 404
+        return api_error(
+            ApiErrorCode.NOT_FOUND, "Select provider not found", {"provider": "Select provider not found"}, {"provider": provider_name}
+        ), 404
 
     try:
         context = verify_select_context(str(get_arg(request.args, "bind", "") or ""), secret_key=secret_key)
@@ -31,7 +33,9 @@ async def select_provider_payload(
         return api_error(ApiErrorCode.INVALID_REQUEST, "Invalid select binding", {"bind": "Invalid select binding"}, {"provider": provider_name}), 400
 
     if context.provider != provider_name:
-        return api_error(ApiErrorCode.INVALID_REQUEST, "Invalid select provider", {"provider": "Invalid select provider"}, {"provider": provider_name}), 400
+        return api_error(
+            ApiErrorCode.INVALID_REQUEST, "Invalid select provider", {"provider": "Invalid select provider"}, {"provider": provider_name}
+        ), 400
 
     provider = provider_cls()
     payload = await provider.handle_request(request, context=context)

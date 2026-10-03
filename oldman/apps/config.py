@@ -20,10 +20,7 @@ _SETTINGS_NOT_BOUND = object()
 def _validate_icon_class(value: object, *, field_name: str) -> str:
     """Return one supported Iconify class or identify the invalid field."""
     if not isinstance(value, str) or _ICON_PATTERN.fullmatch(value) is None:
-        raise ValueError(
-            f"{field_name} must be one Iconify class matching "
-            f"(?:ri|mdi|bx|bxs|bxl)-[a-z0-9-]+; received {value!r}."
-        )
+        raise ValueError(f"{field_name} must be one Iconify class matching (?:ri|mdi|bx|bxs|bxl)-[a-z0-9-]+; received {value!r}.")
     return value
 
 

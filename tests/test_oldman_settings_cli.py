@@ -137,9 +137,7 @@ class OldmanSettingsCliTest(unittest.TestCase):
             self.assertIn("sse", parsed["web"])
             self.assertIn("static", parsed["web"])
             self.assertTrue(parsed["web"]["security"]["secret_key"])
-            self.assertTrue(
-                parsed["web"]["security"]["fingerprint"]["aes_secret_key"]
-            )
+            self.assertTrue(parsed["web"]["security"]["fingerprint"]["aes_secret_key"])
             for old_key in ("session", "sse", "template", "static", "frontend"):
                 self.assertNotIn(old_key, parsed)
             self.assertFalse(marker.exists())
@@ -150,12 +148,7 @@ class OldmanSettingsCliTest(unittest.TestCase):
             marker = _create_project(project)
             example = project / "data/music_web_settings.example.yaml"
             example.write_text(
-                "apps:\n"
-                "  - theme_app\n"
-                "core:\n"
-                "  app_name: seeded-web\n"
-                "web:\n"
-                "  listen_port: 18080\n",
+                "apps:\n  - theme_app\ncore:\n  app_name: seeded-web\nweb:\n  listen_port: 18080\n",
                 encoding="utf-8",
             )
 

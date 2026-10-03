@@ -97,25 +97,13 @@ class LoggingProcessBenchmarkTests(unittest.TestCase):
 
     def test_release_rounds_balance_every_variant_position(self) -> None:
         """The release gate must place every variant equally in every position."""
-        orders = [
-            benchmark._round_order(round_number)
-            for round_number in range(1, benchmark.RELEASE_ROUNDS + 1)
-        ]
-        positions = {
-            variant: Counter(
-                order.index(variant)
-                for order in orders
-            )
-            for variant in ("current", "stdlib", "no_logging")
-        }
+        orders = [benchmark._round_order(round_number) for round_number in range(1, benchmark.RELEASE_ROUNDS + 1)]
+        positions = {variant: Counter(order.index(variant) for order in orders) for variant in ("current", "stdlib", "no_logging")}
 
         self.assertEqual(len(set(orders)), 6)
         self.assertEqual(
             positions,
-            {
-                variant: Counter({0: 2, 1: 2, 2: 2})
-                for variant in ("current", "stdlib", "no_logging")
-            },
+            {variant: Counter({0: 2, 1: 2, 2: 2}) for variant in ("current", "stdlib", "no_logging")},
         )
         for first, second in (
             ("current", "stdlib"),
@@ -148,11 +136,7 @@ class LoggingProcessBenchmarkTests(unittest.TestCase):
     def test_duplicate_variant_fails_closed(self) -> None:
         """One repeated variant must not silently replace its first measurement."""
         runs = _comparison_runs(current_throughput=1_000.0, current_cpu=0.001)
-        duplicate = next(
-            run
-            for run in runs
-            if run["round"] == 2 and run["variant"] == "current"
-        )
+        duplicate = next(run for run in runs if run["round"] == 2 and run["variant"] == "current")
         runs.append(duplicate.copy())
 
         with self.assertRaisesRegex(
@@ -168,11 +152,7 @@ class LoggingProcessBenchmarkTests(unittest.TestCase):
     def test_wrong_execution_order_fails_closed(self) -> None:
         """Reported order indexes must match the frozen six permutations."""
         runs = _comparison_runs(current_throughput=1_000.0, current_cpu=0.001)
-        current = next(
-            run
-            for run in runs
-            if run["round"] == 1 and run["variant"] == "current"
-        )
+        current = next(run for run in runs if run["round"] == 1 and run["variant"] == "current")
         current["order_index"] = 3
 
         with self.assertRaisesRegex(
@@ -230,10 +210,7 @@ class LoggingProcessBenchmarkTests(unittest.TestCase):
                 "replacement": {"pid": 999_999_993},
             },
             "async_manager": {
-                "runs": [
-                    {"pid": 999_999_994 + index}
-                    for index in range(config.async_runs)
-                ],
+                "runs": [{"pid": 999_999_994 + index} for index in range(config.async_runs)],
                 "timed_out": True,
                 "sigkill_result": None,
                 "recovery": {

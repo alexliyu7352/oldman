@@ -324,9 +324,7 @@ class ReconnectStreamResponse:
                     async for chunk in body:
                         expected = self._expected_response_bytes
                         if expected is not None and self._received_response_bytes + len(chunk) > expected:
-                            response_error = HttpRangeError(
-                                f"206 正文超过 Content-Range 声明长度，期望 {expected} 字节: {self.url}"
-                            )
+                            response_error = HttpRangeError(f"206 正文超过 Content-Range 声明长度，期望 {expected} 字节: {self.url}")
                             break
                         self._received_response_bytes += len(chunk)
                         self.transmitted_bytes += len(chunk)
@@ -341,8 +339,7 @@ class ReconnectStreamResponse:
                 expected = self._expected_response_bytes
                 if expected is not None and self._received_response_bytes != expected:
                     last_exception = HttpRangeError(
-                        f"206 正文短于 Content-Range 声明长度，期望 {expected} 字节，"
-                        f"实际 {self._received_response_bytes} 字节: {self.url}"
+                        f"206 正文短于 Content-Range 声明长度，期望 {expected} 字节，实际 {self._received_response_bytes} 字节: {self.url}"
                     )
                     logger.warning(f"Range 正文提前结束，尝试从已交付位置续传: [{self._log_url}]")
                     await self.release_response()
@@ -355,10 +352,7 @@ class ReconnectStreamResponse:
                 last_exception = e
                 if not self.supports_range and self.transmitted_bytes > 0 and not self.live_stream:
                     # 没必要进行重试了, 直接退出
-                    logger.error(
-                        f"流式请求读取错误且不支持断点续传，无法继续: "
-                        f"{type(e).__name__}, [{self._log_url}]"
-                    )
+                    logger.error(f"流式请求读取错误且不支持断点续传，无法继续: {type(e).__name__}, [{self._log_url}]")
                     break
                 else:
                     logger.warning(f"流读取中断，尝试续传: [{self._log_url}]")
@@ -370,10 +364,7 @@ class ReconnectStreamResponse:
                 last_exception = e
                 if not self.supports_range and self.transmitted_bytes > 0 and not self.live_stream:
                     # 没必要进行重试了, 直接退出
-                    logger.error(
-                        f"流式请求读取错误且不支持断点续传，无法继续: "
-                        f"{type(e).__name__}, [{self._log_url}]"
-                    )
+                    logger.error(f"流式请求读取错误且不支持断点续传，无法继续: {type(e).__name__}, [{self._log_url}]")
                     break
                 else:
                     logger.warning(f"流式请求超时，尝试续传: [{self._log_url}]")
@@ -455,9 +446,7 @@ class ReconnectStreamResponse:
                 raise HttpRangeError(f"suffix Range 缺少资源总长度，无法验证范围: {self.url}")
             expected_start = max(total - suffix_length, 0)
             if start != expected_start or end != total - 1:
-                raise HttpRangeError(
-                    f"suffix Content-Range 不匹配，期望 {expected_start}-{total - 1}，实际 {start}-{end}: {self.url}"
-                )
+                raise HttpRangeError(f"suffix Content-Range 不匹配，期望 {expected_start}-{total - 1}，实际 {start}-{end}: {self.url}")
 
         requested_start = self._requested_range_start
         if requested_start is not None and start != requested_start:

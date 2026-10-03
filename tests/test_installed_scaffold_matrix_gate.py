@@ -40,9 +40,7 @@ class InstalledScaffoldMatrixGateTest(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.gate.parse_args([])
 
-        args = self.gate.parse_args(
-            ["--wheel", "/tmp/oldman.whl", "--npm-tarball", "/tmp/oldman-web.tgz", "--evidence-dir", "/tmp/evidence"]
-        )
+        args = self.gate.parse_args(["--wheel", "/tmp/oldman.whl", "--npm-tarball", "/tmp/oldman-web.tgz", "--evidence-dir", "/tmp/evidence"])
 
         self.assertEqual("/tmp/oldman.whl", args.wheel)
         self.assertEqual("/tmp/oldman-web.tgz", args.npm_tarball)
@@ -121,9 +119,7 @@ class InstalledScaffoldMatrixGateTest(unittest.TestCase):
             evidence = root / "evidence"
 
             with contextlib.redirect_stderr(io.StringIO()):
-                result = self.gate.main(
-                    ["--wheel", str(wheel), "--npm-tarball", str(tarball), "--evidence-dir", str(evidence)]
-                )
+                result = self.gate.main(["--wheel", str(wheel), "--npm-tarball", str(tarball), "--evidence-dir", str(evidence)])
 
             self.assertEqual(1, result)
             payload = json.loads((evidence / "result.json").read_text(encoding="utf-8"))
@@ -218,9 +214,7 @@ class InstalledScaffoldMatrixGateTest(unittest.TestCase):
             tarball.write_bytes(b"reviewed npm artifact")
             relative = Path(os.path.relpath(tarball, frontend)).as_posix()
             locked = f"file:{relative}"
-            integrity = "sha512-" + self.gate.base64.b64encode(
-                self.gate.hashlib.sha512(tarball.read_bytes()).digest()
-            ).decode("ascii")
+            integrity = "sha512-" + self.gate.base64.b64encode(self.gate.hashlib.sha512(tarball.read_bytes()).digest()).decode("ascii")
             lock_path = frontend / "pnpm-lock.yaml"
             lock_path.write_text(
                 f"""lockfileVersion: '9.0'
@@ -386,7 +380,7 @@ snapshots:
             self.gate.DASHBOARD_BROWSER_CONTRACT,
         )
         self.assertIn(
-            'sidebar?.querySelector(\'#navbar-nav a[href="/matrix_probe"]\')',
+            "sidebar?.querySelector('#navbar-nav a[href=\"/matrix_probe\"]')",
             self.gate.DASHBOARD_BROWSER_CONTRACT,
         )
         self.assertNotIn('id="matrix-sidebar"', self.gate.DASHBOARD_COMPONENT_FIXTURE)

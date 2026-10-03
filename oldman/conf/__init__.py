@@ -30,18 +30,14 @@ def _load_project_settings_class() -> type[DefaultSettings]:
     except ModuleNotFoundError as exc:
         if exc.name not in {"config", "config.schemas"}:
             raise
-        raise RuntimeError(
-            "Service bootstrap requires config.schemas.Settings in the current project."
-        ) from None
+        raise RuntimeError("Service bootstrap requires config.schemas.Settings in the current project.") from None
 
     settings_class = getattr(module, "Settings", None)
     if not isinstance(settings_class, type) or not issubclass(
         settings_class,
         DefaultSettings,
     ):
-        raise TypeError(
-            "config.schemas.Settings must inherit oldman.conf.DefaultSettings."
-        )
+        raise TypeError("config.schemas.Settings must inherit oldman.conf.DefaultSettings.")
     return cast(type[DefaultSettings], settings_class)
 
 
@@ -64,9 +60,7 @@ def _log_settings_diagnostics(messages: tuple[str, ...]) -> None:
 
 def __getattr__(name: str) -> Any:
     if name == "settings":
-        raise RuntimeError(
-            "Oldman settings are not configured; bootstrap the service before importing settings consumers"
-        )
+        raise RuntimeError("Oldman settings are not configured; bootstrap the service before importing settings consumers")
     raise AttributeError(name)
 
 

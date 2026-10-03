@@ -73,9 +73,7 @@ class DirectLoggingRuntimeTest(unittest.TestCase):
                 self.assertIsInstance(runtime, LoggingRuntime)
                 self.assertIsInstance(runtime.child_context, ChildLoggingContext)
                 self.assertTrue(runtime.owns_rotation)
-                self.assertTrue(
-                    any(isinstance(handler, AtomicAppendFileHandler) for handler in logger.handlers)
-                )
+                self.assertTrue(any(isinstance(handler, AtomicAppendFileHandler) for handler in logger.handlers))
 
                 logger.info("direct-message")
                 runtime.close()
@@ -84,12 +82,7 @@ class DirectLoggingRuntimeTest(unittest.TestCase):
                     "direct-message",
                     (Path(tmp) / "direct.log").read_text(encoding="utf-8"),
                 )
-                self.assertFalse(
-                    any(
-                        getattr(handler, "_oldman_runtime_id", None) == runtime.runtime_id
-                        for handler in logger.handlers
-                    )
-                )
+                self.assertFalse(any(getattr(handler, "_oldman_runtime_id", None) == runtime.runtime_id for handler in logger.handlers))
                 self.assertIn(foreign, logger.handlers)
                 self.assertEqual(0, foreign.close_calls)
 
@@ -125,9 +118,7 @@ class DirectLoggingRuntimeTest(unittest.TestCase):
                 self.assertTrue(owner.closed)
                 self.assertTrue(child.installed_from_context)
                 self.assertFalse(child.owns_rotation)
-                self.assertTrue(
-                    any(isinstance(handler, AtomicAppendFileHandler) for handler in logger.handlers)
-                )
+                self.assertTrue(any(isinstance(handler, AtomicAppendFileHandler) for handler in logger.handlers))
             finally:
                 child.close()
 
@@ -159,20 +150,18 @@ class DirectLoggingRuntimeTest(unittest.TestCase):
                 self.assertTrue(first.closed)
                 self.assertIs(replacement, get_active_runtime())
                 self.assertTrue(replacement.owns_rotation)
-                self.assertFalse(
-                    any(
-                        getattr(handler, "_oldman_runtime_id", None) == first.runtime_id
-                        for handler in logger.handlers
-                    )
-                )
+                self.assertFalse(any(getattr(handler, "_oldman_runtime_id", None) == first.runtime_id for handler in logger.handlers))
             finally:
                 replacement.close()
 
     def test_handler_configuration_failure_does_not_publish_a_runtime(self) -> None:
         """A broken user handler fails atomically before becoming the active runtime."""
-        with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(
-            ValueError,
-            "unable to configure handler 'file'",
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            self.assertRaisesRegex(
+                ValueError,
+                "unable to configure handler 'file'",
+            ),
         ):
             init_logging(
                 "invalid-handler",

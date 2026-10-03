@@ -17,22 +17,8 @@ from oldman.i18n.frontend import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-GENERATOR = (
-    ROOT
-    / "frontend"
-    / "packages"
-    / "oldman-web"
-    / "scripts"
-    / "generate-i18n-messages.mjs"
-)
-I18N_CLI = (
-    ROOT
-    / "frontend"
-    / "packages"
-    / "oldman-web"
-    / "bin"
-    / "oldman-web-i18n.mjs"
-)
+GENERATOR = ROOT / "frontend" / "packages" / "oldman-web" / "scripts" / "generate-i18n-messages.mjs"
+I18N_CLI = ROOT / "frontend" / "packages" / "oldman-web" / "bin" / "oldman-web-i18n.mjs"
 
 
 class OldmanFrontendMessageManifestTest(unittest.TestCase):
@@ -52,9 +38,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
         self.assertIn("No notifications", {message.id for message in messages})
         self.assertFalse(
             any(
-                ".test." in location.path
-                or ".spec." in location.path
-                or "/fixtures/" in location.path
+                ".test." in location.path or ".spec." in location.path or "/fixtures/" in location.path
                 for message in messages
                 for location in message.locations
             )
@@ -99,10 +83,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
             )
             messages = json.loads(output.read_text(encoding="utf-8"))["messages"]
 
-        identities = {
-            (message["context"], message["id"], message["plural"])
-            for message in messages
-        }
+        identities = {(message["context"], message["id"], message["plural"]) for message in messages}
         self.assertEqual(
             identities,
             {
@@ -154,8 +135,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
             output = repository_root / "messages.json"
             source_root.mkdir()
             (source_root / "component.ts").write_text(
-                'this.i18n?.tc?.("button", "Open");\n'
-                "this.i18n.t(`Save`);\n",
+                'this.i18n?.tc?.("button", "Open");\nthis.i18n.t(`Save`);\n',
                 encoding="utf-8",
             )
 
@@ -188,9 +168,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
                 cwd=ROOT,
                 text=True,
             )
-            generated_manifest = json.loads(
-                output.read_text(encoding="utf-8")
-            )
+            generated_manifest = json.loads(output.read_text(encoding="utf-8"))
             cli_manifest = json.loads(completed.stdout)
 
         self.assertEqual(generated_manifest, cli_manifest)
@@ -203,8 +181,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
             source_root.mkdir()
             output = repository_root / "messages.json"
             (source_root / "component.ts").write_text(
-                'this.i18n.t("item");\n'
-                'this.i18n.tn("item", "items", count);\n',
+                'this.i18n.t("item");\nthis.i18n.tn("item", "items", count);\n',
                 encoding="utf-8",
             )
 
@@ -236,8 +213,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
             source_root = repository_root / "src"
             source_root.mkdir()
             (source_root / "component.ts").write_text(
-                'this.i18n.tn("item", "items", count);\n'
-                'this.i18n.tn("item", "item records", count);\n',
+                'this.i18n.tn("item", "items", count);\nthis.i18n.tn("item", "item records", count);\n',
                 encoding="utf-8",
             )
 
@@ -288,12 +264,7 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
         class Catalog:
             """Minimal gettext catalog with one compiled plural header."""
 
-            _info = {
-                "plural-forms": (
-                    "nplurals=3; "
-                    "plural=(n%10==1 ? 0 : n%10>=2 ? 1 : 2);"
-                )
-            }
+            _info = {"plural-forms": ("nplurals=3; plural=(n%10==1 ? 0 : n%10>=2 ? 1 : 2);")}
 
             def gettext(self, message: str) -> str:
                 """Return source strings because this test targets metadata."""
@@ -321,30 +292,29 @@ class OldmanFrontendMessageManifestTest(unittest.TestCase):
             source_root = project_root / "frontend" / "src"
             source_root.mkdir(parents=True)
             (source_root / "main.ts").write_text(
-                'i18n.tc("button", "Open");\n'
-                'i18n.tn("{count} file", "{count} files", count);\n',
+                'i18n.tc("button", "Open");\ni18n.tn("{count} file", "{count} files", count);\n',
                 encoding="utf-8",
             )
             po_file = project_root / "messages.po"
             po_file.write_text(
-                '\n'.join(
+                "\n".join(
                     (
                         'msgid ""',
                         'msgstr ""',
                         '"Language: zh_Hans\\n"',
                         '"Plural-Forms: nplurals=1; plural=0;\\n"',
-                        '',
+                        "",
                         'msgctxt "button"',
                         'msgid "Open"',
                         'msgstr "打开"',
-                        '',
+                        "",
                         'msgid "{count} file"',
                         'msgid_plural "{count} files"',
                         'msgstr[0] "{count} 个文件"',
-                        '',
+                        "",
                         'msgid "Loading..."',
                         'msgstr "正在加载..."',
-                        '',
+                        "",
                         'msgid "Backend secret"',
                         'msgstr "后端专用"',
                     )

@@ -30,10 +30,7 @@ class OldmanAdminStaticBundleTest(unittest.TestCase):
         self.assertEqual(ADMIN_BUNDLE_NAME, bundle.name)
         self.assertEqual("/assets/oldman/admin", bundle.static_url)
         self.assertEqual(
-            collected_root
-            / ADMIN_STATIC_PATH
-            / ".vite"
-            / "manifest.json",
+            collected_root / ADMIN_STATIC_PATH / ".vite" / "manifest.json",
             bundle.manifest_path,
         )
 
@@ -108,14 +105,14 @@ class OldmanAdminStaticBundleTest(unittest.TestCase):
         self.assertIn('base: "./"', vite_config)
         self.assertIn("oldman-web/dashboard", main_source)
         self.assertIn('import "./admin.css"', main_source)
-        self.assertIn('oldman-web/styles/tailwind.css', css_source)
-        self.assertIn('oldman-web/styles/icons.css', css_source)
+        self.assertIn("oldman-web/styles/tailwind.css", css_source)
+        self.assertIn("oldman-web/styles/icons.css", css_source)
         self.assertIn("oldman/apps/admin/templates", css_source)
         # 设计的字重只有 400/500/600（--om-font-weight-regular/medium/semibold），不发没人用的字体文件。
         for weight in (400, 500, 600):
-            self.assertIn(f'@fontsource/dm-sans/latin-{weight}.css', css_source)
+            self.assertIn(f"@fontsource/dm-sans/latin-{weight}.css", css_source)
         for weight in (300, 700):
-            self.assertNotIn(f'@fontsource/dm-sans/latin-{weight}.css', css_source)
+            self.assertNotIn(f"@fontsource/dm-sans/latin-{weight}.css", css_source)
         self.assertNotIn("/static/oldman-admin/", main_source)
 
     def test_built_admin_static_manifest_is_allowlisted(self) -> None:
@@ -130,13 +127,7 @@ class OldmanAdminStaticBundleTest(unittest.TestCase):
         # manifest 闭包和业务 token 是稳定边界；字体与合法共享 chunk
         # 会改变总字节数，因此不再以单一体积阈值代替来源校验。
         self.assertTrue(any("date-time-picker" in file for file in files))
-        self.assertTrue(
-            any(
-                Path(file).name.startswith("form-")
-                and not Path(file).name.startswith("form-validator-")
-                for file in files
-            )
-        )
+        self.assertTrue(any(Path(file).name.startswith("form-") and not Path(file).name.startswith("form-validator-") for file in files))
         self.assertFalse(any("form-modal" in file for file in files))
         self.assertTrue(any("form-validator" in file for file in files))
         self.assertTrue(any("table-filter-form" in file for file in files))

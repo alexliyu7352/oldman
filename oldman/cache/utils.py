@@ -154,11 +154,7 @@ def _cacheable_response_attributes(response: Any) -> dict[str, Any] | None:
     if "set-cookie" in response.headers:
         return None
 
-    headers = {
-        str(name): str(value)
-        for name, value in response.headers.items()
-        if str(name).lower() not in _UNSAFE_RESPONSE_HEADERS
-    }
+    headers = {str(name): str(value) for name, value in response.headers.items() if str(name).lower() not in _UNSAFE_RESPONSE_HEADERS}
     return {
         "body": base64.b64encode(response.body or b"").decode("ascii"),
         "status": response.status,

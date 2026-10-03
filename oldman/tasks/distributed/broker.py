@@ -59,25 +59,41 @@ class TaskiqBroker(PullBasedJetStreamBroker):
         self._broadcast_prefix = f"oldman.taskiq.{config.namespace}.broadcast"
         super().__init__(servers=[], stream_name=f"oldman_taskiq_{config.namespace}", subject=f"{self._subject_prefix}.*")
         self.stream_config = StreamConfig(
-            name=self.stream_name, subjects=[self.subject], storage=StorageType.FILE,
-            retention=RetentionPolicy.WORK_QUEUE, discard=DiscardPolicy.NEW,
-            max_bytes=config.stream_max_bytes, max_age=0, num_replicas=config.stream_replicas,
+            name=self.stream_name,
+            subjects=[self.subject],
+            storage=StorageType.FILE,
+            retention=RetentionPolicy.WORK_QUEUE,
+            discard=DiscardPolicy.NEW,
+            max_bytes=config.stream_max_bytes,
+            max_age=0,
+            num_replicas=config.stream_replicas,
             duplicate_window=config.duplicate_window,
         )
         redis_url, pool_options = binary_redis_options(settings.redis[config.redis_alias])
         self.results = OptionalResultBackend(
-            redis_url, **pool_options, serializer=ORJSONSerializer(), keep_results=True,
-            result_ex_time=config.result_ex_time, prefix_str=f"oldman_taskiq_{config.namespace}_results",
+            redis_url,
+            **pool_options,
+            serializer=ORJSONSerializer(),
+            keep_results=True,
+            result_ex_time=config.result_ex_time,
+            prefix_str=f"oldman_taskiq_{config.namespace}_results",
         )
         self.schedule_source = RedisScheduleSource(
-            redis_url, **pool_options, serializer=ORJSONSerializer(), id_generator=self.id_generator,
+            redis_url,
+            **pool_options,
+            serializer=ORJSONSerializer(),
+            id_generator=self.id_generator,
             prefix=f"oldman_taskiq_{config.namespace}_schedules",
         )
         self.with_serializer(ORJSONSerializer()).with_result_backend(self.results).with_middlewares(
             TaskPolicyMiddleware(),
             SmartRetryMiddleware(
-                default_retry_label=False, default_retry_count=3, default_delay=5,
-                use_jitter=False, use_delay_exponent=False, no_result_on_retry=True,
+                default_retry_label=False,
+                default_retry_count=3,
+                default_delay=5,
+                use_jitter=False,
+                use_delay_exponent=False,
+                no_result_on_retry=True,
                 schedule_source=self.schedule_source,
             ),
         )
@@ -166,7 +182,9 @@ class TaskiqBroker(PullBasedJetStreamBroker):
                 for delivery in tuple(self._deliveries.values()):
                     await delivery.release()
                 results = await asyncio.gather(
-                    self._shutdown_native(), self.schedule_source.shutdown(), self.client.close(),
+                    self._shutdown_native(),
+                    self.schedule_source.shutdown(),
+                    self.client.close(),
                     return_exceptions=True,
                 )
                 failures = [error for error in results if isinstance(error, BaseException)]
@@ -193,10 +211,16 @@ class TaskiqBroker(PullBasedJetStreamBroker):
         actual = info.config
         expected = self.stream_config
         fields = (
-            "name", "subjects", "storage", "retention", "discard", "max_bytes", "num_replicas", "duplicate_window",
+            "name",
+            "subjects",
+            "storage",
+            "retention",
+            "discard",
+            "max_bytes",
+            "num_replicas",
+            "duplicate_window",
         )
-        differences = {name: (getattr(actual, name), getattr(expected, name)) for name in fields
-                       if getattr(actual, name) != getattr(expected, name)}
+        differences = {name: (getattr(actual, name), getattr(expected, name)) for name in fields if getattr(actual, name) != getattr(expected, name)}
         for name in ("max_age", "allow_msg_ttl", "no_ack", "sealed", "allow_rollup_hdrs"):
             if getattr(actual, name):
                 differences[name] = (getattr(actual, name), False if name != "max_age" else 0)
@@ -217,9 +241,14 @@ class TaskiqBroker(PullBasedJetStreamBroker):
         for queue in self.config.consume_queues:
             name = f"workers_{queue}"
             config = ConsumerConfig(
-                name=name, durable_name=name, filter_subject=f"{self._subject_prefix}.{queue}",
-                deliver_policy=DeliverPolicy.ALL, ack_policy=AckPolicy.EXPLICIT,
-                ack_wait=self.config.ack_wait, max_deliver=-1, max_ack_pending=self.config.max_ack_pending,
+                name=name,
+                durable_name=name,
+                filter_subject=f"{self._subject_prefix}.{queue}",
+                deliver_policy=DeliverPolicy.ALL,
+                ack_policy=AckPolicy.EXPLICIT,
+                ack_wait=self.config.ack_wait,
+                max_deliver=-1,
+                max_ack_pending=self.config.max_ack_pending,
             )
             try:
                 info = await self.js.consumer_info(self.stream_name, name)
@@ -230,7 +259,8 @@ class TaskiqBroker(PullBasedJetStreamBroker):
                 try:
                     await self.js._api_request(
                         f"$JS.API.CONSUMER.CREATE.{self.stream_name}.{name}.{config.filter_subject}",
-                        orjson.dumps(request), timeout=self.config.publish_timeout,
+                        orjson.dumps(request),
+                        timeout=self.config.publish_timeout,
                     )
                 except APIError as error:
                     if error.err_code != 10148:
@@ -238,17 +268,22 @@ class TaskiqBroker(PullBasedJetStreamBroker):
                 info = await self.js.consumer_info(self.stream_name, name)
             actual = info.config
             fields = ("name", "durable_name", "filter_subject", "deliver_policy", "ack_policy", "ack_wait", "max_deliver", "max_ack_pending")
-            differences = {field: (getattr(actual, field), getattr(config, field)) for field in fields
-                           if getattr(actual, field) != getattr(config, field)}
+            differences = {
+                field: (getattr(actual, field), getattr(config, field)) for field in fields if getattr(actual, field) != getattr(config, field)
+            }
             for field in ("deliver_subject", "backoff", "filter_subjects", "inactive_threshold"):
                 if getattr(actual, field):
                     differences[field] = (getattr(actual, field), None)
             self._check_resource(f"{self.stream_name}/{name}", differences)
             self._subscriptions.append(await self.js.pull_subscribe_bind(stream=self.stream_name, durable=name))
             # No queue group: every online execution process gets its own copy.
-            self._subscriptions.append(await self.client.subscribe(
-                f"{self._broadcast_prefix}.{queue}", pending_msgs_limit=100, pending_bytes_limit=1024 * 1024,
-            ))
+            self._subscriptions.append(
+                await self.client.subscribe(
+                    f"{self._broadcast_prefix}.{queue}",
+                    pending_msgs_limit=100,
+                    pending_bytes_limit=1024 * 1024,
+                )
+            )
         # nats-py annotates int, but passes seconds to asyncio.wait_for unchanged.
         await self.client.flush(timeout=self.config.publish_timeout)  # type: ignore[arg-type]
 
@@ -273,7 +308,10 @@ class TaskiqBroker(PullBasedJetStreamBroker):
         for attempt in range(2):
             try:
                 await self.js.publish(
-                    subject, message.message, headers={"Nats-Msg-Id": message_id}, timeout=self.config.publish_timeout,
+                    subject,
+                    message.message,
+                    headers={"Nats-Msg-Id": message_id},
+                    timeout=self.config.publish_timeout,
                 )
                 return
             except NatsTimeoutError:
@@ -283,6 +321,7 @@ class TaskiqBroker(PullBasedJetStreamBroker):
 
     def _delivery(self, message: Msg) -> RenewingMessage:
         """Begin renewal immediately, including time spent waiting for Receiver."""
+
         async def renew() -> None:
             """Renew until this specific delivery is ACKed, abandoned or closed."""
             while True:

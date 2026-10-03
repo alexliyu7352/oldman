@@ -47,9 +47,7 @@ def _validate_wire(wire: _LazyTranslationWire) -> None:
         if type(key) is not str:
             raise TypeError("LazyTranslation variable keys must be strings")
         if type(value) not in {str, int, float, bool, type(None)}:
-            raise TypeError(
-                "LazyTranslation variable values must be JSON scalar values"
-            )
+            raise TypeError("LazyTranslation variable values must be JSON scalar values")
         if type(value) is float and not math.isfinite(value):
             raise TypeError("LazyTranslation float variables must be finite")
 

@@ -74,10 +74,7 @@ def run(
         output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
         returncode = completed.returncode
     except subprocess.TimeoutExpired as exc:
-        output = "\n".join(
-            part.decode(errors="replace") if isinstance(part, bytes) else part or ""
-            for part in (exc.stdout, exc.stderr)
-        ).strip()
+        output = "\n".join(part.decode(errors="replace") if isinstance(part, bytes) else part or "" for part in (exc.stdout, exc.stderr)).strip()
         returncode = -1
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text(

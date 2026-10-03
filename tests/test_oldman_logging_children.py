@@ -55,11 +55,7 @@ def _flush_default_handlers() -> None:
 
 def _rotation_thread_names() -> list[str]:
     """Return Oldman coordinator thread names visible in the current process."""
-    return sorted(
-        thread.name
-        for thread in threading.enumerate()
-        if thread.name == "oldman-log-rotation"
-    )
+    return sorted(thread.name for thread in threading.enumerate() if thread.name == "oldman-log-rotation")
 
 
 def _open_log_files(pid: int) -> list[str]:
@@ -178,19 +174,13 @@ def _async_process_database_probe(database_url: str) -> dict[str, Any]:
         try:
             await manager.initialize()
             async with manager.engine.connect() as connection:
-                return (
-                    await connection.execute(
-                        text("select value from process_probe")
-                    )
-                ).scalar_one()
+                return (await connection.execute(text("select value from process_probe"))).scalar_one()
         finally:
             await manager.close()
 
     return {
         "billiard_start_method": cast(Any, billiard).get_start_method(),
-        "inherited_initialized_manager": (
-            inherited_manager is not None and inherited_manager.is_initialized
-        ),
+        "inherited_initialized_manager": (inherited_manager is not None and inherited_manager.is_initialized),
         "value": asyncio.run(query()),
     }
 
@@ -298,17 +288,12 @@ class ProcessManagerLoggingTest(unittest.TestCase):
                     color="never",
                 )
                 try:
-                    result = asyncio.run(
-                        manager.run_with_timeout(_async_process_logging_probe, _timeout=10)
-                    )
+                    result = asyncio.run(manager.run_with_timeout(_async_process_logging_probe, _timeout=10))
                 finally:
                     runtime.close()
 
                 deadline = time.monotonic() + 2
-                while (
-                    "async-manager-raw-output-token" not in console.getvalue()
-                    and time.monotonic() < deadline
-                ):
+                while "async-manager-raw-output-token" not in console.getvalue() and time.monotonic() < deadline:
                     time.sleep(0.01)
 
             log_text = (Path(tmp) / "async_manager.log").read_text(encoding="utf-8")
@@ -356,9 +341,7 @@ class ProcessManagerLoggingTest(unittest.TestCase):
             payload = cast(dict[str, Any], result)
             self.assertEqual(logging.CRITICAL, payload["logging_disable_level"])
             log_path = Path(tmp) / "async_manager_disabled.log"
-            log_text = (
-                log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-            )
+            log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
             self.assertNotIn("async-manager-warning-token", log_text)
 
     def test_async_process_manager_cancellation_cannot_outlive_process_start(
@@ -385,9 +368,7 @@ class ProcessManagerLoggingTest(unittest.TestCase):
                     "oldman.processes.executor._start_spawn_process",
                     side_effect=delayed_start,
                 ):
-                    task = asyncio.create_task(
-                        manager.run_with_timeout(os.getpid, _timeout=10)
-                    )
+                    task = asyncio.create_task(manager.run_with_timeout(os.getpid, _timeout=10))
                     entered = await asyncio.to_thread(start_entered.wait, 5)
                     self.assertTrue(entered)
                     task.cancel()
@@ -413,9 +394,7 @@ class ProcessManagerLoggingTest(unittest.TestCase):
         global _ASYNC_PROCESS_PARENT_DB_MANAGER
 
         with tempfile.TemporaryDirectory() as tmp:
-            database_url = (
-                f"sqlite+aiosqlite:///{(Path(tmp) / 'process.sqlite3').as_posix()}"
-            )
+            database_url = f"sqlite+aiosqlite:///{(Path(tmp) / 'process.sqlite3').as_posix()}"
 
             async def exercise() -> tuple[dict[str, Any] | None, int]:
                 parent_manager = DatabaseManager(
@@ -432,12 +411,8 @@ class ProcessManagerLoggingTest(unittest.TestCase):
                 try:
                     await parent_manager.initialize()
                     async with parent_manager.engine.begin() as connection:
-                        await connection.execute(
-                            text("create table process_probe (value integer)")
-                        )
-                        await connection.execute(
-                            text("insert into process_probe values (42)")
-                        )
+                        await connection.execute(text("create table process_probe (value integer)"))
+                        await connection.execute(text("insert into process_probe values (42)"))
 
                     child_result = await process_manager.run_with_timeout(
                         _async_process_database_probe,
@@ -445,11 +420,7 @@ class ProcessManagerLoggingTest(unittest.TestCase):
                         _timeout=10,
                     )
                     async with parent_manager.engine.connect() as connection:
-                        parent_value = (
-                            await connection.execute(
-                                text("select value from process_probe")
-                            )
-                        ).scalar_one()
+                        parent_value = (await connection.execute(text("select value from process_probe"))).scalar_one()
                     return child_result, parent_value
                 finally:
                     await process_manager.shutdown()
@@ -662,15 +633,8 @@ class DirectMultiprocessIntegrityTest(unittest.TestCase):
 
             self.assertTrue(all(not report["owns_rotation"] for report in reports))
             self.assertTrue(all(report["rotation_threads"] == [] for report in reports))
-            combined = b"".join(
-                path.read_bytes()
-                for path in sorted(Path(tmp).glob("integrity.log*"))
-            )
-            expected = {
-                (producer, sequence)
-                for producer in ["main", *producers]
-                for sequence in range(records_per_producer)
-            }
+            combined = b"".join(path.read_bytes() for path in sorted(Path(tmp).glob("integrity.log*")))
+            expected = {(producer, sequence) for producer in ["main", *producers] for sequence in range(records_per_producer)}
             observed = {
                 (producer, int(sequence))
                 for producer, sequence in re.findall(
@@ -678,15 +642,10 @@ class DirectMultiprocessIntegrityTest(unittest.TestCase):
                     combined,
                 )
             }
-            observed = {
-                (producer.decode("ascii"), sequence)
-                for producer, sequence in observed
-            }
+            observed = {(producer.decode("ascii"), sequence) for producer, sequence in observed}
             self.assertEqual(expected, observed)
             self.assertNotIn(b"\x1b[", combined)
-            self.assertTrue(
-                all(line.endswith(b"\n") for line in combined.splitlines(keepends=True))
-            )
+            self.assertTrue(all(line.endswith(b"\n") for line in combined.splitlines(keepends=True)))
 
 
 class ChildLoggingContextTest(unittest.TestCase):

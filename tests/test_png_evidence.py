@@ -12,12 +12,7 @@ from oldman.testing.png_evidence import PngEvidenceError, require_png
 
 
 def png_chunk(chunk_type: bytes, payload: bytes) -> bytes:
-    return (
-        struct.pack(">I", len(payload))
-        + chunk_type
-        + payload
-        + struct.pack(">I", zlib.crc32(chunk_type + payload) & 0xFFFFFFFF)
-    )
+    return struct.pack(">I", len(payload)) + chunk_type + payload + struct.pack(">I", zlib.crc32(chunk_type + payload) & 0xFFFFFFFF)
 
 
 def write_png(path: Path, *, width: int = 320, height: int = 200) -> None:

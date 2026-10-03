@@ -108,9 +108,7 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         web_config_path = WEB_PACKAGE_ROOT / "tsconfig.json"
         self.assertTrue(web_config_path.is_file(), "oldman-web must provide the default IDE tsconfig.json")
         web_config = json.loads(web_config_path.read_text(encoding="utf-8"))
-        admin_config = json.loads(
-            (ROOT / "frontend" / "apps" / "admin" / "tsconfig.json").read_text(encoding="utf-8")
-        )
+        admin_config = json.loads((ROOT / "frontend" / "apps" / "admin" / "tsconfig.json").read_text(encoding="utf-8"))
         build_config = json.loads((WEB_PACKAGE_ROOT / "tsconfig.build.json").read_text(encoding="utf-8"))
         package = json.loads((WEB_PACKAGE_ROOT / "package.json").read_text(encoding="utf-8"))
 
@@ -180,7 +178,7 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         self.assertEqual("uv run python3 scripts/verify-current-release-oldman-web-package.py", command)
         self.assertIn('(("pnpm", "build:python"), "build-python.log")', wrapper_source)
         self.assertIn('(("pnpm", "pack:web"), "pack-web.log")', wrapper_source)
-        self.assertIn('from scripts.release_artifacts import authoritative_version, release_artifact_paths', wrapper_source)
+        self.assertIn("from scripts.release_artifacts import authoritative_version, release_artifact_paths", wrapper_source)
         self.assertNotIn("*.whl", wrapper_source)
         self.assertNotIn("*.tgz", wrapper_source)
         self.assertIn("Evidence:", source)
@@ -330,9 +328,7 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
             'menuPanelSelector: "[data-consumer-menu-panel]"',
             "",
         )
-        tampered_commands = tuple(
-            command for command in verifier.CLEAN_CONSUMER_COMMANDS if "tsc" not in command
-        )
+        tampered_commands = tuple(command for command in verifier.CLEAN_CONSUMER_COMMANDS if "tsc" not in command)
 
         errors = verifier.clean_consumer_contract_errors(
             artifact,
@@ -373,10 +369,10 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         """Admin 只能组合同一组公开 Dashboard theme adapter。"""
         admin_source = (ROOT / "frontend" / "apps" / "admin" / "src" / "main.ts").read_text(encoding="utf-8")
 
-        self.assertIn('oldman-web/dashboard/feedback', admin_source)
-        self.assertIn('oldman-web/dashboard/modal', admin_source)
-        self.assertIn('oldman-web/components/form', admin_source)
-        self.assertNotIn('form-modal', admin_source)
+        self.assertIn("oldman-web/dashboard/feedback", admin_source)
+        self.assertIn("oldman-web/dashboard/modal", admin_source)
+        self.assertIn("oldman-web/components/form", admin_source)
+        self.assertNotIn("form-modal", admin_source)
         self.assertNotIn("class AdminModal", admin_source)
         self.assertNotIn("class AdminFormModal", admin_source)
         self.assertNotIn("class AdminFeedback", admin_source)
@@ -385,9 +381,9 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         workspace = WORKSPACE_FILE.read_text(encoding="utf-8")
         admin_package = json.loads((ROOT / "frontend" / "apps" / "admin" / "package.json").read_text(encoding="utf-8"))
 
-        self.assertIn('frontend/packages/*', workspace)
-        self.assertIn('frontend/apps/*', workspace)
-        self.assertNotIn('examples/', workspace)
+        self.assertIn("frontend/packages/*", workspace)
+        self.assertIn("frontend/apps/*", workspace)
+        self.assertNotIn("examples/", workspace)
         self.assertEqual("oldman-admin", admin_package["name"])
         self.assertTrue(admin_package["private"])
         self.assertEqual(["oldman-web"], [path.name for path in (ROOT / "frontend" / "packages").iterdir() if path.is_dir()])
@@ -423,8 +419,8 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
 
         for token in ("@theme", ".oldman-sidebar", ".oldman-topbar", ".om-button-primary", ".om-field", ".om-table"):
             self.assertIn(token, shared_css)
-        self.assertIn('oldman-web/styles/tailwind.css', admin_css)
-        self.assertIn('oldman-web/styles/icons.css', admin_css)
+        self.assertIn("oldman-web/styles/tailwind.css", admin_css)
+        self.assertIn("oldman-web/styles/icons.css", admin_css)
         self.assertNotIn(".oldman-sidebar {", admin_css)
         self.assertNotIn(".om-button-primary {", admin_css)
         self.assertNotIn(".ri-database-2-line::before", admin_css)
@@ -443,7 +439,7 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         ):
             self.assertIn(f'@source inline("{utility}");', shared_css)
         self.assertLess(len(admin_css.splitlines()), 80)
-        self.assertNotIn('node-waves/dist/waves.min.css', shared_css)
+        self.assertNotIn("node-waves/dist/waves.min.css", shared_css)
 
     def test_published_tailwind_scans_compiled_runtime_javascript(self) -> None:
         shared_css = (WEB_PACKAGE_ROOT / "src" / "styles" / "tailwind.css").read_text(encoding="utf-8")
@@ -494,12 +490,8 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
             (root / "src" / "components").mkdir(parents=True)
             (root / "src" / "theme").mkdir()
             (root / "src" / "components" / "active.ts").write_text('const icon = "ri-add-line";\n', encoding="utf-8")
-            (root / "src" / "components" / "active.test.ts").write_text(
-                'const testIcon = "ri-delete-bin-line";\n', encoding="utf-8"
-            )
-            (root / "src" / "theme" / "dormant.ts").write_text(
-                'const dormantIcon = "ri-24-hours-fill";\n', encoding="utf-8"
-            )
+            (root / "src" / "components" / "active.test.ts").write_text('const testIcon = "ri-delete-bin-line";\n', encoding="utf-8")
+            (root / "src" / "theme" / "dormant.ts").write_text('const dormantIcon = "ri-24-hours-fill";\n', encoding="utf-8")
             output = root / "src" / "generated" / "icons.css"
 
             completed = subprocess.run(

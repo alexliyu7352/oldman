@@ -627,11 +627,7 @@ async def round_trip_boolean_foreign_admin() -> SimpleNamespace:
             invalid_form = admin.build_form(make_request({"flag": "definitely-not-bool"}), session=session)
             invalid_valid = await invalid_form.validate()
             session.sync_session.expunge_all()
-            records = list(
-                (await session.execute(select(AdminBooleanForeignRecord).order_by(AdminBooleanForeignRecord.id)))
-                .scalars()
-                .all()
-            )
+            records = list((await session.execute(select(AdminBooleanForeignRecord).order_by(AdminBooleanForeignRecord.id))).scalars().all())
             flags.extend(record.flag for record in records)
             return SimpleNamespace(
                 missing_valid=missing_valid,

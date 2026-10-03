@@ -69,10 +69,7 @@ class StartServiceScaffoldTests(unittest.TestCase):
             project = create_web_project(Path(temporary_directory))
             settings_path = project / "data" / "web_settings.yaml"
             original_settings = settings_path.read_bytes()
-            original_apps = {
-                path.relative_to(project)
-                for path in (project / "apps").rglob("*")
-            }
+            original_apps = {path.relative_to(project) for path in (project / "apps").rglob("*")}
 
             for name, service_type, expected_base in (
                 ("music_worker", "simple", "SimpleApplication"),
@@ -87,9 +84,7 @@ class StartServiceScaffoldTests(unittest.TestCase):
                         0,
                         result.output + repr(result.exception),
                     )
-                    source = (project / "services" / f"{name}.py").read_text(
-                        encoding="utf-8"
-                    )
+                    source = (project / "services" / f"{name}.py").read_text(encoding="utf-8")
                     self.assertIn(f"({expected_base}):", source)
                     self.assertNotIn("SERVICE_ID", source)
                     self.assertNotIn("registered_apps", source)
@@ -101,10 +96,7 @@ class StartServiceScaffoldTests(unittest.TestCase):
             self.assertEqual(definitions["task_scheduler"].application_base, "taskiq_scheduler")
             self.assertEqual(settings_path.read_bytes(), original_settings)
             self.assertEqual(
-                {
-                    path.relative_to(project)
-                    for path in (project / "apps").rglob("*")
-                },
+                {path.relative_to(project) for path in (project / "apps").rglob("*")},
                 original_apps,
             )
 

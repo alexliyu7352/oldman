@@ -95,20 +95,12 @@ def _handler_names() -> list[str]:
 
 def _rotation_thread_names() -> list[str]:
     """Return coordinator threads owned by this process."""
-    return sorted(
-        thread.name
-        for thread in threading.enumerate()
-        if thread.name == "oldman-log-rotation"
-    )
+    return sorted(thread.name for thread in threading.enumerate() if thread.name == "oldman-log-rotation")
 
 
 def _pipe_reader_thread_names() -> list[str]:
     """Return temporary-process console forwarding threads in this process."""
-    return sorted(
-        thread.name
-        for thread in threading.enumerate()
-        if isinstance(thread, ParentLogPipeReader)
-    )
+    return sorted(thread.name for thread in threading.enumerate() if isinstance(thread, ParentLogPipeReader))
 
 
 def _runtime_probe() -> dict[str, Any]:
@@ -258,10 +250,7 @@ async def _matrix_pipe_subprocess_route(request: Request) -> Any:
     token, selected = _matrix_request(request)
     if not selected:
         return json_response({"executed": False, "worker": _runtime_probe()})
-    source = (
-        "import sys; token=sys.argv[1]; print(f'WEB_PIPE_STDOUT:{token}'); "
-        "print(f'WEB_PIPE_STDERR:{token}',file=sys.stderr)"
-    )
+    source = "import sys; token=sys.argv[1]; print(f'WEB_PIPE_STDOUT:{token}'); print(f'WEB_PIPE_STDERR:{token}',file=sys.stderr)"
     process = await create_subprocess_exec(
         sys.executable,
         "-c",
@@ -395,9 +384,7 @@ def main() -> None:
     STATE_FILE.write_text(json.dumps(probe), encoding="utf-8")
     application.run()
     deadline = time.monotonic() + 3
-    while (
-        _rotation_thread_names() or _pipe_reader_thread_names()
-    ) and time.monotonic() < deadline:
+    while (_rotation_thread_names() or _pipe_reader_thread_names()) and time.monotonic() < deadline:
         time.sleep(0.02)
     probe["after_run"] = {
         "rotation_threads": _rotation_thread_names(),

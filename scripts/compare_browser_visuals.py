@@ -73,9 +73,7 @@ def parse_args() -> argparse.Namespace:
     if not 0 <= args.max_tile_mean_absolute_error <= MAX_ALLOWED_TILE_MEAN_ABSOLUTE_ERROR:
         parser.error(f"--max-tile-mean-absolute-error must be between 0 and {MAX_ALLOWED_TILE_MEAN_ABSOLUTE_ERROR}")
     if not 0 <= args.max_tile_changed_pixel_ratio <= MAX_ALLOWED_TILE_CHANGED_PIXEL_RATIO:
-        parser.error(
-            f"--max-tile-changed-pixel-ratio must be between 0 and {MAX_ALLOWED_TILE_CHANGED_PIXEL_RATIO}"
-        )
+        parser.error(f"--max-tile-changed-pixel-ratio must be between 0 and {MAX_ALLOWED_TILE_CHANGED_PIXEL_RATIO}")
     return args
 
 
@@ -237,11 +235,7 @@ def _validate_approved_difference_regions(
         width, height = _open_rgb(source_files[name]).size
         validated_boxes: list[list[int]] = []
         for box in boxes:
-            if (
-                not isinstance(box, list)
-                or len(box) != 4
-                or any(type(value) is not int for value in box)
-            ):
+            if not isinstance(box, list) or len(box) != 4 or any(type(value) is not int for value in box):
                 raise ValueError(f"approved difference region must contain four integers: {name}={box!r}")
             left, top, right, bottom = box
             if left < 0 or top < 0 or right <= left or bottom <= top or right > width or bottom > height:
@@ -285,11 +279,7 @@ def _open_rgb(path: Path) -> Image.Image:
 
 def _capture_manifest(directory: Path) -> dict[str, Path]:
     """Inventory every PNG below a capture root using stable relative names."""
-    return {
-        path.relative_to(directory).as_posix(): path
-        for path in directory.rglob("*")
-        if path.is_file() and path.suffix.lower() == ".png"
-    }
+    return {path.relative_to(directory).as_posix(): path for path in directory.rglob("*") if path.is_file() and path.suffix.lower() == ".png"}
 
 
 def _difference_metrics(source: Image.Image, target: Image.Image) -> tuple[float, float]:

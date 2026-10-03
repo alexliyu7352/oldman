@@ -399,8 +399,7 @@ class MultiHttpClient(BaseHttpClient):
                     # 检查是否需要根据状态码重试
                     if response.status_code not in no_retry_statuses and attempt < retries_left:
                         logger.warning(
-                            f"收到状态码 {response.status_code}，将重试请求: {log_url}, "
-                            f"代理: {log_proxy}, 尝试: {attempt + 1}/{retries_left + 1}"
+                            f"收到状态码 {response.status_code}，将重试请求: {log_url}, 代理: {log_proxy}, 尝试: {attempt + 1}/{retries_left + 1}"
                         )
                         response_text = response.text
                         response_status_code = response.status_code
@@ -408,18 +407,12 @@ class MultiHttpClient(BaseHttpClient):
                     else:
                         # 如果状态码不需要重试, 比如404，直接返回响应
                         self.timeout_count = 0
-                        logger.warning(
-                            f"请求未成功, 状态码: {response.status_code}, 不需要重试: {log_url}, "
-                            f"代理: {log_proxy}"
-                        )
+                        logger.warning(f"请求未成功, 状态码: {response.status_code}, 不需要重试: {log_url}, 代理: {log_proxy}")
                         return response
                 except TimeoutError as e:
                     self.timeout_count += 1
                     last_exception = e
-                    logger.warning(
-                        f"请求超时 ({attempt + 1}/{retries_left + 1}): {log_url}, "
-                        f"代理: {log_proxy}, 累计超时次数: {self.timeout_count}"
-                    )
+                    logger.warning(f"请求超时 ({attempt + 1}/{retries_left + 1}): {log_url}, 代理: {log_proxy}, 累计超时次数: {self.timeout_count}")
                     # 继续重试循环
                 except Exception as e:
                     request_info = getattr(e, "request_info", None)
@@ -427,9 +420,7 @@ class MultiHttpClient(BaseHttpClient):
                     if real_url is not None and str(real_url) != url:
                         url = str(real_url)
                         log_url = redact_url(url)
-                    logger.error(
-                        f"请求错误 ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url: {log_url}"
-                    )
+                    logger.error(f"请求错误 ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url: {log_url}")
                     last_exception = e
                     # 继续重试循环
 
@@ -486,16 +477,11 @@ class MultiHttpClient(BaseHttpClient):
                 except TimeoutError as e:
                     self.timeout_count += 1
                     last_exception = e
-                    logger.warning(
-                        f"流式请求超时 ({attempt + 1}/{retries_left + 1}), [{log_url}], 代理: {log_proxy}"
-                    )
+                    logger.warning(f"流式请求超时 ({attempt + 1}/{retries_left + 1}), [{log_url}], 代理: {log_proxy}")
                     # 继续重试
 
                 except Exception as e:
-                    logger.error(
-                        f"流式请求错误 ({attempt + 1}/{retries_left + 1}): "
-                        f"{type(e).__name__}, url is {log_url}"
-                    )
+                    logger.error(f"流式请求错误 ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url is {log_url}")
                     last_exception = e
                     # 继续重试
                     if connected:

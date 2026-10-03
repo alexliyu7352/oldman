@@ -35,16 +35,26 @@ class NatsBusConfigTest(unittest.TestCase):
     def test_defaults_and_validation_are_offline(self) -> None:
         """Check every default, disabled receive settings and invalid supplied values."""
         with patch("socket.socket", side_effect=AssertionError("settings must stay offline")):
-            self.assertEqual(DefaultSettings().nats_bus.model_dump(), {
-                "enabled": False, "nats_alias": "DEFAULT", "consume": False,
-                "namespace": None, "peer_id": None, "serializer_mode": "msgpack",
-                "startup_timeout": 30, "graceful_timeout": 10,
-            })
+            self.assertEqual(
+                DefaultSettings().nats_bus.model_dump(),
+                {
+                    "enabled": False,
+                    "nats_alias": "DEFAULT",
+                    "consume": False,
+                    "namespace": None,
+                    "peer_id": None,
+                    "serializer_mode": "msgpack",
+                    "startup_timeout": 30,
+                    "graceful_timeout": 10,
+                },
+            )
             NATSBusConfig.model_validate({"consume": True, "nats_alias": "absent"})
-            settings = DefaultSettings.model_validate({
-                "nats": {"BUS": {"nats_url": "tls://localhost", "tls_ca_file": "/missing/ca.pem"}},
-                "nats_bus": {"enabled": True, "namespace": "Mixed_App-1", "nats_alias": "BUS"},
-            })
+            settings = DefaultSettings.model_validate(
+                {
+                    "nats": {"BUS": {"nats_url": "tls://localhost", "tls_ca_file": "/missing/ca.pem"}},
+                    "nats_bus": {"enabled": True, "namespace": "Mixed_App-1", "nats_alias": "BUS"},
+                }
+            )
             self.assertEqual(settings.nats_bus.namespace, "Mixed_App-1")
         for values in ({"enabled": True}, {"serializer_mode": "legacy"}, {"nats_alias": ""}):
             with self.subTest(values=values), self.assertRaises(ValidationError):
@@ -71,7 +81,9 @@ class NatsBusConfigTest(unittest.TestCase):
                 manager.init_config()
                 self.assertFalse(manager.read_config()["nats_bus"]["enabled"])
                 self.assertNotIn("web", manager.read_config())
-                path.write_text("# operator settings\nnats_bus:\n  enabled: true\n  namespace: EPG-dev\n  consume: true\n  startup_timeout: 4\n", encoding="utf-8")
+                path.write_text(
+                    "# operator settings\nnats_bus:\n  enabled: true\n  namespace: EPG-dev\n  consume: true\n  startup_timeout: 4\n", encoding="utf-8"
+                )
                 manager.sync_config()
                 settings = manager.load()
             self.assertTrue(settings.nats_bus.consume)
@@ -82,7 +94,11 @@ class NatsBusConfigTest(unittest.TestCase):
 
     def test_import_and_declare_without_settings_or_sockets(self) -> None:
         """A fresh interpreter must import the actual singleton before bootstrap."""
-        result = subprocess.run([sys.executable, "-c", '''
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """
 from unittest.mock import patch
 with patch("socket.socket", side_effect=AssertionError("import opened socket")):
     import oldman.conf as conf
@@ -100,11 +116,17 @@ with patch("socket.socket", side_effect=AssertionError("import opened socket")):
         return message
     assert bus.broker._connection is None
     assert not bus.broker.running
-'''], capture_output=True, text=True, timeout=15)
+""",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_disabled_context_and_unstarted_call_fail(self) -> None:
         """An explicit managed scope cannot bypass the configured switch."""
+
         async def check() -> None:
             """No server is needed to reject lifecycle misuse."""
             bus = _ConfiguredNATSConnection()
@@ -114,6 +136,7 @@ with patch("socket.socket", side_effect=AssertionError("import opened socket")):
                 async with bus:
                     self.fail("disabled context entered")
             self.assertIsNone(bus.broker._connection)
+
         with patch.dict(conf.__dict__, settings=DefaultSettings()):
             asyncio.run(check())
 
@@ -128,11 +151,19 @@ with patch("socket.socket", side_effect=AssertionError("import opened socket")):
                 server = subprocess.Popen([require_nats_server(), "-a", "127.0.0.1", "-p", str(port)], stdout=log, stderr=log)
                 try:
                     for codec in ("msgpack", "msgspec_json"):
-                        settings = DefaultSettings.model_validate({
-                            "nats": {"LOCAL": {"nats_url": url, "reconnect_time_wait": 0.01}},
-                            "nats_bus": {"enabled": True, "consume": True, "namespace": "bus_test",
-                                         "peer_id": "sender", "nats_alias": "LOCAL", "serializer_mode": codec},
-                        })
+                        settings = DefaultSettings.model_validate(
+                            {
+                                "nats": {"LOCAL": {"nats_url": url, "reconnect_time_wait": 0.01}},
+                                "nats_bus": {
+                                    "enabled": True,
+                                    "consume": True,
+                                    "namespace": "bus_test",
+                                    "peer_id": "sender",
+                                    "nats_alias": "LOCAL",
+                                    "serializer_mode": codec,
+                                },
+                            }
+                        )
                         bus = _ConfiguredNATSConnection()
 
                         @bus.subscriber("local", peer=True)

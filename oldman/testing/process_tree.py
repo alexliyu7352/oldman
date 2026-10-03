@@ -79,15 +79,9 @@ class ProcessTreeTracker:
         if leader is not None and (identity is None or identity[0] == leader[2]):
             roots.add(self.leader_pid)
         roots.update(
-            pid
-            for pid, (start_time, _process_group) in self.owned.items()
-            if (record := table.get(pid)) is not None and record[2] == start_time
+            pid for pid, (start_time, _process_group) in self.owned.items() if (record := table.get(pid)) is not None and record[2] == start_time
         )
-        roots.update(
-            pid
-            for pid, record in table.items()
-            if record[0] == self.adopted_parent and (pid, record[2]) not in self.ignored_adoptees
-        )
+        roots.update(pid for pid, record in table.items() if record[0] == self.adopted_parent and (pid, record[2]) not in self.ignored_adoptees)
         discovered = set(roots)
         while True:
             children = {pid for pid, record in table.items() if record[0] in discovered}
@@ -168,9 +162,7 @@ class ProcessTreeTracker:
 
         own_group = os.getpgrp()
         groups = {
-            record[1]
-            for pid, record in live.items()
-            if pid != self.leader_pid and record[3] != "Z" and record[1] > 1 and record[1] != own_group
+            record[1] for pid, record in live.items() if pid != self.leader_pid and record[3] != "Z" and record[1] > 1 and record[1] != own_group
         }
         for process_group in sorted(groups, key=lambda value: value == self.leader_pid):
             try:

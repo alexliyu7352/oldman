@@ -60,13 +60,13 @@ class StaticBundleRegistryTest(unittest.TestCase):
             ),
             "",
         )
-        self.assertIn('/static/test-dist/assets/vendor.css', str(registry.styles_tags("test:fixture")))
-        self.assertIn('/static/test-dist/assets/main.css', str(registry.styles_tags("test:fixture")))
+        self.assertIn("/static/test-dist/assets/vendor.css", str(registry.styles_tags("test:fixture")))
+        self.assertIn("/static/test-dist/assets/main.css", str(registry.styles_tags("test:fixture")))
         self.assertLess(str(registry.styles_tags("test:fixture")).index("vendor.css"), str(registry.styles_tags("test:fixture")).index("main.css"))
         self.assertIn('rel="modulepreload"', str(registry.modulepreload_tags("test:fixture")))
-        self.assertIn('/static/test-dist/assets/vendor.js', str(registry.modulepreload_tags("test:fixture")))
+        self.assertIn("/static/test-dist/assets/vendor.js", str(registry.modulepreload_tags("test:fixture")))
         self.assertIn('type="module"', str(registry.script_tags("test:fixture")))
-        self.assertIn('/static/test-dist/assets/main.js', str(registry.script_tags("test:fixture")))
+        self.assertIn("/static/test-dist/assets/main.js", str(registry.script_tags("test:fixture")))
 
     def test_registry_dev_mode_uses_dev_server_without_manifest_tags(self) -> None:
         """开发模式下 registry 应使用 dev server，并不输出生产 CSS/modulepreload。"""
@@ -158,11 +158,7 @@ class StaticBundleRegistryTest(unittest.TestCase):
 
         for project_module in ("apps", "services", "config"):
             self.assertFalse(
-                any(
-                    module == project_module
-                    or module.startswith(f"{project_module}.")
-                    for module in imported_modules
-                ),
+                any(module == project_module or module.startswith(f"{project_module}.") for module in imported_modules),
                 project_module,
             )
 
@@ -202,7 +198,9 @@ class StaticBundleRegistryTest(unittest.TestCase):
         self.assertEqual("/static/dist", bundle.static_url)
         self.assertEqual(("theme/",), bundle.passthrough_prefixes)
 
-        development = register_project_bundle(registry, name="app:dev", entry_path="src/main.ts", static_root="", static_url="", dev_mode=True, dev_server_url="http://localhost:5173/")
+        development = register_project_bundle(
+            registry, name="app:dev", entry_path="src/main.ts", static_root="", static_url="", dev_mode=True, dev_server_url="http://localhost:5173/"
+        )
         self.assertEqual(("http://localhost:5173", True), (development.normalized_dev_server_url(), development.dev_mode))
         with self.assertRaisesRegex(RuntimeError, "settings.web.static.root and settings.web.static.url"):
             register_project_bundle(registry, name="app:broken", entry_path="src/main.ts", static_root="", static_url="/static", dev_mode=False)

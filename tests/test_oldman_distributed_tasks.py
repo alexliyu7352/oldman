@@ -133,10 +133,29 @@ class DistributedTaskIntegrationTest(unittest.TestCase):
             with (root / "servers.log").open("wb") as log:
                 try:
                     processes.append(subprocess.Popen([require_nats_server(), "-c", str(nats_config)], stdout=log, stderr=log))
-                    processes.append(subprocess.Popen([
-                        require_redis_server(), "--bind", "127.0.0.1", "--port", str(redis_port), "--dir", directory,
-                        "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction",
-                    ], stdout=log, stderr=log))
+                    processes.append(
+                        subprocess.Popen(
+                            [
+                                require_redis_server(),
+                                "--bind",
+                                "127.0.0.1",
+                                "--port",
+                                str(redis_port),
+                                "--dir",
+                                directory,
+                                "--save",
+                                "",
+                                "--appendonly",
+                                "no",
+                                "--maxmemory",
+                                "128mb",
+                                "--maxmemory-policy",
+                                "noeviction",
+                            ],
+                            stdout=log,
+                            stderr=log,
+                        )
+                    )
                     (root / "servers.json").write_text(json.dumps([process.pid for process in processes]))
                     deadline = time.monotonic() + 5
                     for port in ports:
@@ -150,7 +169,10 @@ class DistributedTaskIntegrationTest(unittest.TestCase):
                                 time.sleep(0.02)
                     result = subprocess.run(
                         [sys.executable, "-m", "tests.test_oldman_distributed_tasks", mode, str(nats_port), str(redis_port), directory],
-                        cwd=ROOT, capture_output=True, text=True, timeout=80,
+                        cwd=ROOT,
+                        capture_output=True,
+                        text=True,
+                        timeout=80,
                     )
                     self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                     return json.loads(result.stdout.strip().splitlines()[-1])
@@ -172,15 +194,23 @@ def exercise(nats_port: int, redis_port: int, root: Path) -> None:
     from oldman import conf
     from oldman.conf.schemas import DefaultSettings
 
-    settings = DefaultSettings.model_validate({
-        "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
-        "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0?decode_responses=true"}},
-        "taskiq": {
-            "enabled": True, "namespace": "Transport_Test", "consume_queues": ["empty", "busy"],
-            "max_async_tasks": 1, "max_prefetch": 0, "ack_wait": 0.3,
-            "publish_timeout": 1, "ack_timeout": 1, "result_ex_time": 30,
-        },
-    })
+    settings = DefaultSettings.model_validate(
+        {
+            "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
+            "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0?decode_responses=true"}},
+            "taskiq": {
+                "enabled": True,
+                "namespace": "Transport_Test",
+                "consume_queues": ["empty", "busy"],
+                "max_async_tasks": 1,
+                "max_prefetch": 0,
+                "ack_wait": 0.3,
+                "publish_timeout": 1,
+                "ack_timeout": 1,
+                "result_ex_time": 30,
+            },
+        }
+    )
     conf._publish_settings(settings)
     from redis.asyncio import Redis
     from redis.exceptions import ConnectionError as RedisConnectionError
@@ -244,7 +274,9 @@ def exercise(nats_port: int, redis_port: int, root: Path) -> None:
                 assert len(keys) == 3 and all(isinstance(key, bytes) for key in keys), keys
                 assert 0 < await redis.ttl(keys[0]) <= 30
             scheduled = await task.schedule_by_time(
-                schedule_source, datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=1), "ok",
+                schedule_source,
+                datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=1),
+                "ok",
             )
             records = await schedule_source.get_schedules()
             matching = [item for item in records if item.schedule_id == scheduled.schedule_id]
@@ -390,12 +422,23 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
     data = project / "data"
     data.mkdir()
     config: dict[str, Any] = {
-        "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
+        "apps": ["job_app"],
+        "logging": {"dir": str(project / "logs")},
+        "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-        "taskiq": {"enabled": True, "namespace": "Worker_Probe", "workers": 2, "max_async_tasks": 1,
-                   "consume_queues": ["empty", "busy"], "startup_timeout": 4, "startup_attempts": 2,
-                   "shutdown_timeout": 2, "stop_timeout": 6, "ack_wait": 1},
+        "taskiq": {
+            "enabled": True,
+            "namespace": "Worker_Probe",
+            "workers": 2,
+            "max_async_tasks": 1,
+            "consume_queues": ["empty", "busy"],
+            "startup_timeout": 4,
+            "startup_attempts": 2,
+            "shutdown_timeout": 2,
+            "stop_timeout": 6,
+            "ack_wait": 1,
+        },
     }
     (data / "mail_jobs_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
     environment = {**os.environ, "PROJECT_ROOT": str(project), "PYTHONPATH": os.pathsep.join((str(project), str(ROOT)))}
@@ -404,7 +447,11 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
         process = subprocess.Popen([*command, "start"], cwd=project, env=environment, stdout=log, stderr=log, start_new_session=True)
         try:
             # The publisher is a separate process; only its selected service is bootstrapped.
-            publish = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+            publish = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent("""
                 import asyncio, json
                 from oldman import bootstrap_service
                 context = bootstrap_service('mail_jobs')
@@ -417,7 +464,14 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
                         results = [await job.wait_result(timeout=15) for job in jobs]
                         print(json.dumps(sorted(set(result.return_value for result in results))))
                 asyncio.run(main())
-            """)], cwd=project, env=environment, capture_output=True, text=True, timeout=25)
+            """),
+                ],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=25,
+            )
             log.flush()
             assert publish.returncode == 0, publish.stdout + publish.stderr + (root / "worker.log").read_text()
             worker_pids = json.loads(publish.stdout.strip().splitlines()[-1])
@@ -454,7 +508,11 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
             assert recovered.returncode == 0, recovered.stdout + recovered.stderr + (root / "worker.log").read_text()
             assert set(json.loads(recovered.stdout.strip().splitlines()[-1])) == child_pids()
             serving = child_pids()
-            redelivered = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+            redelivered = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent("""
                 import asyncio
                 from oldman import bootstrap_service
                 context = bootstrap_service('mail_jobs')
@@ -470,7 +528,14 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
                             while (await broker.js.stream_info(broker.stream_name)).state.messages:
                                 await asyncio.sleep(0.02)
                 asyncio.run(main())
-            """)], cwd=project, env=environment, capture_output=True, text=True, timeout=15)
+            """),
+                ],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
             assert redelivered.returncode == 0, redelivered.stdout + redelivered.stderr
             # crash_once's worker is replaced in the background. Restart only once the replacement listens: Taskiq
             # stops workers with SIGINT, and one still in spawn bootstrap prints a KeyboardInterrupt traceback
@@ -521,7 +586,9 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
     failed_config["taskiq"] = {**config["taskiq"], "startup_timeout": 1.5, "shutdown_timeout": 0.5, "stop_timeout": 2}
     (data / "mail_jobs_settings.yaml").write_text(json.dumps(failed_config), encoding="utf-8")
     failed = subprocess.run([*command, "start"], cwd=project, env=environment, capture_output=True, text=True, timeout=15, start_new_session=True)
-    assert failed.returncode == 1 and "failed all 2 startup attempts" in failed.stdout + failed.stderr, f"exit={failed.returncode}\n" + failed.stdout + failed.stderr
+    assert failed.returncode == 1 and "failed all 2 startup attempts" in failed.stdout + failed.stderr, (
+        f"exit={failed.returncode}\n" + failed.stdout + failed.stderr
+    )
     report["startup_failure_status"] = failed.returncode
 
     # A fresh namespace avoids consuming any deliberately stuck previous delivery.
@@ -531,7 +598,11 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
     with (root / "stuck-worker.log").open("w+") as log:
         process = subprocess.Popen([*command, "start"], cwd=project, env=environment, stdout=log, stderr=log, start_new_session=True)
         try:
-            posted = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+            posted = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent("""
                 import asyncio
                 from oldman import bootstrap_service
                 context = bootstrap_service('mail_jobs')
@@ -547,7 +618,14 @@ def exercise_worker(nats_port: int, redis_port: int, root: Path) -> None:
                                 while not await client.get('worker-probe:stuck'):
                                     await asyncio.sleep(0.05)
                 asyncio.run(main())
-            """)], cwd=project, env=environment, capture_output=True, text=True, timeout=15)
+            """),
+                ],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
             assert posted.returncode == 0, posted.stdout + posted.stderr + (root / "stuck-worker.log").read_text()
             started = time.monotonic()
             stopped = subprocess.run([*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=8)
@@ -680,12 +758,24 @@ def exercise_scheduler(nats_port: int, redis_port: int, root: Path) -> None:
     data = project / "data"
     data.mkdir()
     config: dict[str, Any] = {
-        "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
+        "apps": ["job_app"],
+        "logging": {"dir": str(project / "logs")},
+        "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-        "taskiq": {"enabled": True, "namespace": "Scheduler_Probe", "workers": 1, "max_async_tasks": 1,
-                   "consume_queues": ["busy"], "startup_timeout": 4, "startup_attempts": 2,
-                   "shutdown_timeout": 2, "stop_timeout": 6, "ack_wait": 1, "schedule_update_interval": 1},
+        "taskiq": {
+            "enabled": True,
+            "namespace": "Scheduler_Probe",
+            "workers": 1,
+            "max_async_tasks": 1,
+            "consume_queues": ["busy"],
+            "startup_timeout": 4,
+            "startup_attempts": 2,
+            "shutdown_timeout": 2,
+            "stop_timeout": 6,
+            "ack_wait": 1,
+            "schedule_update_interval": 1,
+        },
     }
     for service in ("task_worker", "task_scheduler"):
         (data / f"{service}_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
@@ -695,9 +785,16 @@ def exercise_scheduler(nats_port: int, redis_port: int, root: Path) -> None:
     with (root / "scheduler.log").open("w+") as log:
         try:
             for service in ("task_worker", "task_scheduler"):
-                processes.append(subprocess.Popen([executable, service, "start"], cwd=project, env=environment,
-                                                  stdout=log, stderr=log, text=True, start_new_session=True))
-            completed = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+                processes.append(
+                    subprocess.Popen(
+                        [executable, service, "start"], cwd=project, env=environment, stdout=log, stderr=log, text=True, start_new_session=True
+                    )
+                )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent("""
                 import asyncio, datetime, json
                 from oldman import bootstrap_service
                 context = bootstrap_service('task_worker')
@@ -735,7 +832,14 @@ def exercise_scheduler(nats_port: int, redis_port: int, root: Path) -> None:
                                 assert not remaining, remaining
                                 print(json.dumps({'once': events.count('once'), 'cancelled': events.count('cancelled'), 'retry_attempts': result.return_value}))
                 asyncio.run(main())
-            """)], cwd=project, env=environment, capture_output=True, text=True, timeout=25)
+            """),
+                ],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=25,
+            )
             assert completed.returncode == 0, completed.stdout + completed.stderr + (root / "scheduler.log").read_text()
             report = json.loads(completed.stdout.strip().splitlines()[-1])
             statuses = []
@@ -831,19 +935,37 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
     data = project / "data"
     data.mkdir()
     config: dict[str, Any] = {
-        "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
+        "apps": ["job_app"],
+        "logging": {"dir": str(project / "logs")},
+        "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0", "connection_socket_timeout": 0.2, "retry_attempts": 0}},
-        "taskiq": {"enabled": True, "namespace": "Scheduler_Faults", "startup_timeout": 4, "startup_attempts": 1,
-                   "publish_timeout": 0.2, "shutdown_timeout": 2, "stop_timeout": 6, "schedule_update_interval": 30},
+        "taskiq": {
+            "enabled": True,
+            "namespace": "Scheduler_Faults",
+            "startup_timeout": 4,
+            "startup_attempts": 1,
+            "publish_timeout": 0.2,
+            "shutdown_timeout": 2,
+            "stop_timeout": 6,
+            "schedule_update_interval": 30,
+        },
     }
     if force_stop:
         config["taskiq"]["stop_timeout"] = 2
     (data / "timer_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
-    environment = {**os.environ, "PROJECT_ROOT": str(project), "TASKIQ_PROBE_ROOT": str(root),
-                   "PYTHONPATH": os.pathsep.join((str(project), str(ROOT)))}
+    environment = {
+        **os.environ,
+        "PROJECT_ROOT": str(project),
+        "TASKIQ_PROBE_ROOT": str(root),
+        "PYTHONPATH": os.pathsep.join((str(project), str(ROOT))),
+    }
     executable = str(Path(sys.executable).parent / "oldman")
-    prepare = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+    prepare = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            textwrap.dedent("""
         import asyncio, datetime, json
         from oldman import bootstrap_service
         context = bootstrap_service('timer')
@@ -856,14 +978,22 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
                 for kind in ('nats', 'redis', 'wait'):
                     await job.kicker().with_labels(probe=kind).schedule_by_time(schedule_source, now, kind)
         asyncio.run(main())
-    """)], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+    """),
+        ],
+        cwd=project,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
     assert prepare.returncode == 0, prepare.stdout + prepare.stderr
     process: subprocess.Popen[str] | None = None
     stopped: subprocess.Popen[str] | None = None
     with (root / "scheduler.log").open("w+") as log:
         try:
-            process = subprocess.Popen([executable, "timer", "start"], cwd=project, env=environment,
-                                       stdout=log, stderr=log, text=True, start_new_session=True)
+            process = subprocess.Popen(
+                [executable, "timer", "start"], cwd=project, env=environment, stdout=log, stderr=log, text=True, start_new_session=True
+            )
             deadline = time.monotonic() + 12
             while True:
                 path = root / "post-complete.json"
@@ -872,8 +1002,7 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
                 assert process.poll() is None and time.monotonic() < deadline, (root / "scheduler.log").read_text()
                 time.sleep(0.05)
             # Same PID recovered both failures before the 30-second source refresh.
-            stopped = subprocess.Popen([executable, "timer", "stop"], cwd=project, env=environment,
-                                       stdout=log, stderr=log, text=True)
+            stopped = subprocess.Popen([executable, "timer", "stop"], cwd=project, env=environment, stdout=log, stderr=log, text=True)
             time.sleep(0.6)
             assert stopped.poll() is None and process.poll() is None, (root / "scheduler.log").read_text()
             if force_stop:
@@ -891,7 +1020,11 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
             assert stopped.returncode == process.returncode == 0, (root / "scheduler.log").read_text()
             assert len(json.loads((root / "post-complete.json").read_text())) == 3
             assert (root / "source-closes").read_text() == "1"
-            check = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+            check = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent("""
                 import asyncio, json
                 from oldman import bootstrap_service
                 bootstrap_service('timer')
@@ -903,7 +1036,14 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
                         assert count == 3, count
                         print(json.dumps({'queued': count, 'stop_status': 0, 'source_closes': 1}))
                 asyncio.run(main())
-            """)], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+            """),
+                ],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
             assert check.returncode == 0, check.stdout + check.stderr
             output = (root / "scheduler.log").read_text()
             assert "SendTaskError" in output and "TimeoutError" in output, output
@@ -911,8 +1051,9 @@ def exercise_scheduler_faults(nats_port: int, redis_port: int, root: Path, *, fo
             config["nats"]["DEFAULT"]["nats_url"] = "nats://127.0.0.1:1"
             config["taskiq"]["startup_timeout"] = 0.3
             (data / "timer_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
-            failed = subprocess.run([executable, "timer", "start"], cwd=project, env=environment,
-                                    capture_output=True, text=True, timeout=8, start_new_session=True)
+            failed = subprocess.run(
+                [executable, "timer", "start"], cwd=project, env=environment, capture_output=True, text=True, timeout=8, start_new_session=True
+            )
             assert failed.returncode == 1 and "Connection refused" in failed.stdout + failed.stderr, (failed.returncode, failed.stdout, failed.stderr)
             print(check.stdout.strip().splitlines()[-1])
         finally:
@@ -1026,7 +1167,9 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
     data = project / "data"
     data.mkdir()
     config: dict[str, Any] = {
-        "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
+        "apps": ["job_app"],
+        "logging": {"dir": str(project / "logs")},
+        "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
         "taskiq": {"enabled": True, "namespace": "Publisher_Probe", "startup_timeout": 3, "startup_attempts": 1},
@@ -1035,23 +1178,29 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
     }
     for service in ("worker", "web"):
         (data / f"{service}_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
-    environment = {**os.environ, "PROJECT_ROOT": str(project), "TASKIQ_PROBE_ROOT": str(root),
-                   "TASKIQ_PROBE_WEB_PORT": str(web_port), "PYTHONPATH": os.pathsep.join((str(project), str(ROOT)))}
+    environment = {
+        **os.environ,
+        "PROJECT_ROOT": str(project),
+        "TASKIQ_PROBE_ROOT": str(root),
+        "TASKIQ_PROBE_WEB_PORT": str(web_port),
+        "PYTHONPATH": os.pathsep.join((str(project), str(ROOT))),
+    }
     executable = str(Path(sys.executable).parent / "oldman")
     for command, expected, name in (("start", 0, "simple"), ("publish", 0, "publish"), ("fail", 1, "fail")):
         # No terminal stdin: a service started from a terminal's foreground takes it until it exits.
-        result = subprocess.run([executable, "worker", command], cwd=project, env=environment, stdin=subprocess.DEVNULL,
-                                capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            [executable, "worker", command], cwd=project, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10
+        )
         assert result.returncode == expected, result.stdout + result.stderr
         assert json.loads((root / f"{name}-closed.json").read_text())["closed"]
         if command == "fail":
             assert "expected command failure" in result.stdout + result.stderr
-    synchronized = subprocess.run([executable, "web", "settings", "sync"], cwd=project, env=environment,
-                                  capture_output=True, text=True, timeout=10)
+    synchronized = subprocess.run([executable, "web", "settings", "sync"], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
     assert synchronized.returncode == 0, synchronized.stdout + synchronized.stderr
     with (root / "web.log").open("w+") as log:
-        process = subprocess.Popen([executable, "web", "start"], cwd=project, env=environment,
-                                   stdout=log, stderr=log, text=True, start_new_session=True)
+        process = subprocess.Popen(
+            [executable, "web", "start"], cwd=project, env=environment, stdout=log, stderr=log, text=True, start_new_session=True
+        )
         try:
             # Retry only while the server does not answer yet. A request it accepted may already have published,
             # and the stream below must hold exactly 9 messages, so a slow response is awaited, never retried.
@@ -1075,7 +1224,11 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=5)
     # The Shell path is explicit and reuses the same public objects on two loops.
-    check = subprocess.run([sys.executable, "-c", textwrap.dedent("""
+    check = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            textwrap.dedent("""
         import asyncio, json
         from oldman import bootstrap_service
         bootstrap_service('worker')
@@ -1089,7 +1242,14 @@ def exercise_publishers(nats_port: int, redis_port: int, root: Path) -> None:
         queued = asyncio.run(inspect())
         assert asyncio.run(inspect()) == queued
         print(json.dumps({'queued': queued, 'web_closed': True}))
-    """)], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+    """),
+        ],
+        cwd=project,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
     assert check.returncode == 0, check.stdout + check.stderr
     config["nats"]["DEFAULT"]["nats_url"] = "nats://127.0.0.1:1"
     config["taskiq"]["startup_timeout"] = 0.3
@@ -1113,7 +1273,7 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
         "services/jobs.py": "from oldman.runtime import TaskiqWorkerApplication\nclass Jobs(TaskiqWorkerApplication):\n    pass\n",
         "job_app/__init__.py": "",
         "job_app/apps.py": "from oldman.apps import AppConfig\nclass Config(AppConfig):\n    label='jobs'\n    display_name='Jobs'\napp=Config()\n",
-        "job_app/tasks.py": '''
+        "job_app/tasks.py": """
             import asyncio, os
             from oldman.providers.redis import redis_client
             from oldman.tasks.distributed import broker
@@ -1132,19 +1292,30 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
                     return os.getpid()
                 finally:
                     active -= 1
-        ''',
+        """,
     }
     for relative, body in sources.items():
         path = project / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(textwrap.dedent(body), encoding="utf-8")
     config: dict[str, Any] = {
-        "apps": ["job_app"], "logging": {"dir": str(project / "logs")}, "process": {"pid_dir": str(project / "pids")},
+        "apps": ["job_app"],
+        "logging": {"dir": str(project / "logs")},
+        "process": {"pid_dir": str(project / "pids")},
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-        "taskiq": {"enabled": True, "namespace": "Broadcast_Probe", "workers": 2, "max_async_tasks": 1,
-                   "consume_queues": ["empty", "busy"], "startup_timeout": 5, "startup_attempts": 1,
-                   "shutdown_timeout": 2, "stop_timeout": 6, "ack_wait": 0.3},
+        "taskiq": {
+            "enabled": True,
+            "namespace": "Broadcast_Probe",
+            "workers": 2,
+            "max_async_tasks": 1,
+            "consume_queues": ["empty", "busy"],
+            "startup_timeout": 5,
+            "startup_attempts": 1,
+            "shutdown_timeout": 2,
+            "stop_timeout": 6,
+            "ack_wait": 0.3,
+        },
     }
     (project / "data").mkdir()
     (project / "data/jobs_settings.yaml").write_text(json.dumps(config), encoding="utf-8")
@@ -1181,7 +1352,9 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
                     # Even a valid task envelope outside this namespace is not received.
                     from taskiq import TaskiqMessage
 
-                    wire = broker.formatter.dumps(TaskiqMessage(task_id="other", task_name="broadcast.probe", labels={"broadcast": True}, args=["other_namespace"], kwargs={}))
+                    wire = broker.formatter.dumps(
+                        TaskiqMessage(task_id="other", task_name="broadcast.probe", labels={"broadcast": True}, args=["other_namespace"], kwargs={})
+                    )
                     await broker.client.publish("oldman.taskiq.Other.broadcast.busy", wire.message)
                     for job in ordinary:
                         assert not (await job.wait_result(timeout=8)).is_err
@@ -1205,7 +1378,9 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
                     async with asyncio.timeout(5):
                         while "slow consumer" not in (root / "broadcast.log").read_text().lower():
                             await asyncio.sleep(0.05)
-                    stopped = await asyncio.to_thread(subprocess.run, [*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+                    stopped = await asyncio.to_thread(
+                        subprocess.run, [*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=10
+                    )
                     assert stopped.returncode == 0, stopped.stdout + stopped.stderr + (root / "broadcast.log").read_text()
                     await asyncio.to_thread(process.wait, timeout=4)
                     assert process.returncode == 0 and not _live_process_group_pids(process.pid), (root / "broadcast.log").read_text()
@@ -1218,7 +1393,9 @@ def exercise_broadcast(nats_port: int, redis_port: int, root: Path) -> None:
                     assert not (await normal.wait_result(timeout=10)).is_err
                     await asyncio.sleep(0.3)
                     assert await client.llen("broadcast:events") == count + 1
-                    stopped = await asyncio.to_thread(subprocess.run, [*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+                    stopped = await asyncio.to_thread(
+                        subprocess.run, [*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=10
+                    )
                     assert stopped.returncode == 0, stopped.stdout + stopped.stderr
                     await asyncio.to_thread(process.wait, timeout=4)
                     assert process.returncode == 0 and not _live_process_group_pids(process.pid)

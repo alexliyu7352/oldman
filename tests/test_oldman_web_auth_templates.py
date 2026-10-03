@@ -39,9 +39,7 @@ class SharedUserSessionTemplateTest(unittest.IsolatedAsyncioTestCase):
     async def test_session_content_preserves_source_page_and_modal_contract(self) -> None:
         """Both shells should receive one source-compatible session page body."""
         environment = default_template_environment()
-        template = environment.from_string(
-            '{% include "oldman/auth/user_session_content.html" %}'
-        )
+        template = environment.from_string('{% include "oldman/auth/user_session_content.html" %}')
         profile = UserSessionProfile(
             username="alice",
             display_name="Alice",
@@ -72,9 +70,7 @@ class SharedUserSessionTemplateTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_password_fragment_uses_shared_form_renderer_and_clean_identity_layout(self) -> None:
         """The current-user Modal should retain password toggles without badge styling."""
-        form = UserPasswordForm(
-            request=SimpleNamespace(ctx=SimpleNamespace(csrf_token="csrf-token"))
-        )
+        form = UserPasswordForm(request=SimpleNamespace(ctx=SimpleNamespace(csrf_token="csrf-token")))
         user = SimpleNamespace(
             username="very_long_account_name",
             email="alice@example.test",
@@ -95,30 +91,17 @@ class SharedUserSessionTemplateTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('action="/control/user-session/password"', html)
         self.assertIn("very_long_account_name", html)
         self.assertIn("alice@example.test", html)
-        self.assertIn('data-om-password-toggle', html)
+        self.assertIn("data-om-password-toggle", html)
         self.assertNotIn("om-badge", html)
 
     def test_admin_does_not_keep_private_password_fragment_copy(self) -> None:
         """Admin 的用户密码 Modal 只能指向框架共享片段。"""
         root = Path(__file__).resolve().parents[1]
 
-        self.assertFalse(
-            (
-                root
-                / "oldman"
-                / "apps"
-                / "admin"
-                / "templates"
-                / "admin"
-                / "model"
-                / "password_modal_form.html"
-            ).exists()
-        )
+        self.assertFalse((root / "oldman" / "apps" / "admin" / "templates" / "admin" / "model" / "password_modal_form.html").exists())
         self.assertIn(
             '"oldman/auth/partials/password_form.html"',
-            (root / "oldman" / "apps" / "admin" / "site.py").read_text(
-                encoding="utf-8"
-            ),
+            (root / "oldman" / "apps" / "admin" / "site.py").read_text(encoding="utf-8"),
         )
 
 

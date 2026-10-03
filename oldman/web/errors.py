@@ -42,7 +42,11 @@ async def render_html_error_response(request: Any, exception: Exception):
         logger.exception("Failed to render Oldman %s error page", status)
         handler = request.app.error_handler
         return exception_response(
-            request, exception, debug=handler.debug, fallback="html", base=handler.base,
+            request,
+            exception,
+            debug=handler.debug,
+            fallback="html",
+            base=handler.base,
             renderer=HTMLRenderer,
         )
 

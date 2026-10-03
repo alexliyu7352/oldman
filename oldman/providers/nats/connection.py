@@ -107,7 +107,8 @@ class _CloseSafeNatsBroker(NatsBroker):
             for subscriber in subscribers:
                 if isinstance(subscriber.lock, MultiLock) and not subscriber.lock.empty:
                     self.config.logger.log(
-                        f"NATS handler did not finish within graceful_timeout: {cast(LogicSubscriber, subscriber).subject}", 40,
+                        f"NATS handler did not finish within graceful_timeout: {cast(LogicSubscriber, subscriber).subject}",
+                        40,
                     )
         # The shared grace period just elapsed. Native stop now unsubscribes and
         # cancels, without waiting a second grace period for each subscriber.
@@ -138,8 +139,10 @@ class _CloseSafeNatsBroker(NatsBroker):
     async def _close_client(self, connection: Client, draining_tasks: list[asyncio.Task[Any]]) -> None:
         """Await only this client's cancelled tasks, never unrelated loop work."""
         tasks = [
-            connection._reading_task, connection._ping_interval_task,
-            connection._flusher_task, connection._reconnection_task,
+            connection._reading_task,
+            connection._ping_interval_task,
+            connection._flusher_task,
+            connection._reconnection_task,
             *(sub._wait_for_msgs_task for sub in connection._subs.values()),
             *draining_tasks,
         ]
@@ -232,11 +235,19 @@ class NATSConnection:
         else:
             raise ValueError("serializer_mode must be 'msgpack' or 'msgspec_json'")
         options: dict[str, Any] = {
-            "servers": self.servers, "name": self.name, "logger": self._logger,
-            "allow_reconnect": True, "max_reconnect_attempts": -1, "reconnect_time_wait": 2,
-            "serializer": serializer, "decoder": decoder, "graceful_timeout": graceful_timeout,
-            "error_cb": self._error_callback, "disconnected_cb": self._disconnected_callback,
-            "reconnected_cb": self._reconnected_callback, "closed_cb": self._closed_callback,
+            "servers": self.servers,
+            "name": self.name,
+            "logger": self._logger,
+            "allow_reconnect": True,
+            "max_reconnect_attempts": -1,
+            "reconnect_time_wait": 2,
+            "serializer": serializer,
+            "decoder": decoder,
+            "graceful_timeout": graceful_timeout,
+            "error_cb": self._error_callback,
+            "disconnected_cb": self._disconnected_callback,
+            "reconnected_cb": self._reconnected_callback,
+            "closed_cb": self._closed_callback,
         }
         options.update(broker_kwargs)
         error_callback = options["error_cb"]
@@ -309,9 +320,7 @@ class NATSConnection:
                 await sent
                 # Native flush falls back to an unconfirmed write if a loop died.
                 # A sender completion must not turn that failure into startup success.
-                if not connection.is_connected or any(
-                    task is None or task.done() for task in (connection._reading_task, connection._flusher_task)
-                ):
+                if not connection.is_connected or any(task is None or task.done() for task in (connection._reading_task, connection._flusher_task)):
                     raise ConnectionClosedError
                 # Keep native PING, heartbeat and reconnect behavior unchanged.
                 # nats-py annotates timeout as int but hands it to asyncio.wait_for; rounding 0.5 s down to 0 would break startup.
@@ -391,7 +400,10 @@ class NATSConnection:
         return self
 
     async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None,
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """Preserve a body exception if closing also fails."""
         try:
@@ -464,6 +476,7 @@ class NATSConnection:
 
         def decorator(func: Callable) -> Callable:
             """Preserve the signature so subscriber can be the outer decorator."""
+
             @functools.wraps(func)
             async def wrapper(*args: Any, **kw: Any) -> Any:
                 """Function/publish exceptions propagate; no hidden background task."""
@@ -490,7 +503,12 @@ class NATSConnection:
             raise RuntimeError("NATS is not open; use start() or an async context first")
 
     async def publish(
-        self, message: MsgspecModel | bytes, subject: str, *, peer_id: str | None = None, **kwargs: Any,
+        self,
+        message: MsgspecModel | bytes,
+        subject: str,
+        *,
+        peer_id: str | None = None,
+        **kwargs: Any,
     ) -> None:
         """Send without ACK/flush/retry; known local send failures propagate."""
         self._require_open()
@@ -511,14 +529,22 @@ class NATSConnection:
         return headers.get(NATSConnection._PEER_ID_HEADER, "")
 
     async def request(
-        self, message: MsgspecModel | bytes, subject: str, reply_type: type[_M], *,
-        peer_id: str | None = None, request_timeout: float = 5.0,
+        self,
+        message: MsgspecModel | bytes,
+        subject: str,
+        reply_type: type[_M],
+        *,
+        peer_id: str | None = None,
+        request_timeout: float = 5.0,
     ) -> _M:
         """Wait for one typed RPC reply; preserve native failure/timeout/cancellation."""
         self._require_open()
         _check_subject(subject)
         reply = await self.broker.request(
-            message, subject=self._prefix(peer_id) + subject, timeout=request_timeout, headers=self._headers(),
+            message,
+            subject=self._prefix(peer_id) + subject,
+            timeout=request_timeout,
+            headers=self._headers(),
         )
         if self.serializer_mode == "msgpack":
             return cast(_M, reply_type.from_msgpack(reply.body))

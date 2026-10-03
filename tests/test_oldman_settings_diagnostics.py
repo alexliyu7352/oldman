@@ -67,24 +67,20 @@ class SettingsDiagnosticsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             (root / "pyproject.toml").write_text(
-                "[project]\nname = \"settings-diagnostics\"\nversion = \"0.0.0\"\n",
+                '[project]\nname = "settings-diagnostics"\nversion = "0.0.0"\n',
                 encoding="utf-8",
             )
             config = root / "config"
             config.mkdir()
             (config / "__init__.py").write_text("", encoding="utf-8")
             (config / "schemas.py").write_text(
-                "from oldman.conf import DefaultSettings\n\n"
-                "class Settings(DefaultSettings):\n"
-                "    pass\n",
+                "from oldman.conf import DefaultSettings\n\nclass Settings(DefaultSettings):\n    pass\n",
                 encoding="utf-8",
             )
             services = root / "services"
             services.mkdir()
             (services / "worker.py").write_text(
-                "from oldman.runtime import SimpleApplication\n\n"
-                "class WorkerApplication(SimpleApplication):\n"
-                "    pass\n",
+                "from oldman.runtime import SimpleApplication\n\nclass WorkerApplication(SimpleApplication):\n    pass\n",
                 encoding="utf-8",
             )
             package = root / "fake_admin"

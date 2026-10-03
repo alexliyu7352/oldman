@@ -22,8 +22,15 @@ def exercise_confirmations(nats_port: int, redis_port: int, root: Path) -> None:
     raw = {
         "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
         "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0", "retry_attempts": 0}},
-        "taskiq": {"enabled": True, "namespace": "Confirmation_Test", "consume_queues": ["jobs"],
-                   "ack_wait": 0.3, "publish_timeout": 0.2, "ack_timeout": 0.15, "duplicate_window": 2},
+        "taskiq": {
+            "enabled": True,
+            "namespace": "Confirmation_Test",
+            "consume_queues": ["jobs"],
+            "ack_wait": 0.3,
+            "publish_timeout": 0.2,
+            "ack_timeout": 0.15,
+            "duplicate_window": 2,
+        },
     }
     settings = DefaultSettings.model_validate(raw)
     conf._publish_settings(settings)
@@ -150,8 +157,7 @@ def exercise_confirmations(nats_port: int, redis_port: int, root: Path) -> None:
             # Native WHEN_SAVED still ACKs after logging a result-write failure.
             # This is a documented upstream boundary, not a claim that results exist.
             assert remaining == 0 and executions[-3:] == ["unsupported", "ignored", "redis-denied"]
-            return {"dropped_pubacks": drops["puback"], "dropped_acks": drops["ack"],
-                    "executions": len(executions), "remaining_messages": remaining}
+            return {"dropped_pubacks": drops["puback"], "dropped_acks": drops["ack"], "executions": len(executions), "remaining_messages": remaining}
         finally:
             if deliveries is not None:
                 await deliveries.aclose()
@@ -169,12 +175,13 @@ def exercise_prefetch(nats_port: int, redis_port: int) -> None:
     from oldman import conf
     from oldman.conf.schemas import DefaultSettings
 
-    settings = DefaultSettings.model_validate({
-        "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
-        "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-        "taskiq": {"enabled": True, "namespace": "Prefetch_Test", "consume_queues": ["empty", "a", "b"],
-                   "ack_wait": 0.3, "max_async_tasks": 2},
-    })
+    settings = DefaultSettings.model_validate(
+        {
+            "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
+            "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
+            "taskiq": {"enabled": True, "namespace": "Prefetch_Test", "consume_queues": ["empty", "a", "b"], "ack_wait": 0.3, "max_async_tasks": 2},
+        }
+    )
     conf._publish_settings(settings)
     from oldman.tasks.distributed import broker
     from oldman.tasks.distributed.receiver import RenewingReceiver
@@ -252,11 +259,13 @@ def exercise_tls(nats_port: int, redis_port: int, root: Path) -> None:
         case.log = (root / "tls-server.log").open("wb")
         try:
             await case.start_server(authentication=f'jetstream {{ store_dir: "{root / "tls-js"}", max_file_store: 134217728 }}\n')
-            settings = DefaultSettings.model_validate({
-                "nats": {"DEFAULT": case.config().model_dump()},
-                "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-                "taskiq": {"enabled": True, "namespace": "TLS_Test", "startup_timeout": 0.8, "shutdown_timeout": 5},
-            })
+            settings = DefaultSettings.model_validate(
+                {
+                    "nats": {"DEFAULT": case.config().model_dump()},
+                    "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
+                    "taskiq": {"enabled": True, "namespace": "TLS_Test", "startup_timeout": 0.8, "shutdown_timeout": 5},
+                }
+            )
             conf._publish_settings(settings)
             from oldman.tasks.distributed import broker
             from oldman.tasks.distributed.broker import TaskiqBroker
@@ -300,12 +309,13 @@ def resource_settings(nats_port: int, redis_port: int):
     from oldman import conf
     from oldman.conf.schemas import DefaultSettings
 
-    settings = DefaultSettings.model_validate({
-        "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
-        "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
-        "taskiq": {"enabled": True, "namespace": "Resource_Test", "consume_queues": ["jobs"],
-                   "stream_max_bytes": 4096, "ack_wait": 0.3},
-    })
+    settings = DefaultSettings.model_validate(
+        {
+            "nats": {"DEFAULT": {"nats_url": f"nats://127.0.0.1:{nats_port}"}},
+            "redis": {"DEFAULT": {"redis_url": f"redis://127.0.0.1:{redis_port}/0"}},
+            "taskiq": {"enabled": True, "namespace": "Resource_Test", "consume_queues": ["jobs"], "stream_max_bytes": 4096, "ack_wait": 0.3},
+        }
+    )
     conf._publish_settings(settings)
     return settings
 
@@ -344,8 +354,14 @@ def exercise_resources(nats_port: int, redis_port: int, root: Path) -> None:
 
     children: list[subprocess.Popen[str]] = []
     try:
-        command = [sys.executable, "-c", "from tests.taskiq_fault_checks import resource_child; import sys; resource_child(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])",
-                   str(nats_port), str(redis_port), str(root)]
+        command = [
+            sys.executable,
+            "-c",
+            "from tests.taskiq_fault_checks import resource_child; import sys; resource_child(int(sys.argv[1]),int(sys.argv[2]),sys.argv[3])",
+            str(nats_port),
+            str(redis_port),
+            str(root),
+        ]
         for _ in range(2):
             children.append(subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
         deadline = time.monotonic() + 10

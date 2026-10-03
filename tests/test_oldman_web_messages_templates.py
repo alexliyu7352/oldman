@@ -100,12 +100,10 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             encoding="utf-8",
         )
         (self.project_templates / "plain.html").write_text(
-            "<main id=\"plain-page\">PLAIN PAGE</main>",
+            '<main id="plain-page">PLAIN PAGE</main>',
             encoding="utf-8",
         )
-        self.settings = DefaultSettings.model_validate(
-            {"web": {"security": {"secret_key": _ROOT_SECRET}}}
-        )
+        self.settings = DefaultSettings.model_validate({"web": {"security": {"secret_key": _ROOT_SECRET}}})
         self.app = Sanic(
             f"oldman-web-message-templates-{time.time_ns()}",
             configure_logging=False,
@@ -191,10 +189,7 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             ["success", "info", "warning", "error"],
-            [
-                item.attributes["data-om-message-level"]
-                for item in dom.flash_messages
-            ],
+            [item.attributes["data-om-message-level"] for item in dom.flash_messages],
         )
         self.assertEqual(
             [
@@ -231,25 +226,19 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
                 attributes.get("data-om-component") == "feedback"
                 or attributes.get("role") == "dialog"
                 or "toast" in (attributes.get("class") or "").split()
-                or "notification-item"
-                in (attributes.get("class") or "").split()
+                or "notification-item" in (attributes.get("class") or "").split()
                 for _tag, attributes in dom.elements
             )
         )
 
     async def test_project_can_override_the_default_partial_by_path(self) -> None:
-        override = (
-            self.project_templates
-            / "oldman"
-            / "messages"
-            / "flash_message.html"
-        )
+        override = self.project_templates / "oldman" / "messages" / "flash_message.html"
         override.parent.mkdir(parents=True)
         override.write_text(
             "{% if messages is defined and messages %}"
             "<section data-project-flash>"
             "{% for message in messages %}"
-            "<p data-project-level=\"{{ message.level }}\">"
+            '<p data-project-level="{{ message.level }}">'
             "{{ message.content }}"
             "</p>"
             "{% endfor %}"
@@ -265,17 +254,11 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
         )
         dom = _RenderedDOM(response.text)
 
-        self.assertTrue(
-            any("data-project-flash" in attributes for _tag, attributes in dom.elements)
-        )
+        self.assertTrue(any("data-project-flash" in attributes for _tag, attributes in dom.elements))
         self.assertFalse(dom.flash_messages)
         self.assertEqual(
             ["success", "info", "warning", "error"],
-            [
-                attributes["data-project-level"]
-                for _tag, attributes in dom.elements
-                if "data-project-level" in attributes
-            ],
+            [attributes["data-project-level"] for _tag, attributes in dom.elements if "data-project-level" in attributes],
         )
 
     async def test_template_without_partial_does_not_consume_messages(self) -> None:
@@ -285,7 +268,7 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             "/plain",
             headers=self._request_headers(cookie_value),
         )
-        self.assertEqual("<main id=\"plain-page\">PLAIN PAGE</main>", plain_response.text)
+        self.assertEqual('<main id="plain-page">PLAIN PAGE</main>', plain_response.text)
         self.assertIsNone(self._set_cookie_header(plain_response))
 
         _request, page_response = await self.app.asgi_client.get(

@@ -23,14 +23,7 @@ from oldman.i18n.frontend import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-I18N_CLI = (
-    ROOT
-    / "frontend"
-    / "packages"
-    / "oldman-web"
-    / "bin"
-    / "oldman-web-i18n.mjs"
-)
+I18N_CLI = ROOT / "frontend" / "packages" / "oldman-web" / "bin" / "oldman-web-i18n.mjs"
 
 
 class OldmanI18nCommandsTest(unittest.TestCase):
@@ -61,18 +54,8 @@ class OldmanI18nCommandsTest(unittest.TestCase):
                 messages = [message for message in read_po(stream) if message.id]
 
         admin_locations = [path for message in messages for path, _line in message.locations if path.startswith("oldman/apps/admin/")]
-        cli_locations = [
-            path
-            for message in messages
-            for path, _line in message.locations
-            if path.startswith("oldman/cli/")
-        ]
-        frontend_locations = [
-            path
-            for message in messages
-            for path, _line in message.locations
-            if path.startswith("frontend/")
-        ]
+        cli_locations = [path for message in messages for path, _line in message.locations if path.startswith("oldman/cli/")]
+        frontend_locations = [path for message in messages for path, _line in message.locations if path.startswith("frontend/")]
         self.assertTrue(admin_locations)
         self.assertTrue(cli_locations)
         self.assertTrue(frontend_locations)
@@ -80,9 +63,7 @@ class OldmanI18nCommandsTest(unittest.TestCase):
         self.assertTrue(any(message.id == "Service commands" for message in messages))
         authentication = next(message for message in messages if message.id == "Authentication")
         self.assertIn("oldman/auth/apps.py", [path for path, _line in authentication.locations])
-        self.assertFalse(
-            any(".test." in path or ".spec." in path for path in frontend_locations)
-        )
+        self.assertFalse(any(".test." in path or ".spec." in path for path in frontend_locations))
         self.assertFalse(any(path.startswith("oldman/oldman/") for path in admin_locations))
 
     def test_project_frontend_ast_messages_merge_into_messages_pot(self) -> None:
@@ -92,7 +73,7 @@ class OldmanI18nCommandsTest(unittest.TestCase):
             source_root = project_root / "frontend" / "src"
             source_root.mkdir(parents=True)
             (source_root / "messages.ts").write_text(
-                '\n'.join(
+                "\n".join(
                     (
                         'i18n.t("Save");',
                         'i18n.tc("button", "Open");',
@@ -123,11 +104,7 @@ class OldmanI18nCommandsTest(unittest.TestCase):
             with output.open("rb") as stream:
                 catalog = read_po(stream)
 
-        identities = {
-            (message.context, message.id)
-            for message in catalog
-            if message.id
-        }
+        identities = {(message.context, message.id) for message in catalog if message.id}
         self.assertIn((None, "Save"), identities)
         self.assertIn(("button", "Open"), identities)
         self.assertIn(

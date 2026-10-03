@@ -173,14 +173,8 @@ class LoggingWebBenchmarkComparisonTests(unittest.TestCase):
     def test_gate_uses_median_of_paired_round_ratios(self) -> None:
         result = _comparison(1, _formal_failed_runs(), enforce=True)
 
-        expected_qps_ratio = statistics.median(
-            current / reference
-            for current, reference in zip(CURRENT_QPS, REFERENCE_QPS, strict=True)
-        )
-        expected_p99_ratio = statistics.median(
-            current / reference
-            for current, reference in zip(CURRENT_P99, REFERENCE_P99, strict=True)
-        )
+        expected_qps_ratio = statistics.median(current / reference for current, reference in zip(CURRENT_QPS, REFERENCE_QPS, strict=True))
+        expected_p99_ratio = statistics.median(current / reference for current, reference in zip(CURRENT_P99, REFERENCE_P99, strict=True))
         paired_medians = result["paired_ratio_medians"]
         legacy = result["ratio_of_separate_medians_diagnostic"]
 
@@ -241,22 +235,14 @@ class LoggingWebBenchmarkComparisonTests(unittest.TestCase):
         self.assertEqual(paired[0]["reference_p99_seconds"], REFERENCE_P99[0])
 
     def test_missing_variant_fails_closed(self) -> None:
-        runs = [
-            run
-            for run in _formal_failed_runs()
-            if not (run["round"] == 3 and run["variant"] == "timed_reference")
-        ]
+        runs = [run for run in _formal_failed_runs() if not (run["round"] == 3 and run["variant"] == "timed_reference")]
 
         with self.assertRaisesRegex(BenchmarkFailure, "round 3.*timed_reference"):
             _comparison(1, runs, enforce=True)
 
     def test_duplicate_variant_fails_closed(self) -> None:
         runs = _formal_failed_runs()
-        duplicate = next(
-            run
-            for run in runs
-            if run["round"] == 2 and run["variant"] == "current"
-        )
+        duplicate = next(run for run in runs if run["round"] == 2 and run["variant"] == "current")
         runs.append(duplicate.copy())
 
         with self.assertRaisesRegex(BenchmarkFailure, "round 2.*current"):
@@ -265,22 +251,14 @@ class LoggingWebBenchmarkComparisonTests(unittest.TestCase):
     def test_wrong_execution_order_fails_closed(self) -> None:
         """Reported order indexes must match the frozen six permutations."""
         runs = _formal_failed_runs()
-        current = next(
-            run
-            for run in runs
-            if run["round"] == 1 and run["variant"] == "current"
-        )
+        current = next(run for run in runs if run["round"] == 1 and run["variant"] == "current")
         current["order_index"] = 3
 
         with self.assertRaisesRegex(BenchmarkFailure, "round 1.*execution order"):
             _comparison(1, runs, enforce=True)
 
     def test_wrong_round_count_fails_closed(self) -> None:
-        runs = [
-            run
-            for run in _formal_failed_runs()
-            if run["round"] != benchmark.RELEASE_ROUNDS
-        ]
+        runs = [run for run in _formal_failed_runs() if run["round"] != benchmark.RELEASE_ROUNDS]
 
         with self.assertRaisesRegex(
             BenchmarkFailure,
@@ -304,25 +282,13 @@ class LoggingWebBenchmarkComparisonTests(unittest.TestCase):
 
     def test_release_rounds_balance_every_variant_position(self) -> None:
         """The release gate must place every variant equally in every position."""
-        orders = [
-            benchmark._round_order(round_number)
-            for round_number in range(1, benchmark.RELEASE_ROUNDS + 1)
-        ]
-        positions = {
-            variant: Counter(
-                order.index(variant)
-                for order in orders
-            )
-            for variant in ("current", "timed_reference", "no_logging")
-        }
+        orders = [benchmark._round_order(round_number) for round_number in range(1, benchmark.RELEASE_ROUNDS + 1)]
+        positions = {variant: Counter(order.index(variant) for order in orders) for variant in ("current", "timed_reference", "no_logging")}
 
         self.assertEqual(len(set(orders)), 6)
         self.assertEqual(
             positions,
-            {
-                variant: Counter({0: 2, 1: 2, 2: 2})
-                for variant in ("current", "timed_reference", "no_logging")
-            },
+            {variant: Counter({0: 2, 1: 2, 2: 2}) for variant in ("current", "timed_reference", "no_logging")},
         )
         for first, second in (
             ("current", "timed_reference"),
@@ -339,16 +305,12 @@ class LoggingWebBenchmarkComparisonTests(unittest.TestCase):
         runs = _formal_failed_runs()
         for run in runs:
             if run["variant"] == "current":
-                run["load"]["measurement"]["server_cpu"][
-                    "seconds_per_request"
-                ] = 0.001
+                run["load"]["measurement"]["server_cpu"]["seconds_per_request"] = 0.001
 
         result = _comparison(1, runs, enforce=True)
 
         self.assertGreater(
-            result["paired_ratio_medians"][
-                "server_cpu_per_request_current_over_reference"
-            ],
+            result["paired_ratio_medians"]["server_cpu_per_request_current_over_reference"],
             benchmark.MAXIMUM_CPU_RATIO,
         )
         self.assertFalse(result["threshold_passed"])

@@ -250,16 +250,12 @@ def prepare_migration_project(project_root: Path, database_path: Path) -> None:
     data.mkdir()
     (config / "__init__.py").write_text("", encoding="utf-8")
     (config / "schemas.py").write_text(
-        "from oldman.conf import DefaultSettings\n\n"
-        "class Settings(DefaultSettings):\n"
-        "    pass\n",
+        "from oldman.conf import DefaultSettings\n\nclass Settings(DefaultSettings):\n    pass\n",
         encoding="utf-8",
     )
     (services / "__init__.py").write_text("", encoding="utf-8")
     (services / "web.py").write_text(
-        "from oldman.runtime import WebApplication\n\n"
-        "class WebService(WebApplication):\n"
-        "    pass\n",
+        "from oldman.runtime import WebApplication\n\nclass WebService(WebApplication):\n    pass\n",
         encoding="utf-8",
     )
     (project_root / "pyproject.toml").write_text(
@@ -439,17 +435,12 @@ def assert_installed_runtime(
 
     expected_paths = {
         "static_dir": static_root.resolve(),
-        "manifest_path": (
-            static_root / "oldman" / "admin" / ".vite" / "manifest.json"
-        ).resolve(),
+        "manifest_path": (static_root / "oldman" / "admin" / ".vite" / "manifest.json").resolve(),
     }
     for field_name, expected_path in expected_paths.items():
         raw_path = runtime.get(field_name)
         if not isinstance(raw_path, str) or Path(raw_path).resolve() != expected_path:
-            raise RuntimeError(
-                f"Installed runtime {field_name} did not use the explicit "
-                f"collection output: {raw_path}"
-            )
+            raise RuntimeError(f"Installed runtime {field_name} did not use the explicit collection output: {raw_path}")
 
 
 def login_page_script(contract: ManifestContract) -> str:

@@ -48,19 +48,13 @@ def validate_release_version(version: object) -> str:
     if match is None:
         raise RuntimeError("Root pyproject.toml project.version must be one exact valid SemVer value")
     if "+" in version:
-        raise RuntimeError(
-            "Root pyproject.toml project.version build metadata is unsupported because generated Oldman dependencies use >="
-        )
+        raise RuntimeError("Root pyproject.toml project.version build metadata is unsupported because generated Oldman dependencies use >=")
     try:
         python_version = Version(version)
     except InvalidVersion as exc:
-        raise RuntimeError(
-            "Root pyproject.toml project.version must also be a valid Python distribution version"
-        ) from exc
+        raise RuntimeError("Root pyproject.toml project.version must also be a valid Python distribution version") from exc
     if match.group("prerelease") is not None and not python_version.is_prerelease:
-        raise RuntimeError(
-            "Root pyproject.toml project.version prerelease semantics must agree between npm and Python"
-        )
+        raise RuntimeError("Root pyproject.toml project.version prerelease semantics must agree between npm and Python")
     return version
 
 

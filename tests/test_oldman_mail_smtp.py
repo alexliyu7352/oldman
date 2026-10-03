@@ -70,7 +70,14 @@ class SMTPBackendTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_mail_delivers_envelope_and_content_without_authentication(self) -> None:
         with self._use():
-            message = EmailMultiAlternatives("Round trip 你好", "plain body", "Oldman <noreply@example.com>", ["To One <one@example.com>"], bcc=["hidden@example.com"], cc=["cc@example.com"])
+            message = EmailMultiAlternatives(
+                "Round trip 你好",
+                "plain body",
+                "Oldman <noreply@example.com>",
+                ["To One <one@example.com>"],
+                bcc=["hidden@example.com"],
+                cc=["cc@example.com"],
+            )
             message.attach_alternative("<p>html body</p>", "text/html")
             message.attach("data.csv", "a,b\n", "text/csv")
 
@@ -91,10 +98,12 @@ class SMTPBackendTest(unittest.IsolatedAsyncioTestCase):
     async def test_one_connection_carries_several_messages_and_authenticates(self) -> None:
         with self._use(username="mailer", password="secret"):
             async with SMTPEmailBackend() as connection:
-                sent = await connection.send_messages([
-                    EmailMultiAlternatives("First", "1", None, ["a@example.com"]),
-                    EmailMultiAlternatives("Second", "2", None, ["b@example.com"]),
-                ])
+                sent = await connection.send_messages(
+                    [
+                        EmailMultiAlternatives("First", "1", None, ["a@example.com"]),
+                        EmailMultiAlternatives("Second", "2", None, ["b@example.com"]),
+                    ]
+                )
                 self.assertIsNotNone(connection.connection)
             self.assertIsNone(connection.connection)
 
@@ -155,7 +164,11 @@ class FakeClient:
 
 class SMTPConnectionTeardownTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        token = use_mail_config(MailConfig.model_validate({"backend": SMTP_BACKEND, "default_from_email": "noreply@example.com", "smtp": {"host": "127.0.0.1", "port": 2525}}))
+        token = use_mail_config(
+            MailConfig.model_validate(
+                {"backend": SMTP_BACKEND, "default_from_email": "noreply@example.com", "smtp": {"host": "127.0.0.1", "port": 2525}}
+            )
+        )
         token.__enter__()
         self.addCleanup(token.__exit__, None, None, None)
         FakeClient.instances.clear()

@@ -64,9 +64,7 @@ def read_i18n_contract(
     ]
     default_language = registry.resolve(i18n.default_language)
     if not default_language:
-        raise ValueError(
-            f"{settings_file} 中的 i18n.default_language 不属于 i18n.languages"
-        )
+        raise ValueError(f"{settings_file} 中的 i18n.default_language 不属于 i18n.languages")
     return default_language, languages, static.url, i18n.preference_url
 
 
@@ -143,11 +141,7 @@ def write_language_manifest_data(
     for language in languages:
         code = str(language["code"])
         raw_aliases = language["aliases"]
-        language_aliases = (
-            [str(alias) for alias in raw_aliases]
-            if isinstance(raw_aliases, list)
-            else []
-        )
+        language_aliases = [str(alias) for alias in raw_aliases] if isinstance(raw_aliases, list) else []
         flag = str(language["flag"])
         flag_url = direct_flag_url(flag, static_url=static_url)
         lines.extend(
@@ -218,12 +212,7 @@ def write_language_catalogs(
     for definition in configured_languages:
         language_code = str(definition["code"])
         babel_locale = str(definition["babel_locale"])
-        po_file = (
-            locales_dir
-            / babel_locale
-            / "LC_MESSAGES"
-            / "messages.po"
-        )
+        po_file = locales_dir / babel_locale / "LC_MESSAGES" / "messages.po"
         if po_file.exists():
             catalog = compile_project_frontend_catalog(
                 project_root,
@@ -245,16 +234,10 @@ def validate_catalog_directory(
     configured_languages: list[dict[str, object]],
 ) -> None:
     """Ensure staging contains exactly one valid catalog per configured language."""
-    expected = {
-        f"{catalog_filename(str(language['code']))}.json"
-        for language in configured_languages
-    }
+    expected = {f"{catalog_filename(str(language['code']))}.json" for language in configured_languages}
     actual = {path.name for path in output_dir.glob("*.json")}
     if actual != expected:
-        raise RuntimeError(
-            "前端 catalog 集合不完整: "
-            f"expected={sorted(expected)!r}, actual={sorted(actual)!r}"
-        )
+        raise RuntimeError(f"前端 catalog 集合不完整: expected={sorted(expected)!r}, actual={sorted(actual)!r}")
 
     for catalog_file in sorted(output_dir.glob("*.json")):
         try:
@@ -319,12 +302,8 @@ def build_frontend_i18n(
     目录之外：发布那一步会整体替换目录。
     """
     if languages_output.parent.resolve() == output_dir.resolve():
-        raise ValueError(
-            f"语言清单不能放在 catalog 目录里（{languages_output}）：发布 {output_dir} 时会整体替换该目录。"
-        )
-    default_language, configured_languages, static_url, preference_url = read_i18n_contract(
-        settings_file
-    )
+        raise ValueError(f"语言清单不能放在 catalog 目录里（{languages_output}）：发布 {output_dir} 时会整体替换该目录。")
+    default_language, configured_languages, static_url, preference_url = read_i18n_contract(settings_file)
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     languages_output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -381,28 +360,16 @@ def _validated_catalog(
             value,
             (str, list),
         ):
-            raise RuntimeError(
-                f"oldman-web-i18n 为 {source} 返回了无效消息"
-            )
-        if isinstance(value, list) and not all(
-            isinstance(item, str) for item in value
-        ):
-            raise RuntimeError(
-                f"oldman-web-i18n 为 {source} 返回了无效复数消息"
-            )
+            raise RuntimeError(f"oldman-web-i18n 为 {source} 返回了无效消息")
+        if isinstance(value, list) and not all(isinstance(item, str) for item in value):
+            raise RuntimeError(f"oldman-web-i18n 为 {source} 返回了无效复数消息")
     plural_rule = payload.get("pluralRule")
     if plural_rule is not None and not isinstance(plural_rule, str):
-        raise RuntimeError(
-            f"oldman-web-i18n 为 {source} 返回了无效 pluralRule"
-        )
+        raise RuntimeError(f"oldman-web-i18n 为 {source} 返回了无效 pluralRule")
     return {
         "locale": locale,
         "messages": messages,
-        **(
-            {"pluralRule": plural_rule}
-            if isinstance(plural_rule, str) and plural_rule
-            else {}
-        ),
+        **({"pluralRule": plural_rule} if isinstance(plural_rule, str) and plural_rule else {}),
     }
 
 

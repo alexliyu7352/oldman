@@ -29,8 +29,7 @@ class OldmanAdminI18nTest(unittest.TestCase):
         self.assertEqual("会话密码已修改", simplified.gettext("Session password changed"))
         self.assertEqual(
             "显示第 1 至 10 条，共 23 条记录",
-            simplified.gettext("Showing %(start)s to %(end)s of %(total)s entries")
-            % {"start": 1, "end": 10, "total": 23},
+            simplified.gettext("Showing %(start)s to %(end)s of %(total)s entries") % {"start": 1, "end": 10, "total": 23},
         )
         self.assertEqual("變更密碼", traditional.gettext("Change Password"))
         self.assertEqual("新密碼", traditional.gettext("New Password"))
@@ -42,8 +41,7 @@ class OldmanAdminI18nTest(unittest.TestCase):
         self.assertEqual("工作階段密碼已變更", traditional.gettext("Session password changed"))
         self.assertEqual(
             "顯示第 1 至 10 筆，共 23 筆記錄",
-            traditional.gettext("Showing %(start)s to %(end)s of %(total)s entries")
-            % {"start": 1, "end": 10, "total": 23},
+            traditional.gettext("Showing %(start)s to %(end)s of %(total)s entries") % {"start": 1, "end": 10, "total": 23},
         )
 
 

@@ -95,21 +95,11 @@ def _add_frontend_messages(
         existing_plural = None
         if existing is not None and isinstance(existing.id, tuple):
             existing_plural = existing.id[1]
-        if (
-            existing_plural is not None
-            and message.plural is not None
-            and existing_plural != message.plural
-        ):
-            raise ValueError(
-                f"Frontend message {message.id!r} has conflicting plural "
-                f"forms {existing_plural!r} and {message.plural!r}."
-            )
+        if existing_plural is not None and message.plural is not None and existing_plural != message.plural:
+            raise ValueError(f"Frontend message {message.id!r} has conflicting plural forms {existing_plural!r} and {message.plural!r}.")
         catalog.add(
             message.babel_id,
-            locations=[
-                (location.path, location.line)
-                for location in message.locations
-            ],
+            locations=[(location.path, location.line) for location in message.locations],
             context=message.context,
         )
 
@@ -159,9 +149,7 @@ def extract() -> None:
     """提取项目和框架翻译字符串到同一个应用消息目录。"""
     output = Path(POT_FILE)
     project_root = Path.cwd().resolve()
-    project_frontend_messages = extract_project_frontend_messages(
-        project_root
-    )
+    project_frontend_messages = extract_project_frontend_messages(project_root)
     with TemporaryDirectory(prefix="oldman-i18n-") as temporary_directory:
         temporary_path = Path(temporary_directory)
         project_pot = temporary_path / "project.pot"

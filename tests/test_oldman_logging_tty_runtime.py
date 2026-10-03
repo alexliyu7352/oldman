@@ -45,9 +45,7 @@ class ScenarioResult:
     @property
     def diagnostics(self) -> str:
         """Render complete bounded-run evidence for any failed assertion."""
-        files = "\n".join(
-            f"{name}:\n{text}" for name, text in sorted(self.file_text.items())
-        )
+        files = "\n".join(f"{name}:\n{text}" for name, text in sorted(self.file_text.items()))
         return (
             f"mode={self.mode} pid={self.pid} exit_code={self.returncode} "
             f"process_group_gone={self.process_group_gone}\n"
@@ -150,10 +148,7 @@ def _kill_process_group(process: subprocess.Popen[bytes]) -> bool:
     try:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired as exc:
-        raise AssertionError(
-            f"unable to reap killed fixture pid={process.pid} "
-            f"exit_code={process.returncode}"
-        ) from exc
+        raise AssertionError(f"unable to reap killed fixture pid={process.pid} exit_code={process.returncode}") from exc
     return _wait_for_process_group_exit(process.pid)
 
 
@@ -195,11 +190,7 @@ def _read_state(state_file: Path) -> dict[str, Any]:
 
 def _series_text(result: ScenarioResult, active_name: str) -> str:
     """Combine one active log and its archives for exact token accounting."""
-    return "".join(
-        text
-        for name, text in sorted(result.file_text.items())
-        if name == active_name or name.startswith(f"{active_name}.")
-    )
+    return "".join(text for name, text in sorted(result.file_text.items()) if name == active_name or name.startswith(f"{active_name}."))
 
 
 def _spawn_fixture(
@@ -283,9 +274,7 @@ def _finish_process(
                     f"process_error={exc!r}"
                 ) from reader_error
         raise AssertionError(
-            f"fixture timed out pid={process.pid} exit_code={process.returncode} "
-            f"process_group_gone={group_gone}\n"
-            f"output:\n{output}"
+            f"fixture timed out pid={process.pid} exit_code={process.returncode} process_group_gone={group_gone}\noutput:\n{output}"
         ) from exc
 
     group_gone = _wait_for_process_group_exit(process.pid)
@@ -303,10 +292,7 @@ def _wait_for_http_ready(
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise RuntimeError(
-                f"Web fixture exited before readiness pid={process.pid} "
-                f"exit_code={process.returncode}"
-            )
+            raise RuntimeError(f"Web fixture exited before readiness pid={process.pid} exit_code={process.returncode}")
         remaining = deadline - time.monotonic()
         try:
             with urllib.request.urlopen(
@@ -333,17 +319,11 @@ def _wait_for_manager_ack_complete(
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise RuntimeError(
-                f"Web fixture exited before manager ACK completion pid={process.pid} "
-                f"exit_code={process.returncode}"
-            )
+            raise RuntimeError(f"Web fixture exited before manager ACK completion pid={process.pid} exit_code={process.returncode}")
         if _read_state(state_file).get("manager_ack_complete") is True:
             return
         time.sleep(0.02)
-    raise TimeoutError(
-        f"Web fixture pid={process.pid} did not publish manager ACK completion "
-        "within 5 seconds"
-    )
+    raise TimeoutError(f"Web fixture pid={process.pid} did not publish manager ACK completion within 5 seconds")
 
 
 class TtyRuntimeHelperTest(unittest.TestCase):
@@ -392,10 +372,7 @@ class TtyRuntimeHelperTest(unittest.TestCase):
             def finish() -> str:
                 raise TimeoutError("reader-stalled")
 
-        source = (
-            "import subprocess,sys; "
-            "subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'])"
-        )
+        source = "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'])"
         process = subprocess.Popen(
             [sys.executable, "-c", source],
             stdin=subprocess.DEVNULL,
@@ -488,11 +465,7 @@ class OldmanLoggingTtyRuntimeTest(unittest.TestCase):
                     f"process_group_gone_after_failure={cleanup_gone}\n"
                     f"decode_errors={decode_errors}\n"
                     f"state={_read_state(state_file)}\n"
-                    "active_and_archived_files:\n"
-                    + "\n".join(
-                        f"{name}:\n{text}"
-                        for name, text in sorted(file_text.items())
-                    )
+                    "active_and_archived_files:\n" + "\n".join(f"{name}:\n{text}" for name, text in sorted(file_text.items()))
                 ) from exc
             file_text, decode_errors = _capture_log_files(log_dir, app_name)
             result = ScenarioResult(
@@ -567,11 +540,7 @@ class OldmanLoggingTtyRuntimeTest(unittest.TestCase):
                     f"process_group_gone_after_failure={cleanup_gone}\n"
                     f"decode_errors={decode_errors}\n"
                     f"state={_read_state(state_file)}\n"
-                    "active_and_archived_files:\n"
-                    + "\n".join(
-                        f"{name}:\n{text}"
-                        for name, text in sorted(file_text.items())
-                    )
+                    "active_and_archived_files:\n" + "\n".join(f"{name}:\n{text}" for name, text in sorted(file_text.items()))
                 ) from exc
             file_text, decode_errors = _capture_log_files(
                 log_dir,

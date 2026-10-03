@@ -141,9 +141,7 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
                 "ORIGINAL ONLY",
                 environment.get_template("original-only.html").render(),
             )
-            self.assertIsNotNone(
-                environment.get_template("oldman/forms/default/form.html")
-            )
+            self.assertIsNotNone(environment.get_template("oldman/forms/default/form.html"))
 
     def test_a_project_page_extends_the_framework_original_and_changes_one_block(self) -> None:
         """`framework:` reaches the framework's own copy even where the project overrides the same path."""

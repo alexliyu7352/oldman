@@ -115,9 +115,7 @@ class MigrationState:
     def require_current_owner(self, project: MigrationProject) -> None:
         """Require a complete owner row belonging to the supplied project."""
         if self.owner is None:
-            raise MigrationStateRecoveryRequired(
-                "Oldman migration owner state is missing; run the controlled migrate recovery flow."
-            )
+            raise MigrationStateRecoveryRequired("Oldman migration owner state is missing; run the controlled migrate recovery flow.")
         if self.owner.project_id != project.project_id:
             raise MigrationOwnershipError(
                 "Database migrations belong to project "
@@ -153,9 +151,7 @@ def ensure_for_first_migrate(
     """Acquire first ownership before Alembic starts any business-table DDL."""
     state = MigrationState.inspect(connection)
     if state.is_partial:
-        raise MigrationStateRecoveryRequired(
-            "Oldman migration state is only partially present; run the controlled migrate recovery flow."
-        )
+        raise MigrationStateRecoveryRequired("Oldman migration state is only partially present; run the controlled migrate recovery flow.")
     if state.is_complete:
         state.require_current_owner(project)
         return state
@@ -187,22 +183,16 @@ def set_table_ownership(
     if not isinstance(managed, bool):
         raise TypeError("managed must be a bool")
     if table_name in INTERNAL_TABLE_NAMES:
-        raise SchemaOwnershipError(
-            f"Internal migration table {table_name!r} cannot enter Schema Registry."
-        )
+        raise SchemaOwnershipError(f"Internal migration table {table_name!r} cannot enter Schema Registry.")
     if table_name == "oldman_user" and app_label != "auth":
         raise SchemaOwnershipError("oldman_user table ownership must remain with Auth.")
 
     _require_registry_signature(connection)
     existing = connection.execute(
-        select(SCHEMA_REGISTRY_TABLE.c.app_label).where(
-            SCHEMA_REGISTRY_TABLE.c.table_name == table_name
-        )
+        select(SCHEMA_REGISTRY_TABLE.c.app_label).where(SCHEMA_REGISTRY_TABLE.c.table_name == table_name)
     ).scalar_one_or_none()
     if existing is not None and existing != app_label:
-        raise SchemaOwnershipError(
-            f"Table {table_name!r} belongs to App {existing!r}, not {app_label!r}."
-        )
+        raise SchemaOwnershipError(f"Table {table_name!r} belongs to App {existing!r}, not {app_label!r}.")
     values = {
         "app_label": app_label,
         "managed": managed,
@@ -216,22 +206,14 @@ def set_table_ownership(
             )
         )
     else:
-        connection.execute(
-            SCHEMA_REGISTRY_TABLE.update()
-            .where(SCHEMA_REGISTRY_TABLE.c.table_name == table_name)
-            .values(**values)
-        )
+        connection.execute(SCHEMA_REGISTRY_TABLE.update().where(SCHEMA_REGISTRY_TABLE.c.table_name == table_name).values(**values))
 
 
 def delete_table_ownership(connection: Connection, table_name: str) -> None:
     """Remove one ownership row after its revision has removed or retired it."""
     _require_nonempty("table_name", table_name)
     _require_registry_signature(connection)
-    connection.execute(
-        SCHEMA_REGISTRY_TABLE.delete().where(
-            SCHEMA_REGISTRY_TABLE.c.table_name == table_name
-        )
-    )
+    connection.execute(SCHEMA_REGISTRY_TABLE.delete().where(SCHEMA_REGISTRY_TABLE.c.table_name == table_name))
 
 
 def rebuild_internal_state(
@@ -267,38 +249,24 @@ def _read_owner(connection: Connection) -> MigrationOwner | None:
     if not rows:
         return None
     if len(rows) != 1 or rows[0].singleton_id != 1:
-        raise ReservedMigrationTableError(
-            "oldman_migration_owner must contain exactly the singleton row with singleton_id=1."
-        )
+        raise ReservedMigrationTableError("oldman_migration_owner must contain exactly the singleton row with singleton_id=1.")
     try:
         project_id = UUID(rows[0].project_id)
     except (TypeError, ValueError):
-        raise ReservedMigrationTableError(
-            "oldman_migration_owner.project_id must contain a valid UUID string."
-        ) from None
+        raise ReservedMigrationTableError("oldman_migration_owner.project_id must contain a valid UUID string.") from None
     if not isinstance(rows[0].project_name, str) or not rows[0].project_name:
-        raise ReservedMigrationTableError(
-            "oldman_migration_owner.project_name must contain a non-empty string."
-        )
+        raise ReservedMigrationTableError("oldman_migration_owner.project_name must contain a non-empty string.")
     return MigrationOwner(project_id=project_id, project_name=rows[0].project_name)
 
 
 def _read_revisions(connection: Connection) -> tuple[str, ...]:
     """Return stable current Alembic heads from the standard version table."""
-    return tuple(
-        connection.execute(
-            select(ALEMBIC_VERSION_TABLE.c.version_num).order_by(
-                ALEMBIC_VERSION_TABLE.c.version_num
-            )
-        ).scalars()
-    )
+    return tuple(connection.execute(select(ALEMBIC_VERSION_TABLE.c.version_num).order_by(ALEMBIC_VERSION_TABLE.c.version_num)).scalars())
 
 
 def _read_schema_registry(connection: Connection) -> dict[str, SchemaOwnership]:
     """Return table ownership keyed by the Registry primary key."""
-    rows = connection.execute(
-        select(SCHEMA_REGISTRY_TABLE).order_by(SCHEMA_REGISTRY_TABLE.c.table_name)
-    ).mappings()
+    rows = connection.execute(select(SCHEMA_REGISTRY_TABLE).order_by(SCHEMA_REGISTRY_TABLE.c.table_name)).mappings()
     return {
         row["table_name"]: SchemaOwnership(
             table_name=row["table_name"],
@@ -312,54 +280,32 @@ def _read_schema_registry(connection: Connection) -> dict[str, SchemaOwnership]:
 
 def _validate_table_signature(inspector: Inspector, expected: Table) -> None:
     """Compare reflected columns, semantic types, nullability, keys and uniqueness."""
-    actual_columns = {
-        column["name"]: column for column in inspector.get_columns(expected.name)
-    }
+    actual_columns = {column["name"]: column for column in inspector.get_columns(expected.name)}
     expected_columns = {column.name: column for column in expected.columns}
     errors: list[str] = []
     if set(actual_columns) != set(expected_columns):
-        errors.append(
-            f"columns expected={sorted(expected_columns)!r} actual={sorted(actual_columns)!r}"
-        )
+        errors.append(f"columns expected={sorted(expected_columns)!r} actual={sorted(actual_columns)!r}")
     for name in sorted(set(actual_columns) & set(expected_columns)):
         actual = actual_columns[name]
         column = expected_columns[name]
         if not _types_equivalent(actual["type"], column.type):
-            errors.append(
-                f"column {name!r} type expected={column.type!r} actual={actual['type']!r}"
-            )
+            errors.append(f"column {name!r} type expected={column.type!r} actual={actual['type']!r}")
         if bool(actual["nullable"]) is not column.nullable:
-            errors.append(
-                f"column {name!r} nullable expected={column.nullable!r} actual={actual['nullable']!r}"
-            )
+            errors.append(f"column {name!r} nullable expected={column.nullable!r} actual={actual['nullable']!r}")
 
-    actual_primary_key = tuple(
-        inspector.get_pk_constraint(expected.name).get("constrained_columns") or ()
-    )
+    actual_primary_key = tuple(inspector.get_pk_constraint(expected.name).get("constrained_columns") or ())
     expected_primary_key = tuple(column.name for column in expected.primary_key.columns)
     if actual_primary_key != expected_primary_key:
-        errors.append(
-            f"primary key expected={expected_primary_key!r} actual={actual_primary_key!r}"
-        )
+        errors.append(f"primary key expected={expected_primary_key!r} actual={actual_primary_key!r}")
 
     expected_unique = {
-        tuple(column.name for column in constraint.columns)
-        for constraint in expected.constraints
-        if isinstance(constraint, UniqueConstraint)
+        tuple(column.name for column in constraint.columns) for constraint in expected.constraints if isinstance(constraint, UniqueConstraint)
     }
-    actual_unique = {
-        tuple(constraint.get("column_names") or ())
-        for constraint in inspector.get_unique_constraints(expected.name)
-    }
+    actual_unique = {tuple(constraint.get("column_names") or ()) for constraint in inspector.get_unique_constraints(expected.name)}
     if actual_unique != expected_unique:
-        errors.append(
-            f"unique constraints expected={sorted(expected_unique)!r} actual={sorted(actual_unique)!r}"
-        )
+        errors.append(f"unique constraints expected={sorted(expected_unique)!r} actual={sorted(actual_unique)!r}")
     if errors:
-        raise ReservedMigrationTableError(
-            f"Reserved table {expected.name!r} has a conflicting signature: "
-            + "; ".join(errors)
-        )
+        raise ReservedMigrationTableError(f"Reserved table {expected.name!r} has a conflicting signature: " + "; ".join(errors))
 
 
 def _types_equivalent(actual: object, expected: object) -> bool:
@@ -377,9 +323,7 @@ def _require_registry_signature(connection: Connection) -> None:
     """Require the Registry table to exist with the exact fixed signature."""
     inspector = sqlalchemy_inspect(connection)
     if not inspector.has_table(SCHEMA_REGISTRY_TABLE.name):
-        raise MigrationStateRecoveryRequired(
-            "oldman_schema_registry is missing; run the controlled migrate recovery flow."
-        )
+        raise MigrationStateRecoveryRequired("oldman_schema_registry is missing; run the controlled migrate recovery flow.")
     _validate_table_signature(inspector, SCHEMA_REGISTRY_TABLE)
 
 

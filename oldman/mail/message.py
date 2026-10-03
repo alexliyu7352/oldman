@@ -125,7 +125,9 @@ class EmailMessage:
             if isinstance(attachment.content, str):
                 mime.add_attachment(attachment.content, subtype=subtype or "plain", filename=attachment.filename)
             else:
-                mime.add_attachment(attachment.content, maintype=maintype or "application", subtype=subtype or "octet-stream", filename=attachment.filename)
+                mime.add_attachment(
+                    attachment.content, maintype=maintype or "application", subtype=subtype or "octet-stream", filename=attachment.filename
+                )
         self._set_headers(mime)
         return mime
 

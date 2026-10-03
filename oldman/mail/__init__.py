@@ -70,7 +70,13 @@ async def mail_admins(
     config = mail_config()
     if not config.admins:
         return 0
-    email = EmailMultiAlternatives(f"{config.subject_prefix}{subject}", message, config.default_from_email, list(config.admins), connection=connection or get_connection(fail_silently=fail_silently))
+    email = EmailMultiAlternatives(
+        f"{config.subject_prefix}{subject}",
+        message,
+        config.default_from_email,
+        list(config.admins),
+        connection=connection or get_connection(fail_silently=fail_silently),
+    )
     if html_message:
         email.attach_alternative(html_message, "text/html")
     return await email.send()

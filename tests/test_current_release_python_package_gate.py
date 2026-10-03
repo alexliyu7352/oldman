@@ -150,5 +150,6 @@ class CurrentReleasePythonPackageGateTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "requires one lowercase SHA-256"):
                 self.gate.require_expected_artifact_sha256(artifact, None, label="wheel")
 
+
 if __name__ == "__main__":
     unittest.main()

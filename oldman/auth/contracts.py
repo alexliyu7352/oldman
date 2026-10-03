@@ -54,9 +54,7 @@ class UserModelContractError(TypeError):
 
 def _contract_error(model: type[Any], detail: str) -> UserModelContractError:
     """Build one error that identifies the rejected mapped class."""
-    return UserModelContractError(
-        f"User model {model.__module__}.{model.__qualname__} {detail}"
-    )
+    return UserModelContractError(f"User model {model.__module__}.{model.__qualname__} {detail}")
 
 
 def _normalized_sql(expression: object) -> str:
@@ -76,11 +74,7 @@ def _validate_core_columns(model: type[Any], table: Table) -> None:
 
     for name in USER_CORE_FIELD_NAMES:
         property_ = mapper.attrs.get(name)
-        if (
-            not isinstance(property_, ColumnProperty)
-            or len(property_.columns) != 1
-            or property_.columns[0] is not table.c[name]
-        ):
+        if not isinstance(property_, ColumnProperty) or len(property_.columns) != 1 or property_.columns[0] is not table.c[name]:
             raise _contract_error(
                 model,
                 f"must map core attribute {name!r} to column {name!r}.",
@@ -135,11 +129,7 @@ def _validate_core_columns(model: type[Any], table: Table) -> None:
     }
     for name, expected in expected_defaults.items():
         default = table.c[name].default
-        if (
-            default is None
-            or not default.is_scalar
-            or getattr(default, "arg", None) is not expected
-        ):
+        if default is None or not default.is_scalar or getattr(default, "arg", None) is not expected:
             raise _contract_error(
                 model,
                 f"core field {name!r} must retain its {expected!r} default.",
@@ -160,16 +150,8 @@ def _validate_core_columns(model: type[Any], table: Table) -> None:
 def _validate_core_indexes(model: type[Any], table: Table) -> None:
     """Require the fixed lookup and uniqueness indexes without banning extras."""
     for name, (columns, unique) in USER_CORE_INDEXES.items():
-        matches = [
-            index
-            for index in table.indexes
-            if index.name is not None and str(index.name) == name
-        ]
-        if (
-            len(matches) != 1
-            or tuple(column.name for column in matches[0].columns) != columns
-            or matches[0].unique is not unique
-        ):
+        matches = [index for index in table.indexes if index.name is not None and str(index.name) == name]
+        if len(matches) != 1 or tuple(column.name for column in matches[0].columns) != columns or matches[0].unique is not unique:
             raise _contract_error(
                 model,
                 f"must retain core index {name!r} on {', '.join(columns)}.",
@@ -178,9 +160,7 @@ def _validate_core_indexes(model: type[Any], table: Table) -> None:
     email_unique = [
         constraint
         for constraint in table.constraints
-        if isinstance(constraint, UniqueConstraint)
-        and tuple(column.name for column in constraint.columns)
-        in USER_CORE_UNIQUE_COLUMN_SETS
+        if isinstance(constraint, UniqueConstraint) and tuple(column.name for column in constraint.columns) in USER_CORE_UNIQUE_COLUMN_SETS
     ]
     if len(email_unique) != 1:
         raise _contract_error(
@@ -192,19 +172,11 @@ def _validate_core_indexes(model: type[Any], table: Table) -> None:
 def _install_core_constraints(model: type[Any], table: Table) -> None:
     """Append missing named checks while rejecting a conflicting declaration."""
     for name, expression in USER_CORE_CHECK_CONSTRAINTS.items():
-        matches = [
-            constraint
-            for constraint in table.constraints
-            if constraint.name == name
-        ]
+        matches = [constraint for constraint in table.constraints if constraint.name == name]
         if not matches:
             table.append_constraint(CheckConstraint(expression, name=name))
             continue
-        if (
-            len(matches) != 1
-            or not isinstance(matches[0], CheckConstraint)
-            or _normalized_sql(matches[0].sqltext) != _normalized_sql(expression)
-        ):
+        if len(matches) != 1 or not isinstance(matches[0], CheckConstraint) or _normalized_sql(matches[0].sqltext) != _normalized_sql(expression):
             raise _contract_error(
                 model,
                 f"declares a conflicting core constraint {name!r}.",

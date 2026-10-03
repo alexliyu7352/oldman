@@ -301,9 +301,7 @@ class CurlCffiClient(BaseHttpClient):
         if explicit_cookies is None:
             _, single_label = _request_hostname(url)
             # 普通域名和 IP 直接复用 canonical jar；只有单标签主机需要隔离副本。
-            kwargs["cookies"] = (
-                _adapt_request_cookie_jar(self.cookie_jar, url) if single_label else self.cookie_jar
-            )
+            kwargs["cookies"] = _adapt_request_cookie_jar(self.cookie_jar, url) if single_label else self.cookie_jar
             return
 
         try:

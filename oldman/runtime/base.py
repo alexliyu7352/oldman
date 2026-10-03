@@ -557,14 +557,10 @@ class BaseApplication(ABC):
         :param log_file_path: Path to log file
         :param config: Configuration object
         """
-        self.bootstrap_context = (
-            config if config is not None else _get_bootstrap_context()
-        )
+        self.bootstrap_context = config if config is not None else _get_bootstrap_context()
         if not app_name:
             app_name = self.get_service_name()
-        file_name = self.safe_pid_name(
-            self.bootstrap_context.service_module
-        ).lower()
+        file_name = self.safe_pid_name(self.bootstrap_context.service_module).lower()
         self.app_name = app_name
         self.log_file_path = log_file_path
         self.log_file_name = file_name

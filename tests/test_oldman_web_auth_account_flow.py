@@ -193,8 +193,9 @@ class AccountUrlsTest(unittest.TestCase):
 
     def test_user_events_need_sse_and_notifications_need_the_site_to_install_them(self) -> None:
         app = FakeApp()
-        with patch("oldman.web.messages.notifications.installed_routes", return_value=NOTIFICATIONS), patch.dict(
-            conf.__dict__, {"settings": settings_with_sse(True)}
+        with (
+            patch("oldman.web.messages.notifications.installed_routes", return_value=NOTIFICATIONS),
+            patch.dict(conf.__dict__, {"settings": settings_with_sse(True)}),
         ):
             urls = account_urls(make_request(cast(Any, app), path="/"))
 

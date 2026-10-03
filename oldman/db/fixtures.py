@@ -392,18 +392,12 @@ async def _record_dependencies(
     by_key = {record.key: record for record in records}
     model_by_table = {record.fixture_model.metadata.table: record.fixture_model for record in records}
     referenced_columns = {
-        foreign_key.column
-        for record in records
-        for column in record.fixture_model.metadata.table.columns
-        for foreign_key in column.foreign_keys
+        foreign_key.column for record in records for column in record.fixture_model.metadata.table.columns for foreign_key in column.foreign_keys
     }
     target_records: dict[tuple[Column[Any], Any], tuple[str, Any]] = {}
     for record in records:
         values = [(record.fixture_model.primary_key, record.primary_key)]
-        values.extend(
-            (record.fixture_model.fields[field_name], value)
-            for field_name, value in record.fields.items()
-        )
+        values.extend((record.fixture_model.fields[field_name], value) for field_name, value in record.fields.items())
         for column, value in values:
             if column in referenced_columns and value is not None:
                 target_records.setdefault((column, value), record.key)

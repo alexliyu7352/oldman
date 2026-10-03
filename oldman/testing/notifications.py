@@ -50,7 +50,7 @@ class HostContract:
     center_path: str
 
 
-PROBE_SOURCE = r'''
+PROBE_SOURCE = r"""
 import asyncio
 import json
 import sys
@@ -167,7 +167,7 @@ async def main():
 
 
 asyncio.run(main())
-'''
+"""
 
 
 def run_probe(
@@ -197,20 +197,14 @@ def run_probe(
         check=False,
     )
     if completed.returncode != 0:
-        raise BrowserVerificationError(
-            f"Notification probe {action!r} failed: {completed.stderr[-4000:]}"
-        )
+        raise BrowserVerificationError(f"Notification probe {action!r} failed: {completed.stderr[-4000:]}")
     lines = [line for line in completed.stdout.splitlines() if line.strip()]
     try:
         payload = json.loads(lines[-1])
     except (IndexError, json.JSONDecodeError) as exc:
-        raise BrowserVerificationError(
-            f"Notification probe {action!r} returned invalid JSON"
-        ) from exc
+        raise BrowserVerificationError(f"Notification probe {action!r} returned invalid JSON") from exc
     if not isinstance(payload, dict):
-        raise BrowserVerificationError(
-            f"Notification probe {action!r} returned a non-object"
-        )
+        raise BrowserVerificationError(f"Notification probe {action!r} returned a non-object")
     return payload
 
 
@@ -234,7 +228,7 @@ def _wait_for(
 
 def _event_source_probe_script() -> str:
     """Record every real EventSource created by the product page."""
-    return r'''
+    return r"""
 (() => {
   const NativeEventSource = window.EventSource;
   const records = [];
@@ -264,7 +258,7 @@ def _event_source_probe_script() -> str:
   });
   window.EventSource = GateEventSource;
 })();
-'''
+"""
 
 
 def _install_event_source_probe(client: CDPClient) -> None:
@@ -318,7 +312,7 @@ def _login(
 
 def _unread_state(client: CDPClient) -> dict[str, Any]:
     value = client.evaluate(
-        r'''
+        r"""
 (() => {
   const counters = [...document.querySelectorAll('[data-om-user-notification-count]')];
   const previews = [...document.querySelectorAll('[data-om-user-notification-preview]')];
@@ -328,7 +322,7 @@ def _unread_state(client: CDPClient) -> dict[str, Any]:
     previews: previews.length
   };
 })()
-'''
+"""
     )
     return value if isinstance(value, dict) else {}
 
@@ -448,7 +442,7 @@ def _close_toast(client: CDPClient) -> None:
 
 def _close_sweetalert(client: CDPClient) -> None:
     closed = client.evaluate(
-        r'''
+        r"""
 (() => {
   const cancel = document.querySelector('.swal2-popup:not(.swal2-hide) .swal2-cancel');
   const close = document.querySelector('.swal2-popup:not(.swal2-hide) .swal2-close');
@@ -457,7 +451,7 @@ def _close_sweetalert(client: CDPClient) -> None:
   control.click();
   return true;
 })()
-'''
+"""
     )
     if closed is not True:
         raise BrowserVerificationError("SweetAlert had no safe close control")
@@ -504,7 +498,7 @@ def _verify_chrome(
         if initial.get("previews") != 5:
             raise BrowserVerificationError("Topbar did not limit persistent previews to five")
         topbar_contract = client.evaluate(
-            r'''
+            r"""
 (() => {
   const topbar = document.querySelector('[data-om-user-notification-topbar]');
   return {
@@ -513,7 +507,7 @@ def _verify_chrome(
     activityOverlaps: topbar?.closest('[data-om-activity-notifications]') !== null
   };
 })()
-'''
+"""
         )
         if topbar_contract != {
             "checkbox": False,
@@ -535,7 +529,7 @@ def _verify_chrome(
         navigate(client, f"{base_url}{host.center_path}?state=unread&page=1")
         center = _wait_for(
             client,
-            r'''
+            r"""
 (() => {
   const center = document.querySelector('[data-om-user-notification-center]');
   if (!center) return false;
@@ -549,21 +543,18 @@ def _verify_chrome(
       .some(link => link.getAttribute('href')?.includes('page=2'))
   };
 })()
-''',
+""",
             "Notification center was not rendered",
         )
         if (
             not isinstance(center, dict)
             or center.get("items") != 20
             or center.get("selectors") != 20
-            or not all(
-                center.get(name)
-                for name in ("hasRead", "hasDelete", "hasAllRead", "hasNext")
-            )
+            or not all(center.get(name) for name in ("hasRead", "hasDelete", "hasAllRead", "hasNext"))
         ):
             raise BrowserVerificationError(f"Notification center contract drifted: {center}")
         client.evaluate(
-            r'''
+            r"""
 (() => {
   const boxes = document.querySelectorAll('[data-om-user-notification-select]');
   for (const box of [...boxes].slice(0, 2)) {
@@ -571,7 +562,7 @@ def _verify_chrome(
     box.dispatchEvent(new Event('change', { bubbles: true }));
   }
 })()
-'''
+"""
         )
         _wait_for(
             client,
@@ -604,9 +595,7 @@ def _verify_chrome(
             or text_toast.get("bodyText") != "<em>Plain body</em>"
             or text_toast.get("bodyHasStrong") is not False
         ):
-            raise BrowserVerificationError(
-                f"TEXT notification was interpreted as HTML: {text_toast}"
-            )
+            raise BrowserVerificationError(f"TEXT notification was interpreted as HTML: {text_toast}")
         if text_toast.get("tone") != "om-toast-success":
             raise BrowserVerificationError(f"Toast did not carry the notification level: {text_toast}")
         _wait_for_unread(client, 23)
@@ -638,13 +627,9 @@ def _verify_chrome(
             "document.querySelector('.swal2-popup') === null",
             "Delete confirmation did not close",
         )
-        deleted_counts = run_probe(
-            project_root, config_file, "counts", username, host
-        )
+        deleted_counts = run_probe(project_root, config_file, "counts", username, host)
         if deleted_counts != {"total": 25, "unread": 22}:
-            raise BrowserVerificationError(
-                f"Selected delete changed the wrong rows: {deleted_counts}"
-            )
+            raise BrowserVerificationError(f"Selected delete changed the wrong rows: {deleted_counts}")
         _click(client, "[data-om-user-notification-mark-all-read]")
         _wait_for_unread(client, 0)
         interactions.append("selected delete and mark-all-read stay recipient scoped")
@@ -656,9 +641,7 @@ def _verify_chrome(
             or html_alert.get("bodyHasStrong") is not True
             or html_alert.get("bodyText") != "Trusted HTML body"
         ):
-            raise BrowserVerificationError(
-                f"Explicit HTML notification did not preserve its body boundary: {html_alert}"
-            )
+            raise BrowserVerificationError(f"Explicit HTML notification did not preserve its body boundary: {html_alert}")
         _wait_for_unread(client, 1)
         _click(client, ".swal2-popup:not(.swal2-hide) .swal2-confirm")
         _wait_for(
@@ -669,9 +652,7 @@ def _verify_chrome(
         _wait_for_unread(client, 0)
         interactions.append("HTML modal body and persistent Open action")
 
-        before_push = run_probe(
-            project_root, config_file, "counts", username, host
-        )
+        before_push = run_probe(project_root, config_file, "counts", username, host)
         run_probe(
             project_root,
             config_file,
@@ -683,18 +664,14 @@ def _verify_chrome(
         if push_toast.get("titleHasMarkup") is not False:
             raise BrowserVerificationError("Push title was not rendered as text")
         _close_toast(client)
-        after_push = run_probe(
-            project_root, config_file, "counts", username, host
-        )
+        after_push = run_probe(project_root, config_file, "counts", username, host)
         if after_push != before_push or _unread_state(client).get("counts", [None])[0] != "0":
-            raise BrowserVerificationError(
-                f"Temporary push changed persistent state: {before_push} -> {after_push}"
-            )
+            raise BrowserVerificationError(f"Temporary push changed persistent state: {before_push} -> {after_push}")
         interactions.append("temporary push stays out of the database and persistent badge")
 
         activity_before = _unread_state(client)
         activity = client.evaluate(
-            r'''
+            r"""
 (() => {
   const before = document.querySelectorAll('[data-om-activity-notification-item]').length;
   document.dispatchEvent(new CustomEvent('om:notification:add', { detail: {
@@ -717,13 +694,13 @@ def _verify_chrome(
     remaining: document.querySelectorAll('[data-om-activity-notification-item]').length
   };
 })()
-'''
+"""
         )
         if (
             not isinstance(activity, dict)
             or activity.get("textWasEscaped") is not True
             or activity.get("persistentControlsInside") is not False
-    or activity.get("remaining") != activity.get("before")
+            or activity.get("remaining") != activity.get("before")
             or _unread_state(client) != activity_before
         ):
             raise BrowserVerificationError(f"Activity crossed boundaries: {activity}")
@@ -752,9 +729,7 @@ def _verify_chrome(
         )
         translated_toast = _wait_for_toast(client, "用户通知")
         if translated_toast.get("bodyText") != "有新通知":
-            raise BrowserVerificationError(
-                f"SSE payload used the wrong connection language: {translated_toast}"
-            )
+            raise BrowserVerificationError(f"SSE payload used the wrong connection language: {translated_toast}")
         _close_toast(client)
         interactions.append("language-specific SSE translation and one active connection")
 
@@ -769,9 +744,7 @@ def _verify_chrome(
             raise BrowserVerificationError(f"No browser Session was expired: {expired}")
         session_alert = _wait_for_sweetalert(client, "Session expired")
         if "sign in again" not in str(session_alert.get("bodyText", "")).lower():
-            raise BrowserVerificationError(
-                f"Session invalidation message was incomplete: {session_alert}"
-            )
+            raise BrowserVerificationError(f"Session invalidation message was incomplete: {session_alert}")
         _wait_for(
             client,
             "window.__oldmanGateEventSources?.some(item => item.invalidated && item.closed)",
@@ -807,14 +780,10 @@ class FirefoxBiDi:
     ) -> dict[str, Any]:
         message_id = self.next_id
         self.next_id += 1
-        self.websocket.send_json(
-            {"id": message_id, "method": method, "params": params or {}}
-        )
+        self.websocket.send_json({"id": message_id, "method": method, "params": params or {}})
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            message = self.websocket.recv_json(
-                timeout=max(0.05, deadline - time.monotonic())
-            )
+            message = self.websocket.recv_json(timeout=max(0.05, deadline - time.monotonic()))
             if message is None:
                 continue
             if message.get("type") == "event":
@@ -823,9 +792,7 @@ class FirefoxBiDi:
             if message.get("id") != message_id:
                 continue
             if message.get("type") == "error":
-                raise BrowserVerificationError(
-                    f"BiDi command {method} failed: {message}"
-                )
+                raise BrowserVerificationError(f"BiDi command {method} failed: {message}")
             return message
         raise BrowserVerificationError(f"Timed out waiting for BiDi command {method}")
 
@@ -895,8 +862,7 @@ def _verify_firefox(
     profile = tempfile.mkdtemp(prefix="oldman-firefox-notification-")
     # 和 Chrome 一侧同一个理由：固定浏览器语言，页面语言才不跟着开发机的 LANG 走。
     Path(profile, "user.js").write_text(
-        f'user_pref("intl.accept_languages", "{GATE_LANGUAGE}, en");\n'
-        f'user_pref("intl.locale.requested", "{GATE_LANGUAGE}");\n',
+        f'user_pref("intl.accept_languages", "{GATE_LANGUAGE}, en");\nuser_pref("intl.locale.requested", "{GATE_LANGUAGE}");\n',
         encoding="utf-8",
     )
     process = subprocess.Popen(
@@ -919,9 +885,7 @@ def _verify_firefox(
         deadline = time.monotonic() + 25
         while time.monotonic() < deadline:
             if process.poll() is not None:
-                raise BrowserVerificationError(
-                    f"Firefox exited before BiDi was ready: {process.returncode}"
-                )
+                raise BrowserVerificationError(f"Firefox exited before BiDi was ready: {process.returncode}")
             try:
                 client = FirefoxBiDi(port)
                 break
@@ -948,16 +912,17 @@ def _verify_firefox(
         )
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
-            if client.evaluate(
-                context,
-                "document.documentElement.dataset.omReady === 'true'",
-            ) is True:
+            if (
+                client.evaluate(
+                    context,
+                    "document.documentElement.dataset.omReady === 'true'",
+                )
+                is True
+            ):
                 break
             time.sleep(0.1)
         else:
-            raise BrowserVerificationError(
-                "Firefox login runtime did not become ready"
-            )
+            raise BrowserVerificationError("Firefox login runtime did not become ready")
         submitted = client.evaluate(
             context,
             f"""
@@ -1002,13 +967,9 @@ def _verify_firefox(
                 break
             time.sleep(0.2)
         if not isinstance(evidence, dict) or evidence.get("eventSourceSupported") is not True:
-            raise BrowserVerificationError(
-                f"Firefox notification shell smoke failed: {evidence}"
-            )
+            raise BrowserVerificationError(f"Firefox notification shell smoke failed: {evidence}")
         if client.console_errors:
-            raise BrowserVerificationError(
-                f"Firefox console errors: {client.console_errors}"
-            )
+            raise BrowserVerificationError(f"Firefox console errors: {client.console_errors}")
         # 交接点：框架这段干净了，之后的 console 错误由宿主的 extra_steps 自己判断。
         client.console_errors.clear()
         if extra_steps is not None:

@@ -34,6 +34,7 @@ Python 例子：
 ```sh
 .venv/bin/python -m unittest -q tests.test_oldman_web_auth_user_session
 .venv/bin/ruff check oldman/web/auth/user_session.py
+.venv/bin/ruff format --check oldman/web/auth/user_session.py
 .venv/bin/pyright oldman/web/auth/user_session.py
 ```
 
@@ -129,7 +130,7 @@ pnpm verify:python-package
 pnpm verify:scaffold-matrix
 ```
 
-- static：Python lint（ruff）和两种类型检查（pyright、Pyrefly）。Pyrefly 的版本固定在 `pyproject.toml` 的 dev 依赖里，配置在 `[tool.pyrefly]`。
+- static：Python lint 与格式检查（`ruff check`、`ruff format --check`，代码按 `ruff format` 统一）和两种类型检查（pyright、Pyrefly）。Pyrefly 的版本固定在 `pyproject.toml` 的 dev 依赖里，配置在 `[tool.pyrefly]`。
 - python：Python 全量测试。
 - frontend：两个前端包的测试与类型检查。
 - web-boundaries：已有前端边界检查。

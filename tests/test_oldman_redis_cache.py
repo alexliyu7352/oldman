@@ -40,12 +40,12 @@ def require_positive_integer_expiration(value: object) -> None:
         raise AssertionError("Redis expiration commands require a positive integer")
 
 
-
 def service_namespace(namespace: str) -> Any:
     """Publish settings whose core.namespace is the given one."""
     settings = DefaultSettings()
     settings.core.namespace = namespace
     return patch.dict(conf.__dict__, {"settings": settings})
+
 
 class FakeBinaryPipeline:
     def __init__(self, connection: FakeBinaryConnection) -> None:
@@ -309,9 +309,7 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(["main:*"], alias.connection.scan_patterns)
 
     async def test_settings_namespace_only_binds_on_first_operation(self) -> None:
-        settings_source = Mock(
-            return_value=RedisCacheConfig(client="CACHE", serializer="pickle")
-        )
+        settings_source = Mock(return_value=RedisCacheConfig(client="CACHE", serializer="pickle"))
         registry = Mock()
         registry.using.return_value = FakeBinaryAlias()
 
@@ -428,9 +426,7 @@ class RedisCacheTest(unittest.IsolatedAsyncioTestCase):
         registry.using.assert_called_once_with("CACHE")
 
     async def test_global_cache_binds_settings_only_on_first_operation(self) -> None:
-        settings_source = Mock(
-            return_value=RedisCacheConfig(client="CACHE", serializer="pickle")
-        )
+        settings_source = Mock(return_value=RedisCacheConfig(client="CACHE", serializer="pickle"))
         cache = RedisCache(settings_source=settings_source)
         registry = Mock()
         registry.using.return_value = FakeBinaryAlias()

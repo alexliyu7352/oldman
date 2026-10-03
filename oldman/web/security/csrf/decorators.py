@@ -22,8 +22,7 @@ def enforce_csrf(csrf_manager, request: Request) -> None:
     if exempt_from_csrf(request):
         return
     advice = gettext(
-        "This page has expired, or the request could not be confirmed as coming from this site. "
-        "Reload the page and try again.",
+        "This page has expired, or the request could not be confirmed as coming from this site. Reload the page and try again.",
         request=request,
     )
     token = csrf_manager.get_token_from_request(request)

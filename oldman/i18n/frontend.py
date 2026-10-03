@@ -65,10 +65,7 @@ def frontend_messages_from_manifest(
     if not isinstance(payload, Mapping) or payload.get("version") != 1:
         raise ValueError("frontend message manifest has an unsupported format")
     raw_sources = payload.get("sources")
-    if not isinstance(raw_sources, list) or not all(
-        isinstance(source, str) and source.strip()
-        for source in raw_sources
-    ):
+    if not isinstance(raw_sources, list) or not all(isinstance(source, str) and source.strip() for source in raw_sources):
         raise ValueError("frontend message manifest sources must be a string list")
     raw_messages = payload.get("messages")
     if not isinstance(raw_messages, list):
@@ -82,9 +79,7 @@ def frontend_messages_from_manifest(
         raise ValueError("frontend message manifest messages are not stably sorted")
     catalog_keys = [message.catalog_key for message in messages]
     if len(catalog_keys) != len(set(catalog_keys)):
-        raise ValueError(
-            "frontend message manifest contains incompatible singular/plural identities"
-        )
+        raise ValueError("frontend message manifest contains incompatible singular/plural identities")
     return messages
 
 
@@ -99,11 +94,7 @@ def extract_project_frontend_messages(
     if not source_root.is_dir():
         return ()
 
-    command = (
-        tuple(compiler_command)
-        if compiler_command is not None
-        else _frontend_i18n_command(project_root)
-    )
+    command = tuple(compiler_command) if compiler_command is not None else _frontend_i18n_command(project_root)
     completed = subprocess.run(
         [
             *command,
@@ -119,16 +110,12 @@ def extract_project_frontend_messages(
     )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
-        raise RuntimeError(
-            f"oldman-web-i18n failed to extract frontend messages: {detail}"
-        )
+        raise RuntimeError(f"oldman-web-i18n failed to extract frontend messages: {detail}")
     try:
         payload = json.loads(completed.stdout)
         return frontend_messages_from_manifest(payload)
     except (json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError(
-            "oldman-web-i18n returned an invalid frontend message manifest."
-        ) from exc
+        raise RuntimeError("oldman-web-i18n returned an invalid frontend message manifest.") from exc
 
 
 def compile_project_frontend_catalog(
@@ -145,11 +132,7 @@ def compile_project_frontend_catalog(
     if not isinstance(fallback_locale, str) or not fallback_locale.strip():
         raise ValueError("fallback_locale must be a non-blank string")
 
-    command = (
-        tuple(compiler_command)
-        if compiler_command is not None
-        else _frontend_i18n_command(project_root)
-    )
+    command = tuple(compiler_command) if compiler_command is not None else _frontend_i18n_command(project_root)
     messages = (
         *oldman_web_messages(),
         *extract_project_frontend_messages(
@@ -166,15 +149,11 @@ def compile_project_frontend_catalog(
     )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
-        raise RuntimeError(
-            f"oldman-web-i18n failed to compile {po_file}: {detail}"
-        )
+        raise RuntimeError(f"oldman-web-i18n failed to compile {po_file}: {detail}")
     try:
         payload = json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            "oldman-web-i18n returned an invalid browser catalog."
-        ) from exc
+        raise RuntimeError("oldman-web-i18n returned an invalid browser catalog.") from exc
     return filter_frontend_catalog_payload(payload, messages)
 
 
@@ -189,16 +168,9 @@ def filter_frontend_catalog_payload(
     raw_messages = payload.get("messages")
     if not isinstance(raw_messages, Mapping):
         raise ValueError("frontend catalog messages must be an object")
-    compiled_messages = {
-        _required_string(key, "catalog message key"): _catalog_value(value, key)
-        for key, value in raw_messages.items()
-    }
+    compiled_messages = {_required_string(key, "catalog message key"): _catalog_value(value, key) for key, value in raw_messages.items()}
     frontend_keys = {message.catalog_key for message in messages}
-    filtered_messages = {
-        key: compiled_messages[key]
-        for key in sorted(frontend_keys)
-        if key in compiled_messages
-    }
+    filtered_messages = {key: compiled_messages[key] for key in sorted(frontend_keys) if key in compiled_messages}
     filtered: dict[str, object] = {
         "locale": locale,
         "messages": filtered_messages,
@@ -274,42 +246,28 @@ def _load_location(raw_location: object, message_id: str) -> FrontendMessageLoca
 def _frontend_i18n_command(project_root: Path) -> tuple[str, ...]:
     """Resolve the project's installed ``oldman-web-i18n`` executable."""
     frontend_root = project_root / "frontend"
-    package_extractor = (
-        frontend_root
-        / "node_modules"
-        / "oldman-web"
-        / "bin"
-        / "oldman-web-i18n.mjs"
-    )
+    package_extractor = frontend_root / "node_modules" / "oldman-web" / "bin" / "oldman-web-i18n.mjs"
     if package_extractor.is_file():
         node = shutil.which("node")
         if node is None:
-            raise RuntimeError(
-                "Node.js is required to process frontend translation messages."
-            )
+            raise RuntimeError("Node.js is required to process frontend translation messages.")
         return (node, str(package_extractor))
 
-    local_extractor = (
-        frontend_root / "node_modules" / ".bin" / "oldman-web-i18n"
-    )
+    local_extractor = frontend_root / "node_modules" / ".bin" / "oldman-web-i18n"
     if local_extractor.is_file():
         return (str(local_extractor),)
 
     installed_extractor = shutil.which("oldman-web-i18n")
     if installed_extractor is not None:
         return (installed_extractor,)
-    raise RuntimeError(
-        "oldman-web-i18n is unavailable; install the frontend dependencies first."
-    )
+    raise RuntimeError("oldman-web-i18n is unavailable; install the frontend dependencies first.")
 
 
 def _catalog_value(value: object, key: object) -> str | list[str]:
     """Validate one value produced by ``oldman-web-i18n compile-po``."""
     if isinstance(value, str):
         return value
-    if isinstance(value, list) and value and all(
-        isinstance(item, str) for item in value
-    ):
+    if isinstance(value, list) and value and all(isinstance(item, str) for item in value):
         return value
     raise ValueError(f"frontend catalog message {key!r} has an invalid value")
 

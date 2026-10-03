@@ -99,10 +99,7 @@ class FrontendI18nBuildTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             settings_file = Path(temporary_directory) / "settings.yaml"
             settings_file.write_text(
-                "i18n:\n"
-                "  default_language: fr\n"
-                "  languages:\n"
-                "    en: {}\n",
+                "i18n:\n  default_language: fr\n  languages:\n    en: {}\n",
                 encoding="utf-8",
             )
 
@@ -117,16 +114,11 @@ class FrontendI18nBuildTest(unittest.TestCase):
             locales_dir = root / "locales"
             output_dir = root / "public" / "i18n"
             write_settings(settings_file)
-            _, configured = frontend_build.read_i18n_languages(
-                settings_file
-            )
+            _, configured = frontend_build.read_i18n_languages(settings_file)
             po_directory = locales_dir / "zh_Hans" / "LC_MESSAGES"
             po_directory.mkdir(parents=True)
             (po_directory / "messages.po").write_text(
-                'msgid "Request failed"\n'
-                'msgstr "请求失败"\n\n'
-                'msgid "Backend only"\n'
-                'msgstr "后端专用"\n',
+                'msgid "Request failed"\nmsgstr "请求失败"\n\nmsgid "Backend only"\nmsgstr "后端专用"\n',
                 encoding="utf-8",
             )
 
@@ -137,12 +129,8 @@ class FrontendI18nBuildTest(unittest.TestCase):
                 compiler_command=COMPILER,
                 project_root=ROOT,
             )
-            english = json.loads(
-                (output_dir / "en.json").read_text(encoding="utf-8")
-            )
-            chinese = json.loads(
-                (output_dir / "zh-hans.json").read_text(encoding="utf-8")
-            )
+            english = json.loads((output_dir / "en.json").read_text(encoding="utf-8"))
+            chinese = json.loads((output_dir / "zh-hans.json").read_text(encoding="utf-8"))
 
         self.assertEqual(english, {"locale": "en", "messages": {}})
         self.assertEqual(chinese["messages"]["Request failed"], "请求失败")
@@ -261,10 +249,7 @@ class FrontendI18nBuildTest(unittest.TestCase):
 
     def test_the_cli_publishes_every_configured_language(self) -> None:
         """没有"只发布部分语言"的开关：缺目录的语言会让前端退回 msgid，必须整套一起发。"""
-        parameters = {
-            parameter.name
-            for parameter in inspect.signature(i18n_commands.build_frontend_catalogs).parameters.values()
-        }
+        parameters = {parameter.name for parameter in inspect.signature(i18n_commands.build_frontend_catalogs).parameters.values()}
 
         self.assertNotIn("languages", parameters)
 

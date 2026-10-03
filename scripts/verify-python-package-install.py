@@ -103,11 +103,7 @@ def package_module_names(files: Mapping[str, str]) -> tuple[str, ...]:
         path = PurePosixPath(value)
         if path.suffix != ".py":
             continue
-        if any(
-            PurePosixPath(*path.parts[:depth], "__init__.py").as_posix()
-            not in names
-            for depth in range(1, len(path.parts))
-        ):
+        if any(PurePosixPath(*path.parts[:depth], "__init__.py").as_posix() not in names for depth in range(1, len(path.parts))):
             continue
         parts = list(path.with_suffix("").parts)
         if parts[-1] == "__init__":
@@ -159,8 +155,7 @@ def install_and_probe(wheel: Path, *, python_executable: Path, label: str, modul
             (
                 str(python),
                 "-c",
-                "import pathlib,oldman; "
-                "print(pathlib.Path(oldman.__file__).resolve())",
+                "import pathlib,oldman; print(pathlib.Path(oldman.__file__).resolve())",
             ),
             cwd=root,
             environment=environment,
@@ -281,9 +276,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 modules=modules,
             )
             if direct_minor != expected_minor or rebuilt_minor != expected_minor:
-                raise RuntimeError(
-                    f"Install interpreter drifted: requested {expected_minor}, direct={direct_minor}, rebuilt={rebuilt_minor}"
-                )
+                raise RuntimeError(f"Install interpreter drifted: requested {expected_minor}, direct={direct_minor}, rebuilt={rebuilt_minor}")
             installed_versions.add(expected_minor)
     versions = ", ".join(sorted(installed_versions))
     print(

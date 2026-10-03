@@ -153,9 +153,7 @@ class SessionPublicBehaviorTest(unittest.IsolatedAsyncioTestCase):
             cookie_secure=True,
             cookie_samesite="Strict",
         )
-        settings = DefaultSettings.model_validate(
-            {"core": {"namespace": "admin"}, "web": WebConfig(session=session_config).model_dump()}
-        )
+        settings = DefaultSettings.model_validate({"core": {"namespace": "admin"}, "web": WebConfig(session=session_config).model_dump()})
 
         self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
         manager.init_app(cast(Sanic, app), session_model=AdminSessionData)

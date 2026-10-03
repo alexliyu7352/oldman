@@ -10,11 +10,7 @@ OLDMAN_STATIC_NAMESPACE = "oldman"
 def static_asset_url(static_url: str, asset_path: str) -> str:
     """Join one validated logical asset path to the configured public prefix."""
     normalized_path = PurePosixPath(asset_path.strip().lstrip("/"))
-    if (
-        not normalized_path.parts
-        or ".." in normalized_path.parts
-        or "\\" in asset_path
-    ):
+    if not normalized_path.parts or ".." in normalized_path.parts or "\\" in asset_path:
         raise ValueError(f"invalid static asset path: {asset_path!r}")
     normalized_url = static_url.strip().rstrip("/")
     if not normalized_url:
@@ -25,11 +21,7 @@ def static_asset_url(static_url: str, asset_path: str) -> str:
 def oldman_asset_path(asset_path: str) -> str:
     """Return a logical path inside Oldman's collected static namespace."""
     normalized_path = PurePosixPath(asset_path.strip().lstrip("/"))
-    if (
-        not normalized_path.parts
-        or ".." in normalized_path.parts
-        or "\\" in asset_path
-    ):
+    if not normalized_path.parts or ".." in normalized_path.parts or "\\" in asset_path:
         raise ValueError(f"invalid Oldman static asset path: {asset_path!r}")
     return f"{OLDMAN_STATIC_NAMESPACE}/{normalized_path.as_posix()}"
 

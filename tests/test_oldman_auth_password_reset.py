@@ -133,7 +133,9 @@ class UserByEmailTest(unittest.TestCase):
                     await connection.run_sync(cast(Table, User.__table__).create)
                 async with manager.get_session() as session:
                     # A legacy row that differs only in case and is no longer active must not win the lookup.
-                    session.add(User(username="ada-old", email="ADA@example.test", password_hash="x", is_active=False, is_staff=False, is_superuser=False))
+                    session.add(
+                        User(username="ada-old", email="ADA@example.test", password_hash="x", is_active=False, is_staff=False, is_superuser=False)
+                    )
                     session.add(make_user(id=None))
                     session.add(User(username="no-mail", password_hash="x", is_active=True, is_staff=False, is_superuser=False))
 

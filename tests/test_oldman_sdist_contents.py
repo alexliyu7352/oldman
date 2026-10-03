@@ -134,11 +134,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
                 members,
                 payloads={**source_files, "PKG-INFO": core_metadata_fixture(source_files)},
             )
-            expected = {
-                name: hashlib.sha256(b"fixture\n").hexdigest()
-                for name in members
-                if name.startswith("oldman/")
-            }
+            expected = {name: hashlib.sha256(b"fixture\n").hexdigest() for name in members if name.startswith("oldman/")}
 
             self.assertEqual(
                 [],
@@ -174,8 +170,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
             path = Path(temp_dir) / f"{archive_root()}.tar.gz"
             write_archive(
                 path,
-                sorted(self.verifier.REQUIRED_PATHS)
-                + ["consumer/main.py", "frontend/packages/oldman-web/package.json"],
+                sorted(self.verifier.REQUIRED_PATHS) + ["consumer/main.py", "frontend/packages/oldman-web/package.json"],
             )
 
             errors = self.verifier.verify_sdist(path)
@@ -287,9 +282,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
                 auth_revisions = {
                     name
                     for name in names
-                    if name.startswith(f"{prefix}/oldman/auth/migrations/")
-                    and name.endswith(".py")
-                    and not name.endswith("/__init__.py")
+                    if name.startswith(f"{prefix}/oldman/auth/migrations/") and name.endswith(".py") and not name.endswith("/__init__.py")
                 }
                 self.assertEqual(len(auth_revisions), 1)
             self.assertEqual([], self.verifier.verify_sdist(archive, expected_source_files=source_files))

@@ -82,7 +82,7 @@ INSTALLED_IMPORT_PROBE = (
     "'prefix':str(pathlib.Path(sys.prefix).resolve()),'version':version('oldman')}))"
 )
 
-DATABASE_PROBE = r'''from __future__ import annotations
+DATABASE_PROBE = r"""from __future__ import annotations
 
 import asyncio
 import json
@@ -125,9 +125,9 @@ async def probe() -> None:
 
 asyncio.run(probe())
 print(json.dumps({"database": database, "service": service_name, "url": url}, sort_keys=True))
-'''
+"""
 
-DASHBOARD_COMPONENT_FIXTURE = '''{% extends "base.html" %}
+DASHBOARD_COMPONENT_FIXTURE = """{% extends "base.html" %}
 
 {% block content %}
   <header id="page-topbar" class="om-card mb-4 flex items-center justify-between p-3">
@@ -174,9 +174,9 @@ DASHBOARD_COMPONENT_FIXTURE = '''{% extends "base.html" %}
     </section>
   </main>
 {% endblock %}
-'''
+"""
 
-DASHBOARD_BROWSER_CONTRACT = r'''(async () => {
+DASHBOARD_BROWSER_CONTRACT = r"""(async () => {
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
   const deadline = Date.now() + 15000;
   while (document.documentElement.dataset.omReady !== "true" && Date.now() < deadline) {
@@ -322,7 +322,7 @@ DASHBOARD_BROWSER_CONTRACT = r'''(async () => {
     scriptUrls: Array.from(document.querySelectorAll("script[src]"), (node) => node.src),
     styleUrls: Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'), (node) => node.href)
   };
-})()'''
+})()"""
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -399,9 +399,7 @@ def installed_npm_tree_evidence(package_root: Path, npm_tarball: Path) -> dict[s
             for member in members
             if (extracted := archive.extractfile(member)) is not None
         }
-    invalid_archive_modes = sorted(
-        name for name, record in expected.items() if record["mode"] not in {0o644, 0o755}
-    )
+    invalid_archive_modes = sorted(name for name, record in expected.items() if record["mode"] not in {0o644, 0o755})
     if invalid_archive_modes:
         raise RuntimeError(f"selected oldman-web tarball contains unsafe modes: {invalid_archive_modes}")
     package_manager_root = package_root / "node_modules"
@@ -421,15 +419,9 @@ def installed_npm_tree_evidence(package_root: Path, npm_tarball: Path) -> dict[s
             "sha256": sha256_file(path),
         }
     mode_errors = sorted(
-        name
-        for name in set(actual) & set(expected)
-        if actual[name]["mode"] not in ({0o644, 0o664} if expected[name]["mode"] == 0o644 else {0o755})
+        name for name in set(actual) & set(expected) if actual[name]["mode"] not in ({0o644, 0o664} if expected[name]["mode"] == 0o644 else {0o755})
     )
-    content_errors = sorted(
-        name
-        for name in set(actual) & set(expected)
-        if actual[name]["sha256"] != expected[name]["sha256"]
-    )
+    content_errors = sorted(name for name in set(actual) & set(expected) if actual[name]["sha256"] != expected[name]["sha256"])
     if set(actual) != set(expected) or mode_errors or content_errors:
         missing = sorted(set(expected) - set(actual))
         unexpected = sorted(set(actual) - set(expected))
@@ -473,11 +465,11 @@ def pnpm_tarball_lock_evidence(lock_path: Path, npm_tarball: Path) -> dict[str, 
         raise RuntimeError("pnpm importer does not bind oldman-web to the exact selected tarball")
 
     packages = lock.get("packages")
-    package_matches = {
-        key: value
-        for key, value in packages.items()
-        if isinstance(packages, dict) and isinstance(key, str) and key.startswith("oldman-web@")
-    } if isinstance(packages, dict) else {}
+    package_matches = (
+        {key: value for key, value in packages.items() if isinstance(packages, dict) and isinstance(key, str) and key.startswith("oldman-web@")}
+        if isinstance(packages, dict)
+        else {}
+    )
     package_key = f"oldman-web@{locked_tarball}"
     if set(package_matches) != {package_key}:
         raise RuntimeError(f"pnpm lockfile has an ambiguous oldman-web package resolution: {sorted(package_matches)}")
@@ -489,11 +481,11 @@ def pnpm_tarball_lock_evidence(lock_path: Path, npm_tarball: Path) -> dict[str, 
         raise RuntimeError("pnpm oldman-web resolution does not bind tarball and integrity together")
 
     snapshots = lock.get("snapshots")
-    snapshot_matches = [
-        key
-        for key in snapshots
-        if isinstance(snapshots, dict) and isinstance(key, str) and key.startswith("oldman-web@")
-    ] if isinstance(snapshots, dict) else []
+    snapshot_matches = (
+        [key for key in snapshots if isinstance(snapshots, dict) and isinstance(key, str) and key.startswith("oldman-web@")]
+        if isinstance(snapshots, dict)
+        else []
+    )
     snapshot_key = f"oldman-web@{version}"
     if snapshot_matches != [snapshot_key]:
         raise RuntimeError(f"pnpm lockfile has an ambiguous oldman-web snapshot: {snapshot_matches}")
@@ -601,10 +593,7 @@ def run(
         returncode = completed.returncode
         stdout = completed.stdout
     except subprocess.TimeoutExpired as exc:
-        output = "\n".join(
-            part.decode(errors="replace") if isinstance(part, bytes) else part or ""
-            for part in (exc.stdout, exc.stderr)
-        ).strip()
+        output = "\n".join(part.decode(errors="replace") if isinstance(part, bytes) else part or "" for part in (exc.stdout, exc.stderr)).strip()
         returncode = -1
         stdout = ""  # unused: a timed-out command raises below
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -750,7 +739,7 @@ def environment_package_state(
             "-c",
             "import json; from importlib.metadata import PackageNotFoundError,version; "
             "names=('oldman','aiosqlite','aiomysql','asyncpg','pyright'); values={}; "
-            "exec(\"for name in names:\\n try: values[name]=version(name)\\n except PackageNotFoundError: values[name]=None\"); "
+            'exec("for name in names:\\n try: values[name]=version(name)\\n except PackageNotFoundError: values[name]=None"); '
             "print(json.dumps(values,sort_keys=True))",
         ),
         cwd=cwd,
@@ -980,9 +969,7 @@ def stop_http_probe_process(
     leader_running = process.poll() is None
     if process_tree is not None:
         if not leader_running:
-            cleanup_errors.append(
-                f"server leader exited before gate-initiated shutdown with code {process.returncode}"
-            )
+            cleanup_errors.append(f"server leader exited before gate-initiated shutdown with code {process.returncode}")
         try:
             process_tree.terminate(
                 process,
@@ -1132,9 +1119,7 @@ def run_dashboard_browser_probe(
         if dom_state.get("heading") != "MatrixProbe":
             contract_failures.append(f"expected MatrixProbe heading, found {dom_state.get('heading')!r}")
         back_to_top = dom_state.get("backToTop")
-        if not isinstance(back_to_top, dict) or not all(
-            back_to_top.get(field) is True for field in ("exists", "visible", "clickedToTop")
-        ):
+        if not isinstance(back_to_top, dict) or not all(back_to_top.get(field) is True for field in ("exists", "visible", "clickedToTop")):
             contract_failures.append(f"shared #back-to-top visibility/click contract failed: {back_to_top!r}")
         if dom_state.get("dmSansLoaded") is not True or "DM Sans" not in str(dom_state.get("bodyFontFamily", "")):
             contract_failures.append(
@@ -1177,17 +1162,11 @@ def run_dashboard_browser_probe(
             #
             # 「包里有没有带齐五个字重」是另一回事,由 verify-oldman-web-package.py 对构建产物断言,
             # 那条是资源是否存在,不是浏览器有没有取。
-            fetched_weights = {
-                name.split("-")[3]
-                for name in (Path(item["path"]).name for item in fonts)
-                if name.startswith("dm-sans-latin-")
-            }
+            fetched_weights = {name.split("-")[3] for name in (Path(item["path"]).name for item in fonts) if name.startswith("dm-sans-latin-")}
             if not fetched_weights:
                 contract_failures.append("Dashboard did not fetch any DM Sans font resource")
             elif "400" not in fetched_weights:
-                contract_failures.append(
-                    f"Dashboard did not fetch its DM Sans latin 400 font resource; fetched {sorted(fetched_weights)}"
-                )
+                contract_failures.append(f"Dashboard did not fetch its DM Sans latin 400 font resource; fetched {sorted(fetched_weights)}")
         except RuntimeError as exc:
             contract_failures.append(str(exc))
     payload: dict[str, object] = {
@@ -1333,8 +1312,7 @@ def run_http_probe(
     )
     if outcome_errors:
         raise RuntimeError(
-            f"{project_type} generated service failed its HTTP/process lifecycle gate at {url}: "
-            f"{'; '.join(outcome_errors)}\n{stderr[-4000:]}"
+            f"{project_type} generated service failed its HTTP/process lifecycle gate at {url}: {'; '.join(outcome_errors)}\n{stderr[-4000:]}"
         )
     result: dict[str, object] = {
         "bodySha256": hashlib.sha256(body).hexdigest(),
@@ -1412,11 +1390,7 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
             raise RuntimeError(f"{project.name} unexpectedly depends on {unrelated_driver} for database={database}")
 
     readme = (project / "README.md").read_text(encoding="utf-8")
-    documented_commands = (
-        ("uv sync", "uv run")
-        if project_type == "cli"
-        else ("uv sync", "./run.sh")
-    )
+    documented_commands = ("uv sync", "uv run") if project_type == "cli" else ("uv sync", "./run.sh")
     for command in documented_commands:
         if command not in readme:
             raise RuntimeError(f"{project.name} README does not document {command!r}")

@@ -256,11 +256,7 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         raise ValueError("Dashboard projects require SQLite, MySQL, or PostgreSQL")
     project_slug = slugify_name(project_name)
     service_name = PROJECT_SERVICE_NAMES.get(project_type, "")
-    settings_apps = (
-        "\n  - oldman.auth\n  - oldman.apps.admin"
-        if project_type == ProjectType.DASHBOARD
-        else " []"
-    )
+    settings_apps = "\n  - oldman.auth\n  - oldman.apps.admin" if project_type == ProjectType.DASHBOARD else " []"
     database_url = DB_URLS[db]
     return {
         "project_name": project_name,
@@ -272,11 +268,7 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         "service_class": PROJECT_SERVICE_CLASSES.get(project_type, ""),
         "settings_apps": settings_apps,
         "database_url": f'"{database_url}"' if database_url else "null",
-        "database_migrate_step": (
-            "./run.sh db migrate\n"
-            if db != DatabaseChoice.NONE
-            else ""
-        ),
+        "database_migrate_step": ("./run.sh db migrate\n" if db != DatabaseChoice.NONE else ""),
         "db_dependency_line": DB_DEPENDENCIES[db],
         "frontend_dependency": f'"oldman-web": "^{FRAMEWORK_VERSION}"' if project_type == ProjectType.DASHBOARD else "",
     }
@@ -319,10 +311,7 @@ def validate_service_name(value: str) -> str:
     """Validate a service module name against cold discovery's contract."""
     name = value.strip()
     if re.fullmatch(r"[a-z][a-z0-9_]*", name) is None:
-        raise ValueError(
-            "Service name must match [a-z][a-z0-9_]* "
-            f"(lowercase letters, numbers, and underscores); received {value!r}"
-        )
+        raise ValueError(f"Service name must match [a-z][a-z0-9_]* (lowercase letters, numbers, and underscores); received {value!r}")
     return name
 
 

@@ -68,9 +68,9 @@ class FirefoxConsoleHandoverTest(unittest.TestCase):
     def statement_order(self) -> list[str]:
         """Return the three handover statements in source order."""
         source = (ROOT / "oldman" / "testing" / "notifications.py").read_text(encoding="utf-8")
-        body = source[source.index("def _verify_firefox("):]
+        body = source[source.index("def _verify_firefox(") :]
         marks = {
-            "check": body.index("f\"Firefox console errors: {client.console_errors}\""),
+            "check": body.index('f"Firefox console errors: {client.console_errors}"'),
             "clear": body.index("client.console_errors.clear()"),
             "extra": body.index("\n            extra_steps(client, context, base_url, evidence)"),
         }
@@ -130,7 +130,18 @@ class GateEntryPointTest(unittest.TestCase):
                 host=host,
                 project_root=ROOT,
                 extra_firefox_steps=steps,
-                argv=["--browser", "firefox", "--url", "http://127.0.0.1:8000", "--config", str(ROOT / "pyproject.toml"), "--username", "u", "--password", "p"],
+                argv=[
+                    "--browser",
+                    "firefox",
+                    "--url",
+                    "http://127.0.0.1:8000",
+                    "--config",
+                    str(ROOT / "pyproject.toml"),
+                    "--username",
+                    "u",
+                    "--password",
+                    "p",
+                ],
             )
 
         self.assertEqual(1, code)

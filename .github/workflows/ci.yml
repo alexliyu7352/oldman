@@ -66,7 +66,7 @@ jobs:
         run: pnpm --filter oldman-web build
 
       - name: Lint
-        run: uv run ruff check oldman tests scripts
+        run: uv run ruff check oldman tests scripts && uv run ruff format --check oldman tests scripts
 
       - name: Type check
         if: startsWith(matrix.python, '3.12')

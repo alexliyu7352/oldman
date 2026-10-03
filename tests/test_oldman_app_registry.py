@@ -458,9 +458,10 @@ class AppTaskLoadingTests(unittest.TestCase):
 
     def test_tasks_are_optional_ordered_and_separate_from_views(self) -> None:
         """A configured task module loads once, after its model module."""
-        with _temporary_packages({
-            "task_app/__init__.py": "order = []",
-            "task_app/apps.py": """
+        with _temporary_packages(
+            {
+                "task_app/__init__.py": "order = []",
+                "task_app/apps.py": """
                 from oldman.apps import AppConfig
                 class Config(AppConfig):
                     label = "task_app"
@@ -468,19 +469,22 @@ class AppTaskLoadingTests(unittest.TestCase):
                     tasks_module = "jobs"
                 app = Config()
             """,
-            "task_app/models.py": "from task_app import order; order.append('models')",
-            "task_app/jobs.py": "from task_app import order; order.append('tasks')",
-            "task_app/views.py": "raise AssertionError('Worker must not import views')",
-            "empty_app/__init__.py": "",
-            "empty_app/apps.py": """
+                "task_app/models.py": "from task_app import order; order.append('models')",
+                "task_app/jobs.py": "from task_app import order; order.append('tasks')",
+                "task_app/views.py": "raise AssertionError('Worker must not import views')",
+                "empty_app/__init__.py": "",
+                "empty_app/apps.py": """
                 from oldman.apps import AppConfig
                 class Config(AppConfig):
                     label = "empty_app"
                     display_name = "No tasks"
                 app = Config()
             """,
-        }) as root:
-            result = _run_python(root, """
+            }
+        ) as root:
+            result = _run_python(
+                root,
+                """
                 import sys
                 from oldman.apps import AppRegistry
                 from task_app import order
@@ -499,33 +503,45 @@ class AppTaskLoadingTests(unittest.TestCase):
                 registry.load_tasks()
                 assert order == ["models", "tasks"]
                 assert "task_app.views" not in sys.modules
-            """)
+            """,
+            )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_existing_task_module_errors_and_late_models_are_not_ignored(self) -> None:
         """Missing dependencies are real failures, unlike an absent tasks.py."""
         for body, exception, message in (
             ("import task_app_missing_dependency", "ModuleNotFoundError", "task_app_missing_dependency"),
-            ("""
+            (
+                """
                 from sqlalchemy.orm import Mapped, mapped_column
                 from oldman.db import DatabaseModel
                 class Late(DatabaseModel):
                     __tablename__ = "task_app_late_model"
                     id: Mapped[int] = mapped_column(primary_key=True)
-            """, "RuntimeError", "Registry model stage"),
+            """,
+                "RuntimeError",
+                "Registry model stage",
+            ),
         ):
-            with self.subTest(exception=exception), _temporary_packages({
-                "task_app/__init__.py": "",
-                "task_app/apps.py": """
+            with (
+                self.subTest(exception=exception),
+                _temporary_packages(
+                    {
+                        "task_app/__init__.py": "",
+                        "task_app/apps.py": """
                     from oldman.apps import AppConfig
                     class Config(AppConfig):
                         label = "task_app"
                         display_name = "Task app"
                     app = Config()
                 """,
-                "task_app/tasks.py": body,
-            }) as root:
-                result = _run_python(root, f"""
+                        "task_app/tasks.py": body,
+                    }
+                ) as root,
+            ):
+                result = _run_python(
+                    root,
+                    f"""
                     from oldman.apps import AppRegistry
                     registry = AppRegistry()
                     registry.register_packages(("task_app",))
@@ -536,7 +552,8 @@ class AppTaskLoadingTests(unittest.TestCase):
                         assert {message!r} in str(error), error
                     else:
                         raise AssertionError("Task module failure was hidden")
-                """)
+                """,
+                )
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
@@ -545,38 +562,42 @@ class AppEventLoadingTests(unittest.TestCase):
 
     def test_events_load_once_after_models_without_network(self) -> None:
         """Registered custom/default modules load; missing and uninstalled Apps do not."""
-        with _temporary_packages({
-            "event_app/__init__.py": "order = []",
-            "event_app/apps.py": '''
+        with _temporary_packages(
+            {
+                "event_app/__init__.py": "order = []",
+                "event_app/apps.py": """
                 from oldman.apps import AppConfig
                 class Config(AppConfig):
                     label = "event_app"
                     display_name = "Event app"
                     events_module = "handlers"
                 app = Config()
-            ''',
-            "event_app/models.py": "from event_app import order; order.append('models')",
-            "event_app/handlers.py": '''
+            """,
+                "event_app/models.py": "from event_app import order; order.append('models')",
+                "event_app/handlers.py": """
                 from event_app import order
                 from oldman.providers.nats import bus
                 order.append('events')
                 @bus.subscriber("status", peer=True)
                 async def status(value: int) -> int:
                     return value
-            ''',
-            "event_app/views.py": "raise AssertionError('Events must not import views')",
-            "empty_app/__init__.py": "",
-            "empty_app/apps.py": '''
+            """,
+                "event_app/views.py": "raise AssertionError('Events must not import views')",
+                "empty_app/__init__.py": "",
+                "empty_app/apps.py": """
                 from oldman.apps import AppConfig
                 class Config(AppConfig):
                     label = "empty_app"
                     display_name = "No events"
                 app = Config()
-            ''',
-            "uninstalled/__init__.py": "",
-            "uninstalled/events.py": "raise AssertionError('App is not installed')",
-        }) as root:
-            result = _run_python(root, '''
+            """,
+                "uninstalled/__init__.py": "",
+                "uninstalled/events.py": "raise AssertionError('App is not installed')",
+            }
+        ) as root:
+            result = _run_python(
+                root,
+                """
                 import sys
                 from unittest.mock import patch
                 from oldman.apps import AppRegistry
@@ -598,33 +619,45 @@ class AppEventLoadingTests(unittest.TestCase):
                     assert order == ["models", "events"]
                     assert "uninstalled.events" not in sys.modules
                     assert "event_app.views" not in sys.modules
-            ''')
+            """,
+            )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_event_import_errors_and_late_models_propagate(self) -> None:
         """An existing events module must not hide dependencies or declare tables."""
         for body, exception, message in (
             ("import missing_event_dependency", "ModuleNotFoundError", "missing_event_dependency"),
-            ('''
+            (
+                """
                 from sqlalchemy.orm import Mapped, mapped_column
                 from oldman.db import DatabaseModel
                 class Late(DatabaseModel):
                     __tablename__ = "late_event_table"
                     id: Mapped[int] = mapped_column(primary_key=True)
-            ''', "RuntimeError", "Registry model stage"),
+            """,
+                "RuntimeError",
+                "Registry model stage",
+            ),
         ):
-            with self.subTest(exception=exception), _temporary_packages({
-                "event_app/__init__.py": "",
-                "event_app/apps.py": '''
+            with (
+                self.subTest(exception=exception),
+                _temporary_packages(
+                    {
+                        "event_app/__init__.py": "",
+                        "event_app/apps.py": """
                     from oldman.apps import AppConfig
                     class Config(AppConfig):
                         label = "event_app"
                         display_name = "Event app"
                     app = Config()
-                ''',
-                "event_app/events.py": body,
-            }) as root:
-                result = _run_python(root, f'''
+                """,
+                        "event_app/events.py": body,
+                    }
+                ) as root,
+            ):
+                result = _run_python(
+                    root,
+                    f"""
                     from oldman.apps import AppRegistry
                     registry = AppRegistry()
                     registry.register_packages(("event_app",))
@@ -635,7 +668,8 @@ class AppEventLoadingTests(unittest.TestCase):
                         assert {message!r} in str(error), error
                     else:
                         raise AssertionError("Event module failure was hidden")
-                ''')
+                """,
+                )
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 

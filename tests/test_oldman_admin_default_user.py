@@ -197,6 +197,7 @@ class OldmanAdminDefaultUserTest(unittest.TestCase):
         self.assertFalse((legacy_auth / "__init__.py").exists())
         self.assertFalse((legacy_auth / "services.py").exists())
 
+
 class OldmanAdminCoerceValueTest(unittest.TestCase):
     """Verify direct SQLAlchemy column coercion contracts."""
 

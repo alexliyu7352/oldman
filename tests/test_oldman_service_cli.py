@@ -174,8 +174,7 @@ def _create_project(root: Path, *, worker_settings: bool = True) -> Path:
         """,
     )
     _write_catalog(
-        root
-        / "worker_tools/locales/zh_Hans/LC_MESSAGES/messages.mo",
+        root / "worker_tools/locales/zh_Hans/LC_MESSAGES/messages.mo",
         "zh_Hans",
         {
             "Worker tools": "工作工具",

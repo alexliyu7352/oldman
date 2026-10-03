@@ -79,7 +79,9 @@ class MailMessageTest(unittest.TestCase):
             EmailMessage("s", "b", None, "to@example.com")  # type: ignore[arg-type]
 
     def test_explicit_headers_override_from_and_to(self) -> None:
-        message = EmailMessage("s", "b", "real@example.com", ["to@example.com"], headers={"From": "Shown <shown@example.com>", "To": "list@example.com"})
+        message = EmailMessage(
+            "s", "b", "real@example.com", ["to@example.com"], headers={"From": "Shown <shown@example.com>", "To": "list@example.com"}
+        )
         mime = message.message()
 
         self.assertEqual("Shown <shown@example.com>", mime["From"])
@@ -88,7 +90,14 @@ class MailMessageTest(unittest.TestCase):
 
         # Subject and Cc are single-occurrence headers: an explicit one must replace, never duplicate, and
         # the key's case does not matter.
-        overridden = EmailMessage("Generated", "b", "a@example.com", ["to@example.com"], cc=["orig@example.com"], headers={"subject": "Explicit", "CC": "cc@example.com", "X-Kind": "welcome"}).message()
+        overridden = EmailMessage(
+            "Generated",
+            "b",
+            "a@example.com",
+            ["to@example.com"],
+            cc=["orig@example.com"],
+            headers={"subject": "Explicit", "CC": "cc@example.com", "X-Kind": "welcome"},
+        ).message()
         self.assertEqual(["Explicit"], overridden.get_all("Subject"))
         self.assertEqual(["cc@example.com"], overridden.get_all("Cc"))
         self.assertEqual("welcome", overridden["X-Kind"])
@@ -186,7 +195,9 @@ class MailBackendTest(unittest.IsolatedAsyncioTestCase):
         stream = io.StringIO()
         connection = get_connection("oldman.mail.backends.console.ConsoleEmailBackend", stream=stream)
 
-        sent = await connection.send_messages([EmailMessage("Console", "Printed", None, ["to@example.com"]), EmailMessage("Second", "Again", None, ["to@example.com"])])
+        sent = await connection.send_messages(
+            [EmailMessage("Console", "Printed", None, ["to@example.com"]), EmailMessage("Second", "Again", None, ["to@example.com"])]
+        )
 
         self.assertEqual(2, sent)
         output = stream.getvalue()
@@ -211,7 +222,9 @@ class MailBackendTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_dummy_backend_counts_without_sending(self) -> None:
         connection = get_connection("oldman.mail.backends.dummy.DummyEmailBackend")
-        self.assertEqual(2, await connection.send_messages([EmailMessage("a", "b", None, ["x@example.com"]), EmailMessage("c", "d", None, ["y@example.com"])]))
+        self.assertEqual(
+            2, await connection.send_messages([EmailMessage("a", "b", None, ["x@example.com"]), EmailMessage("c", "d", None, ["y@example.com"])])
+        )
         self.assertEqual([], mail.outbox)
 
     async def test_fail_silently_swallows_backend_errors(self) -> None:
@@ -263,7 +276,14 @@ class TemplatedMailTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(RenderedMail(subject="Plain", body="Only text", html=None), plain)
 
     async def test_send_templated_mail_sends_text_with_the_html_alternative(self) -> None:
-        sent = await send_templated_mail("mail/welcome", {"name": "Ada"}, to=["ada@example.com"], cc=["cc@example.com"], headers={"X-Kind": "welcome"}, environment=self.environment)
+        sent = await send_templated_mail(
+            "mail/welcome",
+            {"name": "Ada"},
+            to=["ada@example.com"],
+            cc=["cc@example.com"],
+            headers={"X-Kind": "welcome"},
+            environment=self.environment,
+        )
 
         self.assertEqual(1, sent)
         message = mail.outbox[0]
@@ -275,7 +295,11 @@ class TemplatedMailTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([("<p>Hello Ada &lt; Ada</p>", "text/html")], message.alternatives)
 
     async def test_send_templated_mail_rejects_string_address_arguments(self) -> None:
-        for name, kwargs in (("to", {"to": "ada@example.com"}), ("cc", {"to": ["ada@example.com"], "cc": "cc@example.com"}), ("bcc", {"to": ["ada@example.com"], "bcc": "b@example.com"})):
+        for name, kwargs in (
+            ("to", {"to": "ada@example.com"}),
+            ("cc", {"to": ["ada@example.com"], "cc": "cc@example.com"}),
+            ("bcc", {"to": ["ada@example.com"], "bcc": "b@example.com"}),
+        ):
             with self.subTest(name=name), self.assertRaisesRegex(TypeError, f'"{name}" argument must be a list or tuple'):
                 await send_templated_mail("mail/welcome", {"name": "Ada"}, environment=self.environment, **kwargs)  # type: ignore[arg-type]
         self.assertEqual([], mail.outbox)

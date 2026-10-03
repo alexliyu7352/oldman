@@ -44,5 +44,3 @@ def first_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return value[0] if value else None
     return value
-
-

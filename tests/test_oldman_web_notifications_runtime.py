@@ -54,9 +54,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
     """Exercise real Sanic routes without replacing their auth decorators."""
 
     def setUp(self) -> None:
-        self.settings = DefaultSettings.model_validate(
-            {"web": {"session": {"enabled": True}}}
-        )
+        self.settings = DefaultSettings.model_validate({"web": {"session": {"enabled": True}}})
         self.settings_patch = patch.dict(conf.__dict__, {"settings": self.settings})
         self.settings_patch.start()
         self.app = self._new_app("runtime")
@@ -119,19 +117,13 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
             "oldman.web.messages.notifications.runtime.render_topbar_fragment",
             AsyncMock(return_value=fragment),
         ):
-            _request, root_response = await self.app.asgi_client.get(
-                self.root_routes.topbar_url
-            )
-            _request, admin_response = await self.app.asgi_client.get(
-                self.admin_routes.topbar_url
-            )
+            _request, root_response = await self.app.asgi_client.get(self.root_routes.topbar_url)
+            _request, admin_response = await self.app.asgi_client.get(self.admin_routes.topbar_url)
 
         self.assertEqual(200, root_response.status)
         self.assertEqual(200, admin_response.status)
         self.assertEqual("text/html; charset=utf-8", root_response.content_type)
-        _request, center_response = await self.app.asgi_client.get(
-            self.root_routes.center_url
-        )
+        _request, center_response = await self.app.asgi_client.get(self.root_routes.center_url)
         self.assertEqual(404, center_response.status)
 
     def test_invalid_prefixes_and_missing_dependencies_fail_before_routes(self) -> None:
@@ -143,16 +135,12 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         cases: list[tuple[str, Sanic, str, int]] = []
         no_registry = self._new_app("no-registry")
         no_registry.ctx.csrf = _AcceptingCSRF()
-        cases.append(
-            ("registry", no_registry, "[Rr]egistry", len(no_registry.router.routes))
-        )
+        cases.append(("registry", no_registry, "[Rr]egistry", len(no_registry.router.routes)))
 
         missing_app = self._new_app("missing-app")
         missing_app.ctx.app_registry = _MissingApps()
         missing_app.ctx.csrf = _AcceptingCSRF()
-        cases.append(
-            ("app", missing_app, "notifications", len(missing_app.router.routes))
-        )
+        cases.append(("app", missing_app, "notifications", len(missing_app.router.routes)))
 
         no_templates = self._new_app("no-templates", templating=False)
         no_templates.ctx.app_registry = _InstalledApps()
@@ -172,9 +160,7 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         cases.append(("csrf", no_csrf, "CSRF", len(no_csrf.router.routes)))
 
         for label, app, message, original_route_count in cases:
-            with self.subTest(label=label), self.assertRaisesRegex(
-                (RuntimeError, LookupError), message
-            ):
+            with self.subTest(label=label), self.assertRaisesRegex((RuntimeError, LookupError), message):
                 init_app(app)
             self.assertEqual(original_route_count, len(app.router.routes))
             Sanic.unregister_app(app)
@@ -183,10 +169,13 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         disabled.ctx.app_registry = _InstalledApps()
         disabled.ctx.csrf = _AcceptingCSRF()
         disabled_route_count = len(disabled.router.routes)
-        with patch.dict(
-            conf.__dict__,
-            {"settings": DefaultSettings()},
-        ), self.assertRaisesRegex(RuntimeError, "Session"):
+        with (
+            patch.dict(
+                conf.__dict__,
+                {"settings": DefaultSettings()},
+            ),
+            self.assertRaisesRegex(RuntimeError, "Session"),
+        ):
             init_app(disabled)
         self.assertEqual(disabled_route_count, len(disabled.router.routes))
         Sanic.unregister_app(disabled)
@@ -220,19 +209,23 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_read_and_delete_accept_only_exact_json_shapes(self) -> None:
         """Body IDs are deduplicated and a caller can never select a user ID."""
-        with patch.object(
-            notifications,
-            "mark_read",
-            AsyncMock(return_value=2),
-        ) as mark_read, patch.object(
-            notifications,
-            "mark_all_read",
-            AsyncMock(return_value=4),
-        ) as mark_all_read, patch.object(
-            notifications,
-            "delete",
-            AsyncMock(return_value=1),
-        ) as delete:
+        with (
+            patch.object(
+                notifications,
+                "mark_read",
+                AsyncMock(return_value=2),
+            ) as mark_read,
+            patch.object(
+                notifications,
+                "mark_all_read",
+                AsyncMock(return_value=4),
+            ) as mark_all_read,
+            patch.object(
+                notifications,
+                "delete",
+                AsyncMock(return_value=1),
+            ) as delete,
+        ):
             _request, selected = await self.app.asgi_client.post(
                 self.root_routes.read_url,
                 json={"ids": [3, 3, 5]},
@@ -301,26 +294,18 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
         linked = SimpleNamespace(
             id=7,
             payload=NotificationPayload(
-                title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy(
-                    "Linked"
-                ),
+                title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy("Linked"),
                 href="/reports/7",
             ).to_msgpack(),
         )
         unlinked = SimpleNamespace(
             id=8,
-            payload=NotificationPayload(
-                title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy(
-                    "Unlinked"
-                )
-            ).to_msgpack(),
+            payload=NotificationPayload(title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy("Unlinked")).to_msgpack(),
         )
         unsafe = SimpleNamespace(
             id=9,
             payload=NotificationPayload(
-                title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy(
-                    "Unsafe"
-                ),
+                title=__import__("oldman.i18n", fromlist=["gettext_lazy"]).gettext_lazy("Unsafe"),
                 href="//outside.example/path",
             ).to_msgpack(),
         )
@@ -330,27 +315,22 @@ class NotificationRuntimeTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(17, user_id)
             return rows.get(notification_id)
 
-        with patch.object(
-            notifications,
-            "get_for_user",
-            AsyncMock(side_effect=get_for_user),
-        ), patch.object(
-            notifications,
-            "mark_read",
-            AsyncMock(return_value=1),
-        ) as mark_read:
-            _request, linked_response = await self.app.asgi_client.get(
-                "/user-notifications/7/open"
-            )
-            _request, unlinked_response = await self.app.asgi_client.get(
-                "/user-notifications/8/open"
-            )
-            _request, missing_response = await self.app.asgi_client.get(
-                "/user-notifications/404/open"
-            )
-            _request, unsafe_response = await self.app.asgi_client.get(
-                "/user-notifications/9/open"
-            )
+        with (
+            patch.object(
+                notifications,
+                "get_for_user",
+                AsyncMock(side_effect=get_for_user),
+            ),
+            patch.object(
+                notifications,
+                "mark_read",
+                AsyncMock(return_value=1),
+            ) as mark_read,
+        ):
+            _request, linked_response = await self.app.asgi_client.get("/user-notifications/7/open")
+            _request, unlinked_response = await self.app.asgi_client.get("/user-notifications/8/open")
+            _request, missing_response = await self.app.asgi_client.get("/user-notifications/404/open")
+            _request, unsafe_response = await self.app.asgi_client.get("/user-notifications/9/open")
 
         self.assertEqual(303, linked_response.status)
         self.assertEqual("/reports/7", linked_response.headers["location"])

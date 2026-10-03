@@ -180,9 +180,7 @@ def _read_result(path: Path) -> JsonObject:
 
 def _sequence_counts(text: str, token: str) -> dict[str, Counter[int]]:
     """Parse every performance label and sequence for one unique run token."""
-    pattern = re.compile(
-        rf"PROCESS_PERF token={re.escape(token)} label=([^ ]+) sequence=(\d{{8}})"
-    )
+    pattern = re.compile(rf"PROCESS_PERF token={re.escape(token)} label=([^ ]+) sequence=(\d{{8}})")
     observed: dict[str, Counter[int]] = {}
     for label, sequence in pattern.findall(text):
         observed.setdefault(label, Counter())[int(sequence)] += 1
@@ -236,10 +234,7 @@ def _validate_log_output(
             errors.append("disabled logging emitted the SIGKILL marker")
     else:
         if set(observed) != set(expected):
-            errors.append(
-                f"structured labels mismatch: expected={sorted(expected)} "
-                f"observed={sorted(observed)}"
-            )
+            errors.append(f"structured labels mismatch: expected={sorted(expected)} observed={sorted(observed)}")
         for label, count in expected.items():
             expected_sequences = Counter(range(count))
             if observed.get(label, Counter()) != expected_sequences:
@@ -299,9 +294,7 @@ def _validate_result(
     base = result.get("base_manager")
     if not isinstance(base, dict) or base.get("restart_completed") is not True:
         errors.append("BaseManager restart did not complete")
-    elif cast(JsonObject, base["first"]).get("pid") == cast(
-        JsonObject, base["replacement"]
-    ).get("pid"):
+    elif cast(JsonObject, base["first"]).get("pid") == cast(JsonObject, base["replacement"]).get("pid"):
         errors.append("BaseManager replacement reused the first PID")
     async_result = result.get("async_manager")
     if not isinstance(async_result, dict):
@@ -461,10 +454,7 @@ def _scenario_metrics(run: JsonObject) -> dict[str, JsonObject]:
         "base_manager": _aggregate_child_sequences(base_children),
         "async_process_manager": _aggregate_child_sequences(async_children),
         "subprocess_pipe": {
-            "throughput": (
-                (int(output["pipe_stdout_bytes"]) + int(output["pipe_stderr_bytes"]))
-                / float(output["pipe_elapsed_seconds"])
-            ),
+            "throughput": ((int(output["pipe_stdout_bytes"]) + int(output["pipe_stderr_bytes"])) / float(output["pipe_elapsed_seconds"])),
             "cpu_per_unit": float(cast(JsonObject, output["child_cpu"])["seconds_per_unit"]),
         },
     }
@@ -488,9 +478,7 @@ def _comparison(
         variant = cast(HandlerVariant, raw_variant)
         round_variants = by_round.setdefault(raw_round, {})
         if variant in round_variants:
-            raise BenchmarkFailure(
-                f"round {raw_round} has duplicate {variant} variant"
-            )
+            raise BenchmarkFailure(f"round {raw_round} has duplicate {variant} variant")
         round_variants[variant] = run
     expected = set(range(1, expected_rounds + 1))
     if set(by_round) != expected:
@@ -504,31 +492,20 @@ def _comparison(
     summaries: JsonObject = {}
     for scenario in scenario_names:
         values: dict[HandlerVariant, dict[str, list[float]]] = {
-            variant: {"throughput": [], "cpu_per_unit": []}
-            for variant in ("current", "stdlib", "no_logging")
+            variant: {"throughput": [], "cpu_per_unit": []} for variant in ("current", "stdlib", "no_logging")
         }
         paired: list[JsonObject] = []
         for round_number in range(1, expected_rounds + 1):
             variants = by_round[round_number]
             if set(variants) != {"current", "stdlib", "no_logging"}:
-                raise BenchmarkFailure(
-                    f"round {round_number} does not contain all three variants"
-                )
-            order_indexes = {
-                variant: run.get("order_index")
-                for variant, run in variants.items()
-            }
-            if (
-                any(
-                    not isinstance(index, int) or isinstance(index, bool)
-                    for index in order_indexes.values()
-                )
-                or set(order_indexes.values()) != {1, 2, 3}
-            ):
-                raise BenchmarkFailure(
-                    f"round {round_number} has invalid execution order indexes: "
-                    f"{order_indexes}"
-                )
+                raise BenchmarkFailure(f"round {round_number} does not contain all three variants")
+            order_indexes = {variant: run.get("order_index") for variant, run in variants.items()}
+            if any(not isinstance(index, int) or isinstance(index, bool) for index in order_indexes.values()) or set(order_indexes.values()) != {
+                1,
+                2,
+                3,
+            }:
+                raise BenchmarkFailure(f"round {round_number} has invalid execution order indexes: {order_indexes}")
             order = tuple(
                 cast(HandlerVariant, run["variant"])
                 for run in sorted(
@@ -537,22 +514,10 @@ def _comparison(
                 )
             )
             if order != _round_order(round_number):
-                raise BenchmarkFailure(
-                    f"round {round_number} execution order {order} does not match "
-                    f"{_round_order(round_number)}"
-                )
-            metrics: dict[HandlerVariant, JsonObject] = {
-                variant: _scenario_metrics(run)[scenario]
-                for variant, run in variants.items()
-            }
-            if any(
-                float(measurement[metric]) <= 0
-                for measurement in metrics.values()
-                for metric in ("throughput", "cpu_per_unit")
-            ):
-                raise BenchmarkFailure(
-                    f"round {round_number} {scenario} measurements must be positive"
-                )
+                raise BenchmarkFailure(f"round {round_number} execution order {order} does not match {_round_order(round_number)}")
+            metrics: dict[HandlerVariant, JsonObject] = {variant: _scenario_metrics(run)[scenario] for variant, run in variants.items()}
+            if any(float(measurement[metric]) <= 0 for measurement in metrics.values() for metric in ("throughput", "cpu_per_unit")):
+                raise BenchmarkFailure(f"round {round_number} {scenario} measurements must be positive")
             for variant, measurement in metrics.items():
                 values[variant]["throughput"].append(float(measurement["throughput"]))
                 values[variant]["cpu_per_unit"].append(float(measurement["cpu_per_unit"]))
@@ -560,22 +525,10 @@ def _comparison(
                 {
                     "round": round_number,
                     "order": list(order),
-                    "throughput_current_over_stdlib": (
-                        metrics["current"]["throughput"]
-                        / metrics["stdlib"]["throughput"]
-                    ),
-                    "cpu_current_over_stdlib": (
-                        metrics["current"]["cpu_per_unit"]
-                        / metrics["stdlib"]["cpu_per_unit"]
-                    ),
-                    "throughput_current_over_no_logging": (
-                        metrics["current"]["throughput"]
-                        / metrics["no_logging"]["throughput"]
-                    ),
-                    "cpu_current_over_no_logging": (
-                        metrics["current"]["cpu_per_unit"]
-                        / metrics["no_logging"]["cpu_per_unit"]
-                    ),
+                    "throughput_current_over_stdlib": (metrics["current"]["throughput"] / metrics["stdlib"]["throughput"]),
+                    "cpu_current_over_stdlib": (metrics["current"]["cpu_per_unit"] / metrics["stdlib"]["cpu_per_unit"]),
+                    "throughput_current_over_no_logging": (metrics["current"]["throughput"] / metrics["no_logging"]["throughput"]),
+                    "cpu_current_over_no_logging": (metrics["current"]["cpu_per_unit"] / metrics["no_logging"]["cpu_per_unit"]),
                 }
             )
         paired_ratio_medians = {
@@ -588,20 +541,14 @@ def _comparison(
             )
         }
         threshold_passed = (
-            paired_ratio_medians["throughput_current_over_stdlib"]
-            >= MINIMUM_THROUGHPUT_RATIO
-            and paired_ratio_medians["cpu_current_over_stdlib"]
-            <= MAXIMUM_CPU_RATIO
+            paired_ratio_medians["throughput_current_over_stdlib"] >= MINIMUM_THROUGHPUT_RATIO
+            and paired_ratio_medians["cpu_current_over_stdlib"] <= MAXIMUM_CPU_RATIO
             if scenario != "subprocess_pipe"
             else None
         )
         summaries[scenario] = {
             "medians": {
-                variant: {
-                    metric: statistics.median(measurements)
-                    for metric, measurements in metrics.items()
-                }
-                for variant, metrics in values.items()
+                variant: {metric: statistics.median(measurements) for metric, measurements in metrics.items()} for variant, metrics in values.items()
             },
             "paired_ratio_medians": paired_ratio_medians,
             "paired_rounds": paired,
@@ -687,9 +634,7 @@ def _execute(config: BenchmarkConfig) -> JsonObject:
                 )
                 report["runs"].append(run)
                 if not run["passed"]:
-                    report["failures"].append(
-                        f"round={round_number} variant={variant}: {run['errors']}"
-                    )
+                    report["failures"].append(f"round={round_number} variant={variant}: {run['errors']}")
         if not report["failures"]:
             try:
                 report["comparison"] = _comparison(
@@ -698,13 +643,9 @@ def _execute(config: BenchmarkConfig) -> JsonObject:
                     enforce=config.mode == "release",
                 )
                 if not cast(JsonObject, report["comparison"])["passed"]:
-                    report["failures"].append(
-                        f"release ratio gate failed: {report['comparison']}"
-                    )
+                    report["failures"].append(f"release ratio gate failed: {report['comparison']}")
             except BaseException as exc:
-                report["failures"].append(
-                    f"comparison failed: {type(exc).__name__}: {exc}"
-                )
+                report["failures"].append(f"comparison failed: {type(exc).__name__}: {exc}")
     report["passed"] = not report["failures"]
     return report
 

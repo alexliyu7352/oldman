@@ -92,23 +92,15 @@ def load_migration_metadata(project: MigrationProject) -> MigrationMetadata:
     table_items: dict[Table, TableMigrationMetadata] = {}
     for table in Base.metadata.tables.values():
         if table.name in INTERNAL_TABLE_NAMES:
-            raise ValueError(
-                f"Table name {table.name!r} is reserved for Oldman migration state."
-            )
+            raise ValueError(f"Table name {table.name!r} is reserved for Oldman migration state.")
         app_label = table.info.get(APP_LABEL_INFO_KEY)
         if not isinstance(app_label, str) or not app_label:
-            raise RuntimeError(
-                f"Table {table.fullname!r} has no registered App owner."
-            )
+            raise RuntimeError(f"Table {table.fullname!r} has no registered App owner.")
         managed = table.info.get(MANAGED_INFO_KEY)
         if not isinstance(managed, bool):
-            raise RuntimeError(
-                f"Table {table.fullname!r} has no valid managed state."
-            )
+            raise RuntimeError(f"Table {table.fullname!r} has no valid managed state.")
         if managed and table.schema is not None:
-            raise ValueError(
-                f"Managed table {table.fullname!r} cannot declare an explicit schema."
-            )
+            raise ValueError(f"Managed table {table.fullname!r} cannot declare an explicit schema.")
         table_items[table] = TableMigrationMetadata(
             table=table,
             app_label=app_label,
@@ -117,11 +109,7 @@ def load_migration_metadata(project: MigrationProject) -> MigrationMetadata:
         )
 
     user = _resolve_user_metadata(project, model_items, table_items)
-    managed_tables = tuple(
-        table
-        for table in Base.metadata.sorted_tables
-        if table_items[table].managed
-    )
+    managed_tables = tuple(table for table in Base.metadata.sorted_tables if table_items[table].managed)
     return MigrationMetadata(
         metadata=Base.metadata,
         models=MappingProxyType(models),
@@ -137,33 +125,19 @@ def _resolve_user_metadata(
     table_items: Mapping[Table, TableMigrationMetadata],
 ) -> UserMigrationMetadata | None:
     """Resolve the one configured User and its split structure ownership."""
-    user_models = [
-        item.model
-        for item in model_items
-        if issubclass(item.model, AbstractUser)
-    ]
+    user_models = [item.model for item in model_items if issubclass(item.model, AbstractUser)]
     if project.user_model_path is None:
         if user_models:
-            names = ", ".join(
-                f"{model.__module__}.{model.__qualname__}"
-                for model in user_models
-            )
-            raise RuntimeError(
-                f"Concrete User model(s) loaded without project Auth selection: {names}."
-            )
+            names = ", ".join(f"{model.__module__}.{model.__qualname__}" for model in user_models)
+            raise RuntimeError(f"Concrete User model(s) loaded without project Auth selection: {names}.")
         return None
     if len(user_models) != 1:
-        raise RuntimeError(
-            "Migration metadata must contain exactly one configured User model."
-        )
+        raise RuntimeError("Migration metadata must contain exactly one configured User model.")
 
     model = user_models[0]
     qualified_name = f"{model.__module__}.{model.__qualname__}"
     if qualified_name != project.user_model_path:
-        raise RuntimeError(
-            f"Loaded User {qualified_name!r} does not match project selection "
-            f"{project.user_model_path!r}."
-        )
+        raise RuntimeError(f"Loaded User {qualified_name!r} does not match project selection {project.user_model_path!r}.")
     table = cast(Table, model.__table__)
     table_metadata = table_items[table]
     if table_metadata.app_label != USER_TABLE_OWNER_LABEL:

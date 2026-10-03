@@ -136,12 +136,8 @@ class AccountFlow:
             return save_language_preference(request, registry=language_registry(request))
 
         target.add_route(cast(Any, user_session), self.profile_path, methods=["GET"], name=f"{name_prefix}user_session")
-        target.add_route(
-            cast(Any, password_modal), self.password_modal_path, methods=["GET"], name=f"{name_prefix}user_session_password_modal"
-        )
-        target.add_route(
-            cast(Any, password_submit), self.password_path, methods=["POST"], name=f"{name_prefix}user_session_password_submit"
-        )
+        target.add_route(cast(Any, password_modal), self.password_modal_path, methods=["GET"], name=f"{name_prefix}user_session_password_modal")
+        target.add_route(cast(Any, password_submit), self.password_path, methods=["POST"], name=f"{name_prefix}user_session_password_submit")
         target.add_route(cast(Any, language_preference), self.language_path, methods=["POST"], name=f"{name_prefix}language_preference")
 
         if self.notification_routes is not None:

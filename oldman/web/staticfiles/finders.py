@@ -70,10 +70,7 @@ def _walk_static_files(
     for child in sorted(directory.iterdir(), key=lambda item: item.name):
         relative_path = relative_directory / child.name
         if _is_symlink(child):
-            raise ValueError(
-                f"static source {source.name} contains symbolic link "
-                f"{relative_path.as_posix()!r}"
-            )
+            raise ValueError(f"static source {source.name} contains symbolic link {relative_path.as_posix()!r}")
         if child.is_dir():
             if child.name == "__pycache__":
                 continue
@@ -82,10 +79,7 @@ def _walk_static_files(
         if not child.is_file():
             continue
         if source.package_owned and child.name.endswith((".py", ".pyc", ".pyo")):
-            raise ValueError(
-                f"package static source {source.name} contains Python file "
-                f"{relative_path.as_posix()!r}"
-            )
+            raise ValueError(f"package static source {source.name} contains Python file {relative_path.as_posix()!r}")
         yield StaticSourceFile(
             source_name=source.name,
             relative_path=relative_path,

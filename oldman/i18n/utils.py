@@ -20,9 +20,7 @@ def normalize_lang_code(lang: str) -> str:
         canonical = get_locale_identifier(parsed, sep="-")
         Locale.parse(canonical, sep="-")
     except (TypeError, ValueError, UnknownLocaleError) as exc:
-        raise ValueError(
-            f"language code {lang!r} is not a Babel-supported BCP 47 tag"
-        ) from exc
+        raise ValueError(f"language code {lang!r} is not a Babel-supported BCP 47 tag") from exc
     return canonical
 
 

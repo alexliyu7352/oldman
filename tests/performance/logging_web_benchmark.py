@@ -118,11 +118,7 @@ def _aiohttp_retry_contract() -> JsonObject:
         "idempotent_methods": idempotent_methods,
         "get_connection_retry_eligible": get_retry_eligible,
         "benchmark_connection_retry_eligible": benchmark_retry_eligible,
-        "passed": (
-            BENCHMARK_HTTP_METHOD == "POST"
-            and get_retry_eligible
-            and not benchmark_retry_eligible
-        ),
+        "passed": (BENCHMARK_HTTP_METHOD == "POST" and get_retry_eligible and not benchmark_retry_eligible),
     }
 
 
@@ -167,10 +163,7 @@ def _config_from_args(
     )
     if not args.smoke:
         if any(value is not None for value in adjustable) or args.inject_fault != "none":
-            parser.error(
-                "count overrides and --inject-fault require --smoke; "
-                "the no-argument release contract is immutable"
-            )
+            parser.error("count overrides and --inject-fault require --smoke; the no-argument release contract is immutable")
         return BenchmarkConfig(
             mode="release",
             workers=RELEASE_WORKERS,
@@ -302,9 +295,7 @@ def _read_process_stat(pid: int) -> JsonObject:
 def _process_group_cpu_snapshot(process_group: int) -> JsonObject:
     """Capture cumulative CPU ticks for every process in one stable group."""
     ticks_per_second = int(os.sysconf("SC_CLK_TCK"))
-    processes = [
-        _read_process_stat(pid) for pid in _process_group_pids(process_group)
-    ]
+    processes = [_read_process_stat(pid) for pid in _process_group_pids(process_group)]
     errors: list[str] = []
     if not processes:
         errors.append(f"process group {process_group} has no processes")
@@ -313,9 +304,7 @@ def _process_group_cpu_snapshot(process_group: int) -> JsonObject:
         if process.get("read_error") is not None:
             errors.append(f"PID {pid} stat failed: {process['read_error']}")
         elif process.get("process_group") != process_group:
-            errors.append(
-                f"PID {pid} moved from process group {process_group}: {process}"
-            )
+            errors.append(f"PID {pid} moved from process group {process_group}: {process}")
     return {
         "process_group": process_group,
         "ticks_per_second": ticks_per_second,
@@ -353,10 +342,7 @@ def _process_group_cpu_delta(
                 continue
             target[pid] = cast(JsonObject, process)
     if set(before_processes) != set(after_processes):
-        errors.append(
-            "measured process-group PID set changed: "
-            f"before={sorted(before_processes)} after={sorted(after_processes)}"
-        )
+        errors.append(f"measured process-group PID set changed: before={sorted(before_processes)} after={sorted(after_processes)}")
     ticks_per_second = before.get("ticks_per_second")
     if (
         not isinstance(ticks_per_second, int)
@@ -364,10 +350,7 @@ def _process_group_cpu_delta(
         or ticks_per_second <= 0
         or after.get("ticks_per_second") != ticks_per_second
     ):
-        errors.append(
-            "invalid or changing clock tick rate: "
-            f"before={ticks_per_second!r} after={after.get('ticks_per_second')!r}"
-        )
+        errors.append(f"invalid or changing clock tick rate: before={ticks_per_second!r} after={after.get('ticks_per_second')!r}")
 
     user_ticks = 0
     system_ticks = 0
@@ -379,12 +362,8 @@ def _process_group_cpu_delta(
             errors.append(f"PID {pid} identity changed during measurement")
             continue
         try:
-            process_user_ticks = int(current["user_time_ticks"]) - int(
-                prior["user_time_ticks"]
-            )
-            process_system_ticks = int(current["system_time_ticks"]) - int(
-                prior["system_time_ticks"]
-            )
+            process_user_ticks = int(current["user_time_ticks"]) - int(prior["user_time_ticks"])
+            process_system_ticks = int(current["system_time_ticks"]) - int(prior["system_time_ticks"])
         except (KeyError, TypeError, ValueError):
             errors.append(f"PID {pid} has invalid CPU counters")
             continue
@@ -403,9 +382,7 @@ def _process_group_cpu_delta(
 
     valid_denominators = request_count > 0 and elapsed_seconds > 0
     if not valid_denominators:
-        errors.append(
-            f"invalid CPU denominators: requests={request_count} elapsed={elapsed_seconds}"
-        )
+        errors.append(f"invalid CPU denominators: requests={request_count} elapsed={elapsed_seconds}")
     if not isinstance(ticks_per_second, int) or ticks_per_second <= 0:
         user_seconds = system_seconds = total_seconds = None
     else:
@@ -424,16 +401,8 @@ def _process_group_cpu_delta(
         "user_seconds": user_seconds,
         "system_seconds": system_seconds,
         "total_seconds": total_seconds,
-        "seconds_per_request": (
-            total_seconds / request_count
-            if total_seconds is not None and request_count > 0
-            else None
-        ),
-        "average_cores": (
-            total_seconds / elapsed_seconds
-            if total_seconds is not None and elapsed_seconds > 0
-            else None
-        ),
+        "seconds_per_request": (total_seconds / request_count if total_seconds is not None and request_count > 0 else None),
+        "average_cores": (total_seconds / elapsed_seconds if total_seconds is not None and elapsed_seconds > 0 else None),
         "errors": errors,
         "passed": passed,
     }
@@ -457,17 +426,13 @@ def _self_cpu_delta(
 ) -> JsonObject:
     """Calculate client CPU separately so it cannot be mistaken for server cost."""
     user_seconds = float(after["user_seconds"]) - float(before["user_seconds"])
-    system_seconds = float(after["system_seconds"]) - float(
-        before["system_seconds"]
-    )
+    system_seconds = float(after["system_seconds"]) - float(before["system_seconds"])
     total_seconds = user_seconds + system_seconds
     errors: list[str] = []
     if user_seconds < 0 or system_seconds < 0:
         errors.append("client CPU counters moved backwards")
     if request_count <= 0 or elapsed_seconds <= 0:
-        errors.append(
-            f"invalid CPU denominators: requests={request_count} elapsed={elapsed_seconds}"
-        )
+        errors.append(f"invalid CPU denominators: requests={request_count} elapsed={elapsed_seconds}")
     if total_seconds <= 0:
         errors.append("client CPU delta is zero")
     return {
@@ -476,12 +441,8 @@ def _self_cpu_delta(
         "user_seconds": user_seconds,
         "system_seconds": system_seconds,
         "total_seconds": total_seconds,
-        "seconds_per_request": (
-            total_seconds / request_count if request_count > 0 else None
-        ),
-        "average_cores": (
-            total_seconds / elapsed_seconds if elapsed_seconds > 0 else None
-        ),
+        "seconds_per_request": (total_seconds / request_count if request_count > 0 else None),
+        "average_cores": (total_seconds / elapsed_seconds if elapsed_seconds > 0 else None),
         "errors": errors,
         "passed": not errors,
     }
@@ -551,9 +512,7 @@ def _storage_probe(directory: Path) -> JsonObject:
             try:
                 candidate.unlink(missing_ok=True)
             except BaseException as exc:
-                cleanup_errors.append(
-                    {"path": str(candidate), **_structured_error(exc)}
-                )
+                cleanup_errors.append({"path": str(candidate), **_structured_error(exc)})
     if error is None and cleanup_errors:
         step = "cleanup"
         error = cleanup_errors[0]
@@ -582,9 +541,7 @@ def _pre_shutdown_evidence(
         process_state = dict(_read_process_stat(pid))
         process_state["expected_process_group"] = process_group
         if process_state["read_error"] is None:
-            process_group_matches = (
-                process_state["process_group"] == process_group
-            )
+            process_group_matches = process_state["process_group"] == process_group
             process_state["process_group_matches"] = process_group_matches
             process_state["identity_error"] = (
                 None
@@ -592,10 +549,7 @@ def _pre_shutdown_evidence(
                 else {
                     "type": "ProcessGroupMismatch",
                     "errno": None,
-                    "message": (
-                        f"pid {pid} expected process group {process_group}, "
-                        f"got {process_state['process_group']}"
-                    ),
+                    "message": (f"pid {pid} expected process group {process_group}, got {process_state['process_group']}"),
                 }
             )
         else:
@@ -607,20 +561,12 @@ def _pre_shutdown_evidence(
     final_primary_poll = process.poll()
     errors: list[str] = []
     if primary_poll is not None:
-        errors.append(
-            f"primary exited before process snapshot with exit code {primary_poll}"
-        )
+        errors.append(f"primary exited before process snapshot with exit code {primary_poll}")
     for process_state in processes:
         if process_state["read_error"] is not None:
-            errors.append(
-                f"process {process_state['pid']} stat failed: "
-                f"{process_state['read_error']}"
-            )
+            errors.append(f"process {process_state['pid']} stat failed: {process_state['read_error']}")
         if process_state["identity_error"] is not None:
-            errors.append(
-                f"process {process_state['pid']} identity mismatch: "
-                f"{process_state['identity_error']}"
-            )
+            errors.append(f"process {process_state['pid']} identity mismatch: {process_state['identity_error']}")
     if primary_poll is None and process.pid not in discovered_pids:
         errors.append(f"live primary pid {process.pid} missing from process group")
     if filesystem["error"] is not None:
@@ -628,10 +574,7 @@ def _pre_shutdown_evidence(
     if not storage_probe["passed"]:
         errors.append(f"storage probe failed: {storage_probe}")
     if final_primary_poll is not None:
-        errors.append(
-            "primary exited before shutdown signal with exit code "
-            f"{final_primary_poll}"
-        )
+        errors.append(f"primary exited before shutdown signal with exit code {final_primary_poll}")
     return {
         "primary_poll": primary_poll,
         "final_primary_poll": final_primary_poll,
@@ -720,9 +663,7 @@ def _shutdown_process_group(process: subprocess.Popen[bytes]) -> JsonObject:
         except subprocess.TimeoutExpired:
             pass
     all_observed_pids = sorted({*observed_pids, process.pid})
-    live_observed_pids = [
-        pid for pid in all_observed_pids if Path(f"/proc/{pid}").exists()
-    ]
+    live_observed_pids = [pid for pid in all_observed_pids if Path(f"/proc/{pid}").exists()]
     return {
         "process_group": process_group,
         "observed_pids": all_observed_pids,
@@ -732,12 +673,7 @@ def _shutdown_process_group(process: subprocess.Popen[bytes]) -> JsonObject:
         "live_observed_pids": live_observed_pids,
         "process_group_gone": not remaining_pids,
         "all_observed_pids_gone": not live_observed_pids,
-        "passed": (
-            action in {"sigterm", "already_exited"}
-            and process.returncode == 0
-            and not remaining_pids
-            and not live_observed_pids
-        ),
+        "passed": (action in {"sigterm", "already_exited"} and process.returncode == 0 and not remaining_pids and not live_observed_pids),
     }
 
 
@@ -760,10 +696,7 @@ def _wait_for_ready(
     last_error: BaseException | None = None
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            raise BenchmarkFailure(
-                f"fixture exited during startup pid={process.pid} "
-                f"exit_code={process.returncode} last_error={last_error!r}"
-            )
+            raise BenchmarkFailure(f"fixture exited during startup pid={process.pid} exit_code={process.returncode} last_error={last_error!r}")
         try:
             state = _read_json_file(state_file)
             remaining = max(0.01, deadline - time.monotonic())
@@ -772,10 +705,7 @@ def _wait_for_ready(
                 timeout=min(0.5, remaining),
             ) as response:
                 ready = json.loads(response.read().decode("utf-8"))
-            if (
-                ready.get("ready") is True
-                and state.get("manager_ack_complete") is True
-            ):
+            if ready.get("ready") is True and state.get("manager_ack_complete") is True:
                 return state
         except (
             ConnectionError,
@@ -786,10 +716,7 @@ def _wait_for_ready(
         ) as exc:
             last_error = exc
             time.sleep(0.02)
-    raise BenchmarkFailure(
-        f"fixture pid={process.pid} was not ready within "
-        f"{STARTUP_TIMEOUT_SECONDS}s; state={state!r}; last_error={last_error!r}"
-    )
+    raise BenchmarkFailure(f"fixture pid={process.pid} was not ready within {STARTUP_TIMEOUT_SECONDS}s; state={state!r}; last_error={last_error!r}")
 
 
 def _validate_fixture_state(
@@ -834,9 +761,7 @@ def _validate_fixture_state(
         rollover_at = handler.get("rollover_at")
         rotation = handler.get("rotation")
         expected_formatter = (
-            "oldman.logging.formatters.PlainTextAccessFormatter"
-            if name == "access_file"
-            else "oldman.logging.formatters.PlainTextFormatter"
+            "oldman.logging.formatters.PlainTextAccessFormatter" if name == "access_file" else "oldman.logging.formatters.PlainTextFormatter"
         )
         if handler.get("formatter") != expected_formatter or handler.get("level") != 0:
             raise BenchmarkFailure(f"file {name} formatter/level mismatch: {handler}")
@@ -851,10 +776,7 @@ def _validate_fixture_state(
                 raise BenchmarkFailure(f"current {name} wiring mismatch: {handler}")
             if rollover_at is not None:
                 raise BenchmarkFailure(f"current {name} reference state leaked: {handler}")
-        elif (
-            class_name != "logging.handlers.TimedRotatingFileHandler"
-            or rollover_at != REFERENCE_ROLLOVER_AT
-        ):
+        elif class_name != "logging.handlers.TimedRotatingFileHandler" or rollover_at != REFERENCE_ROLLOVER_AT:
             raise BenchmarkFailure(f"reference {name} wiring mismatch: {handler}")
 
     console_handlers = handler_groups["console"]
@@ -863,12 +785,8 @@ def _validate_fixture_state(
         "error_console": "oldman.logging.formatters.ConsoleFormatter",
         "access_console": "oldman.logging.formatters.AccessConsoleFormatter",
     }
-    if not isinstance(console_handlers, dict) or set(console_handlers) != set(
-        expected_console_formatters
-    ):
-        raise BenchmarkFailure(
-            f"fixture console handler set mismatch: {console_handlers!r}"
-        )
+    if not isinstance(console_handlers, dict) or set(console_handlers) != set(expected_console_formatters):
+        raise BenchmarkFailure(f"fixture console handler set mismatch: {console_handlers!r}")
     for name, expected_formatter in expected_console_formatters.items():
         handler = console_handlers[name]
         if (
@@ -891,40 +809,25 @@ def _final_fixture_state_errors(state: object) -> list[str]:
 
     signal_count = state.get("shutdown_signal_count")
     if type(signal_count) is not int or signal_count != 1:
-        errors.append(
-            f"shutdown_signal_count must be 1, got {signal_count!r}"
-        )
+        errors.append(f"shutdown_signal_count must be 1, got {signal_count!r}")
     signals = state.get("shutdown_signals")
     if not isinstance(signals, list):
         errors.append("shutdown_signals must be a list")
     else:
         if len(signals) != signal_count:
-            errors.append(
-                "shutdown_signals length must equal shutdown_signal_count, "
-                f"got {len(signals)} and {signal_count!r}"
-            )
+            errors.append(f"shutdown_signals length must equal shutdown_signal_count, got {len(signals)} and {signal_count!r}")
         for index, event in enumerate(signals, start=1):
             if not isinstance(event, dict):
                 errors.append(f"shutdown signal {index} must be an object")
                 continue
             if event.get("name") != "SIGTERM":
-                errors.append(
-                    f"shutdown signal {index} name must be SIGTERM, "
-                    f"got {event.get('name')!r}"
-                )
+                errors.append(f"shutdown signal {index} name must be SIGTERM, got {event.get('name')!r}")
             if event.get("already_shutting_down") is not False:
-                errors.append(
-                    f"shutdown signal {index} already_shutting_down must be false"
-                )
+                errors.append(f"shutdown signal {index} already_shutting_down must be false")
             if event.get("original_returned") is not True:
-                errors.append(
-                    f"shutdown signal {index} original_returned must be true"
-                )
+                errors.append(f"shutdown signal {index} original_returned must be true")
             if event.get("exception") is not None:
-                errors.append(
-                    f"shutdown signal {index} exception must be null, "
-                    f"got {event.get('exception')!r}"
-                )
+                errors.append(f"shutdown signal {index} exception must be null, got {event.get('exception')!r}")
 
     kill_count = state.get("manager_kill_count")
     if type(kill_count) is not int or kill_count != 0:
@@ -940,10 +843,7 @@ def _final_fixture_state_errors(state: object) -> list[str]:
     if state.get("main_returned") is not True:
         errors.append("main_returned must be true")
     if state.get("unhandled_exception") is not None:
-        errors.append(
-            "unhandled_exception must be null, "
-            f"got {state.get('unhandled_exception')!r}"
-        )
+        errors.append(f"unhandled_exception must be null, got {state.get('unhandled_exception')!r}")
     return errors
 
 
@@ -972,15 +872,10 @@ async def _request_worker(
     for sequence in range(worker_index, request_count, task_count):
         token = f"{token_prefix}_{phase}_{sequence:08d}"
         started_at = time.perf_counter()
-        async with session.post(
-            f"http://127.0.0.1:{port}/bench/{token}"
-        ) as response:
+        async with session.post(f"http://127.0.0.1:{port}/bench/{token}") as response:
             payload = await response.read()
             if response.status != 200 or len(payload) != EXPECTED_RESPONSE_BYTES:
-                raise BenchmarkFailure(
-                    f"request {token} returned status={response.status} "
-                    f"bytes={len(payload)}"
-                )
+                raise BenchmarkFailure(f"request {token} returned status={response.status} bytes={len(payload)}")
         latencies.append(time.perf_counter() - started_at)
     return latencies
 
@@ -1027,9 +922,7 @@ async def _run_phase(
                 task.cancel()
         final_results = await asyncio.gather(*tasks, return_exceptions=True)
         if not latency_groups:
-            latency_groups = [
-                item for item in final_results if isinstance(item, list)
-            ]
+            latency_groups = [item for item in final_results if isinstance(item, list)]
     elapsed = time.perf_counter() - started_at
     latencies = [latency for group in latency_groups for latency in group]
     unfinished = [task.get_name() for task in tasks if not task.done()]
@@ -1125,23 +1018,13 @@ async def _run_load(
                     "errors": [f"invalid measurement elapsed time: {elapsed!r}"],
                     "passed": False,
                 }
-            measurement["passed"] = bool(
-                measurement["passed"]
-                and measurement["server_cpu"]["passed"]
-                and measurement["client_cpu"]["passed"]
-            )
+            measurement["passed"] = bool(measurement["passed"] and measurement["server_cpu"]["passed"] and measurement["client_cpu"]["passed"])
     session_closed = connector.closed
     return {
         "warmup": warmup,
         "measurement": measurement,
         "session_closed": session_closed,
-        "passed": bool(
-            warmup
-            and warmup["passed"]
-            and measurement
-            and measurement["passed"]
-            and session_closed
-        ),
+        "passed": bool(warmup and warmup["passed"] and measurement and measurement["passed"] and session_closed),
     }
 
 
@@ -1149,14 +1032,10 @@ async def _run_nested_processes(port: int, token: str) -> JsonObject:
     """Invoke the nested-process route through the real one-worker server."""
     timeout = aiohttp.ClientTimeout(total=60.0)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(
-            f"http://127.0.0.1:{port}/nested/processes/{token}"
-        ) as response:
+        async with session.post(f"http://127.0.0.1:{port}/nested/processes/{token}") as response:
             payload = await response.json()
             if response.status != 200 or not isinstance(payload, dict):
-                raise BenchmarkFailure(
-                    f"nested process route failed status={response.status} payload={payload!r}"
-                )
+                raise BenchmarkFailure(f"nested process route failed status={response.status} payload={payload!r}")
             return cast(JsonObject, payload)
 
 
@@ -1245,11 +1124,7 @@ def _validate_log_file(
         }
     )
     result["passed"] = bool(
-        result["utf8_valid"]
-        and result["ansi_free"]
-        and result["newline_terminated"]
-        and warmup_result["passed"]
-        and measurement_result["passed"]
+        result["utf8_valid"] and result["ansi_free"] and result["newline_terminated"] and warmup_result["passed"] and measurement_result["passed"]
     )
     return result
 
@@ -1292,11 +1167,7 @@ def _validate_disabled_log_file(path: Path, token_prefix: str) -> JsonObject:
             "token_occurrences": token_occurrences,
         }
     )
-    result["passed"] = bool(
-        result["ansi_free"]
-        and result["newline_terminated_or_empty"]
-        and token_occurrences == 0
-    )
+    result["passed"] = bool(result["ansi_free"] and result["newline_terminated_or_empty"] and token_occurrences == 0)
     return result
 
 
@@ -1316,23 +1187,12 @@ def _validate_log_files(
         "access": log_dir / f"{prefix}_access.log",
     }
     if variant == "no_logging":
-        files = {
-            kind: _validate_disabled_log_file(path, token_prefix)
-            for kind, path in paths.items()
-        }
+        files = {kind: _validate_disabled_log_file(path, token_prefix) for kind, path in paths.items()}
     else:
-        files = {
-            kind: _validate_log_file(path, token_prefix, config)
-            for kind, path in paths.items()
-        }
-    sidecars = {
-        kind: sorted(candidate.name for candidate in path.parent.glob(f"{path.name}.*"))
-        for kind, path in paths.items()
-    }
+        files = {kind: _validate_log_file(path, token_prefix, config) for kind, path in paths.items()}
+    sidecars = {kind: sorted(candidate.name for candidate in path.parent.glob(f"{path.name}.*")) for kind, path in paths.items()}
     main_process_ids = files["main"].get("measurement_process_ids", {})
-    worker_processes_observed = (
-        len(main_process_ids) if isinstance(main_process_ids, dict) else 0
-    )
+    worker_processes_observed = len(main_process_ids) if isinstance(main_process_ids, dict) else 0
     return {
         "files": files,
         "sidecars": sidecars,
@@ -1344,10 +1204,7 @@ def _validate_log_files(
         "passed": (
             all(file_result["passed"] for file_result in files.values())
             and not any(sidecars.values())
-            and (
-                variant == "no_logging"
-                or worker_processes_observed == workers
-            )
+            and (variant == "no_logging" or worker_processes_observed == workers)
         ),
     }
 
@@ -1361,19 +1218,9 @@ def _validate_nested_processes(
     mode: Literal["release", "smoke"],
 ) -> JsonObject:
     """Validate Web-worker managers, subprocesses, CPU evidence and exact logs."""
-    async_records = (
-        RELEASE_NESTED_ASYNC_RECORDS
-        if mode == "release"
-        else SMOKE_NESTED_ASYNC_RECORDS
-    )
-    async_runs = (
-        RELEASE_NESTED_ASYNC_RUNS if mode == "release" else SMOKE_NESTED_ASYNC_RUNS
-    )
-    subprocess_bytes = (
-        RELEASE_NESTED_SUBPROCESS_BYTES
-        if mode == "release"
-        else SMOKE_NESTED_SUBPROCESS_BYTES
-    )
+    async_records = RELEASE_NESTED_ASYNC_RECORDS if mode == "release" else SMOKE_NESTED_ASYNC_RECORDS
+    async_runs = RELEASE_NESTED_ASYNC_RUNS if mode == "release" else SMOKE_NESTED_ASYNC_RUNS
+    subprocess_bytes = RELEASE_NESTED_SUBPROCESS_BYTES if mode == "release" else SMOKE_NESTED_SUBPROCESS_BYTES
     errors: list[str] = []
     async_result = response.get("async_manager")
     labels: dict[str, int] = {}
@@ -1383,9 +1230,7 @@ def _validate_nested_processes(
     else:
         runs = async_result.get("runs")
         if not isinstance(runs, list) or len(runs) != async_runs:
-            errors.append(
-                f"nested AsyncProcessManager run count is wrong: {runs!r}"
-            )
+            errors.append(f"nested AsyncProcessManager run count is wrong: {runs!r}")
             runs = []
         for child in runs:
             if not isinstance(child, dict) or child.get("records") != async_records:
@@ -1394,11 +1239,7 @@ def _validate_nested_processes(
             labels[str(child["label"])] = async_records
             child_pids.add(int(child["pid"]))
             runtime = child.get("runtime")
-            if (
-                not isinstance(runtime, dict)
-                or runtime.get("owns_rotation") is not False
-                or runtime.get("rotation_threads") != []
-            ):
+            if not isinstance(runtime, dict) or runtime.get("owns_rotation") is not False or runtime.get("rotation_threads") != []:
                 errors.append(f"nested async child owns coordinator state: {runtime!r}")
         if async_result.get("timed_out") is not True:
             errors.append("nested AsyncProcessManager timeout did not propagate")
@@ -1411,10 +1252,7 @@ def _validate_nested_processes(
             labels[str(recovery["label"])] = async_records
             child_pids.add(int(recovery["pid"]))
         if async_result.get("pipe_reader_threads") != []:
-            errors.append(
-                "nested AsyncProcessManager left pipe reader threads: "
-                f"{async_result.get('pipe_reader_threads')!r}"
-            )
+            errors.append(f"nested AsyncProcessManager left pipe reader threads: {async_result.get('pipe_reader_threads')!r}")
 
     subprocess_result = response.get("subprocess")
     if not isinstance(subprocess_result, dict):
@@ -1425,9 +1263,7 @@ def _validate_nested_processes(
         if not isinstance(output, dict):
             errors.append("nested subprocess output result is missing")
         else:
-            child_pids.update(
-                (int(output["inherited_pid"]), int(output["pipe_pid"]))
-            )
+            child_pids.update((int(output["inherited_pid"]), int(output["pipe_pid"])))
             if output.get("inherited_returncode") != 0 or output.get("pipe_returncode") != 0:
                 errors.append("nested normal subprocess returned nonzero")
             if output.get("pipe_stdout_bytes") != subprocess_bytes:
@@ -1439,9 +1275,7 @@ def _validate_nested_processes(
         if not isinstance(cleanup, dict):
             errors.append("nested subprocess cleanup result is missing")
         else:
-            child_pids.update(
-                (int(cleanup["timeout_pid"]), int(cleanup["cancelled_pid"]))
-            )
+            child_pids.update((int(cleanup["timeout_pid"]), int(cleanup["cancelled_pid"])))
             for key in (
                 "timed_out",
                 "timeout_group_gone",
@@ -1456,17 +1290,12 @@ def _validate_nested_processes(
             ):
                 group_pids = cleanup.get(key)
                 if not isinstance(group_pids, list) or len(group_pids) < 2:
-                    errors.append(
-                        "nested subprocess descendant was not observed: "
-                        f"{key}={group_pids!r}"
-                    )
+                    errors.append(f"nested subprocess descendant was not observed: {key}={group_pids!r}")
 
     prefix = app_name.lower().strip().replace(" ", "_")
     path = log_dir / f"{prefix}.log"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    pattern = re.compile(
-        rf"PROCESS_PERF token={re.escape(token)} label=([^ ]+) sequence=(\d{{8}})"
-    )
+    pattern = re.compile(rf"PROCESS_PERF token={re.escape(token)} label=([^ ]+) sequence=(\d{{8}})")
     observed: dict[str, Counter[int]] = {}
     for label, sequence in pattern.findall(text):
         observed.setdefault(label, Counter())[int(sequence)] += 1
@@ -1475,10 +1304,7 @@ def _validate_nested_processes(
             errors.append(f"disabled nested logging emitted records: {observed}")
     else:
         if set(observed) != set(labels):
-            errors.append(
-                f"nested log labels mismatch expected={sorted(labels)} "
-                f"observed={sorted(observed)}"
-            )
+            errors.append(f"nested log labels mismatch expected={sorted(labels)} observed={sorted(observed)}")
         for label, count in labels.items():
             if observed.get(label, Counter()) != Counter(range(count)):
                 errors.append(f"nested label {label} sequence multiset mismatch")
@@ -1492,9 +1318,7 @@ def _validate_nested_processes(
         errors.append(f"nested child PIDs remain after route completion: {live_pids}")
     return {
         "labels": labels,
-        "observed_labels": {
-            label: sum(counts.values()) for label, counts in observed.items()
-        },
+        "observed_labels": {label: sum(counts.values()) for label, counts in observed.items()},
         "child_pids": sorted(child_pids),
         "errors": errors,
         "passed": not errors,
@@ -1555,26 +1379,12 @@ def _run_variant(
             "OLDMAN_WEB_BENCH_VARIANT": variant,
             "OLDMAN_WEB_BENCH_WORKERS": str(workers),
             "OLDMAN_WEB_BENCH_PORT": str(port),
-            "OLDMAN_WEB_BENCH_NESTED_ASYNC_RECORDS": str(
-                RELEASE_NESTED_ASYNC_RECORDS
-                if config.mode == "release"
-                else SMOKE_NESTED_ASYNC_RECORDS
-            ),
-            "OLDMAN_WEB_BENCH_NESTED_ASYNC_RUNS": str(
-                RELEASE_NESTED_ASYNC_RUNS
-                if config.mode == "release"
-                else SMOKE_NESTED_ASYNC_RUNS
-            ),
+            "OLDMAN_WEB_BENCH_NESTED_ASYNC_RECORDS": str(RELEASE_NESTED_ASYNC_RECORDS if config.mode == "release" else SMOKE_NESTED_ASYNC_RECORDS),
+            "OLDMAN_WEB_BENCH_NESTED_ASYNC_RUNS": str(RELEASE_NESTED_ASYNC_RUNS if config.mode == "release" else SMOKE_NESTED_ASYNC_RUNS),
             "OLDMAN_WEB_BENCH_NESTED_SUBPROCESS_BYTES": str(
-                RELEASE_NESTED_SUBPROCESS_BYTES
-                if config.mode == "release"
-                else SMOKE_NESTED_SUBPROCESS_BYTES
+                RELEASE_NESTED_SUBPROCESS_BYTES if config.mode == "release" else SMOKE_NESTED_SUBPROCESS_BYTES
             ),
-            "OLDMAN_WEB_BENCH_FAULT": (
-                config.inject_fault
-                if config.inject_fault == "skip_database"
-                else "none"
-            ),
+            "OLDMAN_WEB_BENCH_FAULT": (config.inject_fault if config.inject_fault == "skip_database" else "none"),
         }
     )
     process = subprocess.Popen(
@@ -1592,16 +1402,12 @@ def _run_variant(
         state = _wait_for_ready(process, port, state_file)
         _validate_fixture_state(state, variant, workers)
         result["fixture_state"] = state
-        result["load"] = asyncio.run(
-            _run_load(port, token_prefix, config, process.pid)
-        )
+        result["load"] = asyncio.run(_run_load(port, token_prefix, config, process.pid))
         if not result["load"]["passed"]:
             raise BenchmarkFailure(f"client load failed: {result['load']}")
         if workers == 1:
             nested_token = f"NESTEDPERF_{run_id.upper()}"
-            nested_response = asyncio.run(
-                _run_nested_processes(port, nested_token)
-            )
+            nested_response = asyncio.run(_run_nested_processes(port, nested_token))
             result["nested_processes"] = {
                 "token": nested_token,
                 "response": nested_response,
@@ -1624,10 +1430,7 @@ def _run_variant(
                 "processes": [],
                 "filesystem": None,
                 "storage_probe": None,
-                "errors": [
-                    "pre-shutdown evidence raised unexpectedly: "
-                    f"{_structured_error(exc)}"
-                ],
+                "errors": [f"pre-shutdown evidence raised unexpectedly: {_structured_error(exc)}"],
                 "passed": False,
             }
         result["shutdown"] = _shutdown_process_group(process)
@@ -1674,20 +1477,12 @@ def _run_variant(
         try:
             _validate_fixture_state(final_state, variant, workers)
         except BaseException as exc:
-            errors.append(
-                "final fixture state wiring failed: "
-                f"{type(exc).__name__}: {exc}"
-            )
+            errors.append(f"final fixture state wiring failed: {type(exc).__name__}: {exc}")
         lifecycle_errors = _final_fixture_state_errors(final_state)
         if lifecycle_errors:
-            errors.append(
-                "final fixture lifecycle failed: " + "; ".join(lifecycle_errors)
-            )
+            errors.append("final fixture lifecycle failed: " + "; ".join(lifecycle_errors))
     if not result["pre_shutdown_evidence"]["passed"]:
-        errors.append(
-            "pre-shutdown evidence failed: "
-            f"{result['pre_shutdown_evidence']}"
-        )
+        errors.append(f"pre-shutdown evidence failed: {result['pre_shutdown_evidence']}")
     result["error"] = "; ".join(errors) if errors else None
     result["passed"] = not errors
     result["artifact_cleanup"] = _cleanup_run_directory(
@@ -1695,9 +1490,7 @@ def _run_variant(
         successful=result["passed"],
     )
     if not result["artifact_cleanup"]["passed"]:
-        errors.append(
-            f"run artifact cleanup failed: {result['artifact_cleanup']}"
-        )
+        errors.append(f"run artifact cleanup failed: {result['artifact_cleanup']}")
         result["error"] = "; ".join(errors)
         result["passed"] = False
     return result
@@ -1739,11 +1532,7 @@ def _measurement_value(
         value = latency.get("p99") if isinstance(latency, dict) else None
     else:
         server_cpu = measurement.get("server_cpu")
-        value = (
-            server_cpu.get("seconds_per_request")
-            if isinstance(server_cpu, dict)
-            else None
-        )
+        value = server_cpu.get("seconds_per_request") if isinstance(server_cpu, dict) else None
     if not isinstance(value, (float, int)):
         raise BenchmarkFailure(f"run measurement {key} is invalid: {run}")
     return float(value)
@@ -1767,10 +1556,7 @@ def _nested_scenario_metrics(run: JsonObject) -> dict[str, JsonObject]:
     ]
     records = sum(int(child["records"]) for child in children)
     elapsed = sum(float(child["elapsed_seconds"]) for child in children)
-    cpu_seconds = sum(
-        float(cast(JsonObject, child["cpu"])["total_seconds"])
-        for child in children
-    )
+    cpu_seconds = sum(float(cast(JsonObject, child["cpu"])["total_seconds"]) for child in children)
     output = cast(JsonObject, subprocess_result["output"])
     output_bytes = int(output["pipe_stdout_bytes"]) + int(output["pipe_stderr_bytes"])
     return {
@@ -1780,9 +1566,7 @@ def _nested_scenario_metrics(run: JsonObject) -> dict[str, JsonObject]:
         },
         "subprocess_pipe": {
             "throughput": output_bytes / float(output["pipe_elapsed_seconds"]),
-            "cpu_per_unit": float(
-                cast(JsonObject, output["child_cpu"])["seconds_per_unit"]
-            ),
+            "cpu_per_unit": float(cast(JsonObject, output["child_cpu"])["seconds_per_unit"]),
         },
     }
 
@@ -1795,50 +1579,28 @@ def _nested_process_comparison(
     result: JsonObject = {}
     for scenario in ("async_process_manager", "subprocess_pipe"):
         values: dict[HandlerVariant, dict[str, list[float]]] = {
-            variant: {"throughput": [], "cpu_per_unit": []}
-            for variant in ("current", "timed_reference", "no_logging")
+            variant: {"throughput": [], "cpu_per_unit": []} for variant in ("current", "timed_reference", "no_logging")
         }
         paired: list[JsonObject] = []
         for round_number in range(1, expected_rounds + 1):
             metrics: dict[HandlerVariant, JsonObject] = {
-                variant: _nested_scenario_metrics(run)[scenario]
-                for variant, run in rounds[round_number].items()
+                variant: _nested_scenario_metrics(run)[scenario] for variant, run in rounds[round_number].items()
             }
             for variant, measurement in metrics.items():
-                values[variant]["throughput"].append(
-                    float(measurement["throughput"])
-                )
-                values[variant]["cpu_per_unit"].append(
-                    float(measurement["cpu_per_unit"])
-                )
+                values[variant]["throughput"].append(float(measurement["throughput"]))
+                values[variant]["cpu_per_unit"].append(float(measurement["cpu_per_unit"]))
             paired.append(
                 {
                     "round": round_number,
-                    "throughput_current_over_stdlib": (
-                        metrics["current"]["throughput"]
-                        / metrics["timed_reference"]["throughput"]
-                    ),
-                    "cpu_current_over_stdlib": (
-                        metrics["current"]["cpu_per_unit"]
-                        / metrics["timed_reference"]["cpu_per_unit"]
-                    ),
-                    "throughput_current_over_no_logging": (
-                        metrics["current"]["throughput"]
-                        / metrics["no_logging"]["throughput"]
-                    ),
-                    "cpu_current_over_no_logging": (
-                        metrics["current"]["cpu_per_unit"]
-                        / metrics["no_logging"]["cpu_per_unit"]
-                    ),
+                    "throughput_current_over_stdlib": (metrics["current"]["throughput"] / metrics["timed_reference"]["throughput"]),
+                    "cpu_current_over_stdlib": (metrics["current"]["cpu_per_unit"] / metrics["timed_reference"]["cpu_per_unit"]),
+                    "throughput_current_over_no_logging": (metrics["current"]["throughput"] / metrics["no_logging"]["throughput"]),
+                    "cpu_current_over_no_logging": (metrics["current"]["cpu_per_unit"] / metrics["no_logging"]["cpu_per_unit"]),
                 }
             )
         result[scenario] = {
             "medians": {
-                variant: {
-                    metric: statistics.median(measurements)
-                    for metric, measurements in metrics.items()
-                }
-                for variant, metrics in values.items()
+                variant: {metric: statistics.median(measurements) for metric, measurements in metrics.items()} for variant, metrics in values.items()
             },
             "paired_ratio_medians": {
                 key: statistics.median(item[key] for item in paired)
@@ -1873,17 +1635,12 @@ def _comparison(
         variant = cast(HandlerVariant, raw_variant)
         round_variants = rounds.setdefault(round_number, {})
         if variant in round_variants:
-            raise BenchmarkFailure(
-                f"round {round_number} has duplicate {variant} variant"
-            )
+            raise BenchmarkFailure(f"round {round_number} has duplicate {variant} variant")
         round_variants[variant] = run
 
     expected_round_numbers = set(range(1, expected_rounds + 1))
     if set(rounds) != expected_round_numbers:
-        raise BenchmarkFailure(
-            f"comparison requires exactly {expected_rounds} rounds numbered "
-            f"1..{expected_rounds}; got {sorted(rounds)}"
-        )
+        raise BenchmarkFailure(f"comparison requires exactly {expected_rounds} rounds numbered 1..{expected_rounds}; got {sorted(rounds)}")
 
     variants: dict[HandlerVariant, list[JsonObject]] = {
         "current": [],
@@ -1893,16 +1650,9 @@ def _comparison(
     paired_ratios: list[JsonObject] = []
     for round_number in range(1, expected_rounds + 1):
         round_variants = rounds[round_number]
-        missing = [
-            variant
-            for variant in ("current", "timed_reference", "no_logging")
-            if variant not in round_variants
-        ]
+        missing = [variant for variant in ("current", "timed_reference", "no_logging") if variant not in round_variants]
         if missing:
-            raise BenchmarkFailure(
-                f"round {round_number} must contain exactly one of every variant; "
-                f"missing {', '.join(missing)}"
-            )
+            raise BenchmarkFailure(f"round {round_number} must contain exactly one of every variant; missing {', '.join(missing)}")
         current = round_variants["current"]
         reference = round_variants["timed_reference"]
         no_logging = round_variants["no_logging"]
@@ -1910,31 +1660,16 @@ def _comparison(
         variants["timed_reference"].append(reference)
         variants["no_logging"].append(no_logging)
 
-        order_indexes = {
-            variant: run.get("order_index")
-            for variant, run in round_variants.items()
-        }
-        if (
-            any(
-                not isinstance(index, int) or isinstance(index, bool)
-                for index in order_indexes.values()
-            )
-            or set(order_indexes.values()) != {1, 2, 3}
-        ):
-            raise BenchmarkFailure(
-                f"round {round_number} has invalid execution order indexes: "
-                f"{order_indexes}"
-            )
+        order_indexes = {variant: run.get("order_index") for variant, run in round_variants.items()}
+        if any(not isinstance(index, int) or isinstance(index, bool) for index in order_indexes.values()) or set(order_indexes.values()) != {1, 2, 3}:
+            raise BenchmarkFailure(f"round {round_number} has invalid execution order indexes: {order_indexes}")
         ordered_runs = sorted(
             (current, reference, no_logging),
             key=lambda item: cast(int, item["order_index"]),
         )
         order = [cast(str, run["variant"]) for run in ordered_runs]
         if tuple(order) != _round_order(round_number):
-            raise BenchmarkFailure(
-                f"round {round_number} execution order {tuple(order)} does not match "
-                f"{_round_order(round_number)}"
-            )
+            raise BenchmarkFailure(f"round {round_number} execution order {tuple(order)} does not match {_round_order(round_number)}")
         current_qps = _measurement_value(current, "qps")
         reference_qps = _measurement_value(reference, "qps")
         no_logging_qps = _measurement_value(no_logging, "qps")
@@ -1944,20 +1679,21 @@ def _comparison(
         current_cpu = _measurement_value(current, "server_cpu_per_request")
         reference_cpu = _measurement_value(reference, "server_cpu_per_request")
         no_logging_cpu = _measurement_value(no_logging, "server_cpu_per_request")
-        if min(
-            current_qps,
-            reference_qps,
-            no_logging_qps,
-            current_p99,
-            reference_p99,
-            no_logging_p99,
-            current_cpu,
-            reference_cpu,
-            no_logging_cpu,
-        ) <= 0:
-            raise BenchmarkFailure(
-                f"round {round_number} measurements must all be positive"
+        if (
+            min(
+                current_qps,
+                reference_qps,
+                no_logging_qps,
+                current_p99,
+                reference_p99,
+                no_logging_p99,
+                current_cpu,
+                reference_cpu,
+                no_logging_cpu,
             )
+            <= 0
+        ):
+            raise BenchmarkFailure(f"round {round_number} measurements must all be positive")
         paired_ratios.append(
             {
                 "round": round_number,
@@ -1976,43 +1712,23 @@ def _comparison(
                 "no_logging_server_cpu_seconds_per_request": no_logging_cpu,
                 "qps_current_over_reference": current_qps / reference_qps,
                 "p99_current_over_reference": current_p99 / reference_p99,
-                "server_cpu_per_request_current_over_reference": (
-                    current_cpu / reference_cpu
-                ),
+                "server_cpu_per_request_current_over_reference": (current_cpu / reference_cpu),
                 "qps_current_over_no_logging": current_qps / no_logging_qps,
                 "p99_current_over_no_logging": current_p99 / no_logging_p99,
-                "server_cpu_per_request_current_over_no_logging": (
-                    current_cpu / no_logging_cpu
-                ),
+                "server_cpu_per_request_current_over_no_logging": (current_cpu / no_logging_cpu),
                 "qps_reference_over_no_logging": reference_qps / no_logging_qps,
                 "p99_reference_over_no_logging": reference_p99 / no_logging_p99,
-                "server_cpu_per_request_reference_over_no_logging": (
-                    reference_cpu / no_logging_cpu
-                ),
+                "server_cpu_per_request_reference_over_no_logging": (reference_cpu / no_logging_cpu),
             }
         )
 
-    raw_qps = {
-        variant: [_measurement_value(run, "qps") for run in variant_runs]
-        for variant, variant_runs in variants.items()
-    }
-    raw_p99 = {
-        variant: [_measurement_value(run, "p99") for run in variant_runs]
-        for variant, variant_runs in variants.items()
-    }
+    raw_qps = {variant: [_measurement_value(run, "qps") for run in variant_runs] for variant, variant_runs in variants.items()}
+    raw_p99 = {variant: [_measurement_value(run, "p99") for run in variant_runs] for variant, variant_runs in variants.items()}
     raw_server_cpu_per_request = {
-        variant: [
-            _measurement_value(run, "server_cpu_per_request")
-            for run in variant_runs
-        ]
-        for variant, variant_runs in variants.items()
+        variant: [_measurement_value(run, "server_cpu_per_request") for run in variant_runs] for variant, variant_runs in variants.items()
     }
-    median_qps = {
-        variant: statistics.median(values) for variant, values in raw_qps.items()
-    }
-    median_p99 = {
-        variant: statistics.median(values) for variant, values in raw_p99.items()
-    }
+    median_qps = {variant: statistics.median(values) for variant, values in raw_qps.items()}
+    median_p99 = {variant: statistics.median(values) for variant, values in raw_p99.items()}
     legacy_qps_ratio = median_qps["current"] / median_qps["timed_reference"]
     legacy_p99_ratio = median_p99["current"] / median_p99["timed_reference"]
     paired_ratio_medians = {
@@ -2032,10 +1748,7 @@ def _comparison(
     threshold_passed = (
         paired_ratio_medians["qps_current_over_reference"] >= MINIMUM_QPS_RATIO
         and paired_ratio_medians["p99_current_over_reference"] <= MAXIMUM_P99_RATIO
-        and paired_ratio_medians[
-            "server_cpu_per_request_current_over_reference"
-        ]
-        <= MAXIMUM_CPU_RATIO
+        and paired_ratio_medians["server_cpu_per_request_current_over_reference"] <= MAXIMUM_CPU_RATIO
     )
     return {
         "workers": workers,
@@ -2047,12 +1760,7 @@ def _comparison(
         "paired_ratio_medians": paired_ratio_medians,
         "nested_processes": (
             _nested_process_comparison(rounds, expected_rounds)
-            if workers == 1
-            and all(
-                isinstance(run.get("nested_processes"), dict)
-                for variant_runs in variants.values()
-                for run in variant_runs
-            )
+            if workers == 1 and all(isinstance(run.get("nested_processes"), dict) for variant_runs in variants.values() for run in variant_runs)
             else None
         ),
         "ratio_of_separate_medians_diagnostic": {
@@ -2120,9 +1828,7 @@ def _base_report(config: BenchmarkConfig) -> JsonObject:
             "warmup_requests": config.warmup_requests,
             "measured_requests": config.measured_requests,
             "concurrency": config.concurrency,
-            "ordering": (
-                "cyclic current/timed_reference/no_logging order by round"
-            ),
+            "ordering": ("cyclic current/timed_reference/no_logging order by round"),
             "inject_fault": config.inject_fault,
             "ratios_enforced": config.enforce_ratios,
             "minimum_qps_ratio": MINIMUM_QPS_RATIO,
@@ -2143,9 +1849,7 @@ def _execute(config: BenchmarkConfig, report: JsonObject) -> None:
     retry_contract = _aiohttp_retry_contract()
     report["contracts"]["aiohttp_connection_retry"] = retry_contract
     if not retry_contract["passed"]:
-        report["failures"].append(
-            f"aiohttp connection retry contract failed: {retry_contract}"
-        )
+        report["failures"].append(f"aiohttp connection retry contract failed: {retry_contract}")
         return
     if platform.system() != "Linux" or not Path("/proc").is_dir():
         report["failures"].append("real Sanic performance gate requires Linux /proc")
@@ -2175,14 +1879,9 @@ def _execute(config: BenchmarkConfig, report: JsonObject) -> None:
                     report["runs"].append(run)
                     worker_runs.append(run)
                     if config.inject_fault == "after_first_run_exception":
-                        raise RuntimeError(
-                            "injected exception after preserving the first run"
-                        )
+                        raise RuntimeError("injected exception after preserving the first run")
                     if not run["passed"]:
-                        report["failures"].append(
-                            f"workers={workers} round={round_number} "
-                            f"variant={variant}: {run['error']}"
-                        )
+                        report["failures"].append(f"workers={workers} round={round_number} variant={variant}: {run['error']}")
                         return
 
             comparison = _comparison(
@@ -2193,9 +1892,7 @@ def _execute(config: BenchmarkConfig, report: JsonObject) -> None:
             )
             report["comparisons"].append(comparison)
             if not comparison["passed"]:
-                report["failures"].append(
-                    f"workers={workers} ratio gate failed: {comparison}"
-                )
+                report["failures"].append(f"workers={workers} ratio gate failed: {comparison}")
 
     report["passed"] = not report["failures"]
 

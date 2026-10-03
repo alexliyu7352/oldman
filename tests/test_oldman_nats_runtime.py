@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Number(MsgspecModel):
     """A typed request whose echo proves hooks can reach a separate live receiver."""
+
     value: int
 
 
@@ -35,14 +36,14 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
         "config/schemas.py": "from oldman.conf import DefaultSettings\nclass Settings(DefaultSettings):\n    pass\n",
         "services/__init__.py": "",
         "example/__init__.py": "",
-        "example/apps.py": '''
+        "example/apps.py": """
             from oldman.apps import AppConfig
             class Config(AppConfig):
                 label = "example"
                 display_name = "NATS lifecycle"
             app = Config()
-        ''',
-        "example/messages.py": '''
+        """,
+        "example/messages.py": """
             from pathlib import Path
             from oldman.serializers import MsgspecModel
             class Number(MsgspecModel):
@@ -50,8 +51,8 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
             def record(value):
                 with Path("trace.txt").open("a") as file:
                     file.write(value + "\\n")
-        ''',
-        "example/events.py": '''
+        """,
+        "example/events.py": """
             import asyncio
             from oldman.providers.nats import bus
             from example.messages import Number, record
@@ -73,8 +74,8 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
             @bus.subscriber("peer", peer=True)
             async def peer(message: Number) -> Number:
                 return message
-        ''',
-        "services/worker.py": f'''
+        """,
+        "services/worker.py": f"""
             import asyncio
             import sys
             from oldman.conf import settings
@@ -131,8 +132,8 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
                     record("logging-close")
                     assert bus.broker._connection is None
                     super()._close_logging()
-        ''',
-        "example/commands.py": '''
+        """,
+        "example/commands.py": """
             from oldman.cli import Command
             from services.worker import probe
             class Probe(Command):
@@ -146,21 +147,28 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
                 async def handle(self):
                     await probe("command")
                     raise ValueError("command-failure")
-        ''',
-        "data/worker_settings.yaml": json.dumps({
-            "apps": ["example"],
-            "core": {"data_dir": str(root / "data")},
-            "logging": {"dir": str(root / "logs"), "color": "never"},
-            "process": {"pid_dir": str(root / "pids")},
-            "i18n": {"use_i18n": False},
-            "nats": {"DEFAULT": {"nats_url": url, "reconnect_time_wait": 0.02}},
-            "nats_bus": {"enabled": enabled, "consume": True, "namespace": "runtime_test",
-                         "peer_id": None if mode == "peer-fail" else "worker",
-                         "startup_timeout": 0.2 if mode == "connect-fail" else 5, "graceful_timeout": 1},
-        }),
+        """,
+        "data/worker_settings.yaml": json.dumps(
+            {
+                "apps": ["example"],
+                "core": {"data_dir": str(root / "data")},
+                "logging": {"dir": str(root / "logs"), "color": "never"},
+                "process": {"pid_dir": str(root / "pids")},
+                "i18n": {"use_i18n": False},
+                "nats": {"DEFAULT": {"nats_url": url, "reconnect_time_wait": 0.02}},
+                "nats_bus": {
+                    "enabled": enabled,
+                    "consume": True,
+                    "namespace": "runtime_test",
+                    "peer_id": None if mode == "peer-fail" else "worker",
+                    "startup_timeout": 0.2 if mode == "connect-fail" else 5,
+                    "graceful_timeout": 1,
+                },
+            }
+        ),
     }
     if web:
-        files["services/worker.py"] = f'''
+        files["services/worker.py"] = f"""
             import os
             from oldman.conf import settings
             from oldman.providers.nats import bus
@@ -225,21 +233,25 @@ def _write_project(root: Path, url: str, mode: str, *, enabled: bool = True, web
                     assert bus.broker._connection is None
                     record("logging-close")
                     super()._close_logging()
-        '''
-        files["example/views.py"] = '''
+        """
+        files["example/views.py"] = """
             from sanic.response import text
             from oldman.web.routing import router
             @router.get("/probe")
             async def probe(request):
                 return text("ready")
-        '''
+        """
         config = json.loads(files["data/worker_settings.yaml"])
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
-        config["web"] = {"listen_port": port, "session": {"enabled": False},
-                         "sse": {"enabled": False}, "messages": {"enabled": False},
-                         "static": {"url": "", "root": ""}}
+        config["web"] = {
+            "listen_port": port,
+            "session": {"enabled": False},
+            "sse": {"enabled": False},
+            "messages": {"enabled": False},
+            "static": {"url": "", "root": ""},
+        }
         files["data/worker_settings.yaml"] = json.dumps(config)
     for relative, content in files.items():
         path = root / relative
@@ -251,7 +263,7 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
     """Reuse the tiny CLI project; only dedicated execution entrypoints differ."""
     _write_project(root, nats_url, mode)
     sources = {
-        "services/worker.py": '''
+        "services/worker.py": """
             from oldman.runtime import TaskiqWorkerApplication
             from oldman.providers.nats import bus
             from example.messages import record
@@ -264,8 +276,8 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
                     finally:
                         assert bus.broker._connection is None
                         record("parent-closed")
-        ''',
-        "services/timer.py": '''
+        """,
+        "services/timer.py": """
             import traceback
             from oldman.runtime import TaskiqSchedulerApplication
             from oldman.providers.nats import bus
@@ -280,9 +292,9 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
                     finally:
                         assert bus.broker._connection is None
                         record("scheduler-closed")
-        ''',
+        """,
         "example/events.py": 'raise RuntimeError("Taskiq must not import App events, even with consume=true")',
-        "example/tasks.py": f'''
+        "example/tasks.py": f"""
             import asyncio, os, sys
             from taskiq import TaskiqEvents
             from oldman.providers.nats import bus
@@ -342,8 +354,8 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
             async def rpc() -> int:
                 await probe("task")
                 return os.getpid()
-        ''',
-        "example/commands.py": '''
+        """,
+        "example/commands.py": """
             from oldman.cli import Command
             from example.tasks import rpc
             class Submit(Command):
@@ -354,13 +366,21 @@ def _write_task_project(root: Path, nats_url: str, redis_url: str, mode: str, *,
                     result = await task.wait_result(timeout=8)
                     result.raise_for_error()
                     print("task-pid:" + str(result.return_value))
-        ''',
+        """,
     }
     config = json.loads((root / "data/worker_settings.yaml").read_text())
     config["redis"] = {"DEFAULT": {"redis_url": redis_url}}
-    config["taskiq"] = {"enabled": True, "namespace": "Runtime_Probe", "workers": 1,
-                        "max_async_tasks": 1, "startup_timeout": 3, "startup_attempts": 1,
-                        "shutdown_timeout": 2, "stop_timeout": 6, "schedule_update_interval": 1}
+    config["taskiq"] = {
+        "enabled": True,
+        "namespace": "Runtime_Probe",
+        "workers": 1,
+        "max_async_tasks": 1,
+        "startup_timeout": 3,
+        "startup_attempts": 1,
+        "shutdown_timeout": 2,
+        "stop_timeout": 6,
+        "schedule_update_interval": 1,
+    }
     if mode == "budget":
         config["taskiq"]["startup_timeout"] = 0.55
     if mode == "connect-fail":
@@ -385,9 +405,12 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         self.url = f"nats://127.0.0.1:{port}"
-        self.server = subprocess.Popen([require_nats_server(), "-a", "127.0.0.1", "-p", str(port),
-                                        "-js", "-sd", str(self.root / "jetstream")],
-                                       stdout=self.log, stderr=self.log, start_new_session=True)
+        self.server = subprocess.Popen(
+            [require_nats_server(), "-a", "127.0.0.1", "-p", str(port), "-js", "-sd", str(self.root / "jetstream")],
+            stdout=self.log,
+            stderr=self.log,
+            start_new_session=True,
+        )
         self.addAsyncCleanup(self.stop_process, self.server)
         self.remote = NATSConnection(servers=[self.url], namespace="runtime_test", reconnect_time_wait=0.01)
 
@@ -507,19 +530,30 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                 finally:
                     await receiver.stop()
 
-    def launch(self, mode: str, *, command: str = "start", enabled: bool = True,
-               url: str | None = None, web: bool = False) -> subprocess.Popen:
+    def launch(self, mode: str, *, command: str = "start", enabled: bool = True, url: str | None = None, web: bool = False) -> subprocess.Popen:
         """Use the actual project CLI and existing service discovery/Settings loader."""
         project = self.root / mode
         _write_project(project, url or self.url, mode, enabled=enabled, web=web)
         environment = {**os.environ, "PYTHONPATH": str(ROOT)}
         if web:
-            synchronized = subprocess.run([sys.executable, "-m", "oldman.cli", "worker", "settings", "sync"],
-                                          cwd=project, env=environment, capture_output=True, text=True, timeout=10)
+            synchronized = subprocess.run(
+                [sys.executable, "-m", "oldman.cli", "worker", "settings", "sync"],
+                cwd=project,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
             self.assertEqual(synchronized.returncode, 0, synchronized.stdout + synchronized.stderr)
-        process = subprocess.Popen([sys.executable, "-m", "oldman.cli", "worker", command], cwd=project,
-                                   env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, start_new_session=True)
+        process = subprocess.Popen(
+            [sys.executable, "-m", "oldman.cli", "worker", command],
+            cwd=project,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
         self.addAsyncCleanup(self.stop_process, process)
         return process
 
@@ -545,9 +579,14 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
         if success is not None:
             self.assertEqual(process.returncode == 0, success, output)
         if web and success is None:
-            expected = {"before-fail": "expected-before-failure", "after-fail": "expected-after-failure",
-                        "stop-fail": "expected-stop-failure", "after-stop-fail": "expected-after-stop-failure",
-                        "peer-fail": "peer=True subscriber requires", "connect-fail": "NATS startup timed out"}
+            expected = {
+                "before-fail": "expected-before-failure",
+                "after-fail": "expected-after-failure",
+                "stop-fail": "expected-stop-failure",
+                "after-stop-fail": "expected-after-stop-failure",
+                "peer-fail": "peer=True subscriber requires",
+                "connect-fail": "NATS startup timed out",
+            }
             self.assertIn(expected[mode], output)
         self.assertNotIn("Event loop stopped before Future completed", output)
         self.assertNotIn("Task was destroyed", output)
@@ -578,8 +617,20 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                         process.send_signal(sig)
                     self.assertEqual((await reply).value, 3)
                     lines = await self.finish(mode, process, success=True)
-                    self.assertEqual(lines, ["events-import", "prepare", "before-start", "main", "handler-start",
-                                             "handler-exit", "before-stop", "after-stop", "logging-close"])
+                    self.assertEqual(
+                        lines,
+                        [
+                            "events-import",
+                            "prepare",
+                            "before-start",
+                            "main",
+                            "handler-start",
+                            "handler-exit",
+                            "before-stop",
+                            "after-stop",
+                            "logging-close",
+                        ],
+                    )
                 finally:
                     if not reply.done():
                         reply.cancel()
@@ -587,8 +638,7 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_disabled_shutdown_and_startup_failures(self) -> None:
         """A business error in before_start fails the service like a NATS failure; hooks still run."""
-        for mode, enabled, success in (("disabled", False, True), ("shutdown", True, True),
-                                       ("start-fail", True, False), ("peer-fail", True, False)):
+        for mode, enabled, success in (("disabled", False, True), ("shutdown", True, True), ("start-fail", True, False), ("peer-fail", True, False)):
             with self.subTest(mode=mode):
                 process = self.launch(mode, enabled=enabled)
                 lines = await self.finish(mode, process, success=success)
@@ -663,25 +713,41 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
-        redis = subprocess.Popen([require_redis_server(), "--bind", "127.0.0.1", "--port", str(port),
-                                  "--save", "", "--appendonly", "no", "--dir", str(self.root)],
-                                 stdout=self.log, stderr=self.log, start_new_session=True)
+        redis = subprocess.Popen(
+            [require_redis_server(), "--bind", "127.0.0.1", "--port", str(port), "--save", "", "--appendonly", "no", "--dir", str(self.root)],
+            stdout=self.log,
+            stderr=self.log,
+            start_new_session=True,
+        )
         self.addAsyncCleanup(self.stop_process, redis)
         refused = self.enterContext(socket.socket())
         refused.bind(("127.0.0.1", 0))
         refused_url = f"nats://127.0.0.1:{refused.getsockname()[1]}"
-        for service, mode in (("worker", "normal"), ("timer", "normal"),
-                              ("worker", "startup-fail"), ("timer", "shutdown-fail"),
-                              ("worker", "budget"), ("timer", "resources-fail"),
-                              ("worker", "connect-fail"), ("timer", "connect-fail")):
+        for service, mode in (
+            ("worker", "normal"),
+            ("timer", "normal"),
+            ("worker", "startup-fail"),
+            ("timer", "shutdown-fail"),
+            ("worker", "budget"),
+            ("timer", "resources-fail"),
+            ("worker", "connect-fail"),
+            ("timer", "connect-fail"),
+        ):
             case = f"{service}-{mode}"
             with self.subTest(service=service, mode=mode):
                 project = self.root / case
                 _write_task_project(project, self.url, f"redis://127.0.0.1:{port}/0", mode, refused_url=refused_url)
                 environment = {**os.environ, "PYTHONPATH": str(ROOT)}
                 command = [sys.executable, "-m", "oldman.cli", service]
-                process = subprocess.Popen([*command, "start"], cwd=project, env=environment,
-                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+                process = subprocess.Popen(
+                    [*command, "start"],
+                    cwd=project,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    start_new_session=True,
+                )
                 self.addAsyncCleanup(self.stop_process, process)
                 try:
                     kind = "scheduler" if service == "timer" else "worker"
@@ -689,13 +755,15 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                         await self.wait_trace(case, f"{kind}-start", process)
                     if mode not in ("startup-fail", "budget", "connect-fail"):
                         if service == "worker":
-                            submitted = await asyncio.to_thread(subprocess.run, [*command, "submit"], cwd=project,
-                                                                env=environment, capture_output=True, text=True, timeout=12)
+                            submitted = await asyncio.to_thread(
+                                subprocess.run, [*command, "submit"], cwd=project, env=environment, capture_output=True, text=True, timeout=12
+                            )
                             self.assertEqual(submitted.returncode, 0, submitted.stdout + submitted.stderr)
                             task_pid = int(submitted.stdout.split("task-pid:")[1].splitlines()[0])
                             self.assertNotEqual(task_pid, process.pid)
-                        stopped = await asyncio.to_thread(subprocess.run, [*command, "stop"], cwd=project,
-                                                          env=environment, capture_output=True, text=True, timeout=10)
+                        stopped = await asyncio.to_thread(
+                            subprocess.run, [*command, "stop"], cwd=project, env=environment, capture_output=True, text=True, timeout=10
+                        )
                         self.assertEqual(stopped.returncode, 0, stopped.stdout + stopped.stderr)
                     output, _ = await asyncio.to_thread(process.communicate, timeout=10)
                     self.assertEqual(process.returncode == 0, mode == "normal", output)

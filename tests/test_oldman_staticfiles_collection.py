@@ -195,9 +195,7 @@ class OldmanStaticfilesCollectionTest(unittest.TestCase):
                 packaged_sources=(source,),
             )
 
-            manifest = json.loads(
-                collection_manifest_path(public).read_text(encoding="utf-8")
-            )
+            manifest = json.loads(collection_manifest_path(public).read_text(encoding="utf-8"))
             self.assertNotIn("asset", manifest["files"])
 
             output_file.write_text("managed-v1", encoding="utf-8")
@@ -336,11 +334,7 @@ class OldmanStaticfilesCollectionTest(unittest.TestCase):
                 with self.subTest(name=name):
                     source = root / name
                     source.mkdir()
-                    target = (
-                        outside
-                        if target_is_directory
-                        else outside / "secret.txt"
-                    )
+                    target = outside if target_is_directory else outside / "secret.txt"
                     (source / "link").symlink_to(
                         target,
                         target_is_directory=target_is_directory,

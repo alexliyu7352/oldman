@@ -164,23 +164,14 @@ def _terminate_service(
     try:
         return process.communicate(timeout=15)
     except subprocess.TimeoutExpired as exc:
-        diagnostics = "\n".join(
-            f"{path.name}:\n{_read_existing(path)}"
-            for path in diagnostic_paths
-        )
+        diagnostics = "\n".join(f"{path.name}:\n{_read_existing(path)}" for path in diagnostic_paths)
         observed_pids = {process.pid, *(known_pids or set())}
-        observed_pids.update(
-            int(pid) for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", diagnostics)
-        )
-        remaining = sorted(
-            pid for pid in observed_pids if Path(f"/proc/{pid}").exists()
-        )
+        observed_pids.update(int(pid) for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", diagnostics))
+        remaining = sorted(pid for pid in observed_pids if Path(f"/proc/{pid}").exists())
         os.killpg(process.pid, signal.SIGKILL)
         stdout, stderr = process.communicate(timeout=5)
         raise AssertionError(
-            "fixture did not stop after SIGTERM\n"
-            f"stdout:\n{stdout}\nstderr:\n{stderr}\n"
-            f"logs:\n{diagnostics}\nremaining_pids_before_kill:{remaining}"
+            f"fixture did not stop after SIGTERM\nstdout:\n{stdout}\nstderr:\n{stderr}\nlogs:\n{diagnostics}\nremaining_pids_before_kill:{remaining}"
         ) from exc
 
 
@@ -305,9 +296,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                 while time.monotonic() < deadline:
                     if process.poll() is not None:
                         stdout, stderr = process.communicate()
-                        self.fail(
-                            f"fixture exited during startup\nstdout:\n{stdout}\nstderr:\n{stderr}"
-                        )
+                        self.fail(f"fixture exited during startup\nstdout:\n{stdout}\nstderr:\n{stderr}")
                     if state_file.exists():
                         try:
                             state = json.loads(state_file.read_text(encoding="utf-8"))
@@ -347,13 +336,8 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     }
                     if "pid" in state:
                         observed_pids.add(int(state["pid"]))
-                    observed_pids.update(
-                        int(pid)
-                        for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", diagnostics)
-                    )
-                    live_pids = sorted(
-                        pid for pid in observed_pids if Path(f"/proc/{pid}").exists()
-                    )
+                    observed_pids.update(int(pid) for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", diagnostics))
+                    live_pids = sorted(pid for pid in observed_pids if Path(f"/proc/{pid}").exists())
                     stdout, stderr = _terminate_service(
                         process,
                         diagnostic_paths=(
@@ -380,9 +364,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     self.assertTrue(_open_log_files(pid, log_dir), f"PID {pid} has no log files")
 
                 for worker_pid in worker_states:
-                    matrix["ordinary_by_worker"][str(worker_pid)] = (
-                        _run_ordinary_request_on_worker(port, worker_pid, run_id)
-                    )
+                    matrix["ordinary_by_worker"][str(worker_pid)] = _run_ordinary_request_on_worker(port, worker_pid, run_id)
 
                 for worker_pid in worker_states:
                     token = f"ASYNC_{run_id}_{worker_pid}"
@@ -406,10 +388,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                         )
                         ready_token = f"WEB_INHERITED_READY:{inherited_token}"
                         deadline = time.monotonic() + 5
-                        while (
-                            ready_token not in _read_existing(log_file)
-                            and time.monotonic() < deadline
-                        ):
+                        while ready_token not in _read_existing(log_file) and time.monotonic() < deadline:
                             time.sleep(0.02)
                         self.assertIn(ready_token, _read_existing(log_file))
                         started = time.monotonic()
@@ -435,14 +414,9 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     for worker_pid, token in zip(worker_states, pre_tokens, strict=True):
                         _run_on_worker(port, "/matrix/write", worker_pid, token)
                     deadline = time.monotonic() + 5
-                    while (
-                        not all(token in log_file.read_text(encoding="utf-8") for token in pre_tokens)
-                        and time.monotonic() < deadline
-                    ):
+                    while not all(token in log_file.read_text(encoding="utf-8") for token in pre_tokens) and time.monotonic() < deadline:
                         time.sleep(0.02)
-                    self.assertTrue(
-                        all(token in log_file.read_text(encoding="utf-8") for token in pre_tokens)
-                    )
+                    self.assertTrue(all(token in log_file.read_text(encoding="utf-8") for token in pre_tokens))
                     log_file.replace(archived_log_file)
                     log_file.touch()
 
@@ -451,9 +425,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     for worker_pid in worker_states:
                         deadline = time.monotonic() + 2.5
                         while time.monotonic() < deadline:
-                            reopen_probe = (
-                                f"WEB_REOPEN_{run_id}_{worker_pid}_{uuid.uuid4().hex}"
-                            )
+                            reopen_probe = f"WEB_REOPEN_{run_id}_{worker_pid}_{uuid.uuid4().hex}"
                             _run_on_worker(
                                 port,
                                 "/matrix/write",
@@ -467,22 +439,15 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                                 break
                             time.sleep(0.02)
                         else:
-                            self.fail(
-                                f"worker {worker_pid} did not reopen within 2.5 seconds"
-                            )
+                            self.fail(f"worker {worker_pid} did not reopen within 2.5 seconds")
 
                     post_tokens = [f"WEB_POST_{run_id}_{pid}" for pid in worker_states]
                     for worker_pid, token in zip(worker_states, post_tokens, strict=True):
                         _run_on_worker(port, "/matrix/write", worker_pid, token)
                     deadline = time.monotonic() + 2.5
-                    while (
-                        not all(token in log_file.read_text(encoding="utf-8") for token in post_tokens)
-                        and time.monotonic() < deadline
-                    ):
+                    while not all(token in log_file.read_text(encoding="utf-8") for token in post_tokens) and time.monotonic() < deadline:
                         time.sleep(0.02)
-                    self.assertTrue(
-                        all(token in log_file.read_text(encoding="utf-8") for token in post_tokens)
-                    )
+                    self.assertTrue(all(token in log_file.read_text(encoding="utf-8") for token in post_tokens))
                     matrix["rotation"] = {
                         "pre_tokens": pre_tokens,
                         "reopen_probes": reopen_probes,
@@ -498,10 +463,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     shutdown_pids.add(int(matrix["inherited"]["pid"]))
                     shutdown_pids.add(int(matrix["pipe"]["pid"]))
                 shutdown_log_text = _read_existing(archived_log_file) + _read_existing(log_file)
-                shutdown_pids.update(
-                    int(pid)
-                    for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", shutdown_log_text)
-                )
+                shutdown_pids.update(int(pid) for pid in re.findall(r"MATRIX_CHILD_PID:(\d+)", shutdown_log_text))
                 stdout, stderr = _terminate_service(
                     process,
                     diagnostic_paths=(
@@ -519,11 +481,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     process.communicate(timeout=5)
 
             active_log_text = log_file.read_text(encoding="utf-8")
-            archived_log_text = (
-                archived_log_file.read_text(encoding="utf-8")
-                if archived_log_file.exists()
-                else ""
-            )
+            archived_log_text = archived_log_file.read_text(encoding="utf-8") if archived_log_file.exists() else ""
             log_text = archived_log_text + active_log_text
             access_text = access_file.read_text(encoding="utf-8")
             database_text = database_file.read_text(encoding="utf-8")
@@ -582,10 +540,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                 related_pids.add(int(matrix["inherited"]["pid"]))
                 related_pids.add(int(matrix["pipe"]["pid"]))
             deadline = time.monotonic() + 5
-            while (
-                any(Path(f"/proc/{pid}").exists() for pid in related_pids)
-                and time.monotonic() < deadline
-            ):
+            while any(Path(f"/proc/{pid}").exists() for pid in related_pids) and time.monotonic() < deadline:
                 time.sleep(0.05)
             self.assertFalse({pid for pid in related_pids if Path(f"/proc/{pid}").exists()})
 
@@ -652,13 +607,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     pipe_token = piped["token"]
                     self.assertEqual(f"WEB_PIPE_STDOUT:{pipe_token}\n", piped["stdout"])
                     self.assertEqual(f"WEB_PIPE_STDERR:{pipe_token}\n", piped["stderr"])
-                    automatic_output = (
-                        result.stdout
-                        + result.stderr
-                        + result.log_text
-                        + result.access_text
-                        + result.database_text
-                    )
+                    automatic_output = result.stdout + result.stderr + result.log_text + result.access_text + result.database_text
                     self.assertNotIn(piped["stdout"].strip(), automatic_output)
                     self.assertNotIn(piped["stderr"].strip(), automatic_output)
 
@@ -669,9 +618,7 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                         self.assertEqual(1, result.log_text.count(token))
                     for token in result.matrix["rotation"]["reopen_probes"]:
                         self.assertEqual(1, result.log_text.count(token))
-                    for token in result.matrix["rotation"][
-                        "active_reopen_probes"
-                    ].values():
+                    for token in result.matrix["rotation"]["active_reopen_probes"].values():
                         self.assertEqual(1, result.active_log_text.count(token))
                         self.assertNotIn(token, result.archived_log_text)
                     for token in result.matrix["rotation"]["post_tokens"]:

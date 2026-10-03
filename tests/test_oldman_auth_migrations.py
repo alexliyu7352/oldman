@@ -216,8 +216,8 @@ class AuthMigrationTests(unittest.TestCase):
                 migration_project_source(
                     ("oldman.auth", "accounts"),
                     user_model_path="accounts.models.User",
-            ),
-            """
+                ),
+                """
             import ast
 
             from oldman.db.migrations.alembic import load_migration_graph

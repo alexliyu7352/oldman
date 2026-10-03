@@ -37,9 +37,7 @@ def replace_html_response(
     if not 200 <= status < 300:
         raise ValueError("replace_html_response status must be between 200 and 299")
     return api_response(
-        DefaultApiResponse(
-            actions=[ReplaceHtmlAction(html=str(html), target=target, swap=swap)]
-        ),
+        DefaultApiResponse(actions=[ReplaceHtmlAction(html=str(html), target=target, swap=swap)]),
         status=status,
     )
 

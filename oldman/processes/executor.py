@@ -63,9 +63,7 @@ def _start_spawn_process(process: Any) -> None:
 
         main_path = getattr(main_module, "__file__", None)
         if main_path is None:
-            raise RuntimeError(
-                "Billiard spawn from __mp_main__ requires an importable main file"
-            )
+            raise RuntimeError("Billiard spawn from __mp_main__ requires an importable main file")
 
         # Billiard 4.2 treats ``__mp_main__`` as an importable module name.
         # Python's own nested-spawn path instead reloads the original file.
@@ -279,9 +277,7 @@ class AsyncProcessManager:
     @staticmethod
     async def _start_process(process: Any) -> None:
         """Finish an in-flight spawn before cancellation starts process cleanup."""
-        start_task = asyncio.create_task(
-            asyncio.to_thread(_start_spawn_process, process)
-        )
+        start_task = asyncio.create_task(asyncio.to_thread(_start_spawn_process, process))
         try:
             await asyncio.shield(start_task)
         except asyncio.CancelledError:
@@ -440,9 +436,7 @@ class AsyncProcessManager:
                 reader_thread.prefix = f"[Worker-{process.pid}] "
                 # 必须并行读取结果，防止大结果填满 Queue 的底层管道。
                 # 防止结果数据量过大导致 Pipe 满载，从而引发父子进程死锁
-                result_task = asyncio.create_task(
-                    asyncio.to_thread(_read_process_result, result_queue, result_stopped, _timeout + 5)
-                )
+                result_task = asyncio.create_task(asyncio.to_thread(_read_process_result, result_queue, result_stopped, _timeout + 5))
 
                 # 4. 监控进程存活
                 while process.is_alive():

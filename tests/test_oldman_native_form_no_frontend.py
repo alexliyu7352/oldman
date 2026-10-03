@@ -38,5 +38,6 @@ class OldmanNativeFormNoFrontendTest(unittest.TestCase):
         self.assertIn(">Save</button>", html)
         self.assertNotIn("data-om-component", html)
 
+
 if __name__ == "__main__":
     unittest.main()

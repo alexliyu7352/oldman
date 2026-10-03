@@ -41,23 +41,13 @@ class AbstractUser(DatabaseModel):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Validate the stable table once SQLAlchemy maps a concrete subclass."""
         explicit_table_name = cls.__dict__.get("__tablename__")
-        if (
-            explicit_table_name is not None
-            and explicit_table_name != USER_TABLE_NAME
-        ):
-            raise UserModelContractError(
-                f"User model {cls.__module__}.{cls.__qualname__} must map "
-                f"the unqualified table {USER_TABLE_NAME!r}."
-            )
+        if explicit_table_name is not None and explicit_table_name != USER_TABLE_NAME:
+            raise UserModelContractError(f"User model {cls.__module__}.{cls.__qualname__} must map the unqualified table {USER_TABLE_NAME!r}.")
         explicit_table = cls.__dict__.get("__table__")
         if explicit_table is not None and (
-            getattr(explicit_table, "name", None) != USER_TABLE_NAME
-            or getattr(explicit_table, "schema", None) is not None
+            getattr(explicit_table, "name", None) != USER_TABLE_NAME or getattr(explicit_table, "schema", None) is not None
         ):
-            raise UserModelContractError(
-                f"User model {cls.__module__}.{cls.__qualname__} must map "
-                f"the unqualified table {USER_TABLE_NAME!r}."
-            )
+            raise UserModelContractError(f"User model {cls.__module__}.{cls.__qualname__} must map the unqualified table {USER_TABLE_NAME!r}.")
 
         super().__init_subclass__(**kwargs)
         if not cls.__dict__.get("__abstract__", False):
@@ -111,10 +101,7 @@ def assign_user_model_ownership(
 
     existing_user_app = table.info.get(USER_APP_LABEL_INFO_KEY)
     if existing_user_app is not None and existing_user_app != user_app_label:
-        raise UserModelContractError(
-            f"oldman_user is already assigned to User App {existing_user_app!r}, "
-            f"not {user_app_label!r}."
-        )
+        raise UserModelContractError(f"oldman_user is already assigned to User App {existing_user_app!r}, not {user_app_label!r}.")
     table.info[APP_LABEL_INFO_KEY] = USER_TABLE_OWNER_LABEL
     table.info[USER_APP_LABEL_INFO_KEY] = user_app_label
     table.info[USER_CORE_FIELDS_INFO_KEY] = USER_CORE_FIELD_NAMES

@@ -43,9 +43,7 @@ class UserTableBackendTest(unittest.TestCase):
     def test_it_checks_a_username_and_password_against_the_user_table(self) -> None:
         user = SimpleNamespace(id=1)
         with patch("oldman.auth.backends.authenticate_user", AsyncMock(return_value=user)) as check:
-            result = asyncio.run(
-                UserTableBackend().authenticate(None, username="alice", password="pw", auth_settings="settings", db_manager="db")
-            )
+            result = asyncio.run(UserTableBackend().authenticate(None, username="alice", password="pw", auth_settings="settings", db_manager="db"))
         self.assertIs(user, result)
         check.assert_awaited_once_with("alice", "pw", auth_settings="settings", db_manager="db")
 

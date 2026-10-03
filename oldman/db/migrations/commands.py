@@ -199,9 +199,7 @@ def makemigrations(
     if state.owner is not None:
         state.require_current_owner(project)
     if state.is_partial:
-        raise MigrationAppliedStateError(
-            "Oldman migration state is incomplete; run migrate and use its recovery flow before generating revisions."
-        )
+        raise MigrationAppliedStateError("Oldman migration state is incomplete; run migrate and use its recovery flow before generating revisions.")
     if state.is_complete:
         state.require_current_owner(project)
         _validate_applied_revisions(graph, state)
@@ -213,9 +211,7 @@ def makemigrations(
         if choice == "cancel":
             return None
         if choice == "state lost":
-            raise MigrationAppliedStateError(
-                "Run migrate and use its controlled recovery flow before generating revisions."
-            )
+            raise MigrationAppliedStateError("Run migrate and use its controlled recovery flow before generating revisions.")
         if choice != "first use":
             raise ValueError(f"Unknown migration-state choice: {choice!r}.")
     return make_migration(project, interaction)
@@ -254,11 +250,7 @@ def status(project: MigrationProject) -> MigrationStatus:
             app_label=label,
             current_revisions=_branch_frontier(branch.revisions, applied),
             source_heads=tuple(script.revision for script in branch.heads),
-            pending_revisions=tuple(
-                script.revision
-                for script in branch.revisions
-                if script.revision not in applied
-            ),
+            pending_revisions=tuple(script.revision for script in branch.revisions if script.revision not in applied),
         )
         for label, branch in sorted(graph.branches.items())
     )
@@ -861,9 +853,7 @@ async def _database_table_count(engine: AsyncEngine) -> int:
 async def _database_table_names(engine: AsyncEngine) -> frozenset[str]:
     """Reflect physical table names for command preconditions without changing state."""
     async with engine.connect() as connection:
-        return await connection.run_sync(
-            lambda sync_connection: frozenset(sqlalchemy_inspect(sync_connection).get_table_names())
-        )
+        return await connection.run_sync(lambda sync_connection: frozenset(sqlalchemy_inspect(sync_connection).get_table_names()))
 
 
 async def _inspect_complete_owned_state(
@@ -940,9 +930,7 @@ def _branch_frontier(
     applied: frozenset[str],
 ) -> tuple[str, ...]:
     """Return every applied branch revision that has no applied child."""
-    applied_branch = {
-        script.revision for script in revisions if script.revision in applied
-    }
+    applied_branch = {script.revision for script in revisions if script.revision in applied}
     parents = {
         down_revision
         for script in revisions
@@ -1015,9 +1003,7 @@ def _retire_tables(
     actual_managed = {table_name for table_name, ownership in rows.items() if ownership.managed}
     missing = expected - physical_tables
     if missing:
-        raise RetireNotAllowedError(
-            f"Current managed tables are missing from the database: {sorted(missing)}."
-        )
+        raise RetireNotAllowedError(f"Current managed tables are missing from the database: {sorted(missing)}.")
     if actual_managed != expected:
         raise RetireNotAllowedError(
             f"Schema Registry does not match current managed tables; expected {sorted(expected)}, found {sorted(actual_managed)}."

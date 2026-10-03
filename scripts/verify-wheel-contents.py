@@ -289,9 +289,7 @@ def wheel_metadata_errors(
     if wheel_name in archive.namelist():
         wheel = BytesParser(policy=default).parsebytes(archive.read(wheel_name))
         expected_wheel = {"Wheel-Version": "1.0", "Root-Is-Purelib": "true", "Tag": "py3-none-any"}
-        if Counter(name.lower() for name in wheel.keys()) != Counter(
-            {"wheel-version": 1, "generator": 1, "root-is-purelib": 1, "tag": 1}
-        ):
+        if Counter(name.lower() for name in wheel.keys()) != Counter({"wheel-version": 1, "generator": 1, "root-is-purelib": 1, "tag": 1}):
             errors.append("Wheel WHEEL metadata has an unexpected header inventory")
         for header, expected in expected_wheel.items():
             if wheel.get_all(header, []) != [expected]:
@@ -405,10 +403,7 @@ def verify_manifest_references(names: set[str], manifest: dict[str, Any], errors
         if not isinstance(entry, dict):
             continue
         file_name = entry.get("file")
-        if (
-            isinstance(file_name, str)
-            and f"{ADMIN_STATIC_PREFIX}{file_name}" not in names
-        ):
+        if isinstance(file_name, str) and f"{ADMIN_STATIC_PREFIX}{file_name}" not in names:
             errors.append(f"Admin manifest file reference is missing: {file_name}")
         for css_file in entry.get("css", []) or []:
             if f"{ADMIN_STATIC_PREFIX}{css_file}" not in names:
@@ -420,11 +415,7 @@ def verify_manifest_references(names: set[str], manifest: dict[str, Any], errors
             if dynamic_key not in manifest:
                 errors.append(f"Admin manifest dynamic import key is missing: {dynamic_key}")
 
-    dynamic_entry_names = {
-        str(entry.get("name"))
-        for entry in manifest.values()
-        if isinstance(entry, dict) and entry.get("isDynamicEntry") is True
-    }
+    dynamic_entry_names = {str(entry.get("name")) for entry in manifest.values() if isinstance(entry, dict) and entry.get("isDynamicEntry") is True}
     for required_name in REQUIRED_ADMIN_DYNAMIC_ENTRIES:
         if required_name not in dynamic_entry_names:
             errors.append(f"Admin manifest missing required dynamic entry: {required_name}")
@@ -469,23 +460,15 @@ def verify_wheel(
         for info in infos:
             errors.extend(safe_wheel_member_errors(info))
 
-        dist_info_roots = {
-            name.split("/", 1)[0]
-            for name in names
-            if "/" in name and name.split("/", 1)[0].endswith(".dist-info")
-        }
+        dist_info_roots = {name.split("/", 1)[0] for name in names if "/" in name and name.split("/", 1)[0].endswith(".dist-info")}
         if len(dist_info_roots) != 1:
             errors.append(f"Wheel must contain exactly one .dist-info directory, found {len(dist_info_roots)}")
             dist_info_root = None
         else:
             dist_info_root = next(iter(dist_info_roots))
 
-        package_names = set(expected_inventory) if expected_inventory is not None else {
-            name for name in names if name.startswith("oldman/")
-        }
-        metadata_names = {
-            f"{dist_info_root}/{suffix}" for suffix in DIST_INFO_FILES
-        } if dist_info_root is not None else set()
+        package_names = set(expected_inventory) if expected_inventory is not None else {name for name in names if name.startswith("oldman/")}
+        metadata_names = {f"{dist_info_root}/{suffix}" for suffix in DIST_INFO_FILES} if dist_info_root is not None else set()
         allowed_names = package_names | metadata_names
         errors.extend(f"Wheel contains unexpected member: {name}" for name in sorted(names - allowed_names))
         errors.extend(f"Wheel is missing expected member: {name}" for name in sorted(allowed_names - names))
@@ -505,12 +488,8 @@ def verify_wheel(
                 errors.append(f"Wheel missing required package file: {name}")
 
         for name in names:
-            if name.startswith(NOTIFICATION_LOCALE_PREFIX) and name.endswith(
-                (".po", ".pot")
-            ):
-                errors.append(
-                    f"Wheel must not contain notification translation source: {name}"
-                )
+            if name.startswith(NOTIFICATION_LOCALE_PREFIX) and name.endswith((".po", ".pot")):
+                errors.append(f"Wheel must not contain notification translation source: {name}")
 
         for prefix in REQUIRED_SCAFFOLD_PREFIXES:
             if not any(name.startswith(prefix) and not name.endswith("/") for name in names):
@@ -525,9 +504,7 @@ def verify_wheel(
 
         manifest_name = f"{ADMIN_STATIC_PREFIX}.vite/manifest.json"
         if manifest_name not in names:
-            errors.append(
-                "Wheel missing collected-source Admin Vite manifest"
-            )
+            errors.append("Wheel missing collected-source Admin Vite manifest")
         else:
             verify_manifest_references(names, load_json(archive, manifest_name), errors)
 

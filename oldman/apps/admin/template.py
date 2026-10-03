@@ -12,9 +12,7 @@ from oldman.web.template import add_framework_template_dir
 
 def admin_template_dir() -> Path:
     """Return the templates shipped with the Admin package."""
-    return Path(
-        str(resources.files("oldman.apps").joinpath("admin", "templates"))
-    )
+    return Path(str(resources.files("oldman.apps").joinpath("admin", "templates")))
 
 
 def install_admin_template_loader(environment: Environment) -> Environment:

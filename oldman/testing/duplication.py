@@ -236,7 +236,7 @@ def forbidden_attributes(
             if chain is None:
                 continue
             for parts, attribute in wanted.items():
-                if len(chain) >= len(parts) and tuple(chain[-len(parts):]) == parts:
+                if len(chain) >= len(parts) and tuple(chain[-len(parts) :]) == parts:
                     references.append(SourceReference(path=path, line=node.lineno, text=attribute))
                     break
     return references

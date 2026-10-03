@@ -86,9 +86,7 @@ class NotificationTemplateTest(unittest.IsolatedAsyncioTestCase):
     """Render both package templates through a real async Jinja environment."""
 
     def setUp(self) -> None:
-        self.settings = DefaultSettings.model_validate(
-            {"web": {"session": {"enabled": True}}}
-        )
+        self.settings = DefaultSettings.model_validate({"web": {"session": {"enabled": True}}})
         self.settings_patch = patch.dict(conf.__dict__, {"settings": self.settings})
         self.settings_patch.start()
         self.app = Sanic(
@@ -135,14 +133,17 @@ class NotificationTemplateTest(unittest.IsolatedAsyncioTestCase):
     async def test_topbar_translates_per_request_and_has_preview_only_dom(self) -> None:
         """One stored payload is translated late and never gains center controls."""
         row = _row(17, title="Server warning", body="Disk is full")
-        with patch.object(
-            notifications,
-            "topbar_for_user",
-            AsyncMock(return_value=[row]),
-        ), patch.object(
-            notifications,
-            "unread_count",
-            AsyncMock(return_value=3),
+        with (
+            patch.object(
+                notifications,
+                "topbar_for_user",
+                AsyncMock(return_value=[row]),
+            ),
+            patch.object(
+                notifications,
+                "unread_count",
+                AsyncMock(return_value=3),
+            ),
         ):
             simplified = await render_topbar_fragment(
                 self.request(language="zh-Hans"),
@@ -297,9 +298,7 @@ class NotificationTemplateTest(unittest.IsolatedAsyncioTestCase):
                     rendered,
                 )
 
-        template = self.app.ext.environment.get_template(
-            "oldman/messages/notifications/center_content.html"
-        )
+        template = self.app.ext.environment.get_template("oldman/messages/notifications/center_content.html")
         self.assertIsNotNone(template)
 
 

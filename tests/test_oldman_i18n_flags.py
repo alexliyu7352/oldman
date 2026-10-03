@@ -58,9 +58,7 @@ class OldmanI18nFlagsTest(unittest.IsolatedAsyncioTestCase):
 
             for flag in ("cn", "tw", "us"):
                 with self.subTest(flag=flag):
-                    _request, response = await app.asgi_client.get(
-                        f"/assets/oldman/images/flags/{flag}.svg"
-                    )
+                    _request, response = await app.asgi_client.get(f"/assets/oldman/images/flags/{flag}.svg")
                     self.assertEqual(response.status, 200)
                     self.assertIn("image/svg+xml", response.content_type)
 
@@ -69,9 +67,7 @@ class OldmanI18nFlagsTest(unittest.IsolatedAsyncioTestCase):
                 "/assets/oldman/__pycache__/__init__.cpython-312.pyc",
             ):
                 with self.subTest(forbidden_path=forbidden_path):
-                    _request, response = await app.asgi_client.get(
-                        forbidden_path
-                    )
+                    _request, response = await app.asgi_client.get(forbidden_path)
                     self.assertEqual(response.status, 404)
 
 

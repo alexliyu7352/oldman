@@ -244,14 +244,10 @@ def validate_boundaries() -> list[str]:
                 module_has_prefix(module, "oldman.web") or module_has_prefix(module, "oldman.admin")
             ):
                 errors.append(f"{python_file.rel} imports forbidden messaging dependency {module}")
-            if python_file.rel.startswith("oldman/tasks/") and (
-                module_has_prefix(module, "oldman.web") or module_has_prefix(module, "oldman.admin")
-            ):
+            if python_file.rel.startswith("oldman/tasks/") and (module_has_prefix(module, "oldman.web") or module_has_prefix(module, "oldman.admin")):
                 errors.append(f"{python_file.rel} imports forbidden task dependency {module}")
             for layer_prefix, forbidden_prefixes in LAYER_IMPORT_RULES:
-                if python_file.rel.startswith(layer_prefix) and any(
-                    module_has_prefix(module, prefix) for prefix in forbidden_prefixes
-                ):
+                if python_file.rel.startswith(layer_prefix) and any(module_has_prefix(module, prefix) for prefix in forbidden_prefixes):
                     errors.append(f"{python_file.rel} imports forbidden {layer_prefix.removesuffix('/')} dependency {module}")
 
         side_effects = top_level_calls(python_file.tree) & (IMPORT_SIDE_EFFECT_CALLS | IMPORT_SIDE_EFFECT_NAMES)

@@ -116,9 +116,7 @@ class AppRegistry:
         try:
             return self._models_by_type[model]
         except KeyError as exc:
-            raise LookupError(
-                f"Model {model.__module__}.{model.__qualname__} is not registered."
-            ) from exc
+            raise LookupError(f"Model {model.__module__}.{model.__qualname__} is not registered.") from exc
 
     def __iter__(self) -> Iterator[AppConfig[Any]]:
         """Iterate over AppConfig objects in configured order."""
@@ -127,9 +125,7 @@ class AppRegistry:
     def register_packages(self, packages: Iterable[str]) -> None:
         """Import and register each package's sole public AppConfig object."""
         if self._models_loaded or self._commands_loaded or self._views_loaded:
-            raise RuntimeError(
-                "App packages cannot be registered after model loading starts."
-            )
+            raise RuntimeError("App packages cannot be registered after model loading starts.")
         if isinstance(packages, str):
             raise TypeError("App packages must be provided as an iterable of paths.")
         for package in packages:
@@ -217,11 +213,7 @@ class AppRegistry:
 
     def _package_for_model_module(self, module_name: str) -> str | None:
         """Resolve a model module to the longest installed package boundary."""
-        matches = [
-            package
-            for package in self._by_package
-            if module_name == package or module_name.startswith(f"{package}.")
-        ]
+        matches = [package for package in self._by_package if module_name == package or module_name.startswith(f"{package}.")]
         return max(matches, key=len) if matches else None
 
     def _load_configured_user_model(
@@ -232,9 +224,7 @@ class AppRegistry:
         auth_config = self._by_package.get("oldman.auth")
         if auth_config is None:
             if user_model_path is not None:
-                raise AppNotInstalledError(
-                    "A migration User model cannot be selected without installing oldman.auth."
-                )
+                raise AppNotInstalledError("A migration User model cannot be selected without installing oldman.auth.")
             return None
 
         from oldman.auth.base import AbstractUser
@@ -252,46 +242,27 @@ class AppRegistry:
         module_name, _, _ = model_path.rpartition(".")
         configured_package = self._package_for_model_module(module_name)
         if configured_package is None:
-            raise AppNotInstalledError(
-                f"Configured User model {model_path!r} must belong to an App "
-                "listed in settings.apps."
-            )
+            raise AppNotInstalledError(f"Configured User model {model_path!r} must belong to an App listed in settings.apps.")
 
         existing_users = [
-            mapper.class_
-            for mapper in Base.registry.mappers
-            if isinstance(mapper.class_, type)
-            and issubclass(mapper.class_, AbstractUser)
+            mapper.class_ for mapper in Base.registry.mappers if isinstance(mapper.class_, type) and issubclass(mapper.class_, AbstractUser)
         ]
         if existing_users:
             selected = next(
-                (
-                    model
-                    for model in existing_users
-                    if f"{model.__module__}.{model.__qualname__}" == model_path
-                ),
+                (model for model in existing_users if f"{model.__module__}.{model.__qualname__}" == model_path),
                 None,
             )
             if selected is None or len(existing_users) != 1:
-                loaded = ", ".join(
-                    sorted(
-                        f"{model.__module__}.{model.__qualname__}"
-                        for model in existing_users
-                    )
-                )
+                loaded = ", ".join(sorted(f"{model.__module__}.{model.__qualname__}" for model in existing_users))
                 raise RuntimeError(
-                    "A concrete User model was imported before the Registry "
-                    f"model phase ({loaded}); configured model is {model_path!r}."
+                    f"A concrete User model was imported before the Registry model phase ({loaded}); configured model is {model_path!r}."
                 )
         else:
             selected = validate_user_model(import_user_model(model_path))
 
         actual_package = self._package_for_model_module(selected.__module__)
         if actual_package != configured_package:
-            raise RuntimeError(
-                f"Configured User path {model_path!r} re-exports a model defined "
-                f"outside App {configured_package!r}."
-            )
+            raise RuntimeError(f"Configured User path {model_path!r} re-exports a model defined outside App {configured_package!r}.")
         return selected, self._by_package[configured_package].label
 
     def load_models(self, *, user_model_path: str | None = None) -> None:
@@ -302,9 +273,7 @@ class AppRegistry:
         user_selection = self._load_configured_user_model(user_model_path)
         user_package = None
         if user_selection is not None:
-            user_package = self._package_for_model_module(
-                user_selection[0].__module__
-            )
+            user_package = self._package_for_model_module(user_selection[0].__module__)
 
         model_modules: dict[str, str] = {}
         for package, config in self._by_package.items():
@@ -319,10 +288,7 @@ class AppRegistry:
         from oldman.db.models import assign_model_table_app_labels
 
         self._models = assign_model_table_app_labels(
-            {
-                package: config.label
-                for package, config in self._by_package.items()
-            },
+            {package: config.label for package, config in self._by_package.items()},
             model_modules,
         )
         if user_selection is not None:
@@ -332,16 +298,9 @@ class AppRegistry:
             )
 
             user_model, user_app_label = user_selection
-            loaded_users = [
-                item.model
-                for item in self._models
-                if issubclass(item.model, AbstractUser)
-            ]
+            loaded_users = [item.model for item in self._models if issubclass(item.model, AbstractUser)]
             if loaded_users != [user_model]:
-                rendered = ", ".join(
-                    f"{model.__module__}.{model.__qualname__}"
-                    for model in loaded_users
-                )
+                rendered = ", ".join(f"{model.__module__}.{model.__qualname__}" for model in loaded_users)
                 raise RuntimeError(
                     "Registry model loading must produce exactly the configured "
                     f"User {user_model.__module__}.{user_model.__qualname__}; "
@@ -351,10 +310,7 @@ class AppRegistry:
         from oldman.storage.lifecycle import install_model_file_lifecycle
 
         install_model_file_lifecycle(self._models)
-        self._models_by_type = {
-            metadata.model: metadata
-            for metadata in self._models
-        }
+        self._models_by_type = {metadata.model: metadata for metadata in self._models}
         self._models_loaded = True
 
     def load_commands(self) -> None:
@@ -420,16 +376,12 @@ class AppRegistry:
                     command = value()
                 except TypeError as exc:
                     raise TypeError(
-                        f"Command {value.__module__}.{value.__qualname__} from App "
-                        f"{config.label!r} must be constructible without arguments."
+                        f"Command {value.__module__}.{value.__qualname__} from App {config.label!r} must be constructible without arguments."
                     ) from exc
 
                 existing = commands_by_name.get(command.name)
                 if existing is not None:
-                    raise ValueError(
-                        f"App command {command.name!r} is provided by both "
-                        f"{command_app_by_name[command.name]!r} and {config.label!r}."
-                    )
+                    raise ValueError(f"App command {command.name!r} is provided by both {command_app_by_name[command.name]!r} and {config.label!r}.")
                 commands_by_name[command.name] = command
                 command_app_by_name[command.name] = config.label
                 app_commands.append(command)
@@ -504,4 +456,6 @@ class AppRegistry:
                     f"model state ({'; '.join(details)}). All models must be "
                     "declared during the Registry model stage."
                 )
+
+
 __all__ = ["AppRegistry"]

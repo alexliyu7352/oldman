@@ -172,9 +172,7 @@ class SimpleApplication(BaseApplication):
 
                     # 等待任务完成
                     if pending:
-                        self.loop.run_until_complete(
-                            asyncio.gather(*pending, return_exceptions=True)
-                        )
+                        self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
                 except Exception as e:
                     logger.error(f"清理任务时出错: {e}")
                 finally:

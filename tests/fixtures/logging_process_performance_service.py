@@ -156,11 +156,7 @@ async def _wait_for_replacement(
     while time.monotonic() < deadline:
         worker = manager.workers.get(0)
         worker_pid = None if worker is None else worker.process.pid
-        if (
-            worker is not None
-            and worker_pid not in {None, original_pid}
-            and worker.process.is_alive()
-        ):
+        if worker is not None and worker_pid not in {None, original_pid} and worker.process.is_alive():
             return cast(int, worker_pid)
         await asyncio.sleep(0.05)
     raise TimeoutError(f"BaseManager did not replace PID {original_pid}")
@@ -183,10 +179,7 @@ def _process_group_pids(process_group: int) -> list[int]:
 
 async def _run_output_subprocesses(byte_count: int) -> dict[str, Any]:
     """Measure inherited and PIPE output while proving the event loop stays alive."""
-    source = (
-        "import os,sys; n=int(sys.argv[1]); data=b'x'*n; "
-        "os.write(1,data); os.write(2,data)"
-    )
+    source = "import os,sys; n=int(sys.argv[1]); data=b'x'*n; os.write(1,data); os.write(2,data)"
     children_before = _usage_snapshot(resource.RUSAGE_CHILDREN)
     started_at = time.perf_counter()
     inherited = await create_subprocess_exec(
@@ -246,11 +239,7 @@ async def _run_output_subprocesses(byte_count: int) -> dict[str, Any]:
 
 async def _run_subprocess_cleanup() -> dict[str, Any]:
     """Prove timeout and task cancellation remove their complete process groups."""
-    sleeper = (
-        "import subprocess,sys,time; "
-        "subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); "
-        "time.sleep(60)"
-    )
+    sleeper = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); time.sleep(60)"
     timeout_process = await create_subprocess_exec(
         sys.executable,
         "-c",
@@ -331,11 +320,7 @@ class ProcessPerformanceService(SimpleApplication):
             "cleanup": await _run_subprocess_cleanup(),
         }
         total_elapsed = time.perf_counter() - total_started
-        total_units = (
-            MAIN_RECORDS
-            + BASE_RECORDS * 2
-            + ASYNC_RECORDS * (ASYNC_RUNS + 1)
-        )
+        total_units = MAIN_RECORDS + BASE_RECORDS * 2 + ASYNC_RECORDS * (ASYNC_RUNS + 1)
         self.result["application_cpu"] = _usage_delta(
             total_before,
             _usage_snapshot(resource.RUSAGE_SELF),
@@ -364,9 +349,7 @@ class ProcessPerformanceService(SimpleApplication):
             second_pid = await _wait_for_replacement(manager, first_pid)
             second = await _wait_for_json(BASE_RESULT)
             if int(second["pid"]) != second_pid:
-                raise RuntimeError(
-                    f"replacement result PID {second['pid']} != manager PID {second_pid}"
-                )
+                raise RuntimeError(f"replacement result PID {second['pid']} != manager PID {second_pid}")
             return {
                 "first": first,
                 "replacement": second,

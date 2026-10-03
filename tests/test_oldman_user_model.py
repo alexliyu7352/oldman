@@ -52,10 +52,7 @@ class OldmanUserModelTest(unittest.TestCase):
         self.assertIs(True, table.c.id.autoincrement)
         self.assertEqual(
             1,
-            sum(
-                constraint.name == "ck_oldman_user_superuser_is_staff"
-                for constraint in table.constraints
-            ),
+            sum(constraint.name == "ck_oldman_user_superuser_is_staff" for constraint in table.constraints),
         )
         self.assertTrue(issubclass(User, AbstractUser))
         self.assertIs(User, get_user_model(AuthSettings()))
@@ -305,9 +302,7 @@ class OldmanUserModelTest(unittest.TestCase):
     def test_admin_settings_reject_the_removed_user_model_source(self) -> None:
         """A stale Admin-local model setting must not be silently ignored."""
         with self.assertRaisesRegex(ValidationError, "user_model"):
-            AdminSettings.model_validate(
-                {"user_model": "apps.accounts.models.User"}
-            )
+            AdminSettings.model_validate({"user_model": "apps.accounts.models.User"})
 
     def test_resolver_rejects_an_import_that_is_not_a_user_model(self) -> None:
         """Invalid configured objects should fail at the model boundary."""

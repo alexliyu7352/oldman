@@ -23,9 +23,7 @@ def _run_notification_scenario(source: str) -> subprocess.CompletedProcess[str]:
         if existing_path := environment.get("PYTHONPATH"):
             python_paths.append(existing_path)
         environment["PYTHONPATH"] = os.pathsep.join(python_paths)
-        environment["OLDMAN_NOTIFICATIONS_TEST_DATABASE"] = str(
-            Path(temporary_directory) / "notification-migration.db"
-        )
+        environment["OLDMAN_NOTIFICATIONS_TEST_DATABASE"] = str(Path(temporary_directory) / "notification-migration.db")
         return subprocess.run(
             [sys.executable, "-c", textwrap.dedent(source)],
             cwd=REPOSITORY_ROOT,

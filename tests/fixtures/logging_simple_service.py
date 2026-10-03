@@ -97,10 +97,7 @@ def _runtime_probe() -> dict[str, Any]:
         raise RuntimeError("application logging runtime is missing")
     return {
         "pid": os.getpid(),
-        "handlers": sorted(
-            type(handler).__name__
-            for handler in logging.getLogger("default").handlers
-        ),
+        "handlers": sorted(type(handler).__name__ for handler in logging.getLogger("default").handlers),
         "owns_rotation": runtime.owns_rotation,
         "rotation_threads": rotation_thread_names(),
     }
@@ -120,11 +117,7 @@ def _parse_base_probes(text: str) -> dict[int, dict[str, Any]]:
 
 def _pipe_reader_thread_names() -> list[str]:
     """Return live AsyncProcessManager console reader threads."""
-    return sorted(
-        thread.name
-        for thread in threading.enumerate()
-        if isinstance(thread, ParentLogPipeReader)
-    )
+    return sorted(thread.name for thread in threading.enumerate() if isinstance(thread, ParentLogPipeReader))
 
 
 async def _run_inherited_subprocess() -> dict[str, Any]:
@@ -153,11 +146,7 @@ async def _run_inherited_subprocess() -> dict[str, Any]:
 
 async def _run_pipe_subprocess() -> dict[str, Any]:
     """Run an explicitly captured child without forwarding its output."""
-    code = (
-        "import sys; token=sys.argv[1]; "
-        "print(f'PIPE_STDOUT:{token}', flush=True); "
-        "print(f'PIPE_STDERR:{token}', file=sys.stderr, flush=True)"
-    )
+    code = "import sys; token=sys.argv[1]; print(f'PIPE_STDOUT:{token}', flush=True); print(f'PIPE_STDERR:{token}', file=sys.stderr, flush=True)"
     process = await create_subprocess_exec(
         sys.executable,
         "-c",
@@ -256,11 +245,7 @@ class LoggingSimpleService(SimpleApplication):
 
             os.kill(first_pid, signal.SIGKILL)
             await _wait_until(
-                lambda: (
-                    0 in manager.workers
-                    and manager.workers[0].process.pid not in (None, first_pid)
-                    and manager.workers[0].process.is_alive()
-                ),
+                lambda: 0 in manager.workers and manager.workers[0].process.pid not in (None, first_pid) and manager.workers[0].process.is_alive(),
                 "automatic BaseManager replacement",
                 timeout=12,
             )

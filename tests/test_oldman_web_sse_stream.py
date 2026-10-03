@@ -194,10 +194,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("text/event-stream; charset=utf-8", response.content_type)
         self.assertEqual("no-cache, no-store, no-transform", response.headers["cache-control"])
         self.assertEqual(
-            (
-                b'event: status\nid: 1\ndata: {"status":"starting"}\n\n'
-                b'event: status\nid: 2\ndata: {"status":"ready"}\n\n'
-            ),
+            (b'event: status\nid: 1\ndata: {"status":"starting"}\n\nevent: status\nid: 2\ndata: {"status":"ready"}\n\n'),
             response.body,
         )
 
@@ -588,9 +585,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         user_writer = asyncio.create_task(user_connection.run_writer())
         business_writer = asyncio.create_task(business_connection.run_writer())
         user_subscription = asyncio.create_task(user_stream.subscribe_user(1))
-        business_subscription = asyncio.create_task(
-            business_stream.subscribe("app.metrics.overview")
-        )
+        business_subscription = asyncio.create_task(business_stream.subscribe("app.metrics.overview"))
         await asyncio.sleep(0)
 
         self.assertEqual((user_stream,), pool.user_streams(1))
@@ -695,11 +690,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         registry = Mock()
         alias = Mock()
         registry.using.return_value = alias
-        settings = DefaultSettings.model_validate(
-            {
-                "web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()
-            }
-        )
+        settings = DefaultSettings.model_validate({"web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()})
         try:
             with (
                 patch.dict(conf.__dict__, {"settings": settings}),
@@ -720,11 +711,7 @@ class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
         extension = SSEExtension()
         registry = Mock()
         registry.using.side_effect = RedisAliasNotConfiguredError("missing SSE")
-        settings = DefaultSettings.model_validate(
-            {
-                "web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()
-            }
-        )
+        settings = DefaultSettings.model_validate({"web": WebConfig(sse=SSEConfig(enabled=True)).model_dump()})
         try:
             with (
                 patch.dict(conf.__dict__, {"settings": settings}),

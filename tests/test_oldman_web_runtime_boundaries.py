@@ -348,9 +348,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         sanic_app = Mock(spec=Sanic)
         sanic_app.ctx = SimpleNamespace()
         sanic_app.router.routes_all = {}
-        self.storage_registry.init_app.side_effect = lambda app: events.append(
-            "storage"
-        )
+        self.storage_registry.init_app.side_effect = lambda app: events.append("storage")
         self.sse_extension.init_app.side_effect = lambda app: events.append("sse")
 
         with (
@@ -534,9 +532,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
 
     def test_oldman_formatters_are_not_replaced_by_sanic_auto_formatters(self) -> None:
         """Neither defaults nor WebApplication may introduce Sanic formatters."""
-        source = (ROOT / "oldman" / "runtime" / "web.py").read_text(
-            encoding="utf-8"
-        )
+        source = (ROOT / "oldman" / "runtime" / "web.py").read_text(encoding="utf-8")
 
         self.assertNotIn("sanic.logging.formatter", repr(LOGGING_CONFIG_DEFAULTS))
         self.assertNotIn("AutoAccessFormatter", source)
@@ -1134,13 +1130,18 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         self.settings.web.workers = 4
         multi_worker = Mock()
         application.prepare_server(cast(Any, multi_worker))
-        self.assertEqual({"workers": 4, "single_process": False}, {key: multi_worker.prepare.call_args.kwargs[key] for key in ("workers", "single_process")})
+        self.assertEqual(
+            {"workers": 4, "single_process": False}, {key: multi_worker.prepare.call_args.kwargs[key] for key in ("workers", "single_process")}
+        )
 
         self.settings.web.workers = 1
         self.settings.web.auto_reload = True
         reloading = Mock()
         application.prepare_server(cast(Any, reloading))
-        self.assertEqual({"auto_reload": True, "single_process": False}, {key: reloading.prepare.call_args.kwargs[key] for key in ("auto_reload", "single_process")})
+        self.assertEqual(
+            {"auto_reload": True, "single_process": False},
+            {key: reloading.prepare.call_args.kwargs[key] for key in ("auto_reload", "single_process")},
+        )
 
     def test_i18n_commands_are_not_owned_by_web_application(self) -> None:
         """Catalog commands belong to the CLI feature instead of Web services."""

@@ -134,28 +134,18 @@ def load_migration_graph(
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             script_directory = ScriptDirectory.from_config(resolved_config)
-            revisions_descending = tuple(
-                script_directory.walk_revisions(base="base", head="heads")
-            )
+            revisions_descending = tuple(script_directory.walk_revisions(base="base", head="heads"))
     except (CommandError, RevisionError, UserWarning) as exc:
         raise MigrationGraphError(f"Invalid Alembic revision graph: {exc}") from None
 
-    location_by_path = {
-        location.path.resolve(): location
-        for location in locations
-        if location.exists
-    }
+    location_by_path = {location.path.resolve(): location for location in locations if location.exists}
     revision_locations: dict[str, AppMigrationLocation] = {}
-    revisions_by_label: dict[str, list[Script]] = {
-        location.label: [] for location in locations
-    }
+    revisions_by_label: dict[str, list[Script]] = {location.label: [] for location in locations}
     for revision in revisions_descending:
         parent = Path(revision.path).resolve().parent
         location = location_by_path.get(parent)
         if location is None:
-            raise MigrationGraphError(
-                f"Revision {revision.revision!r} is outside every registered App migration location."
-            )
+            raise MigrationGraphError(f"Revision {revision.revision!r} is outside every registered App migration location.")
         revision_locations[revision.revision] = location
         revisions_by_label[location.label].append(revision)
 
@@ -190,28 +180,20 @@ def _validate_app_branch(
         return
     bases = [revision for revision in revisions if revision.down_revision is None]
     if len(bases) != 1:
-        raise MigrationGraphError(
-            f"App {location.label!r} must contain exactly one base revision; found {len(bases)}."
-        )
+        raise MigrationGraphError(f"App {location.label!r} must contain exactly one base revision; found {len(bases)}.")
     base = bases[0]
     if _declared_branch_labels(base) != (location.label,):
-        raise MigrationGraphError(
-            f"App {location.label!r} base revision {base.revision!r} must declare "
-            f"branch_labels=({location.label!r},)."
-        )
+        raise MigrationGraphError(f"App {location.label!r} base revision {base.revision!r} must declare branch_labels=({location.label!r},).")
 
     for revision in revisions:
         if revision is not base and _declared_branch_labels(revision):
             raise MigrationGraphError(
-                f"App {location.label!r} revision {revision.revision!r} repeats branch_labels; "
-                "only the base revision may declare it."
+                f"App {location.label!r} revision {revision.revision!r} repeats branch_labels; only the base revision may declare it."
             )
         for down_revision in _revision_ids(revision.down_revision):
             down_location = revision_locations.get(down_revision)
             if down_location is None:
-                raise MigrationGraphError(
-                    f"Revision {revision.revision!r} refers to unknown down_revision {down_revision!r}."
-                )
+                raise MigrationGraphError(f"Revision {revision.revision!r} refers to unknown down_revision {down_revision!r}.")
             if down_location.label != location.label:
                 raise MigrationGraphError(
                     f"Revision {revision.revision!r} in App {location.label!r} uses "
@@ -222,9 +204,7 @@ def _validate_app_branch(
 def _config_locations(config: Config) -> tuple[AppMigrationLocation, ...]:
     """Read locations attached by build_alembic_config without reconstructing them."""
     value = config.attributes.get("oldman_locations")
-    if not isinstance(value, tuple) or not all(
-        isinstance(item, AppMigrationLocation) for item in value
-    ):
+    if not isinstance(value, tuple) or not all(isinstance(item, AppMigrationLocation) for item in value):
         raise TypeError("Alembic Config does not contain Oldman App migration locations.")
     return value
 
@@ -234,20 +214,14 @@ def _module_directory(package: str, relative_module: str) -> Path:
     package_module = importlib.import_module(package)
     package_paths = tuple(Path(path).resolve() for path in getattr(package_module, "__path__", ()))
     if len(package_paths) != 1:
-        raise MigrationGraphError(
-            f"App package {package!r} must resolve to exactly one filesystem directory."
-        )
+        raise MigrationGraphError(f"App package {package!r} must resolve to exactly one filesystem directory.")
     path = package_paths[0].joinpath(*relative_module.split("."))
     if path.exists() and not path.is_dir():
-        raise MigrationGraphError(
-            f"App migration module {package}.{relative_module} must be a package directory."
-        )
+        raise MigrationGraphError(f"App migration module {package}.{relative_module} must be a package directory.")
     if path.is_dir():
         spec = importlib.util.find_spec(f"{package}.{relative_module}")
         if spec is None or spec.submodule_search_locations is None:
-            raise MigrationGraphError(
-                f"App migration module {package}.{relative_module} is not an importable package."
-            )
+            raise MigrationGraphError(f"App migration module {package}.{relative_module} is not an importable package.")
     return path.resolve()
 
 

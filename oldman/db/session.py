@@ -383,11 +383,7 @@ class DatabaseManager:
     async def create_db_and_tables(self) -> None:
         """Create managed metadata for low-level tests, never for deployment."""
         await self.initialize()
-        managed_tables = [
-            table
-            for table in Base.metadata.sorted_tables
-            if table.info.get(MANAGED_INFO_KEY, True)
-        ]
+        managed_tables = [table for table in Base.metadata.sorted_tables if table.info.get(MANAGED_INFO_KEY, True)]
         async with self.engine.begin() as connection:
             await connection.run_sync(
                 lambda sync_connection: Base.metadata.create_all(

@@ -46,7 +46,7 @@ def _app(label: str) -> str:
 
         class Config(AppConfig):
             label = {label!r}
-            display_name = {label.replace('_', ' ').title()!r}
+            display_name = {label.replace("_", " ").title()!r}
 
         app = Config()
     """
@@ -122,7 +122,7 @@ class AlembicAppGraphTests(unittest.TestCase):
             },
             _project_source(("reports",)).replace(
                 'database_url="sqlite+aiosqlite:///graph.db"',
-                'database_url=f"sqlite+aiosqlite:///{Path.cwd() / \'graph.db\'}"',
+                "database_url=f\"sqlite+aiosqlite:///{Path.cwd() / 'graph.db'}\"",
             )
             + textwrap.dedent(
                 """

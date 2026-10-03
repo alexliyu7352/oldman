@@ -75,7 +75,9 @@ class TableRenderer:
     def render_empty_templates(self) -> Markup:
         """Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser."""
         return Markup("").join(
-            Markup('<template data-om-table-empty-template="{name}">{body}</template>').format(name=name, body=self.render_empty_state(filtered=filtered))
+            Markup('<template data-om-table-empty-template="{name}">{body}</template>').format(
+                name=name, body=self.render_empty_state(filtered=filtered)
+            )
             for name, filtered in (("all", False), ("filtered", True))
         )
 
@@ -86,10 +88,7 @@ class TableRenderer:
         selectable = bool(self.table.selectable)
         if not (show_search or tools or selectable or bulk_actions):
             return Markup("")
-        export_formats = [
-            {"name": name, "label": _EXPORT_FORMAT_LABELS.get(name, name.upper())}
-            for name in self.export_formats()
-        ]
+        export_formats = [{"name": name, "label": _EXPORT_FORMAT_LABELS.get(name, name.upper())} for name in self.export_formats()]
         return render_component_template_sync(
             self.table,
             self.template_name("toolbar.html"),
@@ -338,7 +337,9 @@ class TableRenderer:
             },
         )
 
-    def render_html_cell(self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> Markup:
+    def render_html_cell(
+        self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
+    ) -> Markup:
         """渲染 HTML Table 单元格。"""
         display_value, raw_value = self.table.get_cell_values(row, column, context, row_index=row_index, column_index=column_index, request=request)
         return render_component_template_sync(

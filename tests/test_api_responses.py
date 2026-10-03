@@ -165,9 +165,7 @@ class ApiResponseModelTest(unittest.TestCase):
                 "error_code": 0,
                 "message": "",
                 "data": {},
-                "actions": [
-                    {"action": "replace_html", "target": "#result", "html": "<p>Updated</p>"}
-                ],
+                "actions": [{"action": "replace_html", "target": "#result", "html": "<p>Updated</p>"}],
             },
         )
         with self.assertRaises(ValueError):

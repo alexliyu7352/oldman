@@ -59,27 +59,17 @@ def load_migration_project(project_root: Path | None = None) -> MigrationProject
     if not definitions:
         raise ValueError("Oldman database commands require at least one real service in services/.")
 
-    config_paths = {
-        module_name: root / "data" / f"{module_name}_settings.yaml"
-        for module_name in definitions
-    }
+    config_paths = {module_name: root / "data" / f"{module_name}_settings.yaml" for module_name in definitions}
     missing = [path for path in config_paths.values() if not path.is_file()]
     if missing:
         rendered = ", ".join(str(path.relative_to(root)) for path in missing)
         raise ValueError(f"Service settings files are missing: {rendered}")
 
-    service_configs = tuple(
-        _read_service_config(module_name, config_paths[module_name])
-        for module_name in definitions
-    )
+    service_configs = tuple(_read_service_config(module_name, config_paths[module_name]) for module_name in definitions)
     database_url = _resolve_database_url(service_configs)
     user_model_path = _resolve_user_model(service_configs, metadata.migration_apps)
 
-    app_packages = _ordered_union(
-        package
-        for config in service_configs
-        for package in config.app_packages
-    )
+    app_packages = _ordered_union(package for config in service_configs for package in config.app_packages)
     app_packages = _ordered_union((*app_packages, *metadata.migration_apps))
     registry = AppRegistry()
     registry.register_packages(app_packages)
@@ -122,11 +112,7 @@ def _read_project_metadata(path: Path) -> _ProjectMetadata:
     raw_project_id = oldman.get("project_id")
     if raw_project_id is None:
         generated = uuid4()
-        raise ValueError(
-            "Oldman database commands require a committed project UUID. Add:\n\n"
-            "[tool.oldman]\n"
-            f'project_id = "{generated}"'
-        )
+        raise ValueError(f'Oldman database commands require a committed project UUID. Add:\n\n[tool.oldman]\nproject_id = "{generated}"')
     if not isinstance(raw_project_id, str):
         raise ValueError("pyproject.toml [tool.oldman].project_id must be a UUID string.")
     try:
@@ -222,8 +208,7 @@ def _read_user_model(
     owner_package = _model_package(user_model_path, app_packages)
     if owner_package is None:
         raise ValueError(
-            f"Service {module_name!r} selects User model {user_model_path!r}, "
-            "but its owning App is not listed in that service's settings.apps."
+            f"Service {module_name!r} selects User model {user_model_path!r}, but its owning App is not listed in that service's settings.apps."
         )
     return user_model_path
 
@@ -266,11 +251,7 @@ def _model_package(model_path: str, packages: tuple[str, ...]) -> str | None:
     module_name, separator, _ = model_path.rpartition(".")
     if not separator:
         return None
-    matches = [
-        package
-        for package in packages
-        if module_name == package or module_name.startswith(f"{package}.")
-    ]
+    matches = [package for package in packages if module_name == package or module_name.startswith(f"{package}.")]
     return max(matches, key=len) if matches else None
 
 
