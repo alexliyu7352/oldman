@@ -88,16 +88,59 @@ async def export_report(request):
 
 
 class ReportTable(SQLAlchemyTableView):
-    async def check_auth(self, request):
-        return await has_perm(request, ReportPermissions.view)
+    async def check_permission(self, request, *, method_name, route_kwargs):
+        return await has_perm(request, ReportPermissions.view), None   # 不持有就 403,不查报表数据
 ```
 
 - 超级用户持有全部权限，不做任何查询；未登录一律没有。其他用户持有的，是他登录时所持角色授予的权限。
 - 角色 id 随登录一起走：登录时（服务安装了 `oldman.apps.roles`）写进 session 快照，取令牌和刷新令牌时写进访问令牌的 `roles` 声明，`request.ctx.user.role_ids` 读得到。没有安装 roles App 的服务，登录不带角色，只有超级用户能通过检查；与装了 roles App 的服务共用登录状态时，session 里带来的角色 id 在这里也不起作用，也不会去读角色缓存和角色表。
 - 一个请求里第一次检查时按这些角色 id 从角色缓存取一次权限集合，之后的检查都读这份结果。缓存里没有的角色从数据库读，默认是进程的 `db_manager`；角色表在别的库里时（比如 Admin 装在自己的 `DatabaseManager` 上），`has_perm`、`require_perm`、`permissions_not_held` 都可以传 `db_manager=`，内置 Admin 传的就是它自己的。角色缓存所在的 Redis 不可用时回 503，不按"没有权限"处理。
 - 检查只接受声明出来的 `Permission` 对象，传字符串会报错。
-- 在哪里检查由业务决定：视图里调用 `require_perm`；表格、下拉等组件重写已有的 `check_auth` 钩子，在里面调用 `has_perm`，也可以在那里加上按对象、按行的判断。框架不在组件上另加声明式属性，模板也不做权限判断：没有权限的内容由后端决定不渲染，或在操作时报错。
+- 在哪里检查由业务决定：视图里调用 `require_perm`；表格、图表、下拉按下一节的分层放在对应的钩子里。框架不在组件上另加声明式属性，模板也不做权限判断：没有权限的内容由后端决定不渲染，或在操作时报错。
 - 交出权限时只能交出自己持有的：`await permissions_not_held(request, names)` 返回这些权限名里当前用户没有持有的（排好序；超级用户永远是空列表）。共用的用户表单给用户**新加**角色、`RoleForm` 给角色**新加**权限时都用它：不是超级用户的人，新加的角色的全部权限、新加的权限都必须在自己持有的范围内，否则表单报错；去掉、保留原有的不受限制。否则能编辑角色或用户的人，就能给自己持有的角色、或自己掌握的账号，授予比自己更多的权限。项目自己写的授权页面也应当这样检查。
 - 修改一个角色包含的权限立即对持有它的人生效，不需要重新登录。修改某个用户持有哪些角色（`replace_user_roles` 返回 `True`）时，调用方在提交后结束这个用户的登录（`revoke_user_logins` 或 `end_user_logins`）：他的 session 和令牌里还带着旧的角色 id。删除角色不结束任何人的登录，仍带着它的 id 的登录从它那里得不到任何权限。这依赖角色 id 不复用：SQLite 用 `AUTOINCREMENT`，PostgreSQL、MySQL 8.0 起的自增值也不回退；MySQL 5.7 及更早例外，它的自增计数只在内存里，数据库重启后从现有最大 id 接着往下发，删掉的最大 id 会被新角色重新用上。在这类数据库上删除角色前，先从 `UserRole`（`oldman_user_role` 表）查出持有它的用户，删除后对他们调用 `end_user_logins(user_id)`，让带着这个 id 的登录全部结束。
-- 完整 Demo 的示例：[apps/examples/permissions.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/permissions.py) 声明 `examples.view_projects`，[apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py) 里项目表格的 `check_auth` 检查它：staff 能打开页面，没有带这个权限的角色时表格数据回 403。fixture 带一个授予它的示例角色 Project viewers，用户编辑页勾上它即可。
+- 完整 Demo 的示例：[apps/examples/permissions.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/permissions.py) 声明 `examples.view_projects`，[apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py) 里项目表格的 `check_permission` 检查它：staff 能打开页面，没有带这个权限的角色时表格数据回 403。Demo 的用户管理页按 `auth.users.*` 检查。fixture 带两个示例角色：授予 `examples.view_projects` 的 Project viewers、授予 `auth.users.*` 的 User managers，用户编辑页勾上即可。
 - 内置 Admin 也用这套检查决定 staff 能进哪个模型、能做什么；每个模型自动声明的四个权限见 [Admin](admin.md#权限与-user)。
+
+## 数据组件的权限分层
+
+表格、图表、下拉的数据接口按顺序过四层,每层回答一个问题,拿得到的东西也不同:
+
+| 层 | 何时执行 | 拿得到 | 回答的问题 | 拒绝时 |
+| --- | --- | --- | --- | --- |
+| `require_authenticated`(开关,组件默认 True) | 最先 | request | 登录了吗 | 未登录协议:401,页面请求跳登录页 |
+| `check_permission(request, *, method_name, route_kwargs)` | 解析参数、打开数据库会话之前 | 用户、请求方法、路径参数 | 不查数据就能判断的整体拒绝:staff、角色权限、路由参数 | 403 |
+| `check_auth(table_request)` / `check_auth(chart_request)` | 参数解析(图表还要校验)之后,SQLAlchemy 组件的只读会话已打开 | 解析后的请求:用户(`.request`)、路径参数、筛选、搜索;可以查库 | 要看参数或查库才能判断的整体拒绝 | 403 |
+| 数据范围:表格 `apply_base_filters(query, table_request)`、下拉 `get_queryset(request, context)`、图表 `get_result(chart_request)` | 构造查询时 | 用户、路径参数、查询参数,以及查询本身 | 能看到哪些行 | 不拒绝,只缩小结果 |
+
+```python
+from sqlalchemy import select
+
+from oldman.web.authentication import request_user
+
+
+class TeamProjectTable(SQLAlchemyTableView):
+    route_path = "/teams/<team_id:int>/projects/table"
+
+    async def check_permission(self, request, *, method_name, route_kwargs):
+        # 纯权限:不碰数据库就挡掉。
+        return await has_perm(request, ReportPermissions.view), None
+
+    async def check_auth(self, table_request):
+        # 要查库:当前用户必须是这个团队的成员。
+        user_id = request_user(table_request.request).id
+        member = await self.db_session.scalar(
+            select(TeamMember).where(TeamMember.team_id == table_request.route_kwargs["team_id"], TeamMember.user_id == user_id)
+        )
+        return member is not None
+
+    async def apply_base_filters(self, query, table_request):
+        # 行范围:普通成员只看自己负责的项目;它决定的行也是总数、分页和导出的范围。
+        user = request_user(table_request.request)
+        return query if user.is_superuser else query.where(Project.owner_id == user.id)
+```
+
+`TeamMember`、`Project` 是业务自己的模型。"只能看自己的行"不要放在 `check_auth`:它只能拒绝整个请求,改不了参与计数、分页、导出的那条查询。
+下拉只有一个中心接口服务所有 provider,分派阶段还不知道是哪个 provider,单个 provider 的规则写在它自己的 `check_auth(request, context)`。
+框架的 `UserTable` 自己在 `check_permission` 里要求 `auth.users.view`;内置 Admin 的表格把"staff(要求超级用户时是超级用户)+ 模型权限"写在
+`check_permission`,经同一套分派调用。

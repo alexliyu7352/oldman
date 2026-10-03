@@ -180,7 +180,9 @@ class PermissionsReadTheRequestUserTest(unittest.TestCase):
 
         class StaffView(HTTPMethodView):
             require_authenticated = True
-            require_staff = True
+
+            async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
+                return request_user(request).is_staff, None
 
             async def get(self, request):
                 return text("ok")

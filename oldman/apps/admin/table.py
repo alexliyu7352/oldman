@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Mapping
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from markupsafe import Markup
 from sqlalchemy import select
@@ -22,8 +22,6 @@ from oldman.web.components.tables.views import TableInvalidRequest
 class AdminModelTable(SQLAlchemyTableView):
     """Expose a ModelAdmin through the framework Table renderer and protocol."""
 
-    # The Admin's floor is staff; check_auth then applies the model's own permissions.
-    require_staff = True
     renderer_class = TailwindTableRenderer
     route_name = ""
     route_path = ""
@@ -72,9 +70,15 @@ class AdminModelTable(SQLAlchemyTableView):
         self.database_manager = db_manager
         self._permission_denied_response = permission_denied_response
 
-    async def check_auth(self, request: Any) -> bool:
-        """Use the registered ModelAdmin permission contract for table requests."""
-        return await self.model_admin.has_view_permission(request)
+    async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
+        """The model's view permission, which carries the Admin's own floor (staff, or superuser when required)."""
+        del method_name, route_kwargs
+        return await self.model_admin.has_view_permission(request), None
+
+    async def on_authentication_required(self, request: Any, response_mode: Literal["html", "json"], *, method_name: str) -> Any:
+        """A signed-out request is sent to the Admin's login page, not the site's."""
+        del response_mode, method_name
+        return await self.render_permission_denied_response(request)
 
     def export_filename(self, export_format: str) -> str:
         """Name downloads after the model path instead of the internal route name."""

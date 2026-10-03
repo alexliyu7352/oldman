@@ -69,7 +69,7 @@ class ComponentDatabaseManagerContractTest(unittest.TestCase):
         class CustomDatabaseTable(SQLAlchemyTableView):
             database_manager = cast(DatabaseManager, manager)
 
-            async def check_auth(self, request: Any) -> bool:
+            async def check_auth(self, table_request: Any) -> bool:
                 return False
 
         table = CustomDatabaseTable()
@@ -88,7 +88,7 @@ class ComponentDatabaseManagerContractTest(unittest.TestCase):
         class FailingDatabaseTable(SQLAlchemyTableView):
             database_manager = cast(DatabaseManager, manager)
 
-            async def check_auth(self, request: Any) -> bool:
+            async def check_auth(self, table_request: Any) -> bool:
                 raise RuntimeError("component hook failed")
 
         table = FailingDatabaseTable()

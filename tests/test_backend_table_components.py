@@ -91,7 +91,7 @@ class SlugProgramTable(DemoProgramTable):
 
 
 class DeniedProgramTable(DemoProgramTable):
-    async def check_auth(self, request) -> bool:
+    async def check_auth(self, table_request) -> bool:
         return False
 
 
@@ -631,6 +631,22 @@ class TableStructuredDataTest(unittest.TestCase):
 
         self.assertEqual(response.status, 403)
         self.assertEqual(payload["error_code"], ApiErrorCode.PERMISSION_DENIED)
+
+    def test_check_auth_receives_the_parsed_request(self) -> None:
+        """The data-aware hook sees the parsed search and route parameters, not just the raw request."""
+        seen: list[Any] = []
+
+        class InspectingTable(DemoProgramTable):
+            async def check_auth(self, table_request) -> bool:
+                seen.append(table_request)
+                return False
+
+        response = asyncio.run(InspectingTable().get(make_request(args={"q": "news"}, headers={"accept": "application/json"}), channel="cctv1"))
+
+        self.assertEqual(403, response.status)
+        self.assertEqual(1, len(seen))
+        self.assertIsInstance(seen[0], TableRequest)
+        self.assertEqual(("news", {"channel": "cctv1"}), (seen[0].q, seen[0].route_kwargs))
 
     def test_table_result_requires_row_contexts_to_match_rows(self) -> None:
         with self.assertRaises(ValueError):

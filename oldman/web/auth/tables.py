@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from oldman.auth import get_user_model
 from oldman.i18n import gettext, gettext_lazy
+from oldman.web.auth.permissions import has_perm
 from oldman.web.components.tables import (
     Column,
     RowAction,
@@ -109,7 +110,11 @@ class UserTableFilters:
 
 
 class UserTable(UserTableFilters, SQLAlchemyTableView):
-    """The user list as a table data endpoint; a site sets `route_name`, `route_path` and `object_url()`."""
+    """The user list as a table data endpoint; a site sets `route_name`, `route_path` and `object_url()`.
+
+    It lists every account with its email and flags, so it asks for `auth.users.view` itself (a
+    superuser holds it): a dashboard admits every active user, and being signed in is not enough.
+    """
 
     renderer_class = TailwindTableRenderer
     page_size = 10
@@ -141,6 +146,14 @@ class UserTable(UserTableFilters, SQLAlchemyTableView):
         super().__init__(request, **options)
         if self.model is None:
             self.model = get_user_model()
+
+    async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
+        """`auth.users.view`, checked before the query runs."""
+        del method_name, route_kwargs
+        # Imported here: importing oldman.web.auth must declare no auth.* permission.
+        from oldman.auth.user_permissions import VIEW_USERS
+
+        return await has_perm(request, VIEW_USERS), None
 
     def object_url(self, row: Any, action: str) -> str:
         """Map "edit", "password-modal", "status-modal" and "delete-modal" to this site's routes for `row`."""

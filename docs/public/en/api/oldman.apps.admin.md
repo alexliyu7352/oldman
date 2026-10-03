@@ -342,7 +342,8 @@ AdminModelTable(request: Any, *, model_admin: ModelAdmin, db_manager: DatabaseMa
 
 Members:
 
-- `async def check_auth(request: Any) -> bool` — Use the registered ModelAdmin permission contract for table requests.
+- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — The model's view permission, which carries the Admin's own floor (staff, or superuser when required).
+- `async def on_authentication_required(request: Any, response_mode: Literal['html', 'json'], *, method_name: str) -> Any` — A signed-out request is sent to the Admin's login page, not the site's.
 - `def export_filename(export_format: str) -> str` — Name downloads after the model path instead of the internal route name.
 - `async def render_permission_denied_response(request: Any, message: str | None=None)` — Preserve the Admin site's authentication and permission response.
 - `async def get_queryset()` — Return the registered model query consumed by SQLAlchemyTableView.

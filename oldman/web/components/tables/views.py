@@ -78,9 +78,8 @@ class TableValidationError(Exception):
 class BaseTableView(DataEndpointMixin, HTTPMethodView):
     """支持结构化数据源的无主题 Table 基类。"""
 
-    # The framework's floor is a signed-in user; staff, roles or permissions are the endpoint's to add.
+    # The framework's floor is a signed-in user; staff, roles or permissions go in check_permission.
     require_authenticated = True
-    require_staff = False
     route_name: str = ""
     route_path: str = ""
     columns: list[object] | tuple[object, ...] = ()
@@ -192,7 +191,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             table_request = self.build_table_request(request, route_kwargs=route_kwargs)
         except TableInvalidRequest as exc:
             return await self.render_request_error_response(request, str(exc), status=400)
-        if not await self.check_auth(table_request.request):
+        if not await self.check_auth(table_request):
             return await self.render_permission_denied_response(request)
         export_format = self.resolve_export_format(request)
         if export_format and export_format not in self.supported_export_formats():
@@ -209,8 +208,15 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             return json_response(self.render_json_payload(table_request, result))
         return html_response(await self.render_html_fragment(table_request, result))
 
-    async def check_auth(self, request: Any) -> bool:
-        """检查当前请求是否允许访问表格数据。"""
+    async def check_auth(self, table_request: TableRequest) -> bool:
+        """要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
+
+        在参数解析之后执行,SQLAlchemy 表格的只读会话此时已经打开(``self.db_session``),可以用
+        ``table_request`` 里的用户(``table_request.request``)、路径参数(``route_kwargs``)、筛选与搜索
+        去查库比对。不看数据的判断放在更早的 ``check_permission``;"只能看到哪些行"放在
+        ``apply_base_filters``——这里只能拒绝整个请求。
+        """
+        del table_request
         return True
 
     async def get_object_list(self) -> Sequence[object]:

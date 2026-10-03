@@ -6,7 +6,7 @@ import asyncio
 import datetime as dt
 import json
 import unittest
-from typing import cast
+from typing import Any, cast
 
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
@@ -16,6 +16,7 @@ from oldman.web.components.charts import (
     ChartConfig,
     ChartField,
     ChartInvalidRequest,
+    ChartRequest,
     ChartResult,
     ChartSeries,
     ChartSummary,
@@ -46,12 +47,12 @@ class StrictChartView(DemoChartView):
 
 
 class DeniedChartView(DemoChartView):
-    async def check_auth(self, request) -> bool:
+    async def check_auth(self, chart_request) -> bool:
         return False
 
 
 class DeniedSQLAlchemyChartView(SQLAlchemyChartView):
-    async def check_auth(self, request) -> bool:
+    async def check_auth(self, chart_request) -> bool:
         return False
 
 
@@ -216,6 +217,24 @@ class ChartViewLifecycleTest(unittest.TestCase):
 
         self.assertEqual(response.status, 403)
         self.assertIn(b"Permission denied", body)
+
+    def test_check_auth_runs_after_validation_with_the_chart_request(self) -> None:
+        """The hook reads filter values the chart accepts: an unknown range is a 400 before it runs."""
+        seen: list[Any] = []
+
+        class InspectingChart(StrictChartView):
+            async def check_auth(self, chart_request) -> bool:
+                seen.append(chart_request)
+                return False
+
+        rejected = asyncio.run(InspectingChart().get(make_chart_request(args={"range": ["1y"]})))
+        self.assertEqual((400, []), (rejected.status, seen))
+
+        valid = {"range": ["30d"], "group_by": ["day"], "metric": ["programmes"], "chart_type": ["line"]}
+        denied = asyncio.run(InspectingChart().get(make_chart_request(args=valid), team="red"))
+        self.assertEqual(403, denied.status)
+        self.assertIsInstance(seen[0], ChartRequest)
+        self.assertEqual(("30d", {"team": "red"}), (seen[0].range_key, seen[0].route_kwargs))
 
     def test_sqlalchemy_chart_view_permission_denied_uses_permission_code(self) -> None:
         manager = FakeDbManager()

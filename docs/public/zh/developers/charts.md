@@ -76,8 +76,8 @@ app.add_route(DashboardProgrammeTrendChart.as_view(), DashboardProgrammeTrendCha
 
 ## 权限
 
-`require_authenticated` 默认是 True、`require_staff` 默认是 False（框架的底线是已登录，需要 staff 时自己设为 True），走的是和其他视图同一套 `oldman.web.HTTPMethodView`
-权限；拒绝时返回 403 的 JSON 错误协议，不跳登录页。需要更细的规则就覆盖 `check_auth()`。
+`require_authenticated` 默认是 True（框架的底线是已登录），不查数据就能判断的规则（staff、角色权限）写在 `check_permission()`，走的是和其他视图同一套 `oldman.web.HTTPMethodView`
+权限；拒绝时返回 403 的 JSON 错误协议，不跳登录页。要看请求参数或查库的规则覆盖 `check_auth(chart_request)`，它在参数校验之后执行；分工见[数据组件的权限分层](permissions.md#数据组件的权限分层)。
 
 ## 不做的事
 

@@ -36,7 +36,7 @@ Members:
 - `allowed_chart_types: tuple[str, ...] = ()`
 - `def build_chart_request(request: Any, *, route_kwargs: dict[str, object]) -> ChartRequest` — 从 HTTP 请求构建标准 ChartRequest。
 - `async def get(request: Any, **route_kwargs: object)` — 处理图表 data endpoint 请求。
-- `async def check_auth(request: Any) -> bool` — 检查当前请求是否允许访问图表数据。
+- `async def check_auth(chart_request: ChartRequest) -> bool` — 要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
 - `async def validate_filters(chart_request: ChartRequest) -> None` — 验证请求中的 filter 参数都由业务图表显式支持。
 - `def validate_allowed_parameter(name: str, value: str, allowed: tuple[str, ...], *, default: str) -> None` — 按业务图表声明的白名单校验单个请求参数。
 - `def render_error_response(message: str, *, status: int, error_code: ApiErrorCode=ApiErrorCode.INVALID_REQUEST)` — 把图表请求错误转换为统一 JSON 响应。

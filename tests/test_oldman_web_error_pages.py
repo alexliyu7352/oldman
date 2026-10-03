@@ -78,6 +78,7 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
         """Explicit modes survive Accept conflicts; every shared caller awaits rendering."""
         from oldman.apps.admin.table import AdminModelTable
         from oldman.web.auth import staff_required, superuser_required
+        from oldman.web.authentication import request_user
         from oldman.web.http import HTTPMethodView, access_denied_response, permission_denied_response, resolve_response_mode
         from oldman.web.session import SessionData
 
@@ -109,7 +110,8 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
             raise AssertionError("denied handler must not execute")
 
         class StaffView(HTTPMethodView):
-            require_staff = True
+            async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
+                return request_user(request).is_staff, None
 
             async def get(self, request):
                 raise AssertionError("denied handler must not execute")

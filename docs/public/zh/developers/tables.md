@@ -54,7 +54,7 @@ select 来自 SQLAlchemy，selectinload 来自 sqlalchemy.orm。在 [views/table
 router.add_route(ExampleProjectTable.as_view(), ExampleProjectTable.route_path, name=ExampleProjectTable.route_name)
 ```
 
-`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`、`require_staff=False`：框架的底线是已登录，要求 staff 就设 `require_staff = True`，要求权限就覆盖 `check_permission()` 或 `check_auth()`。Demo 的登录只接受 staff，它的表格数据因此只有 staff 能取；Demo 是 staff 共用数据；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
+`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`：框架的底线是已登录。不查数据就能判断的（staff、角色权限）覆盖 `check_permission()`，要看请求参数或查库的覆盖 `check_auth(table_request)`，能看到哪些行写在 `apply_base_filters()`，分工见[数据组件的权限分层](permissions.md#数据组件的权限分层)。Demo 的登录只接受 staff，它的表格数据因此只有 staff 能取；Demo 是 staff 共用数据；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
 
 同一个 views/tables.py 用以下辅助函数创建请求级 Table，FILTER_NAMES 是该文件列出的 team_id、status、priority、is_active：
 
@@ -190,7 +190,7 @@ Demo `/examples/tables/realtime` 是手写 HTML table 配合页面私有 Realtim
 
 列显隐和密度按表格的 `html_id` 记在浏览器本地（`oldman:table:<id>`），同一张表下次打开保持。`toolbar = ()` 且没有搜索、选择和批量动作时不输出工具条。ModelAdmin 通过同名的 `table_toolbar` 和 `export_formats` 透传。
 
-导出走同一个数据接口：`export_formats = ("csv",)` 后，前端把当前请求参数去掉分页、加上 `export=csv` 发起下载，后端 `query_export()` 跑同一套筛选、搜索、排序但不分页，行数上限 `max_export_rows`（默认 10000），只写 `Column(exportable=True)` 的列：数字和布尔写 raw value（布尔为 `true`/`false`），其余列写用户看到的文本（去掉标签，块级标签之间补空格；回调以 `(markup, raw)` 形式给出 raw 文本的列直接写 raw），显示为空时才回退到 raw value；以 `=`、`+`、`-`、`@`、Tab 或回车开头的文本前面会加一个单引号，防止 Excel 把用户输入当公式执行（负数等纯数字不受影响）。文件名由 `export_filename(format)` 决定（默认路由名加日期），UTF-8 带 BOM，Excel 直接打开不乱码。权限与数据范围沿用 `check_auth()` 和 `get_queryset()`/`apply_base_filters()`；ModelAdmin 默认开启 CSV，不需要的模型设 `export_formats = ()`。
+导出走同一个数据接口：`export_formats = ("csv",)` 后，前端把当前请求参数去掉分页、加上 `export=csv` 发起下载，后端 `query_export()` 跑同一套筛选、搜索、排序但不分页，行数上限 `max_export_rows`（默认 10000），只写 `Column(exportable=True)` 的列：数字和布尔写 raw value（布尔为 `true`/`false`），其余列写用户看到的文本（去掉标签，块级标签之间补空格；回调以 `(markup, raw)` 形式给出 raw 文本的列直接写 raw），显示为空时才回退到 raw value；以 `=`、`+`、`-`、`@`、Tab 或回车开头的文本前面会加一个单引号，防止 Excel 把用户输入当公式执行（负数等纯数字不受影响）。文件名由 `export_filename(format)` 决定（默认路由名加日期），UTF-8 带 BOM，Excel 直接打开不乱码。权限与数据范围沿用 `check_permission()`、`check_auth()` 和 `get_queryset()`/`apply_base_filters()`；ModelAdmin 默认开启 CSV，不需要的模型设 `export_formats = ()`。
 
 表内空状态有两种：没有任何记录时显示 `empty_message`（可加 `empty_description`），有记录但被搜索或筛选全部挡掉时显示 `empty_filtered_message` 和 `empty_filtered_description`，并带一个“重置筛选”按钮，它清掉表格自己的搜索和初始筛选，再触发同一页面里 `data-om-table-target` 指向本表的筛选表单的重置（没有筛选表单时直接重新加载）。JSON 模式的两种空状态随外壳以 `<template>` 输出，浏览器端按 `filtered_total < total` 选用。
 

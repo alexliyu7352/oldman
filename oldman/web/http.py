@@ -92,13 +92,15 @@ async def access_denied_response(request: Any, *, login_url: str | None = None, 
 
 
 class HTTPMethodView(SanicHTTPMethodView):
-    """Sanic 的 HTTPMethodView 加上 Oldman 的登录与 staff 权限协议。
+    """Sanic 的 HTTPMethodView 加上 Oldman 的登录协议与权限钩子。
 
-    ``require_authenticated`` 与 ``require_staff`` 默认关闭,此时行为与 Sanic 的原类相同。
+    分派时依次:``require_authenticated`` 为真而请求未登录时走登录协议(401 或跳登录页);
+    ``check_permission`` 拒绝时 403;都通过才进入处理方法。``check_permission`` 在解析参数、
+    打开数据库会话之前执行,放不查数据就能判断的整体拒绝(staff、角色权限、路由参数)。
+    ``require_authenticated`` 默认关闭,此时行为与 Sanic 的原类相同。
     """
 
     require_authenticated = False
-    require_staff = False
     response_mode: ResponseMode = "auto"
 
     async def dispatch_request(self, request: Any, *args: object, **kwargs: object):
@@ -110,10 +112,6 @@ class HTTPMethodView(SanicHTTPMethodView):
 
         if self.require_authenticated and not self.is_authenticated(request):
             return await self.resolve_hook_response(self.on_authentication_required(request, response_mode, method_name=method_name))
-
-        if self.require_staff and not self.is_staff(request):
-            denied = gettext("Permission denied", request=request)
-            return await self.resolve_hook_response(self.on_permission_denied(request, response_mode, message=denied, method_name=method_name))
 
         allowed, message = await self.check_permission(request, method_name=method_name, route_kwargs=route_kwargs)
         if not allowed:
@@ -138,12 +136,12 @@ class HTTPMethodView(SanicHTTPMethodView):
         """判断请求是否来自已登录用户,不论它凭什么认证。"""
         return request_user(request).is_authenticated
 
-    def is_staff(self, request: Any) -> bool:
-        """判断请求用户是否具备后台 staff 权限;匿名用户一律没有。"""
-        return request_user(request).is_staff
-
     async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
-        """endpoint 级权限 hook，默认允许。"""
+        """endpoint 级权限 hook,默认允许;返回 (是否允许, 拒绝时的提示)。
+
+        只在登录检查之后执行,所以不必再判断是否登录;要 staff 就看 ``request_user(request).is_staff``,
+        要某个权限就 ``await has_perm(request, PERMISSION)``。
+        """
         del request, method_name, route_kwargs
         return True, None
 
@@ -153,8 +151,8 @@ class HTTPMethodView(SanicHTTPMethodView):
             return await response
         return response
 
-    def on_authentication_required(self, request: Any, response_mode: Literal["html", "json"], *, method_name: str):
-        """未登录响应 hook。"""
+    def on_authentication_required(self, request: Any, response_mode: Literal["html", "json"], *, method_name: str) -> Any:
+        """未登录响应 hook;可以返回响应,也可以返回待 await 的响应(分派时两种都接受)。"""
         del method_name
         return authentication_required_response(request, response_mode)
 

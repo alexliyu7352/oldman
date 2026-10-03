@@ -158,13 +158,16 @@ class OldmanHTTPViewTest(unittest.TestCase):
         with self.assertRaisesRegex(NotImplementedError, "POST is not supported"):
             asyncio.run(GetOnlyView().dispatch_request(make_request(method="POST")))
 
-    def test_authenticated_and_staff_flags_gate_dispatch(self) -> None:
-        """require_authenticated/require_staff 控制登录态和 staff 权限检查。"""
+    def test_sign_in_flag_and_permission_hook_gate_dispatch(self) -> None:
+        """require_authenticated 走登录协议(401),staff 这类规则写在 check_permission 里(403)。"""
+        from oldman.web.authentication import request_user
         from oldman.web.http import HTTPMethodView
 
         class StaffView(HTTPMethodView):
             require_authenticated = True
-            require_staff = True
+
+            async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
+                return request_user(request).is_staff, None
 
             async def get(self, request):
                 return text("ok")
@@ -178,13 +181,12 @@ class OldmanHTTPViewTest(unittest.TestCase):
         staff = asyncio.run(StaffView().dispatch_request(make_request(session=authenticated_session(is_staff=True))))
         self.assertEqual(staff.body, b"ok")
 
-    def test_check_permission_hook_can_deny_after_staff_passes(self) -> None:
-        """check_permission 返回 False 时必须走 on_permission_denied。"""
+    def test_check_permission_hook_denies_with_its_message(self) -> None:
+        """check_permission 返回 False 时必须走 on_permission_denied,并带上它给的消息。"""
         from oldman.web.http import HTTPMethodView
 
         class DeniedView(HTTPMethodView):
             require_authenticated = True
-            require_staff = True
             response_mode = "json"
 
             async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
@@ -209,7 +211,6 @@ class OldmanHTTPViewTest(unittest.TestCase):
         class ClosedTable(BaseTableView):
             columns = ("id",)
             require_authenticated = True
-            require_staff = True
 
             async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
                 return False, "Reports are closed today"
@@ -232,21 +233,21 @@ class OldmanHTTPViewTest(unittest.TestCase):
         # The framework's floor is a signed-in user; staff is the endpoint's to require.
         self.assertTrue(issubclass(BaseTableView, HTTPMethodView))
         self.assertTrue(BaseTableView.require_authenticated)
-        self.assertFalse(BaseTableView.require_staff)
+        self.assertFalse(hasattr(BaseTableView, "require_staff"))
 
         self.assertTrue(issubclass(BaseChartView, HTTPMethodView))
         self.assertTrue(BaseChartView.require_authenticated)
-        self.assertFalse(BaseChartView.require_staff)
+        self.assertFalse(hasattr(BaseChartView, "require_staff"))
         self.assertEqual(BaseChartView.response_mode, "json")
 
         self.assertTrue(issubclass(SelectProviderView, HTTPMethodView))
         self.assertTrue(SelectProviderView.require_authenticated)
-        self.assertFalse(SelectProviderView.require_staff)
+        self.assertFalse(hasattr(SelectProviderView, "require_staff"))
         self.assertEqual(SelectProviderView.response_mode, "json")
 
     def test_a_signed_in_user_who_is_not_staff_reaches_a_table_unless_it_asks_for_staff(self) -> None:
-        """A dashboard admits every active user; a table that wants staff says so, as the Admin's does."""
-        from oldman.apps.admin.table import AdminModelTable
+        """A dashboard admits every active user; a table that wants staff says so in check_permission."""
+        from oldman.web.authentication import request_user
         from oldman.web.components.tables import BaseTableView
 
         class OpenTable(BaseTableView):
@@ -256,12 +257,12 @@ class OldmanHTTPViewTest(unittest.TestCase):
                 return text("rows")
 
         class StaffTable(OpenTable):
-            require_staff = True
+            async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
+                return request_user(request).is_staff, None
 
         ordinary = make_request(session=authenticated_session(is_staff=False), headers={"accept": "application/json"})
         self.assertEqual(200, asyncio.run(OpenTable().dispatch_request(ordinary)).status)
         self.assertEqual(403, asyncio.run(StaffTable().dispatch_request(ordinary)).status)
-        self.assertTrue(AdminModelTable.require_staff)
 
     def test_unauthenticated_component_endpoints_return_login_protocol_before_business_logic(self) -> None:
         """未登录请求不能进入组件业务逻辑，应直接返回 401 登录入口。"""
@@ -362,7 +363,10 @@ class DenialMessageTranslationTest(unittest.TestCase):
         ordinary = SessionData(user_id=5, is_active=True, is_staff=False)
 
         class StaffOnlyView(HTTPMethodView):
-            require_staff = True
+            async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]):
+                from oldman.web.authentication import request_user
+
+                return request_user(request).is_staff, None
 
             async def get(self, request):
                 return text("ok")
@@ -370,7 +374,7 @@ class DenialMessageTranslationTest(unittest.TestCase):
         class DeniedTable(BaseTableView):
             columns = ("id",)
 
-            async def check_auth(self, request) -> bool:
+            async def check_auth(self, table_request) -> bool:
                 return False
 
         @staff_required()

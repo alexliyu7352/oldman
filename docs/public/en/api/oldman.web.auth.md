@@ -590,7 +590,7 @@ Members:
 - `def model() -> type[Any]` — The User model the pages manage.
 - `def database() -> DatabaseManager` — Where the users live, the process's database by default.
 - `def object_url(user: Any, action: str) -> str` — `edit`, `password`, `password-modal`, `status`, `status-modal`, `delete` or `delete-modal` for one user.
-- `def table_class(name_prefix: str='') -> type[UserTable]` — The user table data endpoint at `<base_path>/table`, refusing anyone without `auth.users.view`.
+- `def table_class(name_prefix: str='') -> type[UserTable]` — The user table data endpoint at `<base_path>/table`; `UserTable` itself asks for `auth.users.view`.
 - `def activity(request: Any, title: str, description: str, *, tone: str, icon: str) -> DashboardActivityAction` — The topbar's activity entry for one change.
 - `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, name_prefix: str='') -> None` — Install the pages, the table data endpoint, the modals and their submits under `base_path`.
 
@@ -681,6 +681,7 @@ UserTable(request: Any=None, **options: Any) -> None
 
 Members:
 
+- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — `auth.users.view`, checked before the query runs.
 - `def object_url(row: Any, action: str) -> str` — Map "edit", "password-modal", "status-modal" and "delete-modal" to this site's routes for `row`.
 - `async def get_queryset()`
 - `def get_column_username_data(row: Any, **_: object)`

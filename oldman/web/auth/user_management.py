@@ -125,7 +125,7 @@ class UserManagementFlow:
         return f"{self.base_path}/{user_identity(user)}/{action}"
 
     def table_class(self, name_prefix: str = "") -> type[UserTable]:
-        """The user table data endpoint at `<base_path>/table`, refusing anyone without `auth.users.view`."""
+        """The user table data endpoint at `<base_path>/table`; `UserTable` itself asks for `auth.users.view`."""
         flow = self
 
         class ManagedUserTable(UserTable):
@@ -136,12 +136,6 @@ class UserManagementFlow:
 
             def object_url(self, row: Any, action: str) -> str:
                 return flow.object_url(row, action)
-
-            async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
-                del method_name, route_kwargs
-                from oldman.auth.user_permissions import VIEW_USERS
-
-                return await has_perm(request, VIEW_USERS), None
 
         return ManagedUserTable
 

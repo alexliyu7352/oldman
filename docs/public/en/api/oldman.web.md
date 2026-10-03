@@ -92,17 +92,16 @@ class · defined in `oldman.web.http`
 class HTTPMethodView(SanicHTTPMethodView)
 ```
 
-Sanic 的 HTTPMethodView 加上 Oldman 的登录与 staff 权限协议。
+Sanic 的 HTTPMethodView 加上 Oldman 的登录协议与权限钩子。
 
 Members:
 
 - `response_mode: ResponseMode = 'auto'`
 - `async def dispatch_request(request: Any, *args: object, **kwargs: object)` — 执行认证/权限检查后按 Sanic HTTPMethodView 规则分派 method。
 - `def is_authenticated(request: Any) -> bool` — 判断请求是否来自已登录用户,不论它凭什么认证。
-- `def is_staff(request: Any) -> bool` — 判断请求用户是否具备后台 staff 权限;匿名用户一律没有。
-- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — endpoint 级权限 hook，默认允许。
+- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — endpoint 级权限 hook,默认允许;返回 (是否允许, 拒绝时的提示)。
 - `async def resolve_hook_response(response: Any) -> Any` — 兼容同步和异步权限响应 hook。
-- `def on_authentication_required(request: Any, response_mode: Literal['html', 'json'], *, method_name: str)` — 未登录响应 hook。
+- `def on_authentication_required(request: Any, response_mode: Literal['html', 'json'], *, method_name: str) -> Any` — 未登录响应 hook;可以返回响应,也可以返回待 await 的响应(分派时两种都接受)。
 - `async def on_permission_denied(request: Any, response_mode: Literal['html', 'json'], *, message: str, method_name: str)` — 无权限响应 hook。
 
 ## `import_app_modules`

@@ -57,7 +57,7 @@ Members:
 - `async def render_shell(*, html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None, **route_kwargs: object) -> Markup` — 异步渲染表格外壳和前端挂载属性；bulk_actions_html 放进工具条，只在有选中行时显示。
 - `def build_table_request(request: Any, *, route_kwargs: dict[str, object]) -> TableRequest` — 从 HTTP 请求构建标准 TableRequest。
 - `async def get(request: Any, **route_kwargs: object)` — 处理表格 data endpoint 请求。
-- `async def check_auth(request: Any) -> bool` — 检查当前请求是否允许访问表格数据。
+- `async def check_auth(table_request: TableRequest) -> bool` — 要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
 - `async def get_object_list() -> Sequence[object]` — 返回结构化数据源。
 - `async def query_result(table_request: TableRequest) -> TableResult` — 执行结构化数据源查询生命周期。
 - `async def query_export(table_request: TableRequest) -> TableResult` — Run the filter, search and sort lifecycle without paging; the row count stops at max_export_rows.

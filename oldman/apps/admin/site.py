@@ -387,7 +387,8 @@ class AdminSite:
                     admin_prefix=prefix,
                     permission_denied_response=lambda current_request: access_denied_response(current_request, login_url=login_path),
                 )
-                return await table.get(request)
+                # Through dispatch, as as_view() would: the sign-in check and check_permission run before get().
+                return await table.dispatch_request(request)
 
             @add_csrf_token()
             async def create_form(request: Request, current_admin: ModelAdmin = admin):

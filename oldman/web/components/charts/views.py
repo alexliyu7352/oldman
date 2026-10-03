@@ -22,9 +22,8 @@ from .results import ChartResult
 class BaseChartView(DataEndpointMixin, HTTPMethodView):
     """支持独立 endpoint 的无主题 Chart 基类。"""
 
-    # The framework's floor is a signed-in user; staff, roles or permissions are the endpoint's to add.
+    # The framework's floor is a signed-in user; staff, roles or permissions go in check_permission.
     require_authenticated = True
-    require_staff = False
     response_mode = "json"
     route_name: str = ""
     route_path: str = ""
@@ -60,18 +59,28 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         """处理图表 data endpoint 请求。"""
         self.request = request
         chart_request = self.build_chart_request(request, route_kwargs=route_kwargs)
-        if not await self.check_auth(chart_request.request):
+        try:
+            await self.validate_filters(chart_request)
+        except ChartInvalidRequest as exc:
+            return self.render_error_response(str(exc), status=400)
+        # After validation, so the check reads filter values the chart accepts.
+        if not await self.check_auth(chart_request):
             denied = gettext("Permission denied", request=request)
             return self.render_error_response(denied, status=403, error_code=ApiErrorCode.PERMISSION_DENIED)
         try:
-            await self.validate_filters(chart_request)
             result = await self.get_result(chart_request)
         except ChartInvalidRequest as exc:
             return self.render_error_response(str(exc), status=400)
         return self.render_json_result(result)
 
-    async def check_auth(self, request: Any) -> bool:
-        """检查当前请求是否允许访问图表数据。"""
+    async def check_auth(self, chart_request: ChartRequest) -> bool:
+        """要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
+
+        在参数校验之后执行,SQLAlchemy 图表的只读会话此时已经打开(``self.db_session``),可以用
+        ``chart_request`` 里的用户(``chart_request.request``)、路径参数与筛选去查库比对。不看数据的判断
+        放在更早的 ``check_permission``;"只统计哪些数据"放在 ``get_result`` 的查询里。
+        """
+        del chart_request
         return True
 
     async def validate_filters(self, chart_request: ChartRequest) -> None:

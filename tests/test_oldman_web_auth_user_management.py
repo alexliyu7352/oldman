@@ -10,6 +10,7 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 from jinja2 import DictLoader, Environment
+from sanic.response import HTTPResponse, text
 from sqlalchemy import select
 from sqlalchemy.schema import Table
 
@@ -247,6 +248,40 @@ class UserManagementFlowTest(unittest.IsolatedAsyncioTestCase):
         form = new.body.decode()
         self.assertIn('action="/people/new"', form)
         self.assertIn('id="users-form-feedback"', form)
+
+
+class SharedUserTableTest(unittest.IsolatedAsyncioTestCase):
+    """A project's own UserTable subclass (as the docs show) asks for auth.users.view by itself."""
+
+    async def asyncSetUp(self) -> None:
+        self.enterContext(patch.dict(conf.__dict__, {"settings": runtime_settings()}))
+
+    async def dispatch(self, session: FakeSession | None) -> Any:
+        from oldman.web.auth import UserTable
+
+        class SiteUserTable(UserTable):
+            route_name = "users_table"
+            route_path = "/users/table"
+            model = User
+
+            def object_url(self, row: Any, action: str) -> str:
+                return f"/users/{row.id}/{action}"
+
+            async def get(self, request: Any, **route_kwargs: object) -> HTTPResponse:  # stands in for the user list
+                return text("USER LIST")
+
+        request = make_request(cast(Any, FakeApp()), path="/users/table", session=session)
+        request.headers = {"accept": "application/json"}
+        return await SiteUserTable().dispatch_request(request)
+
+    async def test_a_signed_in_member_without_the_permission_gets_403(self) -> None:
+        self.assertEqual(403, (await self.dispatch(operator(5))).status)
+
+    async def test_a_signed_out_request_gets_the_login_protocol(self) -> None:
+        self.assertEqual(401, (await self.dispatch(None)).status)
+
+    async def test_a_superuser_reaches_the_list(self) -> None:
+        self.assertEqual(b"USER LIST", (await self.dispatch(operator(1, is_staff=True, is_superuser=True))).body)
 
 
 if __name__ == "__main__":
