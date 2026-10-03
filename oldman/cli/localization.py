@@ -9,7 +9,6 @@ import sys
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
-from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, cast
 
@@ -228,15 +227,10 @@ def use_cli_language(
     locale_name = definition.babel_locale
     from oldman.conf.constants import _find_project_root
 
-    roots = list(translation_roots(_find_project_root(), app_packages))
-
-    locales_resource = files("oldman.cli").joinpath("locales")
-    with as_file(locales_resource) as locales_root:
-        roots.append(locales_root)
-        catalog = CatalogLoader(
-            roots,
-            domains=("messages",),
-        ).load(locale_name)
+    catalog = CatalogLoader(
+        translation_roots(_find_project_root(), app_packages),
+        domains=("messages",),
+    ).load(locale_name)
     # Babel's runtime object satisfies the protocol; its stubs use different
     # parameter names and an overly broad pgettext return type.
     token = bind_translations(cast(Any, catalog))

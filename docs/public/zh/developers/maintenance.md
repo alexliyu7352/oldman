@@ -59,7 +59,7 @@ pnpm --filter oldman-admin build
 
 这些命令会更新生成文件，并清理相应构建目标。运行前保存用户修改，之后核对 diff，不手工修改压缩 JS/CSS。自定义应用样式和图标应在应用自身构建，不把业务依赖塞进框架。
 
-翻译修改的真实流程是提取 POT → 更新 PO → 翻译 → 编译 MO/前端 JSON，不是直接改某个已生成字典。应用侧参考[资源文档](assets.md)，框架 CLI 维护入口见 [locales README](https://github.com/alexliyu7352/oldman/blob/main/oldman/cli/locales/README.md)。
+翻译修改的真实流程是提取 POT → 更新 PO → 翻译 → 编译 MO/前端 JSON，不是直接改某个已生成字典。应用侧参考[资源文档](assets.md)，框架自己的翻译（`oldman/locales`，Admin、CLI、账户页面与前端文案都在这一份）用 [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py) 维护，步骤写在脚本开头。
 
 ## 版本与发布
 

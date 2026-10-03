@@ -54,9 +54,9 @@ REQUIRED_DIR_PREFIXES = (
     "oldman/web/templates/oldman/forms/default/",
 )
 REQUIRED_FILES = (
+    "oldman/locales/zh_Hans/LC_MESSAGES/messages.mo",
+    "oldman/locales/zh_Hant/LC_MESSAGES/messages.mo",
     "oldman/py.typed",
-    "oldman/web/messages/notifications/locales/zh_Hans/LC_MESSAGES/messages.mo",
-    "oldman/web/messages/notifications/locales/zh_Hant/LC_MESSAGES/messages.mo",
     "oldman/web/messages/notifications/migrations/__init__.py",
     "oldman/web/messages/notifications/migrations/4858aab957ee_create_oldman_notification.py",
     "oldman/web/templates/oldman/messages/notifications/center_content.html",
@@ -87,7 +87,7 @@ DIST_INFO_FILES = ("METADATA", "WHEEL", "entry_points.txt", "licenses/LICENSE", 
 RELEASE_SOURCE_FILES = ("LICENSE", "README.md", "pyproject.toml")
 WHEEL_DATE_TIME = (2020, 2, 2, 0, 0, 0)
 ADMIN_STATIC_PREFIX = "oldman/apps/admin/static/oldman/admin/"
-NOTIFICATION_LOCALE_PREFIX = "oldman/web/messages/notifications/locales/"
+FRAMEWORK_LOCALE_PREFIX = "oldman/locales/"
 
 
 class CaseSensitiveConfigParser(configparser.ConfigParser):
@@ -488,8 +488,8 @@ def verify_wheel(
                 errors.append(f"Wheel missing required package file: {name}")
 
         for name in names:
-            if name.startswith(NOTIFICATION_LOCALE_PREFIX) and name.endswith((".po", ".pot")):
-                errors.append(f"Wheel must not contain notification translation source: {name}")
+            if name.startswith(FRAMEWORK_LOCALE_PREFIX) and name.endswith((".po", ".pot")):
+                errors.append(f"Wheel must not contain translation source: {name}")
 
         for prefix in REQUIRED_SCAFFOLD_PREFIXES:
             if not any(name.startswith(prefix) and not name.endswith("/") for name in names):

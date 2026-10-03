@@ -200,7 +200,7 @@ class OldmanModelAdminTest(unittest.TestCase):
 
         from oldman.i18n import bind_translations, reset_translations
 
-        locales = Path(__file__).resolve().parents[1] / "oldman/apps/admin/locales"
+        locales = Path(__file__).resolve().parents[1] / "oldman/locales"
         token = bind_translations(Translations.load(str(locales), ["zh_Hans"]))
         try:
             result = asyncio.run(round_trip_natural_key_admin())

@@ -248,7 +248,7 @@ function · defined in `oldman.i18n.catalogs`
 def translation_roots(project_root: Path, app_packages: Iterable[str]) -> tuple[Path, ...]
 ```
 
-Where a service looks up translations, highest priority first: the project's ``locales``, then each installed App's.
+Where a service looks up translations, highest priority first.
 
 ## Module `oldman.i18n.frontend`
 

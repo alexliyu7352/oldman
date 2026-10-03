@@ -1,0 +1,2425 @@
+# The framework's own translations: see scripts/framework_i18n.py for how
+# this file is maintained.
+# A project's catalog comes first and may override any entry.
+msgid ""
+msgstr ""
+"Project-Id-Version: oldman \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-03 13:14-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Oldman\n"
+"Language: zh_Hant\n"
+"Language-Team: zh_Hant\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: oldman/apps/admin/apps.py oldman/apps/admin/templates/admin/index.html
+msgid "Administration"
+msgstr "管理後台"
+
+#: oldman/apps/admin/commands.py
+msgid "--username is required for a non-interactive run."
+msgstr "非互動執行需要 --username。"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Username"
+msgstr "使用者名稱"
+
+#: oldman/apps/admin/commands.py
+msgid "Username cannot be empty."
+msgstr "使用者名稱不能為空。"
+
+#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
+msgid "Password"
+msgstr "密碼"
+
+#: oldman/apps/admin/commands.py
+#, python-format
+msgid "%(variable)s must be set for a non-interactive run."
+msgstr "非互動執行需要設定 %(variable)s。"
+
+#: oldman/apps/admin/commands.py
+msgid "Create Superuser"
+msgstr "建立超級使用者"
+
+#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
+msgid "Username already exists"
+msgstr "使用者名稱已存在"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
+#: oldman/web/auth/tables.py
+msgid "Email"
+msgstr "電子郵件"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/user_management.py
+msgid "User created"
+msgstr "使用者已建立"
+
+#: oldman/apps/admin/commands.py
+msgid "User updated"
+msgstr "使用者已更新"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/tables.py oldman/web/auth/user_management.py
+#: oldman/web/auth/user_session.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Change Password"
+msgstr "變更密碼"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/modals.py oldman/web/auth/user_management.py
+msgid "User not found."
+msgstr "找不到使用者。"
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/user_management.py
+msgid "Password changed"
+msgstr "密碼已變更"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "View %(name)s"
+msgstr "檢視%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Add %(name)s"
+msgstr "新增%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Change %(name)s"
+msgstr "修改%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Delete %(name)s"
+msgstr "刪除%(name)s"
+
+#: oldman/apps/admin/model_admin.py oldman/web/components/tables/views.py
+msgid "No records found."
+msgstr "找不到記錄。"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#, python-format
+msgid "%(field)s already exists"
+msgstr "%(field)s 已存在"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "%(name)s List"
+msgstr "%(name)s清單"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "New %(name)s"
+msgstr "新增%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Edit %(name)s"
+msgstr "編輯%(name)s"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Save changes"
+msgstr "儲存變更"
+
+#: oldman/apps/admin/model_admin.py
+msgid "Create"
+msgstr "建立"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+msgid "Yes"
+msgstr "是"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+msgid "No"
+msgstr "否"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "Edit"
+msgstr "編輯"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "No users found."
+msgstr "找不到使用者。"
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "Users"
+msgstr "使用者"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "User"
+msgstr "使用者"
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "Users List"
+msgstr "使用者清單"
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "New User"
+msgstr "新增使用者"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Delete User"
+msgstr "刪除使用者"
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+msgid "Edit User"
+msgstr "編輯使用者"
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/apps/admin/model_admin.py oldman/web/components/forms/base.py
+#: oldman/web/components/forms/layouts.py
+#: oldman/web/components/forms/renderers.py
+msgid "Save"
+msgstr "儲存"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Display Name"
+msgstr "顯示名稱"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "Status"
+msgstr "狀態"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Staff"
+msgstr "工作人員"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Superuser"
+msgstr "超級使用者"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+msgid "Last Login"
+msgstr "最後登入"
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/user_management.py
+msgid "User saved"
+msgstr "使用者已儲存"
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/apps/admin/model_admin.py oldman/apps/admin/site.py
+#: oldman/web/auth/user_management.py
+msgid "Just now"
+msgstr "剛剛"
+
+#: oldman/apps/admin/roles.py oldman/web/auth/permissions.py
+msgid "The permission store is unavailable"
+msgstr "權限儲存暫時無法使用"
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_session.py
+msgid "Unsupported language."
+msgstr "不支援該語言。"
+
+#: oldman/apps/admin/site.py oldman/web/components/forms/base.py
+#: oldman/web/components/forms/renderers.py
+msgid "Filter"
+msgstr "篩選"
+
+#: oldman/apps/admin/site.py
+#, python-format
+msgid "%(name)s %(id)s was not found"
+msgstr "找不到%(name)s %(id)s"
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User not found"
+msgstr "找不到使用者"
+
+#: frontend/packages/oldman-web/src/core/http/client.ts
+#: oldman/apps/admin/site.py oldman/web/auth/forms.py
+#: oldman/web/auth/permissions.py oldman/web/auth/user_management.py
+#: oldman/web/components/charts/views.py oldman/web/components/tables/views.py
+#: oldman/web/http.py
+msgid "Permission denied"
+msgstr "沒有權限"
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User deleted"
+msgstr "使用者已刪除"
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User status updated"
+msgstr "使用者狀態已更新"
+
+#: oldman/apps/admin/table.py oldman/web/auth/tables.py
+msgid "Action"
+msgstr "操作"
+
+#: oldman/apps/admin/templates/admin/base.html
+msgid "Applications"
+msgstr "應用程式"
+
+#: oldman/apps/admin/templates/admin/base.html
+msgid "Models"
+msgstr "模型"
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Manage registered models."
+msgstr "管理已註冊的模型。"
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Open model records."
+msgstr "開啟模型記錄。"
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "No models registered"
+msgstr "尚未註冊模型"
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Register a ModelAdmin to manage records here."
+msgstr "註冊一個 ModelAdmin 後即可在這裡管理記錄。"
+
+#: oldman/apps/admin/templates/admin/login.html
+#: oldman/web/templates/oldman/auth/partials/login_form.html
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign In"
+msgstr "登入"
+
+#: oldman/apps/admin/templates/admin/login.html
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign in"
+msgstr "登入"
+
+#: oldman/apps/admin/templates/admin/login.html
+msgid "Use a staff account to continue."
+msgstr "請使用工作人員帳號繼續。"
+
+#: oldman/apps/admin/templates/admin/user_notifications.html
+#: oldman/web/templates/oldman/dashboard/account/user_notifications.html
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "User notifications"
+msgstr "使用者通知"
+
+#: oldman/apps/admin/templates/admin/user_session.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/account/user_session.html
+msgid "User Session"
+msgstr "使用者工作階段"
+
+#: oldman/apps/admin/templates/admin/model/confirm_delete.html
+msgid "This action cannot be undone."
+msgstr "此操作無法復原。"
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/apps/admin/templates/admin/model/confirm_delete.html
+#: oldman/web/components/forms/base.py oldman/web/components/forms/layouts.py
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Cancel"
+msgstr "取消"
+
+#: oldman/apps/admin/templates/admin/model/form.html oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+msgid "Delete"
+msgstr "刪除"
+
+#: oldman/apps/admin/templates/admin/partials/topbar.html
+msgid "Admin"
+msgstr "後臺管理"
+
+#: oldman/apps/admin/templates/admin/password_reset/confirm.html
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/confirm.html
+msgid "Choose a new password"
+msgstr "設定新密碼"
+
+#: oldman/apps/admin/templates/admin/password_reset/done.html
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/done.html
+msgid "Your password has been updated"
+msgstr "密碼已更新"
+
+#: oldman/apps/admin/templates/admin/password_reset/invalid.html
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/invalid.html
+msgid "This link is no longer valid"
+msgstr "連結已失效"
+
+#: oldman/apps/admin/templates/admin/password_reset/request.html
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/request.html
+msgid "Reset your password"
+msgstr "重設密碼"
+
+#: oldman/apps/admin/templates/admin/password_reset/sent.html
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/sent.html
+msgid "Check your email"
+msgstr "請查收郵件"
+
+#: oldman/apps/roles/apps.py oldman/apps/roles/models.py
+#: oldman/web/auth/forms.py
+msgid "Roles"
+msgstr "角色"
+
+#: oldman/apps/roles/forms.py
+msgid "Name"
+msgstr "名稱"
+
+#: oldman/apps/roles/forms.py
+msgid "Description"
+msgstr "說明"
+
+#: oldman/apps/roles/forms.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Permissions"
+msgstr "權限"
+
+#: oldman/apps/roles/forms.py
+msgid "A role with this name already exists"
+msgstr "已有同名角色"
+
+#: oldman/apps/roles/forms.py
+#, python-format
+msgid "You can only grant permissions you hold: %(permissions)s"
+msgstr "只能授予自己擁有的權限：%(permissions)s"
+
+#: oldman/apps/roles/models.py
+msgid "Role"
+msgstr "角色"
+
+#: oldman/apps/roles/models.py
+msgid "User role"
+msgstr "使用者角色"
+
+#: oldman/apps/roles/models.py
+msgid "User roles"
+msgstr "使用者角色"
+
+#: oldman/auth/apps.py
+msgid "Authentication"
+msgstr "身分驗證"
+
+#: oldman/auth/services.py oldman/web/auth/forms.py
+msgid "cannot disable current user"
+msgstr "不能停用目前使用者"
+
+#: oldman/auth/services.py
+msgid "cannot delete current user"
+msgstr "不能刪除目前使用者"
+
+#: oldman/auth/services.py
+msgid "cannot delete superuser"
+msgstr "不能刪除超級使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "View users"
+msgstr "檢視使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Add users"
+msgstr "新增使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Change users"
+msgstr "修改使用者"
+
+#: oldman/auth/user_permissions.py
+msgid "Delete users"
+msgstr "刪除使用者"
+
+#: oldman/cli/_main.py
+msgid "Arguments"
+msgstr "參數"
+
+#: oldman/cli/_main.py
+msgid "Commands"
+msgstr "命令"
+
+#: oldman/cli/_main.py
+msgid "Options"
+msgstr "選項"
+
+#: oldman/cli/_main.py
+#, python-brace-format
+msgid "No such command {name!r}."
+msgstr "沒有命令 {name!r}。"
+
+#: oldman/cli/_main.py
+#, python-brace-format
+msgid "default: {default}"
+msgstr "預設值：{default}"
+
+#: oldman/cli/_main.py
+msgid "required"
+msgstr "必填"
+
+#: oldman/cli/_main.py
+msgid "Usage"
+msgstr "用法"
+
+#: oldman/cli/_main.py
+msgid "Show this message and exit."
+msgstr "顯示此說明並結束。"
+
+#: oldman/cli/_main.py
+msgid "Service commands"
+msgstr "服務命令"
+
+#: oldman/cli/_main.py
+msgid "Framework commands"
+msgstr "框架命令"
+
+#: oldman/cli/_main.py
+msgid "Services"
+msgstr "服務"
+
+#: oldman/cli/_main.py oldman/cli/service.py
+#, python-format
+msgid "Error: %(error)s"
+msgstr "錯誤：%(error)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Warning: %(detail)s"
+msgstr "警告：%(detail)s"
+
+#: oldman/cli/_main.py oldman/cli/service.py
+msgid "Aborted."
+msgstr "已中止。"
+
+#: oldman/cli/_main.py
+msgid "Dashboard projects require a database."
+msgstr "Dashboard 專案必須設定資料庫。"
+
+#: oldman/cli/_main.py
+msgid "Project directory name."
+msgstr "專案目錄名稱。"
+
+#: oldman/cli/_main.py
+msgid "Project type"
+msgstr "專案類型"
+
+#: oldman/cli/_main.py
+msgid "Database"
+msgstr "資料庫"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created project at %(path)s"
+msgstr "已在 %(path)s 建立專案"
+
+#: oldman/cli/_main.py
+msgid "Application name."
+msgstr "應用程式名稱。"
+
+#: oldman/cli/_main.py
+msgid "App template"
+msgstr "應用程式範本"
+
+#: oldman/cli/_main.py
+msgid "Display name"
+msgstr "顯示名稱"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created app %(name)s"
+msgstr "已建立應用程式 %(name)s"
+
+#: oldman/cli/_main.py
+msgid "Service module name."
+msgstr "服務模組名稱。"
+
+#: oldman/cli/_main.py
+msgid "Service type"
+msgstr "服務類型"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created service %(name)s"
+msgstr "已建立服務 %(name)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Settings file already exists: %(path)s"
+msgstr "設定檔已存在：%(path)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Initialized settings: %(path)s"
+msgstr "已初始化設定：%(path)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Settings file does not exist: %(path)s. Run `oldman %(service)s settings "
+"init` first."
+msgstr "設定檔不存在：%(path)s。請先執行 `oldman %(service)s settings init`。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Settings OK: %(path)s"
+msgstr "設定有效：%(path)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Synchronized settings: %(path)s"
+msgstr "已同步設定：%(path)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Warning: %(path)s uses %(winner)s; ignored %(ignored)s"
+msgstr "警告：%(path)s 使用 %(winner)s；已忽略 %(ignored)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Collected static files to %(destination)s: %(copied)s copied, "
+"%(unchanged)s unchanged, %(removed)s removed."
+msgstr ""
+"已將靜態檔案收集到 %(destination)s：複製 %(copied)s 個，未變更 %(unchanged)s 個，刪除 "
+"%(removed)s 個。"
+
+#: oldman/cli/_main.py
+msgid "Extracting messages..."
+msgstr "正在擷取翻譯訊息……"
+
+#: oldman/cli/_main.py
+msgid "Canonical language code."
+msgstr "標準語言代碼。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Invalid canonical language code: %(language)s"
+msgstr "無效的標準語言代碼：%(language)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Initializing locale: %(language)s"
+msgstr "正在初始化語言：%(language)s"
+
+#: oldman/cli/_main.py
+msgid "Updating translations..."
+msgstr "正在更新翻譯……"
+
+#: oldman/cli/_main.py
+msgid "Compiling translations..."
+msgstr "正在編譯翻譯……"
+
+#: oldman/cli/_main.py
+msgid "Service whose settings describe the languages."
+msgstr "語言設定所屬的服務。"
+
+#: oldman/cli/_main.py
+msgid "Building frontend catalogs..."
+msgstr "正在產生前端語言包……"
+
+#: oldman/cli/_main.py
+msgid "Manage CLI display language."
+msgstr "管理 CLI 顯示語言。"
+
+#: oldman/cli/_main.py
+msgid "Supported CLI languages:"
+msgstr "支援的 CLI 語言："
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Current language: %(code)s (%(name)s)"
+msgstr "目前語言：%(code)s（%(name)s）"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Saved language: %(language)s"
+msgstr "已儲存語言：%(language)s"
+
+#: oldman/cli/_main.py
+msgid "Saved language: not set"
+msgstr "已儲存語言：未設定"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Environment override: %(variable)s=%(language)s"
+msgstr "環境變數覆寫：%(variable)s=%(language)s"
+
+#: oldman/cli/_main.py
+msgid "CLI language code or registered alias."
+msgstr "CLI 語言代碼或已註冊別名。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Unsupported CLI language %(language)s. Supported: %(supported)s"
+msgstr "不支援 CLI 語言 %(language)s。支援：%(supported)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "CLI language set to %(language)s."
+msgstr "CLI 語言已設定為 %(language)s。"
+
+#: oldman/cli/_main.py
+msgid "List supported CLI languages."
+msgstr "列出支援的 CLI 語言。"
+
+#: oldman/cli/_main.py
+msgid "Show the current CLI language."
+msgstr "顯示目前 CLI 語言。"
+
+#: oldman/cli/_main.py
+msgid "Set the CLI language."
+msgstr "設定 CLI 語言。"
+
+#: oldman/cli/_main.py
+msgid "Manage explicit Oldman settings files."
+msgstr "管理明確的 Oldman 設定檔。"
+
+#: oldman/cli/_main.py
+msgid "Settings YAML path."
+msgstr "設定 YAML 路徑。"
+
+#: oldman/cli/_main.py
+msgid "Create a settings file explicitly."
+msgstr "明確建立設定檔。"
+
+#: oldman/cli/_main.py
+msgid "Validate the current settings file."
+msgstr "驗證目前設定檔。"
+
+#: oldman/cli/_main.py
+msgid "Add missing managed settings keys."
+msgstr "補充缺少的受管設定項。"
+
+#: oldman/cli/_main.py
+msgid "Collect project and installed-App static files."
+msgstr "收集專案和已安裝應用程式的靜態檔案。"
+
+#: oldman/cli/_main.py
+msgid "Remove previously collected output first."
+msgstr "先刪除上次收集的輸出。"
+
+#: oldman/cli/_main.py
+msgid "Collect static files into settings.web.static.root."
+msgstr "將靜態檔案收集到 settings.web.static.root。"
+
+#: oldman/cli/_main.py
+msgid "Check outgoing mail settings."
+msgstr "檢查外發郵件設定。"
+
+#: oldman/cli/_main.py
+msgid "Recipient addresses."
+msgstr "收件人地址。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Sending the test message failed: %(error)s"
+msgstr "測試郵件傳送失敗：%(error)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Sent %(count)s test message(s) through %(backend)s."
+msgstr "已透過 %(backend)s 傳送 %(count)s 封測試郵件。"
+
+#: oldman/cli/_main.py
+msgid "Send a test message to the given addresses."
+msgstr "向指定地址傳送一封測試郵件。"
+
+#: oldman/cli/_main.py
+msgid "Open a bootstrapped Python shell."
+msgstr "開啟已完成框架初始化的 Python Shell。"
+
+#: oldman/cli/_main.py
+msgid "Manage project translation catalogs."
+msgstr "管理專案翻譯目錄。"
+
+#: oldman/cli/_main.py
+msgid "Extract translation messages."
+msgstr "擷取翻譯訊息。"
+
+#: oldman/cli/_main.py
+msgid "Initialize a language catalog."
+msgstr "初始化語言目錄。"
+
+#: oldman/cli/_main.py
+msgid "Update translation catalogs."
+msgstr "更新翻譯目錄。"
+
+#: oldman/cli/_main.py
+msgid "Compile translation catalogs."
+msgstr "編譯翻譯目錄。"
+
+#: oldman/cli/_main.py
+msgid "Build browser catalogs and the frontend language manifest."
+msgstr "產生瀏覽器語言包與前端語言清單。"
+
+#: oldman/cli/_main.py
+msgid "Oldman application framework command line."
+msgstr "Oldman 應用框架命令列。"
+
+#: oldman/cli/_main.py
+msgid "Show the installed Oldman version and exit."
+msgstr "顯示已安裝的 Oldman 版本並結束。"
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman project scaffold."
+msgstr "建立 Oldman 專案鷹架。"
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman app module."
+msgstr "建立 Oldman 應用程式模組。"
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman service entry."
+msgstr "建立 Oldman 服務入口。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Web service %(service)s."
+msgstr "Web 服務 %(service)s。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Application service %(service)s."
+msgstr "應用程式服務 %(service)s。"
+
+#: oldman/cli/_main.py
+msgid "Install completion for the current shell."
+msgstr "為目前 shell 安裝補全。"
+
+#: oldman/cli/_main.py
+msgid "Show completion for the current shell."
+msgstr "顯示目前 shell 的補全指令稿。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "%(value)s is not one of %(choices)s."
+msgstr "%(value)s 不是以下選項之一：%(choices)s。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "No such option: %(option)s"
+msgstr "沒有此選項：%(option)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "%(text)s (Possible options: %(options)s)"
+msgstr "%(text)s（可用選項：%(options)s）"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing argument %(parameter)s."
+msgstr "缺少參數 %(parameter)s。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing option %(parameter)s."
+msgstr "缺少選項 %(parameter)s。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing parameter %(parameter)s."
+msgstr "缺少參數 %(parameter)s。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Invalid value for %(parameter)s: %(detail)s"
+msgstr "參數 %(parameter)s 的值無效：%(detail)s"
+
+#: oldman/cli/_main.py oldman/cli/tui/inputs.py
+#, python-format
+msgid "Invalid value: %(detail)s"
+msgstr "值無效：%(detail)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Got unexpected extra argument(s): %(arguments)s"
+msgstr "收到非預期的多餘參數：%(arguments)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Try '%(command)s --help' for help."
+msgstr "執行「%(command)s --help」查看說明。"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Error: Service names conflict with root commands: %(services)s"
+msgstr "錯誤：服務名稱與框架命令衝突：%(services)s"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Error: Settings file does not exist: %(path)s. Run `oldman %(service)s "
+"settings init` first."
+msgstr "錯誤：設定檔不存在：%(path)s。請先執行 `oldman %(service)s settings init`。"
+
+#: oldman/cli/database.py
+msgid "Manage project database migrations."
+msgstr "管理專案資料庫遷移。"
+
+#: oldman/cli/database.py
+msgid "No migration was generated."
+msgstr "未產生遷移檔案。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Generated %(app)s revision %(revision)s: %(path)s"
+msgstr "已產生 %(app)s 遷移版本 %(revision)s：%(path)s"
+
+#: oldman/cli/database.py
+msgid "Recovered Oldman migration state."
+msgstr "已恢復 Oldman 遷移狀態。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Applied revisions: %(revisions)s"
+msgstr "已套用遷移版本：%(revisions)s"
+
+#: oldman/cli/database.py
+msgid "No pending migrations."
+msgstr "沒有待執行的遷移。"
+
+#: oldman/cli/database.py
+msgid "No applied App can be downgraded."
+msgstr "沒有可以回退的已遷移應用程式。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Downgraded %(app)s to %(revision)s; removed: %(removed)s"
+msgstr "已將 %(app)s 回退到 %(revision)s；移除：%(removed)s"
+
+#: oldman/cli/database.py
+msgid "No App was retired."
+msgstr "未停用任何應用程式。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Retired %(app)s; retained tables: %(tables)s"
+msgstr "已停用 %(app)s；保留資料表：%(tables)s"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Remove %(package)s from: %(files)s"
+msgstr "請從以下檔案中移除 %(package)s：%(files)s"
+
+#: oldman/cli/database.py
+msgid "Migration state: not initialized."
+msgstr "遷移狀態：尚未初始化。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Migration state: incomplete; missing %(tables)s"
+msgstr "遷移狀態：不完整；缺少 %(tables)s"
+
+#: oldman/cli/database.py
+msgid "Migration state: complete tables, but owner is missing."
+msgstr "遷移狀態：資料表完整，但缺少所屬專案記錄。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Migration owner: %(name)s (%(project_id)s)"
+msgstr "遷移所屬專案：%(name)s（%(project_id)s）"
+
+#: oldman/cli/database.py
+#, python-format
+msgid "%(app)s: current=%(current)s; heads=%(heads)s; pending=%(pending)s"
+msgstr "%(app)s：目前=%(current)s；最新=%(heads)s；待執行=%(pending)s"
+
+#: oldman/cli/database.py
+msgid "No registered Apps."
+msgstr "沒有已註冊的應用程式。"
+
+#: oldman/cli/database.py
+msgid "  no revisions"
+msgstr "  沒有遷移版本"
+
+#: oldman/cli/database.py
+msgid "Generate one reviewed migration revision."
+msgstr "產生一個供檢查的遷移版本。"
+
+#: oldman/cli/database.py
+msgid "Apply pending project migrations."
+msgstr "執行專案中待處理的遷移。"
+
+#: oldman/cli/database.py
+msgid "Downgrade one App migration branch."
+msgstr "回退一個應用程式的遷移分支。"
+
+#: oldman/cli/database.py
+msgid "Retire one App without dropping its tables."
+msgstr "停用一個應用程式，但保留其資料表。"
+
+#: oldman/cli/database.py
+msgid "Show read-only migration status."
+msgstr "顯示唯讀遷移狀態。"
+
+#: oldman/cli/database.py
+msgid "Show source migration history."
+msgstr "顯示原始碼中的遷移歷史。"
+
+#: oldman/cli/fixtures.py
+msgid "Export registered model data as JSON."
+msgstr "將已註冊模型的資料匯出為 JSON。"
+
+#: oldman/cli/fixtures.py
+msgid "Load registered model data from JSON."
+msgstr "從 JSON 匯入已註冊模型的資料。"
+
+#: oldman/cli/fixtures.py
+#, python-format
+msgid "Loaded %(count)s fixture records."
+msgstr "已匯入 %(count)s 筆 fixture 記錄。"
+
+#: oldman/cli/i18n_commands.py
+#, python-format
+msgid ""
+"Settings file %(path)s does not exist; create it or pass another service "
+"with --service."
+msgstr "設定檔 %(path)s 不存在；請先建立它，或用 --service 指定另一個服務。"
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring invalid CLI language configuration: %(path)s"
+msgstr "忽略無效的 CLI 語言設定：%(path)s"
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring unsupported language in CLI configuration: %(path)s"
+msgstr "忽略 CLI 設定中不支援的語言：%(path)s"
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring unsupported %(variable)s value: %(language)s"
+msgstr "忽略不支援的 %(variable)s 值：%(language)s"
+
+#: oldman/cli/localization.py
+#, python-format
+msgid ""
+"Could not save the CLI language to %(path)s; using it for this invocation"
+" only."
+msgstr "無法將 CLI 語言儲存到 %(path)s；僅在本次執行中使用。"
+
+#: oldman/cli/mail.py
+#, python-format
+msgid "Test email from %(host)s on %(time)s"
+msgstr "來自 %(host)s 的測試郵件（%(time)s）"
+
+#: oldman/cli/mail.py
+msgid "If you're reading this, the mail settings of this service work."
+msgstr "如果你能讀到這封郵件，代表這個服務的郵件設定正常。"
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Stopped %(service)s (main process %(pid)s)."
+msgstr "已停止 %(service)s（主行程 %(pid)s）。"
+
+#: oldman/cli/service.py
+#, python-format
+msgid "%(service)s is not running."
+msgstr "%(service)s 沒有在執行。"
+
+#: oldman/cli/service.py
+msgid "Command arguments."
+msgstr "命令參數。"
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Error executing command: %(error)s"
+msgstr "執行命令時發生錯誤：%(error)s"
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Service command names conflict with framework commands: %(commands)s"
+msgstr "服務命令名稱與框架命令衝突：%(commands)s"
+
+#: oldman/cli/service.py
+#, python-format
+msgid "App command names conflict with service commands: %(commands)s"
+msgstr "應用命令名稱與服務命令衝突：%(commands)s"
+
+#: oldman/cli/staticfiles.py
+msgid "The project settings profile does not include static files."
+msgstr "專案設定配置不包含靜態檔案。"
+
+#: oldman/cli/staticfiles.py
+msgid "settings.web.static.root is empty; static files cannot be collected."
+msgstr "settings.web.static.root 為空，無法收集靜態檔案。"
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answers in %(path)s: %(error)s"
+msgstr "不使用 %(path)s 裡保存的答案：%(error)s"
+
+#: oldman/cli/tui/forms.py
+msgid "not a JSON object"
+msgstr "不是 JSON 物件"
+
+#: oldman/cli/tui/forms.py oldman/cli/tui/inputs.py
+msgid "Answer yes or no."
+msgstr "請回答 yes 或 no（是 / 否）。"
+
+#: oldman/cli/tui/forms.py oldman/cli/tui/inputs.py
+msgid "This value is required."
+msgstr "此項必填。"
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answer for %(label)s: %(error)s"
+msgstr "不使用上次保存的「%(label)s」答案：%(error)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid ""
+"%(label)s needs an answer, but stdin and the output are not both "
+"terminals."
+msgstr "%(label)s 需要回答，但標準輸入和輸出不都是終端。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(label)s needs an answer: run it in a terminal or set %(variable)s."
+msgstr "%(label)s 需要回答：請在終端裡執行，或設定 %(variable)s。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s is not valid: %(error)s"
+msgstr "%(variable)s 的值無效：%(error)s"
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a whole number."
+msgstr "請輸入整數。"
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a number."
+msgstr "請輸入數字。"
+
+#: oldman/cli/tui/inputs.py
+msgid "Invalid value."
+msgstr "值無效。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Choose one of: %(choices)s"
+msgstr "請從這些選項中選擇：%(choices)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Confirm %(label)s"
+msgstr "確認%(label)s"
+
+#: oldman/cli/tui/inputs.py
+msgid "The two entries do not match."
+msgstr "兩次輸入不一致。"
+
+#: oldman/cli/tui/inputs.py
+msgid "yes"
+msgstr "是"
+
+#: oldman/cli/tui/inputs.py
+msgid "no"
+msgstr "否"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be true or false, not %(value)r."
+msgstr "%(variable)s 只能是 true 或 false，不能是 %(value)r。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be one of: %(choices)s"
+msgstr "%(variable)s 必須是其中之一：%(choices)s"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Enter a number from 1 to %(count)d."
+msgstr "請輸入 1 到 %(count)d 之間的編號。"
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Not in the list: %(item)s"
+msgstr "不在列表中：%(item)s"
+
+#: oldman/cli/tui/menus.py
+msgid "Quit"
+msgstr "退出"
+
+#: oldman/cli/tui/menus.py
+msgid "Back"
+msgstr "返回"
+
+#: oldman/cli/tui/menus.py
+#, python-format
+msgid "Enter a number from 0 to %(count)d."
+msgstr "請輸入 0 到 %(count)d 之間的編號。"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Treat managed table %(old)s as renamed to %(new)s?"
+msgstr "將受管理的資料表 %(old)s 視為更名為 %(new)s 嗎？"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Choose the new model table for managed table %(table)s."
+msgstr "為受管理的資料表 %(table)s 選擇對應的新模型資料表。"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid ""
+"Deleting managed table %(table)s removes its data. Enter %(name)s to "
+"confirm"
+msgstr "刪除受管理的資料表 %(table)s 會刪掉其中的資料。輸入 %(name)s 確認"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Treat column %(column)s as renamed to %(new)s?"
+msgstr "將欄位 %(column)s 視為更名為 %(new)s 嗎？"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Choose the new column for %(column)s."
+msgstr "為 %(column)s 選擇對應的新欄位。"
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Deleting column %(column)s removes its data. Enter %(name)s to confirm"
+msgstr "刪除欄位 %(column)s 會刪掉其中的資料。輸入 %(name)s 確認"
+
+#: oldman/db/migrations/commands.py
+msgid ""
+"The database has no Oldman migration state. Is this first use or was the "
+"state lost?"
+msgstr "資料庫裡沒有 Oldman 遷移狀態。這是首次使用，還是狀態遺失了？"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"The database has no Oldman internal migration state. It contains "
+"%(tables)s non-internal table(s), while source contains %(revisions)s "
+"migration revision(s). Is this first use or was the state lost?"
+msgstr ""
+"資料庫裡沒有 Oldman 內部遷移狀態。庫中有 %(tables)s 張非內部資料表，原始碼中有 %(revisions)s "
+"個遷移版本。這是首次使用，還是狀態遺失了？"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Pending migration heads: %(heads)s. Choose the migration scope."
+msgstr "待執行的遷移：%(heads)s。選擇遷移範圍。"
+
+#: oldman/db/migrations/commands.py
+msgid "Choose the applied App to downgrade."
+msgstr "選擇要回退的已遷移 App。"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Choose the target revision for App %(app)s."
+msgstr "為 App %(app)s 選擇回退到的遷移版本。"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Downgrade will remove revisions %(revisions)s and may alter or delete App"
+" tables recorded in the Registry: %(tables)s."
+msgstr "回退會移除遷移版本 %(revisions)s，並可能修改或刪除 Registry 中記錄的 App 資料表：%(tables)s。"
+
+#: oldman/db/migrations/commands.py
+msgid "none"
+msgstr "無"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type App label %(app)s to confirm"
+msgstr "輸入 App 標籤 %(app)s 確認"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type target revision %(revision)s to confirm"
+msgstr "輸入目標遷移版本 %(revision)s 確認"
+
+#: oldman/db/migrations/commands.py
+msgid "Choose the App to retire while retaining its physical tables."
+msgstr "選擇要停用的 App（保留它的實體資料表）。"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Rejected Apps: %(apps)s"
+msgstr "不能停用的 App：%(apps)s"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Retire App %(app)s: keep tables %(tables)s, remove migration head "
+"%(head)s, and clear its Registry rows. Afterward remove package "
+"%(package)s from service files %(files)s and from migration_apps if "
+"present."
+msgstr ""
+"停用 App %(app)s：保留資料表 %(tables)s，移除遷移頭 %(head)s，並清除它在 Registry "
+"中的記錄。之後從服務設定檔 %(files)s 和 migration_apps（如果有）中移除套件 %(package)s。"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type App label %(app)s to retire permanently"
+msgstr "輸入 App 標籤 %(app)s 以永久停用"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Recovery will stamp source heads %(heads)s and restore Registry rows "
+"%(rows)s. Tables without current models remain external: %(external)s. "
+"Oldman cannot prove that arbitrary blank revisions or data operations "
+"ran; continuing asserts that the current database already matches the "
+"source heads. Recovery will not run business migration DDL."
+msgstr ""
+"恢復會把原始碼中的遷移頭 %(heads)s 記為已執行，並恢復 Registry 記錄 "
+"%(rows)s。目前沒有模型的資料表保持為外部資料表：%(external)s。Oldman "
+"無法證明任意空白遷移版本或資料操作已經執行過；繼續即表示你確認目前資料庫已與原始碼的遷移頭一致。恢復不會執行業務遷移的 DDL。"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type project name %(name)s to confirm"
+msgstr "輸入專案名稱 %(name)s 確認"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type %(phrase)s to rebuild only internal state"
+msgstr "輸入 %(phrase)s，只重建內部狀態"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Was unmanaged table %(table)s always external, or was it released by "
+"Oldman?"
+msgstr "非受管理的資料表 %(table)s 一直是外部資料表，還是由 Oldman 釋放的？"
+
+#: oldman/db/migrations/interaction.py
+msgid "adopt"
+msgstr "接管"
+
+#: oldman/db/migrations/interaction.py
+msgid "all"
+msgstr "全部"
+
+#: oldman/db/migrations/interaction.py
+msgid "always external"
+msgstr "一直是外部資料表"
+
+#: oldman/db/migrations/interaction.py
+msgid "cancel"
+msgstr "取消"
+
+#: oldman/db/migrations/interaction.py
+msgid "first use"
+msgstr "首次使用"
+
+#: oldman/db/migrations/interaction.py
+msgid "keep external"
+msgstr "保持外部管理"
+
+#: oldman/db/migrations/interaction.py
+msgid "not a rename"
+msgstr "不是更名"
+
+#: oldman/db/migrations/interaction.py
+msgid "released"
+msgstr "已釋放"
+
+#: oldman/db/migrations/interaction.py
+msgid "state lost"
+msgstr "狀態遺失"
+
+#: oldman/db/migrations/revisions.py
+msgid "Multiple Apps have divergent migration heads."
+msgstr "多個 App 的遷移出現分叉。"
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "App %(app)s has migration heads %(heads)s. Create a merge revision?"
+msgstr "App %(app)s 有多個遷移頭 %(heads)s。要建立合併版本嗎？"
+
+#: oldman/db/migrations/revisions.py
+msgid "Migration description"
+msgstr "遷移說明"
+
+#: oldman/db/migrations/revisions.py
+msgid "Multiple Apps have schema changes."
+msgstr "多個 App 有結構變更。"
+
+#: oldman/db/migrations/revisions.py
+msgid "Choose the App for the blank revision."
+msgstr "選擇空白遷移版本所屬的 App。"
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "No schema changes were detected for %(app)s. Create a blank revision?"
+msgstr "沒有偵測到 %(app)s 的結構變更。要建立一個空白遷移版本嗎？"
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "Managed model table %(table)s already exists without Oldman ownership."
+msgstr "受管理的模型資料表 %(table)s 已存在，但不歸 Oldman 所有。"
+
+#: oldman/db/migrations/revisions.py
+msgid ""
+"The adoption table already exists and matches the model. Skip CREATE and "
+"record ownership?"
+msgstr "要接管的資料表已存在且與模型一致。跳過 CREATE 並記錄歸屬嗎？"
+
+#: oldman/runtime/base.py
+msgid "Start service."
+msgstr "啟動服務。"
+
+#: oldman/runtime/base.py
+msgid "Stop service."
+msgstr "停止服務。"
+
+#: oldman/runtime/base.py
+msgid "Restart service."
+msgstr "重新啟動服務。"
+
+#: oldman/web/auth/decorators.py oldman/web/http.py oldman/web/sse/extension.py
+msgid "Authentication required"
+msgstr "需要登入"
+
+#: oldman/web/auth/decorators.py
+msgid "Staff permission required"
+msgstr "需要工作人員權限"
+
+#: oldman/web/auth/decorators.py
+msgid "Superuser permission required"
+msgstr "需要超級使用者權限"
+
+#: oldman/web/auth/forms.py
+msgid "Password must be 8-128 characters and include letters and numbers"
+msgstr "密碼必須為 8 至 128 個字元，並同時包含字母和數字"
+
+#: oldman/web/auth/forms.py
+msgid "New Password"
+msgstr "新密碼"
+
+#: oldman/web/auth/forms.py
+msgid "Confirm Password"
+msgstr "確認密碼"
+
+#: oldman/web/auth/forms.py
+msgid "Passwords do not match"
+msgstr "兩次輸入的密碼不一致"
+
+#: oldman/web/auth/forms.py
+msgid "Current Password"
+msgstr "目前密碼"
+
+#: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "All"
+msgstr "全部"
+
+#: oldman/web/auth/forms.py
+msgid "Enter username"
+msgstr "輸入使用者名稱"
+
+#: oldman/web/auth/forms.py
+msgid "Enter password"
+msgstr "輸入密碼"
+
+#: oldman/web/auth/forms.py
+msgid "Remember me"
+msgstr "記住我"
+
+#: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Search"
+msgstr "搜尋"
+
+#: oldman/web/auth/forms.py
+msgid "Search username, email, display name"
+msgstr "搜尋使用者名稱、電子郵件或顯示名稱"
+
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Active"
+msgstr "已啟用"
+
+#: oldman/web/auth/forms.py
+msgid "Last Login From"
+msgstr "最後登入起始時間"
+
+#: oldman/web/auth/forms.py
+msgid "Last Login To"
+msgstr "最後登入結束時間"
+
+#: oldman/web/auth/forms.py
+#, python-format
+msgid "You can only give roles whose permissions you hold: %(roles)s"
+msgstr "只能指派自己擁有其全部權限的角色：%(roles)s"
+
+#: oldman/web/auth/forms.py
+msgid "Email already exists"
+msgstr "電子郵件已存在"
+
+#: oldman/web/auth/forms.py
+msgid "cannot remove current user staff access"
+msgstr "不能移除目前使用者的工作人員權限"
+
+#: oldman/web/auth/forms.py
+msgid "cannot remove current user superuser access"
+msgstr "不能移除目前使用者的超級使用者權限"
+
+#: oldman/web/auth/forms.py
+msgid "Can sign in"
+msgstr "可以登入"
+
+#: oldman/web/auth/forms.py
+msgid "Staff member; can sign in to the Admin"
+msgstr "工作人員，可以登入 Admin"
+
+#: oldman/web/auth/forms.py
+msgid "Has every permission"
+msgstr "擁有全部權限"
+
+#: oldman/web/auth/login.py
+msgid "Invalid username or password."
+msgstr "使用者名稱或密碼錯誤。"
+
+#: oldman/web/auth/login.py
+msgid "Too many sign-in attempts. Please try again later."
+msgstr "登入嘗試過於頻繁，請稍後再試。"
+
+#: oldman/web/auth/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Change Status"
+msgstr "變更狀態"
+
+#: oldman/web/auth/modals.py oldman/web/auth/tables.py
+msgid "Enable"
+msgstr "啟用"
+
+#: oldman/web/auth/modals.py oldman/web/auth/tables.py
+msgid "Disable"
+msgstr "停用"
+
+#: oldman/web/auth/modals.py
+#, python-format
+msgid "%(action)s User · %(username)s"
+msgstr "%(action)s使用者 · %(username)s"
+
+#: oldman/web/auth/password_reset.py
+msgid "you@example.com"
+msgstr "you@example.com"
+
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Disabled"
+msgstr "已停用"
+
+#: oldman/web/auth/tables.py
+msgid "No Staff"
+msgstr "非工作人員"
+
+#: oldman/web/auth/tables.py
+msgid "Never"
+msgstr "從未"
+
+#: oldman/web/auth/tables.py
+msgid "User actions"
+msgstr "使用者操作"
+
+#: oldman/web/auth/tokens.py
+#, python-format
+msgid "Required: %(fields)s"
+msgstr "缺少必填欄位：%(fields)s"
+
+#: oldman/web/auth/tokens.py
+msgid "Too many sign-in attempts"
+msgstr "登入嘗試過於頻繁"
+
+#: oldman/web/auth/tokens.py
+msgid "Invalid credentials"
+msgstr "使用者名稱或密碼錯誤"
+
+#: oldman/web/auth/tokens.py
+msgid "Invalid refresh token"
+msgstr "重新整理權杖無效"
+
+#: oldman/web/auth/user_management.py oldman/web/auth/user_session.py
+msgid "Your password was updated. Please sign in again."
+msgstr "密碼已更新，請重新登入。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was created."
+msgstr "已建立 %(username)s。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s profile was updated."
+msgstr "%(username)s 的資料已更新。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was signed out and needs the new password."
+msgstr "%(username)s 已被強制登出，需要使用新密碼重新登入。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s is now active."
+msgstr "%(username)s 現在已啟用。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s is now disabled."
+msgstr "%(username)s 現在已停用。"
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was deleted."
+msgstr "已刪除 %(username)s。"
+
+#: oldman/web/auth/user_session.py
+msgid "Current session user not found."
+msgstr "找不到目前工作階段的使用者。"
+
+#: oldman/web/auth/user_session.py
+msgid "Change Session Password"
+msgstr "變更工作階段密碼"
+
+#: oldman/web/auth/user_session.py
+msgid "Current session user not found"
+msgstr "找不到目前工作階段的使用者"
+
+#: oldman/web/auth/user_session.py
+msgid "Current password is incorrect."
+msgstr "目前密碼不正確。"
+
+#: oldman/web/auth/user_session.py
+msgid "Session password changed"
+msgstr "工作階段密碼已變更"
+
+#: oldman/web/auth/user_session.py
+msgid "Language preference saved."
+msgstr "語言偏好已儲存。"
+
+#: oldman/web/auth/user_session.py
+msgid "This needs a signed-in browser session"
+msgstr "需要在瀏覽器中登入後才能使用"
+
+#: oldman/web/authentication/jwt.py
+msgid "The access token revocation store is unavailable"
+msgstr "存取權杖撤銷記錄暫時無法使用"
+
+#: oldman/web/authentication/refresh.py
+msgid "The refresh token store is unavailable"
+msgstr "重新整理權杖儲存暫時無法使用"
+
+#: oldman/web/components/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Close"
+msgstr "關閉"
+
+#: oldman/web/components/charts/request.py
+#, python-format
+msgid "Unknown chart range: %(range)s"
+msgstr "未知的圖表時間範圍：%(range)s"
+
+#: oldman/web/components/charts/views.py
+#, python-format
+msgid "Unknown chart filter: %(name)s"
+msgstr "未知的圖表篩選條件：%(name)s"
+
+#: oldman/web/components/charts/views.py
+#, python-format
+msgid "Invalid chart parameter: %(name)s"
+msgstr "圖表參數無效：%(name)s"
+
+#: oldman/web/components/forms/fields.py
+msgid "Enter a valid email address"
+msgstr "請輸入有效的電子郵件地址"
+
+#: oldman/web/components/forms/fields.py
+msgid "Not a valid color value."
+msgstr "不是有效的顏色值。"
+
+#: oldman/web/components/forms/fields.py
+#, python-format
+msgid "This field accepts at most %(max)d entries."
+msgstr "此欄位最多接受 %(max)d 個條目。"
+
+#: oldman/web/components/forms/fields.py
+msgid "This field must contain JSON-compatible scalar values."
+msgstr "該欄位必須包含與 JSON 相容的標量值。"
+
+#: oldman/web/components/forms/fields.py
+msgid "Stored JSON value is invalid."
+msgstr "儲存的 JSON 值無效。"
+
+#: oldman/web/components/forms/fields.py
+msgid "Stored JSON value must be a list."
+msgstr "儲存的 JSON 值必須是列表。"
+
+#: oldman/web/components/forms/fields.py
+msgid "This field contains an invalid item index."
+msgstr "該欄位包含無效的條目索引。"
+
+#: oldman/web/components/forms/fields.py
+msgid "File is too large."
+msgstr "檔案太大。"
+
+#: oldman/web/components/forms/fields.py
+msgid "File extension is not allowed."
+msgstr "不允許該副檔名。"
+
+#: oldman/web/components/forms/fields.py
+msgid "Not a valid choice."
+msgstr "不是有效的選項。"
+
+#: oldman/web/components/forms/models.py
+msgid "This field is required."
+msgstr "此欄位為必填。"
+
+#: oldman/web/components/forms/renderers.py
+msgid "More filters"
+msgstr "更多篩選"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Reset"
+msgstr "重設"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Show password"
+msgstr "顯示密碼"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Hide password"
+msgstr "隱藏密碼"
+
+#: frontend/packages/oldman-web/src/components/form.ts
+#: oldman/web/components/forms/renderers.py
+msgid "Form validation failed"
+msgstr "表單驗證失敗"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Add item"
+msgstr "新增條目"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Remove item"
+msgstr "刪除條目"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Move item up"
+msgstr "上移條目"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Move item down"
+msgstr "下移條目"
+
+#: oldman/web/components/forms/renderers.py
+msgid "Form steps"
+msgstr "表單步驟"
+
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+#: oldman/web/templates/oldman/tables/default/pagination.html
+msgid "Previous"
+msgstr "上一頁"
+
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+#: oldman/web/templates/oldman/tables/default/pagination.html
+msgid "Next"
+msgstr "下一頁"
+
+#: oldman/web/components/forms/widgets.py
+msgid "Decrease value"
+msgstr "減小數值"
+
+#: oldman/web/components/forms/widgets.py
+msgid "Increase value"
+msgstr "增大數值"
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/web/components/forms/widgets.py
+msgid "Choose color"
+msgstr "選擇顏色"
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Unexpected dependent field: %(name)s"
+msgstr "不認識的相依欄位：%(name)s"
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Invalid integer parameter: %(name)s"
+msgstr "整數參數無效：%(name)s"
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Invalid positive integer parameter: %(name)s"
+msgstr "正整數參數無效：%(name)s"
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Parameter exceeds maximum: %(name)s"
+msgstr "參數超過上限：%(name)s"
+
+#: oldman/web/components/tables/cells.py
+msgid "Row actions"
+msgstr "列操作"
+
+#: oldman/web/components/tables/filters.py
+msgid "Invalid boolean filter"
+msgstr "無效的布林篩選值"
+
+#: oldman/web/components/tables/filters.py
+msgid "Invalid datetime filter"
+msgstr "無效的日期時間篩選值"
+
+#: oldman/web/components/tables/filters.py
+#, python-format
+msgid "Invalid %(label)s filter"
+msgstr "無效的 %(label)s 篩選值"
+
+#: frontend/packages/oldman-web/src/app/index.ts
+#: frontend/packages/oldman-web/src/components/apex-chart.ts
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/feedback.ts
+#: frontend/packages/oldman-web/src/components/modal.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/table-filter-form.ts
+#: frontend/packages/oldman-web/src/components/table.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#: frontend/packages/oldman-web/src/core/services/preloader.ts
+#: oldman/web/components/tables/renderers.py
+#: oldman/web/templates/oldman/tables/default/shell.html
+msgid "Loading..."
+msgstr "載入中..."
+
+#: frontend/packages/oldman-web/src/components/table.ts
+#: oldman/web/components/tables/views.py
+msgid "No matching records"
+msgstr "沒有符合的記錄"
+
+#: oldman/web/components/tables/views.py
+msgid "Adjust or reset the filters to see more records."
+msgstr "調整或重設篩選條件以查看更多記錄。"
+
+#: oldman/web/components/tables/views.py
+msgid "Invalid table pagination parameter"
+msgstr "表格分頁參數無效"
+
+#: oldman/web/components/tables/views.py
+msgid "Unsupported table export format"
+msgstr "不支援的表格匯出格式"
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Unknown table filter: %(name)s"
+msgstr "未知的表格篩選條件：%(name)s"
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Unknown table sort: %(name)s"
+msgstr "未知的表格排序欄位：%(name)s"
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Table column is not sortable: %(name)s"
+msgstr "該欄不能排序：%(name)s"
+
+#: oldman/web/messages/notifications/apps.py
+#: oldman/web/messages/notifications/models.py
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Notifications"
+msgstr "通知"
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/messages/notifications/models.py
+msgid "Notification"
+msgstr "通知"
+
+#: oldman/web/messages/notifications/runtime.py
+msgid "Notification was not found"
+msgstr "找不到通知"
+
+#: oldman/web/messages/notifications/runtime.py
+msgid "Notification target was not found"
+msgstr "找不到通知指向的頁面"
+
+#: oldman/web/security/csrf/decorators.py
+msgid ""
+"This page has expired, or the request could not be confirmed as coming "
+"from this site. Reload the page and try again."
+msgstr "頁面已過期，或無法確認請求來自本站。請重新整理頁面後再試。"
+
+#: oldman/web/security/csrf/decorators.py
+msgid "CSRF token missing"
+msgstr "缺少 CSRF 權杖"
+
+#: oldman/web/security/csrf/decorators.py
+#, python-format
+msgid "CSRF validation failed: %(reason)s"
+msgstr "CSRF 驗證失敗：%(reason)s"
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Logout"
+msgstr "登出"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current Session"
+msgstr "目前工作階段"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Login Time"
+msgstr "登入時間"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Login IP"
+msgstr "登入 IP"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Session Boundaries"
+msgstr "工作階段界限"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Page Scope"
+msgstr "頁面範圍"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current session only"
+msgstr "僅限目前工作階段"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Password Scope"
+msgstr "密碼範圍"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current user only"
+msgstr "僅限目前使用者"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Logout Flow"
+msgstr "登出流程"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "End current session"
+msgstr "結束目前工作階段"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Session Permissions"
+msgstr "工作階段權限"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid ""
+"This page manages the current authenticated session. User administration "
+"remains in the application user-management area."
+msgstr "此頁面管理目前已驗證的工作階段；使用者管理仍在應用程式的使用者管理區域中進行。"
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Open the remote form to change the current session password."
+msgstr "開啟遠端表單以變更目前工作階段密碼。"
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid "Hello %(username)s,"
+msgstr "%(username)s，你好："
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid ""
+"Someone asked to reset the password of your %(site_name)s account. Open "
+"the link below to choose a new one:"
+msgstr "有人申請重設你的 %(site_name)s 帳號密碼。開啟下面的連結設定新密碼："
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid ""
+"The link stays valid for %(hours)s hours. If you did not ask for this, "
+"ignore this message; your password stays as it is."
+msgstr "連結 %(hours)s 小時內有效。如果不是你本人申請，忽略這封郵件即可，密碼不會改變。"
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+msgid "Welcome"
+msgstr "歡迎"
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+msgid "Session"
+msgstr "工作階段"
+
+#: oldman/web/templates/oldman/auth/partials/login_form.html
+msgid "Forgot password?"
+msgstr "忘記密碼？"
+
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+msgid "Delete user?"
+msgstr "刪除該使用者？"
+
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Select a row action to continue."
+msgstr "請選擇一項列操作以繼續。"
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Enable user?"
+msgstr "啟用該使用者？"
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Disable user?"
+msgstr "停用該使用者？"
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Confirm"
+msgstr "確認"
+
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+#, python-format
+msgid "Set a new password for %(username)s."
+msgstr "為 %(username)s 設定一個新密碼。"
+
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+msgid "Update password"
+msgstr "更新密碼"
+
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+msgid "Sign in with your new password to continue."
+msgstr "請使用新密碼登入。"
+
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+msgid ""
+"The password reset link has expired or was already used. Request a new "
+"one to continue."
+msgstr "重設連結已過期或已被使用，請重新申請。"
+
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+msgid "Request a new link"
+msgstr "重新申請連結"
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid ""
+"Enter the email address of your account and we will send you a link to "
+"choose a new password."
+msgstr "輸入帳號綁定的電子郵件，我們會傳送一個用於設定新密碼的連結。"
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid "Too many requests. Please wait a while before trying again."
+msgstr "請求太頻繁，請稍後再試。"
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid "Send reset link"
+msgstr "傳送重設連結"
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+msgid "Back to sign in"
+msgstr "返回登入"
+
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+#, python-format
+msgid ""
+"If an account uses that address, a link to choose a new password is on "
+"its way. It stays valid for %(hours)s hours; check the spam folder if it "
+"does not arrive."
+msgstr "如果這個電子郵件對應一個帳號，設定新密碼的連結已經送出，%(hours)s 小時內有效；沒收到請檢查垃圾郵件。"
+
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign in with your account to continue."
+msgstr "請使用你的帳號登入以繼續。"
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/errors/403.html
+msgid "Access denied"
+msgstr "拒絕存取"
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/errors/403.html
+msgid "You do not have permission to access this page."
+msgstr "您沒有權限存取此頁面。"
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+msgid "Return to dashboard"
+msgstr "返回儀表板"
+
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/errors/404.html
+msgid "Page not found"
+msgstr "找不到頁面"
+
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/errors/404.html
+msgid "The page you requested does not exist or may have moved."
+msgstr "您要存取的頁面不存在或已被移動。"
+
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/errors/500.html
+msgid "Server error"
+msgstr "伺服器錯誤"
+
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/errors/500.html
+msgid "The server could not complete this request. Please try again later."
+msgstr "伺服器暫時無法完成此請求，請稍後再試。"
+
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "Request error"
+msgstr "請求錯誤"
+
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "The request could not be completed."
+msgstr "請求無法完成。"
+
+#: oldman/web/templates/oldman/dashboard/partials/back_to_top.html
+msgid "Back to top"
+msgstr "返回頂部"
+
+#: oldman/web/templates/oldman/dashboard/partials/language_switcher.html
+msgid "Language"
+msgstr "語言"
+
+#: oldman/web/templates/oldman/dashboard/partials/shell.html
+msgid "Primary navigation"
+msgstr "主導覽"
+
+#: oldman/web/templates/oldman/dashboard/partials/shell.html
+msgid "Close navigation"
+msgstr "關閉導覽"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Delete notifications"
+msgstr "刪除通知"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Toggle navigation"
+msgstr "切換導覽"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Breadcrumb"
+msgstr "麵包屑導覽"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Fullscreen"
+msgstr "全螢幕"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Toggle theme"
+msgstr "切換主題"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "View all notifications"
+msgstr "檢視全部通知"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Current activity"
+msgstr "目前活動"
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Select notification"
+msgstr "選取通知"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+#: oldman/web/templates/oldman/tables/default/head.html
+#: oldman/web/templates/oldman/tables/default/row.html
+msgid "Select"
+msgstr "選擇"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Result"
+msgstr "結果"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Remove"
+msgstr "移除"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Remove notifications"
+msgstr "移除通知"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Are you sure?"
+msgstr "確定嗎？"
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Selected notifications will be removed from this dropdown."
+msgstr "選定的通知將從該下拉選單中刪除。"
+
+#: oldman/web/templates/oldman/errors/403.html
+#: oldman/web/templates/oldman/errors/404.html
+#: oldman/web/templates/oldman/errors/500.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "Return home"
+msgstr "返回首頁"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Notification filters"
+msgstr "通知篩選"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Unread"
+msgstr "未讀"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Read"
+msgstr "已讀"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Mark all as read"
+msgstr "全部標記為已讀"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "New notifications available"
+msgstr "有新通知"
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "No notifications"
+msgstr "暫無通知"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Mark selected as read"
+msgstr "將所選標記為已讀"
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Delete selected"
+msgstr "刪除所選"
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Notification pages"
+msgstr "通知分頁"
+
+#: oldman/web/templates/oldman/tables/default/empty.html
+msgid "Reset filters"
+msgstr "重設篩選"
+
+#: oldman/web/templates/oldman/tables/default/fragment.html
+msgid "Rows per page"
+msgstr "每頁列數"
+
+#: oldman/web/templates/oldman/tables/default/head.html
+msgid "Select all rows"
+msgstr "選擇全部列"
+
+#: oldman/web/templates/oldman/tables/default/row.html
+msgid "Select row"
+msgstr "選擇此列"
+
+#: oldman/web/templates/oldman/tables/default/summary.html
+#, python-format
+msgid "Showing %(start)s to %(end)s of %(total)s entries"
+msgstr "顯示第 %(start)s 至 %(end)s 筆，共 %(total)s 筆記錄"
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Columns"
+msgstr "欄位"
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Density"
+msgstr "密度"
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Comfortable"
+msgstr "舒適"
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Compact"
+msgstr "緊湊"
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Export"
+msgstr "匯出"
+
+#: frontend/packages/oldman-web/src/components/upload.ts
+msgid "File is too large"
+msgstr "檔案過大"
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "Load more"
+msgstr "載入更多"
+
+#: frontend/packages/oldman-web/src/components/apex-chart.ts
+msgid "No chart data"
+msgstr "暫無圖表資料"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "No choices available"
+msgstr "沒有可選項"
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "No results found"
+msgstr "找不到結果"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Only unique values can be added"
+msgstr "只能加入唯一值"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Only values matching specific conditions can be added"
+msgstr "只能加入符合條件的值"
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Open"
+msgstr "開啟"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#, python-brace-format
+msgid "Press Enter to add \"{value}\""
+msgstr "按 Enter 加入「{value}」"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Press to select"
+msgstr "按下以選擇"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/core/actions/response-actions.ts
+#: frontend/packages/oldman-web/src/core/http/client.ts
+#: frontend/packages/oldman-web/src/dashboard/index.ts
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Request failed"
+msgstr "請求失敗"
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "Retry"
+msgstr "重試"
+
+#: frontend/packages/oldman-web/src/components/form.ts
+msgid "Saving..."
+msgstr "儲存中..."
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Selected notifications will be deleted."
+msgstr "選定的通知將被刪除。"
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "Showing"
+msgstr "顯示"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "This is a placeholder set in the config"
+msgstr "這是設定中指定的預留內容"
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "entries"
+msgstr "條記錄"
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "of"
+msgstr "共"
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "to"
+msgstr "至"
+
+#: frontend/packages/oldman-web/src/components/table.ts
+#, python-brace-format
+msgid "{count} selected"
+msgstr "已選 {count} 項"
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#, python-brace-format
+msgid "{count} value can be added"
+msgid_plural "{count} values can be added"
+msgstr[0] "最多可加入 {count} 個值"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Blockquote"
+msgstr "引用"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Bold"
+msgstr "粗體"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Bullet list"
+msgstr "無序清單"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Clear formatting"
+msgstr "清除格式"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Code block"
+msgstr "程式碼區塊"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 1"
+msgstr "一級標題"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 2"
+msgstr "二級標題"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 3"
+msgstr "三級標題"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Italic"
+msgstr "斜體"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Link"
+msgstr "連結"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Normal"
+msgstr "正文"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Ordered list"
+msgstr "有序清單"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Strikethrough"
+msgstr "刪除線"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Text style"
+msgstr "文字樣式"
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Underline"
+msgstr "底線"
+

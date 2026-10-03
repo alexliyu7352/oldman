@@ -55,12 +55,20 @@ def package_locale_root(package_name: str) -> Path | None:
 
 
 def translation_roots(project_root: Path, app_packages: Iterable[str]) -> tuple[Path, ...]:
-    """Where a service looks up translations, highest priority first: the project's ``locales``, then each installed App's."""
+    """Where a service looks up translations, highest priority first.
+
+    The project's ``locales``, then each installed App's that has one, then the framework's own
+    catalog (``oldman/locales``), which every framework message is in: a project that turns on a
+    language the framework ships gets the framework's text in it without translating anything.
+    """
     roots = [project_root / "locales"]
     for package_name in app_packages:
         locale_root = package_locale_root(package_name)
         if locale_root is not None:
             roots.append(locale_root)
+    framework_root = package_locale_root("oldman")
+    if framework_root is not None:
+        roots.append(framework_root)
     return tuple(dict.fromkeys(roots))
 
 

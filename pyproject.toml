@@ -127,20 +127,13 @@ line-ending = "auto"
 [tool.hatch.build.targets.wheel]
 packages = ["oldman"]
 artifacts = [
-    "/oldman/apps/admin/locales/**/*.mo",
-    "/oldman/apps/roles/locales/**/*.mo",
-    "/oldman/cli/locales/**/*.mo",
-    "/oldman/web/messages/notifications/locales/**/*.mo",
+    "/oldman/locales/**/*.mo",
 ]
 exclude = [
     "**/__pycache__",
     "**/*.pyc",
-    "/oldman/apps/admin/locales/**/*.po",
-    "/oldman/apps/roles/locales/**/*.po",
-    "/oldman/cli/locales/**/*.po",
-    "/oldman/cli/locales/messages.pot",
-    "/oldman/web/messages/notifications/locales/**/*.po",
-    "/oldman/web/messages/notifications/locales/messages.pot",
+    "/oldman/locales/**/*.po",
+    "/oldman/locales/messages.pot",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
@@ -156,12 +149,8 @@ include = [
     "/scripts/hatch_sdist_hook.py",
 ]
 artifacts = [
-    "/oldman/apps/admin/locales/**/*.mo",
-    "/oldman/apps/roles/locales/**/*.mo",
-    "/oldman/cli/locales/**/*.mo",
-    "/oldman/cli/locales/messages.pot",
-    "/oldman/web/messages/notifications/locales/**/*.mo",
-    "/oldman/web/messages/notifications/locales/messages.pot",
+    "/oldman/locales/**/*.mo",
+    "/oldman/locales/messages.pot",
 ]
 exclude = ["/.gitignore"]
 

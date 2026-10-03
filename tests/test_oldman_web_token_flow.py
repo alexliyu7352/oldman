@@ -224,7 +224,7 @@ class TokenFlowTest(unittest.IsolatedAsyncioTestCase):
 
         from oldman.i18n import bind_translations, reset_translations
 
-        locales = Path(__file__).resolve().parents[1] / "oldman/apps/admin/locales"
+        locales = Path(__file__).resolve().parents[1] / "oldman/locales"
         self.addCleanup(reset_translations, bind_translations(Translations.load(str(locales), ["zh_Hans"])))
         cases = (
             ("/token", {"username": "ops"}, "缺少必填字段：username, password"),

@@ -173,9 +173,9 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
             ROOT / "oldman" / "scaffolds" / "project" / "dashboard",
             ROOT / "oldman" / "scaffolds" / "app" / "dashboard_app",
             ROOT / "oldman" / "auth" / "migrations" / "__init__.py",
-            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "messages.pot",
-            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "zh_Hans" / "LC_MESSAGES" / "messages.mo",
-            ROOT / "oldman" / "web" / "messages" / "notifications" / "locales" / "zh_Hant" / "LC_MESSAGES" / "messages.mo",
+            ROOT / "oldman" / "locales" / "messages.pot",
+            ROOT / "oldman" / "locales" / "zh_Hans" / "LC_MESSAGES" / "messages.mo",
+            ROOT / "oldman" / "locales" / "zh_Hant" / "LC_MESSAGES" / "messages.mo",
             ROOT / "oldman" / "web" / "templates" / "oldman" / "messages" / "notifications" / "center_content.html",
             ROOT / "oldman" / "web" / "templates" / "oldman" / "messages" / "notifications" / "topbar_fragment.html",
         ]
@@ -231,7 +231,7 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
             module.REQUIRED_FILES,
         )
         self.assertIn(
-            "oldman/web/messages/notifications/locales/zh_Hans/LC_MESSAGES/messages.mo",
+            "oldman/locales/zh_Hans/LC_MESSAGES/messages.mo",
             module.REQUIRED_FILES,
         )
         self.assertIn(
@@ -337,10 +337,10 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
         self.assertIn("Wheel contains unexpected member: injected.txt", errors)
         self.assertIn("Wheel RECORD hash does not match member: oldman/__init__.py", errors)
 
-    def test_wheel_rejects_notification_translation_sources(self) -> None:
+    def test_wheel_rejects_translation_sources(self) -> None:
         """Wheels carry compiled catalogs but not editable PO/POT sources."""
         module = load_verify_wheel_module()
-        source_name = "oldman/web/messages/notifications/locales/zh_Hans/LC_MESSAGES/messages.po"
+        source_name = "oldman/locales/zh_Hans/LC_MESSAGES/messages.po"
         with tempfile.TemporaryDirectory() as tmp:
             wheel = Path(tmp) / "oldman.whl"
             expected = write_closed_wheel(
@@ -351,7 +351,7 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
             errors = module.verify_wheel(wheel, expected_inventory=expected)
 
         self.assertIn(
-            f"Wheel must not contain notification translation source: {source_name}",
+            f"Wheel must not contain translation source: {source_name}",
             errors,
         )
 
@@ -402,14 +402,14 @@ class OldmanWheelContentsPreflightTest(unittest.TestCase):
                 names,
             )
             self.assertIn(
-                "oldman/web/messages/notifications/locales/zh_Hans/LC_MESSAGES/messages.mo",
+                "oldman/locales/zh_Hans/LC_MESSAGES/messages.mo",
                 names,
             )
             self.assertIn(
-                "oldman/web/messages/notifications/locales/zh_Hant/LC_MESSAGES/messages.mo",
+                "oldman/locales/zh_Hant/LC_MESSAGES/messages.mo",
                 names,
             )
-            self.assertFalse(any(name.startswith("oldman/web/messages/notifications/locales/") and name.endswith((".po", ".pot")) for name in names))
+            self.assertFalse(any(name.startswith("oldman/locales/") and name.endswith((".po", ".pot")) for name in names))
             auth_revisions = {
                 name
                 for name in names

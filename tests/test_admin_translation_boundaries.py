@@ -87,7 +87,7 @@ class AdminTranslationBoundaryTest(unittest.TestCase):
         from oldman.apps.roles.models import Role
 
         package = Path(__file__).resolve().parents[1] / "oldman"
-        translations = CatalogLoader((package / "apps/admin/locales", package / "apps/roles/locales")).load("zh_Hans")
+        translations = CatalogLoader((package / "locales",)).load("zh_Hans")
         admin = ModelAdmin(Role)
         token = bind_translations(translations)
         try:

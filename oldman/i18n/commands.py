@@ -160,6 +160,25 @@ def _extract_framework_catalog(output: Path) -> None:
         )
 
 
+def framework_template() -> Catalog:
+    """Every message the framework ships, the same set ``extract()`` merges into a project's catalog.
+
+    Python and templates through ``framework-babel.cfg``, then ``oldman-web``'s frontend messages:
+    the template of the framework's own catalog in ``oldman/locales``.
+    """
+    with TemporaryDirectory(prefix="oldman-i18n-") as temporary_directory:
+        temporary_path = Path(temporary_directory)
+        empty_project_pot = temporary_path / "project.pot"
+        framework_pot = temporary_path / "framework.pot"
+        template_pot = temporary_path / "messages.pot"
+        with empty_project_pot.open("wb") as empty_file:
+            write_po(empty_file, Catalog(project="oldman"))
+        _extract_framework_catalog(framework_pot)
+        _merge_catalogs(empty_project_pot, framework_pot, template_pot)
+        with template_pot.open("rb") as template_file:
+            return read_po(template_file)
+
+
 def extract() -> None:
     """提取项目和框架翻译字符串到同一个应用消息目录。"""
     output = Path(POT_FILE)

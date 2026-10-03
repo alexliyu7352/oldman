@@ -268,15 +268,15 @@ class OldmanSdistContentsTest(unittest.TestCase):
                 )
                 for locale in ("zh_Hans", "zh_Hant"):
                     self.assertIn(
-                        f"{prefix}/oldman/web/messages/notifications/locales/{locale}/LC_MESSAGES/messages.mo",
+                        f"{prefix}/oldman/locales/{locale}/LC_MESSAGES/messages.mo",
                         names,
                     )
                     self.assertIn(
-                        f"{prefix}/oldman/web/messages/notifications/locales/{locale}/LC_MESSAGES/messages.po",
+                        f"{prefix}/oldman/locales/{locale}/LC_MESSAGES/messages.po",
                         names,
                     )
                 self.assertIn(
-                    f"{prefix}/oldman/web/messages/notifications/locales/messages.pot",
+                    f"{prefix}/oldman/locales/messages.pot",
                     names,
                 )
                 auth_revisions = {

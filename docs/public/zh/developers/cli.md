@@ -247,4 +247,4 @@ Core 只发送/RPC，不因 consume=true 加载 App events 或启动 subscriber�
 
 App 命令的说明使用 `gettext_lazy()`，实际运行时再翻译。Python、Jinja、CLI 共用 `messages` 翻译目录；不需要为 CLI 增设独立 domain。
 
-没有有效译文的词条会回退原文。新增或修改命令文案时，应同步提取、补齐简繁译文并编译，步骤见 [CLI 翻译维护](https://github.com/alexliyu7352/oldman/blob/main/oldman/cli/locales/README.md)。
+没有有效译文的词条会回退原文。新增或修改命令文案时，应同步提取、补齐简繁译文并编译，CLI 文案在框架自己的翻译 `oldman/locales` 里，步骤见 [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py) 开头的说明。

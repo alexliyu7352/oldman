@@ -322,7 +322,7 @@ class DenialMessageTranslationTest(unittest.TestCase):
 
         from oldman.i18n import bind_translations, reset_translations
 
-        locales = Path(__file__).resolve().parents[1] / "oldman/apps/admin/locales"
+        locales = Path(__file__).resolve().parents[1] / "oldman/locales"
         token = bind_translations(Translations.load(str(locales), ["zh_Hans"]))
         self.addCleanup(reset_translations, token)
         self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))

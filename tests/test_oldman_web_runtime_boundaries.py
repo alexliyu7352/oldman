@@ -361,8 +361,8 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
 
         self.assertEqual(["storage", "sse", "models", "views"], events)
 
-    def test_i18n_roots_only_include_apps_installed_in_this_service(self) -> None:
-        """The built-in Admin catalog is not a hidden unconditional source."""
+    def test_i18n_roots_are_the_project_the_installed_apps_then_the_framework(self) -> None:
+        """An App's catalog counts only where the App is installed; the framework's own catalog is always the last."""
         from oldman.runtime.web import _translation_catalog_roots
 
         apps = Mock(packages=("reports_app",))
@@ -379,8 +379,8 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
             ),
             patch(
                 "oldman.i18n.catalogs.package_locale_root",
-                return_value=Path("/packages/reports/locales"),
-            ),
+                side_effect=lambda package: Path(f"/packages/{package}/locales"),
+            ) as package_locale_root,
         ):
             application = ConcreteWebApplication("catalog-roots")
             roots = _translation_catalog_roots(application)
@@ -388,10 +388,12 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         self.assertEqual(
             (
                 Path(conf.PROJECT_BASE_PATH) / "locales",
-                Path("/packages/reports/locales"),
+                Path("/packages/reports_app/locales"),
+                Path("/packages/oldman/locales"),
             ),
             roots,
         )
+        self.assertEqual(["reports_app", "oldman"], [call.args[0] for call in package_locale_root.call_args_list])
 
     def test_runtime_initializes_web_extensions_before_app_views(self) -> None:
         """Every decorator-backed runtime exists before registered apps import."""

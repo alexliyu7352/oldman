@@ -8,14 +8,10 @@ import json
 import os
 import subprocess
 import sys
-import tarfile
 import tempfile
 import unittest
-import zipfile
 from pathlib import Path
 from unittest.mock import patch
-
-from babel.messages.pofile import read_po
 
 from oldman.cli import main as oldman_main
 from oldman.cli import tui
@@ -381,82 +377,6 @@ class OldmanCliLocalizationTest(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 2)
         self.assertIn("en, zh-Hans, zh-Hant", completed.stderr)
-
-    def test_builtin_cli_catalogs_have_no_untranslated_or_fuzzy_messages(self) -> None:
-        """Published Simplified and Traditional catalogs cover every active key."""
-        locales = ROOT / "oldman" / "cli" / "locales"
-        for locale_name in ("zh_Hans", "zh_Hant"):
-            with self.subTest(locale=locale_name):
-                catalog_path = locales / locale_name / "LC_MESSAGES" / "messages.po"
-                with catalog_path.open("rb") as catalog_file:
-                    catalog = read_po(catalog_file, locale=locale_name)
-                incomplete = [message.id for message in catalog if message.id and (not message.string or "fuzzy" in message.flags)]
-                self.assertEqual([], incomplete)
-
-    def test_every_cli_message_in_the_source_is_in_the_template_and_translated(self) -> None:
-        """A message added to the source but never to the catalogs is shown in English only.
-
-        The check above only sees entries the .po files already have; this one extracts the source
-        the way locales/README.md does and compares.
-        """
-        locales = ROOT / "oldman" / "cli" / "locales"
-
-        def message_ids(path: Path, *, translated_only: bool = False) -> set[str]:
-            with path.open("rb") as catalog_file:
-                catalog = read_po(catalog_file)
-            return {
-                message.id if isinstance(message.id, str) else message.id[0]
-                for message in catalog
-                if message.id and (not translated_only or (message.string and "fuzzy" not in message.flags))
-            }
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            extracted = Path(temporary_directory) / "messages.pot"
-            subprocess.run(
-                [sys.executable, "-m", "babel.messages.frontend", "extract", "-F", "oldman/cli/babel.cfg"]
-                + ["-k", "_", "-k", "gettext", "-k", "gettext_noop", "-k", "ngettext:1,2", "-o", str(extracted), "oldman"],
-                cwd=ROOT,
-                check=True,
-                capture_output=True,
-            )
-            in_source = message_ids(extracted)
-
-        self.assertEqual([], sorted(in_source - message_ids(locales / "messages.pot")))
-        for locale_name in ("zh_Hans", "zh_Hant"):
-            with self.subTest(locale=locale_name):
-                translated = message_ids(locales / locale_name / "LC_MESSAGES" / "messages.po", translated_only=True)
-                self.assertEqual([], sorted(in_source - translated))
-
-    def test_release_artifacts_include_cli_catalogs(self) -> None:
-        """Wheel and sdist both publish the runtime and source catalog assets."""
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            output = Path(temporary_directory)
-            completed = subprocess.run(
-                ["uv", "build", "--out-dir", str(output), "--no-sources"],
-                cwd=ROOT,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            wheel = next(output.glob("*.whl"))
-            sdist = next(output.glob("*.tar.gz"))
-            with zipfile.ZipFile(wheel) as archive:
-                wheel_members = set(archive.namelist())
-            with tarfile.open(sdist, "r:gz") as archive:
-                sdist_members = {
-                    Path(member.name).relative_to(Path(member.name).parts[0]).as_posix()
-                    for member in archive.getmembers()
-                    if len(Path(member.name).parts) > 1
-                }
-        for locale_name in ("zh_Hans", "zh_Hant"):
-            runtime_catalog = f"oldman/cli/locales/{locale_name}/LC_MESSAGES/messages.mo"
-            source_catalog = f"oldman/cli/locales/{locale_name}/LC_MESSAGES/messages.po"
-            self.assertIn(runtime_catalog, wheel_members)
-            self.assertIn(source_catalog, sdist_members)
-        self.assertIn("oldman/cli/locales/messages.pot", sdist_members)
-        self.assertIn("oldman/cli/babel.cfg", sdist_members)
-        self.assertIn("oldman/cli/locales/README.md", sdist_members)
 
 
 if __name__ == "__main__":

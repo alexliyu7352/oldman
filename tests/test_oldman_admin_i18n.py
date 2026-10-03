@@ -13,7 +13,7 @@ class OldmanAdminI18nTest(unittest.TestCase):
 
     def test_built_in_chinese_catalogs_translate_admin_copy(self) -> None:
         """Load packaged catalogs through the same loader used by WebApplication."""
-        locales = Path(__file__).resolve().parents[1] / "oldman" / "apps" / "admin" / "locales"
+        locales = Path(__file__).resolve().parents[1] / "oldman" / "locales"
         loader = CatalogLoader([locales])
 
         simplified = loader.load("zh_Hans")

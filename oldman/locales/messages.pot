@@ -1,0 +1,2399 @@
+#: oldman/apps/admin/apps.py oldman/apps/admin/templates/admin/index.html
+msgid "Administration"
+msgstr ""
+
+#: oldman/apps/admin/commands.py
+msgid "--username is required for a non-interactive run."
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Username"
+msgstr ""
+
+#: oldman/apps/admin/commands.py
+msgid "Username cannot be empty."
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
+msgid "Password"
+msgstr ""
+
+#: oldman/apps/admin/commands.py
+#, python-format
+msgid "%(variable)s must be set for a non-interactive run."
+msgstr ""
+
+#: oldman/apps/admin/commands.py
+msgid "Create Superuser"
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
+msgid "Username already exists"
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
+#: oldman/web/auth/tables.py
+msgid "Email"
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
+#: oldman/web/auth/user_management.py
+msgid "User created"
+msgstr ""
+
+#: oldman/apps/admin/commands.py
+msgid "User updated"
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/tables.py oldman/web/auth/user_management.py
+#: oldman/web/auth/user_session.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Change Password"
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/modals.py oldman/web/auth/user_management.py
+msgid "User not found."
+msgstr ""
+
+#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
+#: oldman/web/auth/user_management.py
+msgid "Password changed"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "View %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Add %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Change %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Delete %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/components/tables/views.py
+msgid "No records found."
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#, python-format
+msgid "%(field)s already exists"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "%(name)s List"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "New %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#, python-format
+msgid "Edit %(name)s"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+msgid "Save changes"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+msgid "Create"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+msgid "Yes"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+msgid "No"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "Edit"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "No users found."
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "Users"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "User"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "Users List"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+#: oldman/web/templates/oldman/dashboard/account/users/index.html
+msgid "New User"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Delete User"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py
+#: oldman/web/templates/oldman/dashboard/account/users/form.html
+msgid "Edit User"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/apps/admin/model_admin.py oldman/web/components/forms/base.py
+#: oldman/web/components/forms/layouts.py
+#: oldman/web/components/forms/renderers.py
+msgid "Save"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Display Name"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+msgid "Status"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Staff"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Superuser"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
+#: oldman/web/auth/tables.py
+msgid "Last Login"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/web/auth/user_management.py
+msgid "User saved"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/apps/admin/model_admin.py oldman/apps/admin/site.py
+#: oldman/web/auth/user_management.py
+msgid "Just now"
+msgstr ""
+
+#: oldman/apps/admin/roles.py oldman/web/auth/permissions.py
+msgid "The permission store is unavailable"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_session.py
+msgid "Unsupported language."
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/web/components/forms/base.py
+#: oldman/web/components/forms/renderers.py
+msgid "Filter"
+msgstr ""
+
+#: oldman/apps/admin/site.py
+#, python-format
+msgid "%(name)s %(id)s was not found"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User not found"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/core/http/client.ts
+#: oldman/apps/admin/site.py oldman/web/auth/forms.py
+#: oldman/web/auth/permissions.py oldman/web/auth/user_management.py
+#: oldman/web/components/charts/views.py oldman/web/components/tables/views.py
+#: oldman/web/http.py
+msgid "Permission denied"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User deleted"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/web/auth/user_management.py
+msgid "User status updated"
+msgstr ""
+
+#: oldman/apps/admin/table.py oldman/web/auth/tables.py
+msgid "Action"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/base.html
+msgid "Applications"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/base.html
+msgid "Models"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Manage registered models."
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Open model records."
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "No models registered"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/index.html
+msgid "Register a ModelAdmin to manage records here."
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/login.html
+#: oldman/web/templates/oldman/auth/partials/login_form.html
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign In"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/login.html
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign in"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/login.html
+msgid "Use a staff account to continue."
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/user_notifications.html
+#: oldman/web/templates/oldman/dashboard/account/user_notifications.html
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "User notifications"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/user_session.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/account/user_session.html
+msgid "User Session"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/model/confirm_delete.html
+msgid "This action cannot be undone."
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/apps/admin/templates/admin/model/confirm_delete.html
+#: oldman/web/components/forms/base.py oldman/web/components/forms/layouts.py
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Cancel"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/model/form.html oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+msgid "Delete"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/partials/topbar.html
+msgid "Admin"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/password_reset/confirm.html
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/confirm.html
+msgid "Choose a new password"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/password_reset/done.html
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/done.html
+msgid "Your password has been updated"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/password_reset/invalid.html
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/invalid.html
+msgid "This link is no longer valid"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/password_reset/request.html
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/request.html
+msgid "Reset your password"
+msgstr ""
+
+#: oldman/apps/admin/templates/admin/password_reset/sent.html
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+#: oldman/web/templates/oldman/dashboard/account/password_reset/sent.html
+msgid "Check your email"
+msgstr ""
+
+#: oldman/apps/roles/apps.py oldman/apps/roles/models.py
+#: oldman/web/auth/forms.py
+msgid "Roles"
+msgstr ""
+
+#: oldman/apps/roles/forms.py
+msgid "Name"
+msgstr ""
+
+#: oldman/apps/roles/forms.py
+msgid "Description"
+msgstr ""
+
+#: oldman/apps/roles/forms.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Permissions"
+msgstr ""
+
+#: oldman/apps/roles/forms.py
+msgid "A role with this name already exists"
+msgstr ""
+
+#: oldman/apps/roles/forms.py
+#, python-format
+msgid "You can only grant permissions you hold: %(permissions)s"
+msgstr ""
+
+#: oldman/apps/roles/models.py
+msgid "Role"
+msgstr ""
+
+#: oldman/apps/roles/models.py
+msgid "User role"
+msgstr ""
+
+#: oldman/apps/roles/models.py
+msgid "User roles"
+msgstr ""
+
+#: oldman/auth/apps.py
+msgid "Authentication"
+msgstr ""
+
+#: oldman/auth/services.py oldman/web/auth/forms.py
+msgid "cannot disable current user"
+msgstr ""
+
+#: oldman/auth/services.py
+msgid "cannot delete current user"
+msgstr ""
+
+#: oldman/auth/services.py
+msgid "cannot delete superuser"
+msgstr ""
+
+#: oldman/auth/user_permissions.py
+msgid "View users"
+msgstr ""
+
+#: oldman/auth/user_permissions.py
+msgid "Add users"
+msgstr ""
+
+#: oldman/auth/user_permissions.py
+msgid "Change users"
+msgstr ""
+
+#: oldman/auth/user_permissions.py
+msgid "Delete users"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Arguments"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Commands"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Options"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-brace-format
+msgid "No such command {name!r}."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-brace-format
+msgid "default: {default}"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "required"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Usage"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Show this message and exit."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Service commands"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Framework commands"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Services"
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/service.py
+#, python-format
+msgid "Error: %(error)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Warning: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/service.py
+msgid "Aborted."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Dashboard projects require a database."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Project directory name."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Project type"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Database"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created project at %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Application name."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "App template"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Display name"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created app %(name)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Service module name."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Service type"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Created service %(name)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Settings file already exists: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Initialized settings: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Settings file does not exist: %(path)s. Run `oldman %(service)s settings "
+"init` first."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Settings OK: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Synchronized settings: %(path)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Warning: %(path)s uses %(winner)s; ignored %(ignored)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Collected static files to %(destination)s: %(copied)s copied, "
+"%(unchanged)s unchanged, %(removed)s removed."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Extracting messages..."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Canonical language code."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Invalid canonical language code: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Initializing locale: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Updating translations..."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Compiling translations..."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Service whose settings describe the languages."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Building frontend catalogs..."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Manage CLI display language."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Supported CLI languages:"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Current language: %(code)s (%(name)s)"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Saved language: %(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Saved language: not set"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Environment override: %(variable)s=%(language)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "CLI language code or registered alias."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Unsupported CLI language %(language)s. Supported: %(supported)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "CLI language set to %(language)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "List supported CLI languages."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Show the current CLI language."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Set the CLI language."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Manage explicit Oldman settings files."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Settings YAML path."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Create a settings file explicitly."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Validate the current settings file."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Add missing managed settings keys."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Collect project and installed-App static files."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Remove previously collected output first."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Collect static files into settings.web.static.root."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Check outgoing mail settings."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Recipient addresses."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Sending the test message failed: %(error)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Sent %(count)s test message(s) through %(backend)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Send a test message to the given addresses."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Open a bootstrapped Python shell."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Manage project translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Extract translation messages."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Initialize a language catalog."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Update translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Compile translation catalogs."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Build browser catalogs and the frontend language manifest."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Oldman application framework command line."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Show the installed Oldman version and exit."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman project scaffold."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman app module."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Create an Oldman service entry."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Web service %(service)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Application service %(service)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Install completion for the current shell."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Show completion for the current shell."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "%(value)s is not one of %(choices)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "No such option: %(option)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "%(text)s (Possible options: %(options)s)"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing argument %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing option %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Missing parameter %(parameter)s."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Invalid value for %(parameter)s: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py oldman/cli/tui/inputs.py
+#, python-format
+msgid "Invalid value: %(detail)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Got unexpected extra argument(s): %(arguments)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Try '%(command)s --help' for help."
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid "Error: Service names conflict with root commands: %(services)s"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Error: Settings file does not exist: %(path)s. Run `oldman %(service)s "
+"settings init` first."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Manage project database migrations."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "No migration was generated."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Generated %(app)s revision %(revision)s: %(path)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Recovered Oldman migration state."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Applied revisions: %(revisions)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "No pending migrations."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "No applied App can be downgraded."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Downgraded %(app)s to %(revision)s; removed: %(removed)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "No App was retired."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Retired %(app)s; retained tables: %(tables)s"
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Remove %(package)s from: %(files)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Migration state: not initialized."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Migration state: incomplete; missing %(tables)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Migration state: complete tables, but owner is missing."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "Migration owner: %(name)s (%(project_id)s)"
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid "%(app)s: current=%(current)s; heads=%(heads)s; pending=%(pending)s"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "No registered Apps."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "  no revisions"
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Generate one reviewed migration revision."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Apply pending project migrations."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Downgrade one App migration branch."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Retire one App without dropping its tables."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Show read-only migration status."
+msgstr ""
+
+#: oldman/cli/database.py
+msgid "Show source migration history."
+msgstr ""
+
+#: oldman/cli/fixtures.py
+msgid "Export registered model data as JSON."
+msgstr ""
+
+#: oldman/cli/fixtures.py
+msgid "Load registered model data from JSON."
+msgstr ""
+
+#: oldman/cli/fixtures.py
+#, python-format
+msgid "Loaded %(count)s fixture records."
+msgstr ""
+
+#: oldman/cli/i18n_commands.py
+#, python-format
+msgid ""
+"Settings file %(path)s does not exist; create it or pass another service "
+"with --service."
+msgstr ""
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring invalid CLI language configuration: %(path)s"
+msgstr ""
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring unsupported language in CLI configuration: %(path)s"
+msgstr ""
+
+#: oldman/cli/localization.py
+#, python-format
+msgid "Ignoring unsupported %(variable)s value: %(language)s"
+msgstr ""
+
+#: oldman/cli/localization.py
+#, python-format
+msgid ""
+"Could not save the CLI language to %(path)s; using it for this invocation"
+" only."
+msgstr ""
+
+#: oldman/cli/mail.py
+#, python-format
+msgid "Test email from %(host)s on %(time)s"
+msgstr ""
+
+#: oldman/cli/mail.py
+msgid "If you're reading this, the mail settings of this service work."
+msgstr ""
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Stopped %(service)s (main process %(pid)s)."
+msgstr ""
+
+#: oldman/cli/service.py
+#, python-format
+msgid "%(service)s is not running."
+msgstr ""
+
+#: oldman/cli/service.py
+msgid "Command arguments."
+msgstr ""
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Error executing command: %(error)s"
+msgstr ""
+
+#: oldman/cli/service.py
+#, python-format
+msgid "Service command names conflict with framework commands: %(commands)s"
+msgstr ""
+
+#: oldman/cli/service.py
+#, python-format
+msgid "App command names conflict with service commands: %(commands)s"
+msgstr ""
+
+#: oldman/cli/staticfiles.py
+msgid "The project settings profile does not include static files."
+msgstr ""
+
+#: oldman/cli/staticfiles.py
+msgid "settings.web.static.root is empty; static files cannot be collected."
+msgstr ""
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answers in %(path)s: %(error)s"
+msgstr ""
+
+#: oldman/cli/tui/forms.py
+msgid "not a JSON object"
+msgstr ""
+
+#: oldman/cli/tui/forms.py oldman/cli/tui/inputs.py
+msgid "Answer yes or no."
+msgstr ""
+
+#: oldman/cli/tui/forms.py oldman/cli/tui/inputs.py
+msgid "This value is required."
+msgstr ""
+
+#: oldman/cli/tui/forms.py
+#, python-format
+msgid "Ignoring the saved answer for %(label)s: %(error)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid ""
+"%(label)s needs an answer, but stdin and the output are not both "
+"terminals."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(label)s needs an answer: run it in a terminal or set %(variable)s."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s is not valid: %(error)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a whole number."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "Enter a number."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "Invalid value."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Choose one of: %(choices)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Confirm %(label)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "The two entries do not match."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "yes"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+msgid "no"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be true or false, not %(value)r."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "%(variable)s must be one of: %(choices)s"
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Enter a number from 1 to %(count)d."
+msgstr ""
+
+#: oldman/cli/tui/inputs.py
+#, python-format
+msgid "Not in the list: %(item)s"
+msgstr ""
+
+#: oldman/cli/tui/menus.py
+msgid "Quit"
+msgstr ""
+
+#: oldman/cli/tui/menus.py
+msgid "Back"
+msgstr ""
+
+#: oldman/cli/tui/menus.py
+#, python-format
+msgid "Enter a number from 0 to %(count)d."
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Treat managed table %(old)s as renamed to %(new)s?"
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Choose the new model table for managed table %(table)s."
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid ""
+"Deleting managed table %(table)s removes its data. Enter %(name)s to "
+"confirm"
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Treat column %(column)s as renamed to %(new)s?"
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Choose the new column for %(column)s."
+msgstr ""
+
+#: oldman/db/migrations/autogenerate.py
+#, python-format
+msgid "Deleting column %(column)s removes its data. Enter %(name)s to confirm"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+msgid ""
+"The database has no Oldman migration state. Is this first use or was the "
+"state lost?"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"The database has no Oldman internal migration state. It contains "
+"%(tables)s non-internal table(s), while source contains %(revisions)s "
+"migration revision(s). Is this first use or was the state lost?"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Pending migration heads: %(heads)s. Choose the migration scope."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+msgid "Choose the applied App to downgrade."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Choose the target revision for App %(app)s."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Downgrade will remove revisions %(revisions)s and may alter or delete App"
+" tables recorded in the Registry: %(tables)s."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+msgid "none"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type App label %(app)s to confirm"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type target revision %(revision)s to confirm"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+msgid "Choose the App to retire while retaining its physical tables."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Rejected Apps: %(apps)s"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Retire App %(app)s: keep tables %(tables)s, remove migration head "
+"%(head)s, and clear its Registry rows. Afterward remove package "
+"%(package)s from service files %(files)s and from migration_apps if "
+"present."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type App label %(app)s to retire permanently"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Recovery will stamp source heads %(heads)s and restore Registry rows "
+"%(rows)s. Tables without current models remain external: %(external)s. "
+"Oldman cannot prove that arbitrary blank revisions or data operations "
+"ran; continuing asserts that the current database already matches the "
+"source heads. Recovery will not run business migration DDL."
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type project name %(name)s to confirm"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid "Type %(phrase)s to rebuild only internal state"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"Was unmanaged table %(table)s always external, or was it released by "
+"Oldman?"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "adopt"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "all"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "always external"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "cancel"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "first use"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "keep external"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "not a rename"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "released"
+msgstr ""
+
+#: oldman/db/migrations/interaction.py
+msgid "state lost"
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+msgid "Multiple Apps have divergent migration heads."
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "App %(app)s has migration heads %(heads)s. Create a merge revision?"
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+msgid "Migration description"
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+msgid "Multiple Apps have schema changes."
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+msgid "Choose the App for the blank revision."
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "No schema changes were detected for %(app)s. Create a blank revision?"
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+#, python-format
+msgid "Managed model table %(table)s already exists without Oldman ownership."
+msgstr ""
+
+#: oldman/db/migrations/revisions.py
+msgid ""
+"The adoption table already exists and matches the model. Skip CREATE and "
+"record ownership?"
+msgstr ""
+
+#: oldman/runtime/base.py
+msgid "Start service."
+msgstr ""
+
+#: oldman/runtime/base.py
+msgid "Stop service."
+msgstr ""
+
+#: oldman/runtime/base.py
+msgid "Restart service."
+msgstr ""
+
+#: oldman/web/auth/decorators.py oldman/web/http.py oldman/web/sse/extension.py
+msgid "Authentication required"
+msgstr ""
+
+#: oldman/web/auth/decorators.py
+msgid "Staff permission required"
+msgstr ""
+
+#: oldman/web/auth/decorators.py
+msgid "Superuser permission required"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Password must be 8-128 characters and include letters and numbers"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "New Password"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Confirm Password"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Passwords do not match"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Current Password"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "All"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Enter username"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Enter password"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Remember me"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Search"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Search username, email, display name"
+msgstr ""
+
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Active"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Last Login From"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Last Login To"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+#, python-format
+msgid "You can only give roles whose permissions you hold: %(roles)s"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Email already exists"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "cannot remove current user staff access"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "cannot remove current user superuser access"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Can sign in"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Staff member; can sign in to the Admin"
+msgstr ""
+
+#: oldman/web/auth/forms.py
+msgid "Has every permission"
+msgstr ""
+
+#: oldman/web/auth/login.py
+msgid "Invalid username or password."
+msgstr ""
+
+#: oldman/web/auth/login.py
+msgid "Too many sign-in attempts. Please try again later."
+msgstr ""
+
+#: oldman/web/auth/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Change Status"
+msgstr ""
+
+#: oldman/web/auth/modals.py oldman/web/auth/tables.py
+msgid "Enable"
+msgstr ""
+
+#: oldman/web/auth/modals.py oldman/web/auth/tables.py
+msgid "Disable"
+msgstr ""
+
+#: oldman/web/auth/modals.py
+#, python-format
+msgid "%(action)s User · %(username)s"
+msgstr ""
+
+#: oldman/web/auth/password_reset.py
+msgid "you@example.com"
+msgstr ""
+
+#: oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Disabled"
+msgstr ""
+
+#: oldman/web/auth/tables.py
+msgid "No Staff"
+msgstr ""
+
+#: oldman/web/auth/tables.py
+msgid "Never"
+msgstr ""
+
+#: oldman/web/auth/tables.py
+msgid "User actions"
+msgstr ""
+
+#: oldman/web/auth/tokens.py
+#, python-format
+msgid "Required: %(fields)s"
+msgstr ""
+
+#: oldman/web/auth/tokens.py
+msgid "Too many sign-in attempts"
+msgstr ""
+
+#: oldman/web/auth/tokens.py
+msgid "Invalid credentials"
+msgstr ""
+
+#: oldman/web/auth/tokens.py
+msgid "Invalid refresh token"
+msgstr ""
+
+#: oldman/web/auth/user_management.py oldman/web/auth/user_session.py
+msgid "Your password was updated. Please sign in again."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was created."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s profile was updated."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was signed out and needs the new password."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s is now active."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s is now disabled."
+msgstr ""
+
+#: oldman/web/auth/user_management.py
+#, python-format
+msgid "%(username)s was deleted."
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Current session user not found."
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Change Session Password"
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Current session user not found"
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Current password is incorrect."
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Session password changed"
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "Language preference saved."
+msgstr ""
+
+#: oldman/web/auth/user_session.py
+msgid "This needs a signed-in browser session"
+msgstr ""
+
+#: oldman/web/authentication/jwt.py
+msgid "The access token revocation store is unavailable"
+msgstr ""
+
+#: oldman/web/authentication/refresh.py
+msgid "The refresh token store is unavailable"
+msgstr ""
+
+#: oldman/web/components/modals.py
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Close"
+msgstr ""
+
+#: oldman/web/components/charts/request.py
+#, python-format
+msgid "Unknown chart range: %(range)s"
+msgstr ""
+
+#: oldman/web/components/charts/views.py
+#, python-format
+msgid "Unknown chart filter: %(name)s"
+msgstr ""
+
+#: oldman/web/components/charts/views.py
+#, python-format
+msgid "Invalid chart parameter: %(name)s"
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "Enter a valid email address"
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "Not a valid color value."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+#, python-format
+msgid "This field accepts at most %(max)d entries."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "This field must contain JSON-compatible scalar values."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "Stored JSON value is invalid."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "Stored JSON value must be a list."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "This field contains an invalid item index."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "File is too large."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "File extension is not allowed."
+msgstr ""
+
+#: oldman/web/components/forms/fields.py
+msgid "Not a valid choice."
+msgstr ""
+
+#: oldman/web/components/forms/models.py
+msgid "This field is required."
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "More filters"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Reset"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Show password"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Hide password"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/form.ts
+#: oldman/web/components/forms/renderers.py
+msgid "Form validation failed"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Add item"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Remove item"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Move item up"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Move item down"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+msgid "Form steps"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+#: oldman/web/templates/oldman/tables/default/pagination.html
+msgid "Previous"
+msgstr ""
+
+#: oldman/web/components/forms/renderers.py
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+#: oldman/web/templates/oldman/tables/default/pagination.html
+msgid "Next"
+msgstr ""
+
+#: oldman/web/components/forms/widgets.py
+msgid "Decrease value"
+msgstr ""
+
+#: oldman/web/components/forms/widgets.py
+msgid "Increase value"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/color-picker.ts
+#: oldman/web/components/forms/widgets.py
+msgid "Choose color"
+msgstr ""
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Unexpected dependent field: %(name)s"
+msgstr ""
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Invalid integer parameter: %(name)s"
+msgstr ""
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Invalid positive integer parameter: %(name)s"
+msgstr ""
+
+#: oldman/web/components/selects/providers.py
+#, python-format
+msgid "Parameter exceeds maximum: %(name)s"
+msgstr ""
+
+#: oldman/web/components/tables/cells.py
+msgid "Row actions"
+msgstr ""
+
+#: oldman/web/components/tables/filters.py
+msgid "Invalid boolean filter"
+msgstr ""
+
+#: oldman/web/components/tables/filters.py
+msgid "Invalid datetime filter"
+msgstr ""
+
+#: oldman/web/components/tables/filters.py
+#, python-format
+msgid "Invalid %(label)s filter"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/app/index.ts
+#: frontend/packages/oldman-web/src/components/apex-chart.ts
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/feedback.ts
+#: frontend/packages/oldman-web/src/components/modal.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/table-filter-form.ts
+#: frontend/packages/oldman-web/src/components/table.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#: frontend/packages/oldman-web/src/core/services/preloader.ts
+#: oldman/web/components/tables/renderers.py
+#: oldman/web/templates/oldman/tables/default/shell.html
+msgid "Loading..."
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+#: oldman/web/components/tables/views.py
+msgid "No matching records"
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+msgid "Adjust or reset the filters to see more records."
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+msgid "Invalid table pagination parameter"
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+msgid "Unsupported table export format"
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Unknown table filter: %(name)s"
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Unknown table sort: %(name)s"
+msgstr ""
+
+#: oldman/web/components/tables/views.py
+#, python-format
+msgid "Table column is not sortable: %(name)s"
+msgstr ""
+
+#: oldman/web/messages/notifications/apps.py
+#: oldman/web/messages/notifications/models.py
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Notifications"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/messages/notifications/models.py
+msgid "Notification"
+msgstr ""
+
+#: oldman/web/messages/notifications/runtime.py
+msgid "Notification was not found"
+msgstr ""
+
+#: oldman/web/messages/notifications/runtime.py
+msgid "Notification target was not found"
+msgstr ""
+
+#: oldman/web/security/csrf/decorators.py
+msgid ""
+"This page has expired, or the request could not be confirmed as coming "
+"from this site. Reload the page and try again."
+msgstr ""
+
+#: oldman/web/security/csrf/decorators.py
+msgid "CSRF token missing"
+msgstr ""
+
+#: oldman/web/security/csrf/decorators.py
+#, python-format
+msgid "CSRF validation failed: %(reason)s"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Logout"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current Session"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Login Time"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Login IP"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Session Boundaries"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Page Scope"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current session only"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Password Scope"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Current user only"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Logout Flow"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "End current session"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Session Permissions"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid ""
+"This page manages the current authenticated session. User administration "
+"remains in the application user-management area."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Open the remote form to change the current session password."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid "Hello %(username)s,"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid ""
+"Someone asked to reset the password of your %(site_name)s account. Open "
+"the link below to choose a new one:"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/mail/password_reset.html
+#, python-format
+msgid ""
+"The link stays valid for %(hours)s hours. If you did not ask for this, "
+"ignore this message; your password stays as it is."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+msgid "Welcome"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/account_controls.html
+msgid "Session"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/login_form.html
+msgid "Forgot password?"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+msgid "Delete user?"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+msgid "Select a row action to continue."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Enable user?"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Disable user?"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/partials/user_status_form.html
+msgid "Confirm"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+#, python-format
+msgid "Set a new password for %(username)s."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/confirm.html
+msgid "Update password"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/done.html
+msgid "Sign in with your new password to continue."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+msgid ""
+"The password reset link has expired or was already used. Request a new "
+"one to continue."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/invalid.html
+msgid "Request a new link"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid ""
+"Enter the email address of your account and we will send you a link to "
+"choose a new password."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid "Too many requests. Please wait a while before trying again."
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+msgid "Send reset link"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/request.html
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+msgid "Back to sign in"
+msgstr ""
+
+#: oldman/web/templates/oldman/auth/password_reset/sent.html
+#, python-format
+msgid ""
+"If an account uses that address, a link to choose a new password is on "
+"its way. It stays valid for %(hours)s hours; check the spam folder if it "
+"does not arrive."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/account/login.html
+msgid "Sign in with your account to continue."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/errors/403.html
+msgid "Access denied"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/errors/403.html
+msgid "You do not have permission to access this page."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/403.html
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+msgid "Return to dashboard"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/errors/404.html
+msgid "Page not found"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/404.html
+#: oldman/web/templates/oldman/errors/404.html
+msgid "The page you requested does not exist or may have moved."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/errors/500.html
+msgid "Server error"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/500.html
+#: oldman/web/templates/oldman/errors/500.html
+msgid "The server could not complete this request. Please try again later."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "Request error"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/errors/default.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "The request could not be completed."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/back_to_top.html
+msgid "Back to top"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/language_switcher.html
+msgid "Language"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/shell.html
+msgid "Primary navigation"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/shell.html
+msgid "Close navigation"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Delete notifications"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Toggle navigation"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Breadcrumb"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Fullscreen"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Toggle theme"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "View all notifications"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Current activity"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Select notification"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+#: oldman/web/templates/oldman/tables/default/head.html
+#: oldman/web/templates/oldman/tables/default/row.html
+msgid "Select"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Result"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Remove"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Remove notifications"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Are you sure?"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/partials/topbar.html
+msgid "Selected notifications will be removed from this dropdown."
+msgstr ""
+
+#: oldman/web/templates/oldman/errors/403.html
+#: oldman/web/templates/oldman/errors/404.html
+#: oldman/web/templates/oldman/errors/500.html
+#: oldman/web/templates/oldman/errors/default.html
+msgid "Return home"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Notification filters"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Unread"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Read"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Mark all as read"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "New notifications available"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/topbar.ts
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "No notifications"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Mark selected as read"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Delete selected"
+msgstr ""
+
+#: oldman/web/templates/oldman/messages/notifications/center_content.html
+msgid "Notification pages"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/empty.html
+msgid "Reset filters"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/fragment.html
+msgid "Rows per page"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/head.html
+msgid "Select all rows"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/row.html
+msgid "Select row"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/summary.html
+#, python-format
+msgid "Showing %(start)s to %(end)s of %(total)s entries"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Columns"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Density"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Comfortable"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Compact"
+msgstr ""
+
+#: oldman/web/templates/oldman/tables/default/toolbar.html
+msgid "Export"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/upload.ts
+msgid "File is too large"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "Load more"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/apex-chart.ts
+msgid "No chart data"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "No choices available"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "No results found"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Only unique values can be added"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Only values matching specific conditions can be added"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Open"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#, python-brace-format
+msgid "Press Enter to add \"{value}\""
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+msgid "Press to select"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/core/actions/response-actions.ts
+#: frontend/packages/oldman-web/src/core/http/client.ts
+#: frontend/packages/oldman-web/src/dashboard/index.ts
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Request failed"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/autocomplete.ts
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "Retry"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/form.ts
+msgid "Saving..."
+msgstr ""
+
+#: frontend/packages/oldman-web/src/dashboard/notifications.ts
+msgid "Selected notifications will be deleted."
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "Showing"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+msgid "This is a placeholder set in the config"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "entries"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "of"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+msgid "to"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/table.ts
+#, python-brace-format
+msgid "{count} selected"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/select.ts
+#: frontend/packages/oldman-web/src/components/tags-input.ts
+#, python-brace-format
+msgid "{count} value can be added"
+msgid_plural "{count} values can be added"
+msgstr[0] ""
+msgstr[1] ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Blockquote"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Bold"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Bullet list"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Clear formatting"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Code block"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 1"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 2"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Heading 3"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Italic"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Link"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Normal"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Ordered list"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Strikethrough"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Text style"
+msgstr ""
+
+#: frontend/packages/oldman-web/src/components/rich-text-editor.ts
+msgctxt "Rich text editor toolbar"
+msgid "Underline"
+msgstr ""
+
