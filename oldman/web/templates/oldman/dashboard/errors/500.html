@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/errors/_base.html" %}
 
-{% block title %}{{ _("Server error") }} · Oldman{% endblock %}
+{% block title %}{{ _("Server error") }} · {{ site_name() }}{% endblock %}
 
 {% block content %}
   <div class="error-status error-status--danger" aria-hidden="true">500</div>

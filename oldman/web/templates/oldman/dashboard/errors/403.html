@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/errors/_base.html" %}
 
-{% block title %}{{ _("Access denied") }} · Oldman{% endblock %}
+{% block title %}{{ _("Access denied") }} · {{ site_name() }}{% endblock %}
 
 {% block content %}
   <div class="error-status error-status--warning" aria-hidden="true">403</div>

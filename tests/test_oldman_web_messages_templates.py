@@ -124,8 +124,9 @@ class FlashTemplateTest(unittest.IsolatedAsyncioTestCase):
             self.project_templates,
         )
         template_globals(environment)["_"] = lambda value: value
-        with patch.dict(conf.__dict__, {"settings": self.settings}):
-            messages.init_app(self.app)
+        # For the whole test, not only init_app: the shared base names the site (core.site_name) on every render.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": self.settings}))
+        messages.init_app(self.app)
         self._register_routes()
 
     def tearDown(self) -> None:

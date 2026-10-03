@@ -63,7 +63,10 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
                     content = await environment.get_template(name).render_async(request=request, status_code=404)
                     with self.subTest(name=name, expected=expected):
                         self.assertIn(f'aria-label="{expected}"', content)
-                        self.assertNotIn(">Oldman<", content)
+                        self.assertIn(f"· {expected}</title>", content)
+                        self.assertNotIn("Oldman", content)
+                footer = await environment.get_template("oldman/dashboard/partials/footer.html").render_async(request=request)
+                self.assertIn(expected, footer)
 
     async def test_csrf_failure_page_says_how_to_recover(self) -> None:
         """A rejected form is not a permission problem; only the opted-in sentence reaches the page."""

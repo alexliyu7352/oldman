@@ -11,7 +11,7 @@
       {% include "oldman/dashboard/partials/preloader_critical_css.html" %}
     {% endblock %}
     <link rel="icon" href="data:,">
-    <title>{% block title %}Oldman{% endblock %}</title>
+    <title>{% block title %}{{ site_name() }}{% endblock %}</title>
     {% block dashboard_head_assets %}{% endblock %}
     {% block head %}{% endblock %}
   </head>
