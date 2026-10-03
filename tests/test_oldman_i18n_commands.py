@@ -61,6 +61,10 @@ class OldmanI18nCommandsTest(unittest.TestCase):
         self.assertTrue(frontend_locations)
         self.assertTrue(any(message.id == "Loading..." for message in messages))
         self.assertTrue(any(message.id == "Service commands" for message in messages))
+        # The roles App's form and the migration commands' questions are framework text too.
+        located = {path for message in messages for path, _line in message.locations}
+        self.assertIn("oldman/apps/roles/forms.py", located)
+        self.assertTrue(any(path.startswith("oldman/db/migrations/") for path in located))
         authentication = next(message for message in messages if message.id == "Authentication")
         self.assertIn("oldman/auth/apps.py", [path for path, _line in authentication.locations])
         # User-management refusals travel as exception messages; a project's catalog only has them if they are marked.

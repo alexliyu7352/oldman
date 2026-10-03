@@ -145,6 +145,21 @@ def _merge_catalogs(
         write_po(output_file, catalog)
 
 
+def _extract_framework_catalog(output: Path) -> None:
+    """Extract the installed framework's Python and template messages (``framework-babel.cfg``) to ``output``.
+
+    Run from the package's parent so ``oldman.logging`` cannot shadow the stdlib module.
+    """
+    with as_file(files("oldman")) as framework_root:
+        _extract_catalog(
+            config=f"{framework_root.name}/{FRAMEWORK_BABEL_CFG}",
+            output=output,
+            source=framework_root.name,
+            keywords=KEYWORDS,
+            cwd=framework_root.parent,
+        )
+
+
 def extract() -> None:
     """提取项目和框架翻译字符串到同一个应用消息目录。"""
     output = Path(POT_FILE)
@@ -161,14 +176,7 @@ def extract() -> None:
             source=".",
             keywords=KEYWORDS,
         )
-        with as_file(files("oldman")) as framework_root:
-            _extract_catalog(
-                config=f"{framework_root.name}/{FRAMEWORK_BABEL_CFG}",
-                output=framework_pot,
-                source=framework_root.name,
-                keywords=KEYWORDS,
-                cwd=framework_root.parent,
-            )
+        _extract_framework_catalog(framework_pot)
         _merge_catalogs(
             project_pot,
             framework_pot,

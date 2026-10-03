@@ -378,7 +378,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
                 return_value=context,
             ),
             patch(
-                "oldman.runtime.web._package_locale_root",
+                "oldman.i18n.catalogs.package_locale_root",
                 return_value=Path("/packages/reports/locales"),
             ),
         ):

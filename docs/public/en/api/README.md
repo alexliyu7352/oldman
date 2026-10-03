@@ -23,7 +23,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.contrib.proxy`](oldman.contrib.proxy.md) | 7 | @author:alex |
 | [`oldman.db`](oldman.db.md) | 22 | Public database models and lazy sessions; deployments use migrations. |
 | [`oldman.db.sqlalchemy`](oldman.db.sqlalchemy.md) | 6 | @author:alex |
-| [`oldman.i18n`](oldman.i18n.md) | 30 | Runtime-independent internationalization API. |
+| [`oldman.i18n`](oldman.i18n.md) | 32 | Runtime-independent internationalization API. |
 | [`oldman.logging`](oldman.logging.md) | 19 | Stable public logging API for Oldman applications. |
 | [`oldman.mail`](oldman.mail.md) | 18 | Outgoing mail: django.core.mail's shape, async, on the stdlib email package and aiosmtplib. |
 | [`oldman.mail.backends`](oldman.mail.backends.md) | 6 | Built-in outgoing mail backends. |

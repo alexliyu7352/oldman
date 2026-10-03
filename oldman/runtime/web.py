@@ -5,7 +5,6 @@ from __future__ import annotations
 import multiprocessing
 from collections.abc import Mapping
 from functools import partial
-from importlib.util import find_spec
 from multiprocessing.util import Finalize
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -28,6 +27,7 @@ import oldman.conf as conf
 import oldman.web.messages as messages
 from oldman.auth.backends import resolve_login_backends
 from oldman.conf.constants import _find_project_root
+from oldman.i18n.catalogs import translation_roots
 from oldman.logging import ChildLoggingContext, logger
 from oldman.runtime.base import BaseApplication
 from oldman.runtime.bootstrap import (
@@ -121,24 +121,9 @@ def _leave_ack_wait_on_shutdown() -> None:
     WorkerManager.wait_for_ack = _wait_for_ack  # type: ignore[method-assign]
 
 
-def _package_locale_root(package_name: str) -> Path | None:
-    """Return one importable package's locale directory without importing it."""
-    spec = find_spec(package_name)
-    if spec is None or not spec.submodule_search_locations:
-        return None
-    package_root = Path(next(iter(spec.submodule_search_locations)))
-    locale_root = package_root / "locales"
-    return locale_root if locale_root.is_dir() else None
-
-
 def _translation_catalog_roots(application: WebApplication) -> tuple[Path, ...]:
-    """Build project and installed-App roots in configured override order."""
-    roots = [Path(conf.PROJECT_BASE_PATH) / "locales"]
-    for package_name in application.bootstrap_context.apps.packages:
-        locale_root = _package_locale_root(package_name)
-        if locale_root is not None:
-            roots.append(locale_root)
-    return tuple(dict.fromkeys(roots))
+    """This service's translation roots: the project's, then those of the Apps it installs."""
+    return translation_roots(Path(conf.PROJECT_BASE_PATH), application.bootstrap_context.apps.packages)
 
 
 class WebApplication(BaseApplication):

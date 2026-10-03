@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import locale
 import os
@@ -22,6 +21,7 @@ from oldman.i18n import (
     gettext_noop,
     reset_translations,
 )
+from oldman.i18n.catalogs import translation_roots
 from oldman.utils.files import atomic_write
 
 CLI_LANGUAGE_ENV = "OLDMAN_CLI_LANGUAGE"
@@ -217,15 +217,6 @@ def resolve_cli_language(args: list[str]) -> CliLanguageState:
     )
 
 
-def _package_locale_root(package_name: str) -> Path | None:
-    """Return one installed package's locale directory without importing it."""
-    spec = importlib.util.find_spec(package_name)
-    if spec is None or not spec.submodule_search_locations:
-        return None
-    locale_root = Path(next(iter(spec.submodule_search_locations))) / "locales"
-    return locale_root if locale_root.is_dir() else None
-
-
 @contextmanager
 def use_cli_language(
     language: str,
@@ -237,11 +228,7 @@ def use_cli_language(
     locale_name = definition.babel_locale
     from oldman.conf.constants import _find_project_root
 
-    roots = [_find_project_root() / "locales"]
-    for package_name in app_packages:
-        locale_root = _package_locale_root(package_name)
-        if locale_root is not None:
-            roots.append(locale_root)
+    roots = list(translation_roots(_find_project_root(), app_packages))
 
     locales_resource = files("oldman.cli").joinpath("locales")
     with as_file(locales_resource) as locales_root:

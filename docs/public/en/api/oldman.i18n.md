@@ -224,6 +224,32 @@ Members:
 
 - `def to_dict() -> dict[str, Any]` — Resolve nested lazy translations into frontend-safe builtins.
 
+## Module `oldman.i18n.catalogs`
+
+Runtime-independent Babel catalog loading.
+
+Import with `from oldman.i18n.catalogs import <name>`.
+
+### `package_locale_root`
+
+function · defined in `oldman.i18n.catalogs`
+
+```python
+def package_locale_root(package_name: str) -> Path | None
+```
+
+One importable package's ``locales`` directory, found without importing the package; None when it has none.
+
+### `translation_roots`
+
+function · defined in `oldman.i18n.catalogs`
+
+```python
+def translation_roots(project_root: Path, app_packages: Iterable[str]) -> tuple[Path, ...]
+```
+
+Where a service looks up translations, highest priority first: the project's ``locales``, then each installed App's.
+
 ## Module `oldman.i18n.frontend`
 
 Packaged message metadata shared by Python and ``oldman-web``.

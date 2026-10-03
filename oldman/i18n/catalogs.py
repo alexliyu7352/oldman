@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from importlib.util import find_spec
 from pathlib import Path
 
 from babel.support import Translations
@@ -44,4 +45,23 @@ class CatalogLoader:
         return catalog if catalog is not None else Translations()
 
 
-__all__ = ["CatalogLoader"]
+def package_locale_root(package_name: str) -> Path | None:
+    """One importable package's ``locales`` directory, found without importing the package; None when it has none."""
+    spec = find_spec(package_name)
+    if spec is None or not spec.submodule_search_locations:
+        return None
+    locale_root = Path(next(iter(spec.submodule_search_locations))) / "locales"
+    return locale_root if locale_root.is_dir() else None
+
+
+def translation_roots(project_root: Path, app_packages: Iterable[str]) -> tuple[Path, ...]:
+    """Where a service looks up translations, highest priority first: the project's ``locales``, then each installed App's."""
+    roots = [project_root / "locales"]
+    for package_name in app_packages:
+        locale_root = package_locale_root(package_name)
+        if locale_root is not None:
+            roots.append(locale_root)
+    return tuple(dict.fromkeys(roots))
+
+
+__all__ = ["CatalogLoader", "package_locale_root", "translation_roots"]
