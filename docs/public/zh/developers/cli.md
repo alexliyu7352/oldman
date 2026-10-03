@@ -32,7 +32,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | `service` | `services/service.py`，基于 SimpleApplication |
 | `api` | `services/api.py`，不预装前端的 WebApplication |
 | `web` | `services/web.py`，启用异步模板环境的 WebApplication |
-| `dashboard` | `services/dashboard.py`、共享模板与 Vite/Tailwind 前端工程 |
+| `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
 
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 

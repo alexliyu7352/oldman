@@ -23,7 +23,7 @@ from oldman.cli import tui
 from oldman.cli._main import create_app
 from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
-from oldman.cli.scaffold import DatabaseChoice, ProjectType, start_project
+from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, start_app, start_project
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
 from oldman.version import __VERSION__
 from tests.tui_support import without_preset_answers
@@ -363,11 +363,15 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 db=DatabaseChoice.SQLITE,
             )
             dashboard_seed = read_yaml(dashboard / "data" / "dashboard_settings.yaml")
-            # Users, and the roles beside them; the built-in Admin only when asked for.
+            # Users and the roles beside them, notifications, then the project's own accounts and home page;
+            # the built-in Admin only when asked for.
             self.assertEqual(
                 dashboard_seed["apps"],
-                ["oldman.auth", "oldman.apps.roles"],
+                ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"],
             )
+            self.assertEqual({"site_name": "dashboard"}, dashboard_seed["core"])
+            self.assertEqual({"auth": {"user_model": "apps.accounts.models.User"}}, dashboard_seed["app_settings"])
+            self.assertEqual({"session": {"enabled": True}}, dashboard_seed["web"])
 
     def test_the_admin_choice_installs_the_admin_with_its_users_and_sessions(self) -> None:
         """Web and dashboard projects may include the built-in Admin; it needs users, roles, sessions and a database."""
@@ -381,9 +385,17 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                         service = (target / "services" / f"{service_name}.py").read_text(encoding="utf-8")
                         compile(service, f"{service_name}.py", "exec")
 
-                        users = ["oldman.auth", "oldman.apps.roles"] if project_type == ProjectType.DASHBOARD or admin else []
-                        self.assertEqual(users + (["oldman.apps.admin"] if admin else []), seed["apps"])
-                        self.assertEqual(admin, seed.get("web") == {"session": {"enabled": True}})
+                        if project_type == ProjectType.DASHBOARD:
+                            expected = ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications"]
+                            expected += ["oldman.apps.admin"] if admin else []
+                            expected += ["apps.accounts", "apps.home"]
+                            # A dashboard signs its own users in: sessions are on either way.
+                            sessions = True
+                        else:
+                            expected = ["oldman.auth", "oldman.apps.roles", "oldman.apps.admin"] if admin else []
+                            sessions = admin
+                        self.assertEqual(expected, seed["apps"])
+                        self.assertEqual(sessions, seed.get("web") == {"session": {"enabled": True}})
                         self.assertEqual(admin, "from oldman.apps.admin import install_admin\n" in service)
                         self.assertEqual(1 if admin else 0, service.count("install_admin(app)"))
 
@@ -428,6 +440,78 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 self.assertIn("/logs/", gitignore)
                 self.assertIn("/pids/", gitignore)
 
+    def test_the_dashboard_skeleton_signs_its_users_in(self) -> None:
+        """A generated dashboard has its User model, the account pages, a home page and one menu."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            for admin in (False, True):
+                with self.subTest(admin=admin), working_directory(parent):
+                    target = start_project(f"desk_{admin}", project_type=ProjectType.DASHBOARD, db=DatabaseChoice.SQLITE, admin=admin)
+
+                    for module in (
+                        "apps/accounts/apps.py",
+                        "apps/accounts/models.py",
+                        "apps/accounts/routes.py",
+                        "apps/home/apps.py",
+                        "apps/home/views.py",
+                        "services/dashboard.py",
+                    ):
+                        compile((target / module).read_text(encoding="utf-8"), module, "exec")
+                    self.assertTrue((target / "apps" / "accounts" / "migrations" / "__init__.py").is_file())
+
+                    routes = (target / "apps" / "accounts" / "routes.py").read_text(encoding="utf-8")
+                    for flow in ("LoginFlow(", "AccountFlow(", "UserManagementFlow("):
+                        self.assertIn(flow, routes)
+                    self.assertEqual(3, routes.count("template_prefix=ACCOUNT_TEMPLATES"))
+                    self.assertIn("class User(AbstractUser):", (target / "apps" / "accounts" / "models.py").read_text(encoding="utf-8"))
+                    home = (target / "apps" / "home" / "views.py").read_text(encoding="utf-8")
+                    self.assertIn('@router.get("/", name="home")\n@login_required()', home)
+
+                    # CSRF and sessions before notifications, notifications before the account pages that link them.
+                    service = (target / "services" / "dashboard.py").read_text(encoding="utf-8")
+                    order = [
+                        service.index(call)
+                        for call in (
+                            "StatelessCSRFManager(app)",
+                            "install_notifications(app)",
+                            "install_dashboard_templates(app)",
+                            "install_account_pages(app",
+                        )
+                    ]
+                    self.assertEqual(sorted(order), order)
+                    self.assertEqual(admin, "install_admin(app)" in service)
+
+                    sidebar = (target / "templates" / "partials" / "sidebar.html").read_text(encoding="utf-8")
+                    self.assertIn("{% if can_manage_users(request) %}", sidebar)
+                    self.assertIn("account_urls(request)", sidebar)
+                    # The Admin entry: only with the Admin, only for staff (its own floor), by route name rather than a path.
+                    self.assertEqual(admin, 'url_for("oldman_admin_index")' in sidebar)
+                    self.assertEqual(admin, "{% if request.ctx.user.is_staff %}" in sidebar)
+                    self.assertNotIn('"/admin"', sidebar)
+
+                    page = (target / "frontend" / "src" / "pages" / "base-page.ts").read_text(encoding="utf-8")
+                    self.assertIn("createDashboardComponentLoaders()", page)
+                    readme = (target / "README.md").read_text(encoding="utf-8")
+                    for step in ("./run.sh db migrate", "./run.sh dashboard createsuperuser", "./run.sh dashboard static collect", "Redis"):
+                        self.assertIn(step, readme)
+
+    def test_a_dashboard_app_page_needs_a_signed_in_user_and_the_shared_page_class(self) -> None:
+        """startapp's dashboard pages require sign-in; their menu entry belongs in the one sidebar, not in each view."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            with working_directory(parent):
+                target = start_project("desk", project_type=ProjectType.DASHBOARD, db=DatabaseChoice.SQLITE)
+            with working_directory(target):
+                start_app("reports", app_type=AppType.DASHBOARD, display_name="Reports")
+
+            view = (target / "apps" / "reports" / "views.py").read_text(encoding="utf-8")
+            compile(view, "views.py", "exec")
+            self.assertIn('@router.get("/reports", name="reports_index")\n@login_required()', view)
+            self.assertNotIn("dashboard_menu_items", view)
+            page = (target / "frontend" / "src" / "pages" / "reports.ts").read_text(encoding="utf-8")
+            self.assertIn('import { BasePage } from "./base-page";', page)
+            self.assertIn('setupPage("reports", ReportsPage);', page)
+
     def test_dashboard_frontend_and_release_versions_are_preserved(self) -> None:
         """The settings refactor does not replace the established dashboard assets."""
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -465,9 +549,12 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         # 生成的项目用框架的 CLI 构建，自己不留一份编译入口，也不自带 loader 和清单抓取。
         self.assertFalse(i18n_builder_exists)
         self.assertIn('from "./i18n/generated"', frontend_main)
-        self.assertIn("createFetchCatalogLoader", frontend_main)
+        # The framework's startDashboard does the starting; the entry does not keep its own copy of it.
+        self.assertIn('import { startDashboard } from "oldman-web/dashboard";', frontend_main)
+        self.assertIn("languagePreferencePath,", frontend_main)
+        self.assertNotIn("function startDashboard", frontend_main)
+        self.assertNotIn("createI18n", frontend_main)
         self.assertNotIn("loadLanguageManifest", frontend_main)
-        self.assertNotIn("function readAssetBaseUrl", frontend_main)
         # 语言清单是构建产物，但脚手架自带首份，新项目 install + build 就能跑。
         self.assertIn('export const defaultLanguage = "en";', generated_manifest)
         self.assertIn('export const languagePreferencePath = "/preferences/language";', generated_manifest)

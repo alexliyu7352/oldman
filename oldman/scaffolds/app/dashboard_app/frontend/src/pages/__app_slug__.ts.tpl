@@ -1,13 +1,7 @@
 import { setupPage } from "oldman-web/core";
-import { createDashboardComponentLoaders, DashboardPage } from "oldman-web/dashboard";
+import { BasePage } from "./base-page";
 
-class {{ app_class }}Page extends DashboardPage {
-  constructor(root: HTMLElement) {
-    super({
-      componentLoaders: createDashboardComponentLoaders(),
-      root
-    });
-  }
-}
+/** The {{ app_slug }} page: add its own component loaders or actions here. */
+class {{ app_class }}Page extends BasePage {}
 
 setupPage("{{ app_slug }}", {{ app_class }}Page);

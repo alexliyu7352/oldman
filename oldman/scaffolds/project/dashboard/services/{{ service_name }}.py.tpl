@@ -7,10 +7,15 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from apps.accounts.routes import install_account_pages
 from config.settings import settings
-{{ admin_import }}from oldman.i18n import gettext
+{{ admin_import }}from oldman.auth.user_permissions import VIEW_USERS
+from oldman.i18n import gettext
 from oldman.runtime import WebApplication
+from oldman.web.auth import has_perm
 from oldman.web.i18n import ensure_frontend_catalogs
+from oldman.web.messages.notifications import init_app as install_notifications
+from oldman.web.security.csrf import StatelessCSRFManager
 from oldman.web.staticfiles import (
     DEV_MODE_ENV,
     StaticBundleRegistry,
@@ -25,6 +30,11 @@ if TYPE_CHECKING:
 
 APP_MAIN_BUNDLE = "app:main"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+async def can_manage_users(request: Any) -> bool:
+    """Whether the menu lists User management: the permission its pages check (a superuser holds it)."""
+    return await has_perm(request, VIEW_USERS)
 
 
 def install_dashboard_templates(app: WebApp) -> StaticBundleRegistry:
@@ -47,11 +57,12 @@ def install_dashboard_templates(app: WebApp) -> StaticBundleRegistry:
     environment.globals.setdefault("gettext", gettext)
     registry.install_template_globals(environment)
     environment.globals["app_main_bundle"] = APP_MAIN_BUNDLE
+    environment.globals["can_manage_users"] = can_manage_users
     return registry
 
 
 class {{ service_class }}(WebApplication):
-    """Serve the project's registered Dashboard Apps."""
+    """Serve the dashboard: its pages, the account pages and the project's Apps."""
 
     @classmethod
     def get_default_commands(
@@ -81,12 +92,15 @@ class {{ service_class }}(WebApplication):
         }
 
     def init(self) -> None:
-        """Install the shared templates and frontend bundle registry."""
+        """Install CSRF, notifications, the templates and bundle, then the account pages."""
         super().init()
         app = self.runtime_app
         if app is None:
             raise RuntimeError("Web runtime was not initialized")
+        StatelessCSRFManager(app)
+        notification_routes = install_notifications(app)
         install_dashboard_templates(app)
+        install_account_pages(app, notification_routes=notification_routes)
 {{ dashboard_admin_install }}
     def prepare_server(self, app: WebApp) -> None:
         """Fail fast on a missing frontend build, then take the framework's listener options."""

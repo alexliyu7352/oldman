@@ -40,14 +40,29 @@ except ModuleNotFoundError:  # pragma: no cover - direct script execution
 
 from oldman.testing import (
     BrowserResult,
+    CDPClient,
     ChromePage,
     ProcessTreeError,
     ProcessTreeTracker,
     configure_viewport,
     navigate,
+    owned_redis_server,
     save_screenshot,
     tracked_popen,
+    use_owned_redis,
 )
+
+# A generated dashboard signs its users in: the gate creates this account the way the README tells a user to
+# (`createsuperuser`, here with --noinput) and signs in with it before the browser probe.
+MATRIX_ADMIN_USERNAME = "matrix_admin"
+MATRIX_ADMIN_PASSWORD = "Matrix-Probe-2026!"
+# Where the HTTP probe waits for the service: the probe App's page, or for a dashboard (whose pages need a
+# signed-in user) its sign-in page.
+HTTP_PROBE_PATHS = {"api": "/matrix_probe", "web": "/matrix_probe", "dashboard": "/login"}
+# The probe page's menu entry, added to the one menu the way the generated README says.
+MATRIX_SIDEBAR_LINK = '{{ sidebar_menu_link("/matrix_probe", "MatrixProbe", "ri-flask-line", active=request.path == "/matrix_probe") }}\n'
+# Resource-timing initiators of a page's own calls to its server; see page_asset_urls.
+DATA_REQUEST_INITIATORS = frozenset({"fetch", "xmlhttprequest"})
 
 MATRIX_CASES = (
     ("cli", "none"),
@@ -318,7 +333,7 @@ DASHBOARD_BROWSER_CONTRACT = r"""(async () => {
     heading: document.querySelector("h1")?.textContent?.trim() ?? "",
     location: window.location.href,
     ready: document.documentElement.dataset.omReady ?? "",
-    resourceUrls: performance.getEntriesByType("resource").map((entry) => entry.name),
+    resourceEntries: performance.getEntriesByType("resource").map((entry) => ({ url: entry.name, initiator: entry.initiatorType })),
     scriptUrls: Array.from(document.querySelectorAll("script[src]"), (node) => node.src),
     styleUrls: Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'), (node) => node.href)
   };
@@ -508,8 +523,12 @@ def update_service_settings(
     *,
     install_app: str | None = None,
     listen_port: int | None = None,
+    redis_url: str | None = None,
 ) -> None:
-    """Apply gate-only App or listener values to one generated YAML file."""
+    """Apply gate-only App, listener or Redis values to one generated YAML file.
+
+    `redis_url` points every Redis alias at the gate's own Redis, never the developer's `localhost:6379`.
+    """
     yaml = YAML()
     data = yaml.load(config_file.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
@@ -537,6 +556,8 @@ def update_service_settings(
                 "workers": 1,
             }
         )
+    if redis_url is not None:
+        use_owned_redis(data, redis_url)
     with config_file.open("w", encoding="utf-8") as stream:
         yaml.dump(data, stream)
 
@@ -845,6 +866,20 @@ def install_dashboard_component_fixture(project: Path) -> Path:
     return template
 
 
+def add_matrix_probe_menu_entry(project: Path) -> Path:
+    """Give the probe page its link in the generated menu, after the home link, as the README tells a user to."""
+    sidebar = project / "templates" / "partials" / "sidebar.html"
+    if not sidebar.is_file():
+        raise RuntimeError(f"Generated Dashboard menu is missing: {sidebar}")
+    lines = sidebar.read_text(encoding="utf-8").splitlines(keepends=True)
+    home = next((index for index, line in enumerate(lines) if '_("Home")' in line), None)
+    if home is None:
+        raise RuntimeError(f"Generated Dashboard menu has no home link to place the probe entry after: {sidebar}")
+    lines.insert(home + 1, MATRIX_SIDEBAR_LINK)
+    sidebar.write_text("".join(lines), encoding="utf-8")
+    return sidebar
+
+
 def reserve_tcp_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.bind(("127.0.0.1", 0))
@@ -906,12 +941,13 @@ def http_response_contract_errors(
         return errors
     expected_tokens = {
         "web": ("<h1>MatrixProbe</h1>",),
+        # The dashboard's pages need a signed-in user; its sign-in page is what an anonymous request gets.
+        # The probe page's components are checked in Chrome after signing in.
         "dashboard": (
-            "MatrixProbe",
-            'data-om-component="sidebar-menu"',
-            'data-om-component="table"',
-            'data-om-component="modal"',
-            'data-om-component="select"',
+            'data-om-page="login"',
+            'name="username"',
+            'name="password"',
+            'name="csrfmiddlewaretoken"',
         ),
     }.get(project_type)
     if expected_tokens is None:
@@ -1060,6 +1096,30 @@ def http_probe_outcome_errors(
     return errors
 
 
+def page_asset_urls(base_url: str, entries: object) -> list[str]:
+    """The browser-observed resources that must be build output.
+
+    The page's own fetch/XHR calls to its server outside `/static/` (the topbar's notification list) are data,
+    not assets, and are left out. Anything else stays in, so a script, stylesheet or font from anywhere but
+    the generated static/dist, or a request to another origin, still fails the check.
+    """
+    if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+        raise RuntimeError(f"Dashboard browser did not expose valid resource entries: {entries!r}")
+    origin = urllib.parse.urlsplit(base_url)
+    urls: list[str] = []
+    for entry in entries:
+        url = entry.get("url")
+        parsed = urllib.parse.urlsplit(str(url))
+        own_data_request = (
+            entry.get("initiator") in DATA_REQUEST_INITIATORS
+            and (parsed.scheme, parsed.netloc) == (origin.scheme, origin.netloc)
+            and not parsed.path.startswith("/static/")
+        )
+        if not own_data_request:
+            urls.append(url)
+    return urls
+
+
 def browser_asset_evidence(project: Path, base_url: str, urls: object, *, label: str) -> list[dict[str, str]]:
     """Map every browser-observed bundle URL back to a generated static/dist file."""
     if not isinstance(urls, list) or not urls or any(not isinstance(url, str) for url in urls):
@@ -1086,10 +1146,11 @@ def run_dashboard_browser_probe(
     project: Path,
     url: str,
     *,
+    login_url: str,
     evidence_dir: Path,
     package_provenance: Mapping[str, object],
 ) -> dict[str, object]:
-    """Require the exact-tarball Dashboard to initialize in a real Chrome page."""
+    """Sign in, then require the exact-tarball Dashboard to initialize in a real Chrome page."""
     evidence_dir.mkdir(parents=True, exist_ok=True)
     screenshot = evidence_dir / "matrix-probe.png"
     browser_result = BrowserResult()
@@ -1098,6 +1159,7 @@ def run_dashboard_browser_probe(
     try:
         with ChromePage(browser_result) as client:
             configure_viewport(client, 1440, 1000, mobile=False)
+            sign_in(client, login_url)
             navigate(client, url)
             evaluated = client.evaluate(DASHBOARD_BROWSER_CONTRACT, timeout=25.0)
             if not isinstance(evaluated, dict):
@@ -1150,7 +1212,7 @@ def run_dashboard_browser_probe(
         try:
             scripts = browser_asset_evidence(project, url, dom_state.get("scriptUrls"), label="JavaScript")
             styles = browser_asset_evidence(project, url, dom_state.get("styleUrls"), label="CSS")
-            resources = browser_asset_evidence(project, url, dom_state.get("resourceUrls"), label="resource")
+            resources = browser_asset_evidence(project, url, page_asset_urls(url, dom_state.get("resourceEntries")), label="resource")
             fonts = [item for item in resources if "dm-sans-latin-" in Path(item["path"]).name]
             # 这条断言要证的是"生成出来的 Dashboard 在真实浏览器里确实把自己的网页字体取下来了",
             # 也就是 CSS → @font-face → 网络这条链路经过脚手架和打包之后还活着。
@@ -1191,6 +1253,22 @@ def run_dashboard_browser_probe(
     return payload
 
 
+def sign_in(client: CDPClient, login_url: str) -> None:
+    """Sign in through the generated sign-in page with the gate's account; fail when the page does not let it in."""
+    navigate(client, login_url)
+    client.load_seen = False
+    client.evaluate(
+        "(() => { const form = document.querySelector('form');"
+        f" form.querySelector('[name=username]').value = {json.dumps(MATRIX_ADMIN_USERNAME)};"
+        f" form.querySelector('[name=password]').value = {json.dumps(MATRIX_ADMIN_PASSWORD)};"
+        " form.requestSubmit(); return true; })()"
+    )
+    client.wait_for_load(timeout=15.0)
+    path = client.evaluate("location.pathname", timeout=5.0)
+    if path == urllib.parse.urlsplit(login_url).path:
+        raise RuntimeError(f"Signing in to the generated Dashboard as {MATRIX_ADMIN_USERNAME} failed; still at {path}")
+
+
 def run_http_probe(
     project: Path,
     *,
@@ -1204,7 +1282,7 @@ def run_http_probe(
 ) -> dict[str, object]:
     """Start the generated Web service on a dynamic port and require a real HTTP 200 response."""
     port = reserve_tcp_port()
-    url = f"http://127.0.0.1:{port}/matrix_probe"
+    url = f"http://127.0.0.1:{port}{HTTP_PROBE_PATHS[project_type]}"
     update_service_settings(
         project / "data" / f"{service_name}_settings.yaml",
         listen_port=port,
@@ -1281,7 +1359,8 @@ def run_http_probe(
                     raise RuntimeError("Dashboard HTTP probe requires explicit browser and npm-package evidence")
                 browser = run_dashboard_browser_probe(
                     project,
-                    url,
+                    f"http://127.0.0.1:{port}/matrix_probe",
+                    login_url=url,
                     evidence_dir=browser_evidence_dir,
                     package_provenance=browser_package_provenance,
                 )
@@ -1423,8 +1502,13 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
         if not isinstance(settings_data, Mapping):
             raise RuntimeError(f"{project.name} generated invalid service settings")
         apps = settings_data.get("apps")
-        # The matrix answers no to the built-in Admin: a dashboard has its users and roles, nothing more.
-        expected_apps = ["oldman.auth", "oldman.apps.roles"] if project_type == "dashboard" else []
+        # The matrix answers no to the built-in Admin: a dashboard has its users and roles, notifications, and
+        # the project's own accounts and home page.
+        expected_apps = (
+            ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"]
+            if project_type == "dashboard"
+            else []
+        )
         if apps != expected_apps:
             raise RuntimeError(f"{project.name} generated unexpected settings.apps: {apps!r}")
         database_config = settings_data.get("database")
@@ -1613,6 +1697,8 @@ def generate_case(
         if project_type == "dashboard":
             fixture = install_dashboard_component_fixture(project)
             preserve_evidence_file(fixture, case_evidence / "generated" / "templates-matrix_probe-index.html")
+            menu = add_matrix_probe_menu_entry(project)
+            preserve_evidence_file(menu, case_evidence / "generated" / "templates-partials-sidebar.html")
         run(
             (str(oldman), "matrix_worker", "settings", "init"),
             cwd=project,
@@ -1674,6 +1760,22 @@ def generate_case(
                 environment=environment,
                 log_path=case_evidence / "db-status.log",
             )
+            if project_type == "dashboard":
+                run(
+                    (
+                        str(oldman),
+                        service_name,
+                        "createsuperuser",
+                        "--noinput",
+                        "--username",
+                        MATRIX_ADMIN_USERNAME,
+                        "--email",
+                        "matrix@example.test",
+                    ),
+                    cwd=project,
+                    environment={**environment, "OLDMAN_SUPERUSER_PASSWORD": MATRIX_ADMIN_PASSWORD},
+                    log_path=case_evidence / "createsuperuser.log",
+                )
     else:
         run(
             (str(python), "main.py"),
@@ -1764,16 +1866,22 @@ def generate_case(
                 raise RuntimeError(f"{case_name} Dashboard build did not expose src/main.ts in the Vite manifest")
             preserve_evidence_file(manifest_path, case_evidence / "generated" / "vite-manifest.json")
             metadata["viteManifestSha256"] = sha256_file(manifest_path)
-        metadata["http"] = run_http_probe(
-            project,
-            project_type=project_type,
-            service_name=service_name,
-            launcher=project / "run.sh",
-            environment=environment,
-            log_path=case_evidence / "web-http.log",
-            browser_evidence_dir=case_evidence / "browser" if project_type == "dashboard" else None,
-            browser_package_provenance=browser_package_provenance,
-        )
+        probe = {
+            "project_type": project_type,
+            "service_name": service_name,
+            "launcher": project / "run.sh",
+            "environment": environment,
+            "log_path": case_evidence / "web-http.log",
+            "browser_evidence_dir": case_evidence / "browser" if project_type == "dashboard" else None,
+            "browser_package_provenance": browser_package_provenance,
+        }
+        if project_type == "dashboard":
+            # Sessions keep the sign-in, in Redis: the gate's own, never the developer's.
+            with owned_redis_server(case_evidence / "redis", environment=environment) as redis_url:
+                update_service_settings(project / "data" / f"{service_name}_settings.yaml", redis_url=redis_url)
+                metadata["http"] = run_http_probe(project, **probe)
+        else:
+            metadata["http"] = run_http_probe(project, **probe)
 
     write_json(case_evidence / "result.json", {**metadata, "ok": True})
     return {**metadata, "ok": True}

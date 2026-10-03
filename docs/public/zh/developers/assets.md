@@ -307,6 +307,14 @@ const i18n = createI18n({
 
 ## Dashboard 脚手架的范围
 
-脚手架提供 Web 服务、基础模板、Vite、图标/i18n 工具及错误页；新业务 App 的 views、models、模板和 page.ts 仍要显式创建并加入服务 apps。默认根路径不一定有业务路由；加入 auth/admin App 配置也不等于自动安装 `/admin`。
+`startproject` 选 dashboard 生成的是能登录的骨架：
+
+- 账户：项目自己的 User 模型（`apps/accounts/models.py`），`apps/accounts/routes.py` 按配置 `web.account` 装 `LoginFlow`、`AccountFlow`、`UserManagementFlow`（见[账户页面的现成流程](web.md#账户页面的现成流程)）。所有启用的账户都能登录；用户管理要 `auth.users.*` 权限。
+- 首页 `apps/home`（`/`，要求登录）；外壳 `templates/base.html`；菜单只在 `templates/partials/sidebar.html` 列，用户管理一项只对有 `auth.users.view` 的人显示（服务里登记的模板函数 `can_manage_users`）。
+- 服务按顺序装 CSRF、通知、模板与前端包、账户页面；生成时选了内置 Admin 的再装 `/admin`，侧栏给 staff 显示它的入口。
+- 前端入口用框架的 `startDashboard`，`frontend/src/pages/base-page.ts` 是所有页面共用的页面类。
+- 配置打开 Session（要 Redis）、`core.site_name` 是项目名，装 auth、角色、通知、`apps.accounts`、`apps.home`。
+
+账户页面的模板在框架里（`oldman/dashboard/account/*`），项目在 `templates/` 下放同路径文件即可替换。新业务 App 用 `startapp` 选 dashboard 生成，视图默认要求登录；它的菜单项要手动加进侧栏，App 要加进服务配置。
 
 新建项目时选择 dashboard，按生成 README 操作。已有 API 项目增加前端时可按本章与连续教程加最小入口，不需要重新创建项目、改变数据库身份或复制完整 Demo。

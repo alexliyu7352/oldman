@@ -1,64 +1,27 @@
 import "./app.css";
-import {
-  createFetchCatalogLoader,
-  createHttpClient,
-  createI18n,
-  createOldmanContext,
-  readAssetBaseUrl,
-  setOldmanContext,
-  startOldman,
-  type OldmanApp
-} from "oldman-web/core";
+import { setupPage } from "oldman-web/core";
+import { startDashboard } from "oldman-web/dashboard";
 import { defaultLanguage, languageAliases, languageDefinitions, languagePreferencePath } from "./i18n/generated";
+import { BasePage } from "./pages/base-page";
 
 const pageEntries = import.meta.glob("./pages/*.ts");
-let appPromise: Promise<OldmanApp> | null = null;
 
-export async function startDashboard(): Promise<OldmanApp> {
-  if (appPromise) return appPromise;
+// Pages that name no entry of their own (the framework's account pages among them) use the base page.
+setupPage("backend", BasePage);
 
-  appPromise = (async () => {
-    const http = createHttpClient({});
-    const assetBaseUrl = readAssetBaseUrl();
-    const i18n = createI18n({
-      aliases: languageAliases,
-      catalogLoader: createFetchCatalogLoader({ assetBaseUrl }),
-      defaultLanguage,
-      document,
-      http,
-      languagePreferencePath,
-      languages: languageDefinitions
-    });
-    const context = createOldmanContext({
-      assetBaseUrl,
-      document,
-      http,
-      httpOptions: {},
-      i18n
-    });
-    setOldmanContext(context);
-    await context.i18n.init();
-    const app = await startOldman({
-      context,
-      pageLoader: loadPageEntry
-    });
-    document.documentElement.dataset.omReady = "true";
-    return app;
-  })();
-
-  try {
-    return await appPromise;
-  } catch (error) {
-    appPromise = null;
-    throw error;
+void startDashboard({
+  i18n: {
+    aliases: languageAliases,
+    defaultLanguage,
+    languagePreferencePath,
+    languages: languageDefinitions
+  },
+  // A page entry nothing registered still gets the dashboard shell, with a console warning.
+  fallbackPage: BasePage,
+  pageLoader: async (pageName) => {
+    const loader = pageEntries[`./pages/${pageName}.ts`];
+    if (loader) await loader();
   }
-}
-
-async function loadPageEntry(pageName: string): Promise<void> {
-  const loader = pageEntries[`./pages/${pageName}.ts`];
-  if (loader) await loader();
-}
-
-void startDashboard().catch((error: unknown) => {
-  console.error("Oldman Dashboard startup failed", error);
+}).catch((error: unknown) => {
+  console.error("Dashboard startup failed", error);
 });

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from dataclasses import dataclass
@@ -112,6 +113,9 @@ ADMIN_PROJECT_TYPES = frozenset({ProjectType.WEB, ProjectType.DASHBOARD})
 # A project with users has the roles beside them (who may do what), whether or not it has the Admin.
 USER_APPS = ("oldman.auth", "oldman.apps.roles")
 ADMIN_APP = "oldman.apps.admin"
+# The dashboard skeleton: notifications, then the project's own accounts (User model, sign-in pages) and home page.
+DASHBOARD_APPS = ("oldman.web.messages.notifications",)
+DASHBOARD_PROJECT_APPS = ("apps.accounts", "apps.home")
 
 ADMIN_IMPORT = "from oldman.apps.admin import install_admin\n"
 
@@ -128,6 +132,13 @@ WEB_ADMIN_INIT = '''
 
 DASHBOARD_ADMIN_INSTALL = """        # The built-in Admin under app_settings.admin.prefix, sharing this site's sign-in.
         install_admin(app)
+"""
+
+# The dashboard's menu entry for the Admin, for staff (the Admin's own floor): a whole-page link, by route
+# name so it follows the prefix setting.
+DASHBOARD_SIDEBAR_ADMIN = """  {% if request.ctx.user.is_staff %}
+    {{ sidebar_menu_item(url_for("oldman_admin_index"), _("Admin"), turbo=false) }}
+  {% endif %}
 """
 
 SESSION_SETTINGS = """web:
@@ -282,9 +293,11 @@ def iter_template_resources(root: Traversable, relative: Path = Path()):
 
 
 def project_apps(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
-    """The App packages a new project's service installs."""
-    apps: tuple[str, ...] = USER_APPS if project_type == ProjectType.DASHBOARD or admin else ()
-    return (*apps, ADMIN_APP) if admin else apps
+    """The App packages a new project's service installs: the framework's first, the project's own last."""
+    admin_apps = (ADMIN_APP,) if admin else ()
+    if project_type == ProjectType.DASHBOARD:
+        return (*USER_APPS, *DASHBOARD_APPS, *admin_apps, *DASHBOARD_PROJECT_APPS)
+    return (*USER_APPS, *admin_apps) if admin else ()
 
 
 def project_context(project_name: str, *, project_type: ProjectType, db: DatabaseChoice, admin: bool = False) -> dict[str, str]:
@@ -316,6 +329,10 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         "admin_import": ADMIN_IMPORT if admin else "",
         "web_admin_init": WEB_ADMIN_INIT if admin else "",
         "dashboard_admin_install": DASHBOARD_ADMIN_INSTALL if admin else "",
+        "dashboard_sidebar_admin": DASHBOARD_SIDEBAR_ADMIN if admin else "",
+        "readme_admin_wiring": "、内置 Admin（`app_settings.admin.prefix`，默认 `/admin`，与站点共用登录）" if admin else "",
+        # A double-quoted YAML string, whatever the directory is called.
+        "project_name_yaml": json.dumps(project_name, ensure_ascii=False),
         "database_url": f'"{database_url}"' if database_url else "null",
         "database_migrate_step": ("./run.sh db migrate\n" if db != DatabaseChoice.NONE else ""),
         "db_dependency_line": DB_DEPENDENCIES[db],

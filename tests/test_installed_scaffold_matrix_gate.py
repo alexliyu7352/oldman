@@ -364,7 +364,9 @@ snapshots:
 
         self.assertIn("reserve_tcp_port()", source)
         self.assertIn("subprocess.Popen", source)
-        self.assertIn('url = f"http://127.0.0.1:{port}/matrix_probe"', source)
+        self.assertIn('url = f"http://127.0.0.1:{port}{HTTP_PROBE_PATHS[project_type]}"', source)
+        # A dashboard's pages need a signed-in user, so the service is awaited at its sign-in page.
+        self.assertEqual({"api": "/matrix_probe", "web": "/matrix_probe", "dashboard": "/login"}, self.gate.HTTP_PROBE_PATHS)
         self.assertIn('(str(launcher), service_name, "start")', source)
         self.assertNotIn("WEB_SERVER_LAUNCHER", source)
         self.assertIn("if status != 200", source)
@@ -462,6 +464,15 @@ snapshots:
                 "web",
                 status=200,
                 body=b"<html><h1>MatrixProbe</h1></html>",
+                content_type="text/html; charset=utf-8",
+            ),
+        )
+        self.assertEqual(
+            [],
+            self.gate.http_response_contract_errors(
+                "dashboard",
+                status=200,
+                body=b'<html><body data-om-page="login"><form><input name="csrfmiddlewaretoken"><input name="username"><input name="password"></form></body></html>',
                 content_type="text/html; charset=utf-8",
             ),
         )
@@ -754,8 +765,17 @@ while True:
         self.assertIn("button.click()", self.gate.DASHBOARD_BROWSER_CONTRACT)
         self.assertIn("scrollAfterClick", self.gate.DASHBOARD_BROWSER_CONTRACT)
         self.assertIn('if response_ready and project_type == "dashboard":', source)
-        self.assertIn('browser_evidence_dir=case_evidence / "browser" if project_type == "dashboard" else None', source)
-        self.assertIn("browser_package_provenance=browser_package_provenance", source)
+        self.assertIn('"browser_evidence_dir": case_evidence / "browser" if project_type == "dashboard" else None', source)
+        # Signed in with the account createsuperuser made, over a session kept in the gate's own Redis.
+        self.assertIn("sign_in(client, login_url)", source)
+        self.assertIn(
+            '"createsuperuser",\n                        "--noinput",\n                        "--username",\n                        MATRIX_ADMIN_USERNAME,',
+            source,
+        )
+        self.assertIn('"OLDMAN_SUPERUSER_PASSWORD": MATRIX_ADMIN_PASSWORD', source)
+        self.assertIn('with owned_redis_server(case_evidence / "redis", environment=environment) as redis_url:', source)
+        self.assertIn("use_owned_redis(data, redis_url)", source)
+        self.assertIn('"browser_package_provenance": browser_package_provenance', source)
         self.assertIn("resolved_package_json.is_relative_to(node_modules)", source)
         self.assertIn('prefix = "/static/dist/"', source)
         self.assertIn('"consoleErrors": browser_result.console_errors', source)
@@ -814,6 +834,28 @@ while True:
                     ["http://127.0.0.1:43210/workspace/main.js"],
                     label="JavaScript",
                 )
+
+    def test_only_the_pages_own_data_requests_are_not_build_output(self) -> None:
+        """The topbar's notification list is a fetch to the server; scripts, catalogs and other origins stay checked."""
+        base = "http://127.0.0.1:43210/matrix_probe"
+        entries = [
+            {"url": "http://127.0.0.1:43210/user-notifications/topbar", "initiator": "fetch"},
+            {"url": "http://127.0.0.1:43210/api/poll", "initiator": "xmlhttprequest"},
+            {"url": "http://127.0.0.1:43210/static/dist/i18n/en.json", "initiator": "fetch"},
+            {"url": "http://127.0.0.1:43210/workspace/main.js", "initiator": "script"},
+            {"url": "http://localhost:5173/user-notifications/topbar", "initiator": "fetch"},
+        ]
+
+        self.assertEqual(
+            [
+                "http://127.0.0.1:43210/static/dist/i18n/en.json",
+                "http://127.0.0.1:43210/workspace/main.js",
+                "http://localhost:5173/user-notifications/topbar",
+            ],
+            self.gate.page_asset_urls(base, entries),
+        )
+        with self.assertRaisesRegex(RuntimeError, "resource entries"):
+            self.gate.page_asset_urls(base, ["http://127.0.0.1:43210/static/dist/assets/main.js"])
 
 
 if __name__ == "__main__":

@@ -133,8 +133,10 @@ def verify_generation() -> None:
         )
         assert_true(not (dashboard_project / "services" / "admin_area.py").exists(), "dashboard startapp must not create a service entry")
         dashboard_page = (dashboard_project / "frontend" / "src" / "pages" / "admin_area.ts").read_text(encoding="utf-8")
-        assert_true("DashboardPage" in dashboard_page, "dashboard page must use the shared DashboardPage")
-        assert_true("createDashboardComponentLoaders" in dashboard_page, "dashboard page must use shared component loaders")
+        base_page = (dashboard_project / "frontend" / "src" / "pages" / "base-page.ts").read_text(encoding="utf-8")
+        assert_true('from "./base-page"' in dashboard_page, "dashboard page must build on the project's BasePage")
+        assert_true("extends DashboardPage" in base_page, "the project's BasePage must use the shared DashboardPage")
+        assert_true("createDashboardComponentLoaders" in base_page, "the project's BasePage must use shared component loaders")
 
 
 def main() -> int:
