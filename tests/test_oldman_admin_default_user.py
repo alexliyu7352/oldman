@@ -91,8 +91,8 @@ class OldmanAdminDefaultUserTest(unittest.TestCase):
         form = admin.build_form(request, instance=user)
 
         self.assertNotIn("password_hash", form._fields)
-        self.assertTrue(admin.has_add_permission(request))
-        self.assertTrue(admin.has_delete_permission(request))
+        self.assertTrue(asyncio.run(admin.has_add_permission(request)))
+        self.assertTrue(asyncio.run(admin.has_delete_permission(request)))
 
     def test_default_admin_user_keeps_source_page_metadata(self) -> None:
         """内置用户管理页必须保留源版文案、图标和表单壳层 metadata。"""
