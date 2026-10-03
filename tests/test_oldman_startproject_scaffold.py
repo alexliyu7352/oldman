@@ -401,11 +401,20 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                             # A dashboard signs its own users in: sessions are on either way.
                             sessions = True
                         else:
-                            expected = ["oldman.auth", "oldman.apps.roles", "oldman.apps.admin"] if admin else []
+                            expected = ["oldman.auth", "oldman.apps.roles", "oldman.apps.admin", "apps.accounts"] if admin else []
                             expected += ["apps.home"]
                             sessions = admin
                         self.assertEqual(expected, seed["apps"])
                         self.assertEqual(sessions, seed.get("web") == {"session": {"enabled": True}})
+                        # Wherever there are users they are the project's own model, as on a dashboard.
+                        has_users = sessions
+                        self.assertEqual(has_users, seed.get("app_settings") == {"auth": {"user_model": "apps.accounts.models.User"}})
+                        self.assertEqual(has_users, (target / "apps" / "accounts" / "models.py").is_file())
+                        self.assertEqual(has_users, (target / "apps" / "accounts" / "migrations" / "__init__.py").is_file())
+                        # The account pages are the dashboard's; the Admin brings its own.
+                        self.assertEqual(project_type == ProjectType.DASHBOARD, (target / "apps" / "accounts" / "routes.py").is_file())
+                        if has_users:
+                            compile((target / "apps" / "accounts" / "models.py").read_text(encoding="utf-8"), "models.py", "exec")
                         self.assertEqual(admin, "from oldman.apps.admin import install_admin\n" in service)
                         self.assertEqual(1 if admin else 0, service.count("install_admin(app)"))
 
@@ -494,6 +503,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     # The Admin's guide and first account only when it was included; a dashboard always signs users in.
                     self.assertEqual(admin, "zh/agents/admin.md" in agents)
                     self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser" in agents)
+                    self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "`apps/accounts/models.py`" in agents)
 
     def test_each_project_type_has_only_its_own_parts(self) -> None:
         """A script project has no services, an API no templates; every README says how to install and start it."""

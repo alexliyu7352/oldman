@@ -1,4 +1,4 @@
 apps:{{ settings_apps }}
-database:
+{{ settings_user_model }}database:
   url: {{ database_url }}
 {{ settings_session }}

@@ -39,7 +39,7 @@ uv sync
 
 ## 内置 Admin
 
-生成时选了集成内置 Admin 的项目，服务在 `init()` 里装上它（`app_settings.admin.prefix`，默认 `/admin`），配置里装了 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin` 并打开了 Session。它要 Redis（Session 存在 `redis.SESSION`）和数据库：先 `./run.sh db migrate`，再 `./run.sh {{ service_name }} createsuperuser` 建第一个账号（两条都要在终端里回答问题），`./run.sh {{ service_name }} static collect` 收集 Admin 的前端，然后启动、打开 `/admin` 登录（欢迎页上有入口）。
+生成时选了集成内置 Admin 的项目，服务在 `init()` 里装上它（`app_settings.admin.prefix`，默认 `/admin`），配置里装了 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin` 并打开了 Session。用户是项目自己的 User 模型 `apps/accounts/models.py`（`app_settings.auth.user_model` 指向它，表仍是框架的 `oldman_user`）：要给用户加字段就在这里加，再 `./run.sh db makemigrations` 和 `./run.sh db migrate`。它要 Redis（Session 存在 `redis.SESSION`）和数据库：先 `./run.sh db migrate`，再 `./run.sh {{ service_name }} createsuperuser` 建第一个账号（两条都要在终端里回答问题），`./run.sh {{ service_name }} static collect` 收集 Admin 的前端，然后启动、打开 `/admin` 登录（欢迎页上有入口）。
 
 ## 配置和模板
 

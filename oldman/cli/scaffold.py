@@ -83,6 +83,8 @@ PROJECT_TEMPLATE_DIRS = {
 }
 # Files every project gets on top of its type's (AGENTS.md, CLAUDE.md).
 COMMON_PROJECT_TEMPLATE_DIR = "common"
+# The project's own User model (apps/accounts), in every project that has users.
+ACCOUNTS_PROJECT_TEMPLATE_DIR = "accounts"
 
 APP_TEMPLATE_DIRS = {
     AppType.SERVICE: "service_app",
@@ -120,7 +122,8 @@ USER_APPS = ("oldman.auth", "oldman.apps.roles")
 ADMIN_APP = "oldman.apps.admin"
 # The dashboard skeleton: notifications, then the project's own accounts (User model, sign-in pages) and home page.
 DASHBOARD_APPS = ("oldman.web.messages.notifications",)
-DASHBOARD_PROJECT_APPS = ("apps.accounts", "apps.home")
+ACCOUNTS_APP = "apps.accounts"
+DASHBOARD_PROJECT_APPS = (ACCOUNTS_APP, "apps.home")
 # The web skeleton: the project's welcome page.
 WEB_PROJECT_APPS = ("apps.home",)
 # The API skeleton: a health check and an endpoint for each way a program signs in.
@@ -147,6 +150,12 @@ DASHBOARD_SIDEBAR_ADMIN = """  {% if request.ctx.user.is_staff %}
 SESSION_SETTINGS = """web:
   session:
     enabled: true
+"""
+
+# Where the project has users, they are its own User model (apps/accounts/models.py).
+USER_MODEL_SETTINGS = """app_settings:
+  auth:
+    user_model: apps.accounts.models.User
 """
 
 DB_DEPENDENCIES = {
@@ -182,7 +191,7 @@ def start_project(
     context = project_context(target.name, project_type=project_type, db=db, admin=admin)
     ensure_writable_directory(target)
     copy_template_tree(
-        (scaffold_root("project", PROJECT_TEMPLATE_DIRS[project_type]), scaffold_root("project", COMMON_PROJECT_TEMPLATE_DIR)),
+        tuple(scaffold_root("project", directory) for directory in project_template_dirs(project_type, admin=admin)),
         target,
         context=context,
     )
@@ -304,13 +313,24 @@ def iter_template_resources(root: Traversable, relative: Path = Path()):
             yield from iter_template_resources(child, child_relative)
 
 
+def has_project_users(project_type: ProjectType, *, admin: bool) -> bool:
+    """A dashboard signs its users in; a web project has users when it includes the Admin."""
+    return project_type == ProjectType.DASHBOARD or admin
+
+
+def project_template_dirs(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
+    """The template trees a new project is copied from: its type's, the shared files, and the accounts App where it has users."""
+    directories = (PROJECT_TEMPLATE_DIRS[project_type], COMMON_PROJECT_TEMPLATE_DIR)
+    return (*directories, ACCOUNTS_PROJECT_TEMPLATE_DIR) if has_project_users(project_type, admin=admin) else directories
+
+
 def project_apps(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
     """The App packages a new project's service installs: the framework's first, the project's own last."""
     admin_apps = (ADMIN_APP,) if admin else ()
     if project_type == ProjectType.DASHBOARD:
         return (*USER_APPS, *DASHBOARD_APPS, *admin_apps, *DASHBOARD_PROJECT_APPS)
     if project_type == ProjectType.WEB:
-        user_apps = (*USER_APPS, *admin_apps) if admin else ()
+        user_apps = (*USER_APPS, ADMIN_APP, ACCOUNTS_APP) if admin else ()
         return (*user_apps, *WEB_PROJECT_APPS)
     if project_type == ProjectType.API:
         return API_PROJECT_APPS
@@ -344,6 +364,7 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         "settings_apps": settings_apps,
         # Signing in to the Admin needs sessions; the dashboard skeleton turns them on for its own sign-in.
         "settings_session": SESSION_SETTINGS if admin else "",
+        "settings_user_model": USER_MODEL_SETTINGS if has_project_users(project_type, admin=admin) else "",
         "admin_import": ADMIN_IMPORT if admin else "",
         "admin_install": ADMIN_INSTALL if admin else "",
         "web_home_admin": WEB_HOME_ADMIN if admin else "",

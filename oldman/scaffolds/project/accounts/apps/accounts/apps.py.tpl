@@ -1,11 +1,11 @@
-"""The project's accounts: its User model, and the sign-in and account pages."""
+"""The project's accounts: its own User model."""
 
 from oldman.apps import AppConfig
 from oldman.i18n import gettext_lazy as _
 
 
 class AccountsAppConfig(AppConfig):
-    """Own the project's User model; the pages come from the framework's account flows (routes.py)."""
+    """Own the project's User model, the one `app_settings.auth.user_model` names."""
 
     label = "accounts"
     display_name = _("Accounts")

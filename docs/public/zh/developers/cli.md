@@ -38,7 +38,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 
-`web` 选了数据库、以及 `dashboard`，接着问是否集成内置 Admin（默认否）。选了的项目装 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin`，打开 Session，服务在 `init()` 里调用 `install_admin(app)`，挂在 `app_settings.admin.prefix`（默认 `/admin`），与站点共用登录。没有数据库的 `web` 不问，因为 Admin 的用户存在数据库里。不选也能以后加：把这三个 App 加进服务配置、打开 Session、在服务里调用 `install_admin`。`dashboard` 不论选不选都装用户与角色两个 App。
+`web` 选了数据库、以及 `dashboard`，接着问是否集成内置 Admin（默认否）。选了的项目装 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin`，与 dashboard 一样生成项目自己的 User 模型（`apps/accounts`，`app_settings.auth.user_model` 指向它），打开 Session，服务在 `init()` 里调用 `install_admin(app)`，挂在 `app_settings.admin.prefix`（默认 `/admin`），与站点共用登录。没有数据库的 `web` 不问，因为 Admin 的用户存在数据库里。不选也能以后加：把这三个 App 加进服务配置、打开 Session、在服务里调用 `install_admin`。`dashboard` 不论选不选都装用户与角色两个 App。
 
 这些选择由提问完成，不提供 `startproject --type` 或 `--db` 这类参数。无人值守（CI、脚本、agent）时用环境变量[预置答案](tui.md#预置答案无人值守)，设了变量的问题不再提问：
 

@@ -163,9 +163,13 @@ FACTS: tuple[tuple[Applies, str], ...] = (
     (types("web"), "- `apps/home` serves the welcome page at `/`; every page extends `templates/base.html`."),
     (
         types("dashboard"),
-        "- Every page needs a signed-in user. `apps/accounts` has the project's User model and installs the\n"
-        "  framework's sign-in, account and user-management pages (`apps/accounts/routes.py`); `apps/home` is\n"
-        "  the page after signing in.",
+        "- Every page needs a signed-in user. `apps/accounts/routes.py` installs the framework's sign-in, account\n"
+        "  and user-management pages; `apps/home` is the page after signing in.",
+    ),
+    (
+        signs_users_in,
+        "- `apps/accounts/models.py` is the project's User model (`app_settings.auth.user_model`; the table is\n"
+        "  still `oldman_user`). Add fields there, then `./run.sh db makemigrations` and `./run.sh db migrate`.",
     ),
     (
         signs_users_in,
