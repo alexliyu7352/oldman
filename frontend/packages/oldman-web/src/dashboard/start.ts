@@ -24,7 +24,8 @@ export interface DashboardI18nOptions {
   aliases?: Record<string, string>;
   /**
    * Where a language choice is posted: `i18n.preference_url`, carried by the generated manifest or the
-   * Admin's page. `null` keeps the choice in this browser (cookie and storage) only.
+   * Admin's page. That endpoint is the only writer of the language cookie. `null` says the page has no
+   * such endpoint: a switch then lasts until the next page load.
    */
   languagePreferencePath: string | null;
   /** A catalog the page already carries, for `language`; the other languages' catalogs are fetched. */

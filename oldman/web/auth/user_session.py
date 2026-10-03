@@ -179,7 +179,12 @@ def save_language_preference(
     *,
     registry: LanguageRegistry,
 ):
-    """Normalize and persist one browser language preference in shared cookies."""
+    """Normalize one browser language preference and remember it in the language cookie.
+
+    The only writer of that cookie (`i18n.cookie_name`, lifetime `i18n.cookie_max_age`): the browser
+    posts its choice here and then loads the page in the new language. Secure follows the session
+    cookie; not HttpOnly, so a project's own script may still read the language.
+    """
     payload = request.json if isinstance(request.json, Mapping) else {}
     language = registry.resolve(str(payload.get("language", "")))
     if not language:
@@ -196,17 +201,16 @@ def save_language_preference(
             data={"language": language},
         ).to_dict()
     )
-    secure = conf.settings.web.session.cookie_secure
-    for cookie_name in ("lang", "preferred_language"):
-        response.add_cookie(
-            cookie_name,
-            language,
-            httponly=False,
-            max_age=365 * 24 * 60 * 60,
-            path="/",
-            samesite="Lax",
-            secure=secure,
-        )
+    config = conf.settings.i18n
+    response.add_cookie(
+        config.cookie_name,
+        language,
+        httponly=False,
+        max_age=config.cookie_max_age,
+        path="/",
+        samesite="Lax",
+        secure=conf.settings.web.session.cookie_secure,
+    )
     return response
 
 

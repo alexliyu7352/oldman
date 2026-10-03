@@ -405,7 +405,7 @@ function · defined in `oldman.web.auth.user_session`
 def save_language_preference(request: Any, *, registry: LanguageRegistry)
 ```
 
-Normalize and persist one browser language preference in shared cookies.
+Normalize one browser language preference and remember it in the language cookie.
 
 ## `session_data_for_user`
 

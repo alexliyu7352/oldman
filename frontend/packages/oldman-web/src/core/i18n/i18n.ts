@@ -1,5 +1,4 @@
 import type { HttpClient } from "../http/client";
-import { getCookie, setCookie } from "../http/cookies";
 import { isCanceledError } from "../services/abort";
 import { selectPluralIndex } from "./plural";
 
@@ -30,21 +29,30 @@ export interface LanguageChangeDetail {
 }
 
 export interface SetLanguageOptions {
-  persist?: boolean;
+  /** Post the choice to the language preference endpoint, which remembers it in the language cookie. Default true. */
   syncBackend?: boolean;
   translateDocument?: boolean;
 }
 
-export interface CreateI18nOptions {
+interface CreateI18nBaseOptions {
   defaultLanguage?: string;
   languages?: readonly LanguageDefinition[];
   aliases?: Record<string, string>;
   document?: Document;
   catalogLoader?: I18nCatalogLoader;
-  http?: Pick<HttpClient, "postJson">;
   initialCatalog?: TranslationCatalog;
-  languagePreferencePath?: string | null;
 }
+
+/**
+ * With `http`, `languagePreferencePath` must be given: the endpoint a language choice is posted to
+ * (`i18n.preference_url`), the only writer of the language cookie. `null` says the page offers no
+ * such endpoint (a single-language page): a switch then lasts until the next page load.
+ */
+export type CreateI18nOptions = CreateI18nBaseOptions &
+  (
+    | { http: Pick<HttpClient, "postJson">; languagePreferencePath: string | null }
+    | { http?: undefined; languagePreferencePath?: undefined }
+  );
 
 export interface I18nRuntime {
   readonly locale: string;
@@ -66,12 +74,15 @@ export type TranslationCatalogLoader = (locale: string) => Promise<TranslationCa
 export type I18nCatalogLoader = (language: LanguageDefinition) => Promise<TranslationCatalog | null | undefined>;
 
 const CONTEXT_SEPARATOR = "\u0004";
-const LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 
 export function createI18n(catalog: TranslationCatalog): I18nRuntime;
 export function createI18n(options: CreateI18nOptions): I18nRuntime;
 export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nRuntime {
   const options = normalizeCreateOptions(input);
+  if (options.http && options.languagePreferencePath === undefined) {
+    // No silent default: without the endpoint a language switch would not be remembered.
+    throw new Error("createI18n: pass languagePreferencePath (i18n.preference_url, or null for a page without one) together with http");
+  }
   const runtimeDocument = options.document ?? document;
   const languages = normalizeLanguages(options);
   const languageByCode = new Map(languages.map((language) => [language.code, language]));
@@ -100,7 +111,6 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     async init() {
       initPromise ??= (async () => {
         await applyLanguage(detectInitialLanguage(), {
-          persist: false,
           syncBackend: false,
           translateDocument: true
         });
@@ -110,7 +120,6 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     },
     async setLanguage(language, setOptions = {}) {
       return applyLanguage(language, {
-        persist: setOptions.persist ?? true,
         syncBackend: setOptions.syncBackend ?? true,
         translateDocument: setOptions.translateDocument ?? true
       });
@@ -169,7 +178,6 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     runtimeDocument.documentElement.lang = languageCode;
 
     if (setOptions.translateDocument) runtime.translateDocument();
-    if (setOptions.persist) persistLanguagePreference(languageCode);
     if (setOptions.syncBackend) await syncBackendLanguage(languageCode);
     if (sequence !== languageChangeSequence) return currentLanguage;
 
@@ -203,15 +211,9 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     return catalog;
   }
 
+  /** The server rendered the page in its language (path, cookie, browser, default) and says so in `<html lang>`. */
   function detectInitialLanguage(): string {
-    const candidates = [
-      safeLocalStorageGet("preferred_language"),
-      getCookie("preferred_language"),
-      getCookie("lang"),
-      runtimeDocument.documentElement.lang,
-      ...browserLanguages(),
-      defaultLanguage
-    ];
+    const candidates = [runtimeDocument.documentElement.lang, defaultLanguage];
     for (const candidate of candidates) {
       const resolved = tryResolveLanguageCode(candidate);
       if (resolved) return resolved;
@@ -235,41 +237,13 @@ export function createI18n(input: TranslationCatalog | CreateI18nOptions): I18nR
     return languageByCode.get(language) ?? languageByCode.get(defaultLanguage) ?? languages[0] ?? defaultLanguageDefinition();
   }
 
-  function browserLanguages(): string[] {
-    const navigatorLanguages = runtimeDocument.defaultView?.navigator.languages ?? [];
-    const navigatorLanguage = runtimeDocument.defaultView?.navigator.language;
-    return [...navigatorLanguages, navigatorLanguage].filter((value): value is string => Boolean(value));
-  }
-
-  function persistLanguagePreference(language: string): void {
-    safeLocalStorageSet("preferred_language", language);
-    setCookie("preferred_language", language, { path: "/", maxAge: LANGUAGE_COOKIE_MAX_AGE, sameSite: "Lax" });
-    setCookie("lang", language, { path: "/", maxAge: LANGUAGE_COOKIE_MAX_AGE, sameSite: "Lax" });
-  }
-
   async function syncBackendLanguage(language: string): Promise<void> {
-    if (!options.http || options.languagePreferencePath === null) return;
+    if (!options.http || options.languagePreferencePath == null) return;
 
     try {
-      await options.http.postJson(options.languagePreferencePath || "/preferences/language", { language });
+      await options.http.postJson(options.languagePreferencePath, { language });
     } catch (error) {
       if (!isCanceledError(error)) console.warn("Failed to save language preference", error);
-    }
-  }
-
-  function safeLocalStorageGet(key: string): string | null {
-    try {
-      return runtimeDocument.defaultView?.localStorage.getItem(key) ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  function safeLocalStorageSet(key: string, value: string): void {
-    try {
-      runtimeDocument.defaultView?.localStorage.setItem(key, value);
-    } catch {
-      // 浏览器禁用存储时，当前页面仍应完成语言切换。
     }
   }
 }
@@ -323,8 +297,7 @@ export async function loadI18nCatalog(
   return catalog;
 }
 
-function normalizeCreateOptions(input: TranslationCatalog | CreateI18nOptions): Required<Pick<CreateI18nOptions, "aliases">> &
-  Omit<CreateI18nOptions, "aliases"> {
+function normalizeCreateOptions(input: TranslationCatalog | CreateI18nOptions): CreateI18nOptions & { aliases: Record<string, string> } {
   if ("messages" in input) {
     return {
       defaultLanguage: input.locale,

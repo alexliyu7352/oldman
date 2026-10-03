@@ -505,6 +505,8 @@ Members:
 - `default_language: str = Field(default='en', description='Default language code')`
 - `languages: dict[str, I18nLanguageConfig] = Field(default_factory=_default_i18n_languages, description='Canonical project language definitions')`
 - `preference_url: str = Field(default='/preferences/language', description="Endpoint the browser posts a visitor's language…`
+- `cookie_name: str = Field(default='preferred_language', min_length=1, description="Cookie remembering a visitor's langu…`
+- `cookie_max_age: int = Field(default=365 * 24 * 60 * 60, gt=0, description='Lifetime of the language cookie in seconds')`
 - `classmethod def validate_preference_url(value: str) -> str` — The browser posts here from any page, signed in or not.
 - `classmethod def normalize_language_keys(value: object) -> object` — Normalize configured canonical codes before building child models.
 - `classmethod def normalize_default_language(value: object) -> str` — Require one standard language tag before resolving project aliases.

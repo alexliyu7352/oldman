@@ -182,9 +182,11 @@ describe("createI18n", () => {
     expect(i18n.t("Save")).toBe("保存");
   });
 
-  it("initializes from cookie when local storage has no language", async () => {
-    document.cookie = "preferred_language=zh-hans; path=/";
-    document.documentElement.lang = "en";
+  it("starts in the language the server rendered the page in, whatever the cookies say", async () => {
+    // The server resolved path, cookie and browser language already and wrote the result into <html lang>.
+    document.cookie = "preferred_language=en; path=/";
+    localStorage.setItem("preferred_language", "en");
+    document.documentElement.lang = "zh-hans";
     const i18n = createI18n({
       defaultLanguage: "en",
       languages: [
@@ -236,7 +238,7 @@ describe("createI18n", () => {
       }
     });
 
-    await i18n.setLanguage("zh-hans", { persist: false, syncBackend: false });
+    await i18n.setLanguage("zh-hans", { syncBackend: false });
 
     expect(loaded).toEqual(["zh-hans"]);
     expect(i18n.currentLanguage).toBe("zh-hans");
@@ -269,7 +271,7 @@ describe("createI18n", () => {
     });
     let settled = false;
 
-    const changing = i18n.setLanguage("zh-Hans", { persist: false }).then((language) => {
+    const changing = i18n.setLanguage("zh-Hans").then((language) => {
       settled = true;
       return language;
     });
@@ -279,6 +281,48 @@ describe("createI18n", () => {
     releaseBackend();
     await expect(changing).resolves.toBe("zh-Hans");
     expect(settled).toBe(true);
+  });
+
+  it("leaves cookies and storage alone: the server writes the language cookie", async () => {
+    const http = { postJson: vi.fn().mockResolvedValue({}) };
+    const i18n = createI18n({
+      defaultLanguage: "en",
+      document,
+      http,
+      languagePreferencePath: "/preferences/language",
+      languages: [
+        { aliases: [], catalogPath: "", code: "en", flag: "", locale: "en", name: "English" },
+        { aliases: [], catalogPath: "", code: "zh-Hans", flag: "", locale: "zh-Hans", name: "简体中文" }
+      ]
+    });
+
+    await i18n.setLanguage("zh-Hans");
+
+    expect(http.postJson).toHaveBeenCalledWith("/preferences/language", { language: "zh-Hans" });
+    expect(document.cookie).not.toContain("zh-Hans");
+    expect(localStorage.getItem("preferred_language")).toBeNull();
+  });
+
+  it("refuses an http client without a preference endpoint instead of guessing one", () => {
+    const http = { postJson: vi.fn() };
+    // Untyped callers (plain JS) are the ones this guards; the types already require the path.
+    const options = { defaultLanguage: "en", document, http } as unknown as Parameters<typeof createI18n>[0];
+    expect(() => createI18n(options)).toThrow(/languagePreferencePath/);
+  });
+
+  it("posts nothing on a page without an endpoint", async () => {
+    const http = { postJson: vi.fn() };
+    const i18n = createI18n({
+      defaultLanguage: "en",
+      document,
+      http,
+      languagePreferencePath: null,
+      languages: [{ aliases: [], catalogPath: "", code: "en", flag: "", locale: "en", name: "English" }]
+    });
+
+    await i18n.setLanguage("en");
+
+    expect(http.postJson).not.toHaveBeenCalled();
   });
 
   it("keeps the latest selection when catalogs resolve out of order", async () => {
@@ -295,8 +339,8 @@ describe("createI18n", () => {
       ]
     });
 
-    const first = i18n.setLanguage("zh-Hans", { persist: false, syncBackend: false });
-    const second = i18n.setLanguage("zh-Hant", { persist: false, syncBackend: false });
+    const first = i18n.setLanguage("zh-Hans", { syncBackend: false });
+    const second = i18n.setLanguage("zh-Hant", { syncBackend: false });
     catalogResolvers.get("zh-Hant")?.({ locale: "zh-Hant", messages: { Save: "儲存" } });
     await second;
     catalogResolvers.get("zh-Hans")?.({ locale: "zh-Hans", messages: { Save: "保存" } });

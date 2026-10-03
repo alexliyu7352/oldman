@@ -16,6 +16,7 @@ from jinja2 import DictLoader, Environment
 from pydantic import ValidationError
 from sanic.compat import Header
 
+import oldman.conf as conf
 from oldman.conf.manager import SettingsManager
 from oldman.conf.schemas import DefaultSettings, I18nConfig
 from oldman.i18n import (
@@ -377,12 +378,14 @@ class OldmanI18nPublicApiTest(unittest.TestCase):
             }
         )
         service.initialize(app, config, catalog_roots=[])
+        # The language cookie's name is a setting (i18n.cookie_name), read per request.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": SimpleNamespace(i18n=config)}))
         request = cast(
             Any,
             SimpleNamespace(
                 ctx=SimpleNamespace(detected_lang=""),
                 args={"lang": "zh-CN"},
-                cookies={"lang": "zh-TW"},
+                cookies={"preferred_language": "zh-TW"},
                 headers={"accept-language": "en"},
             ),
         )

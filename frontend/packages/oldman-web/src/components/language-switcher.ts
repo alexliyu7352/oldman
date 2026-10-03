@@ -13,7 +13,7 @@ export class LanguageSwitcher extends Component {
       if (!language) return;
       const sequence = ++this.selectionSequence;
       const previousLanguage = this.i18n.currentLanguage;
-      void this.i18n.setLanguage(language, { syncBackend: this.shouldSyncBackend(trigger) }).then((resolvedLanguage) => {
+      void this.i18n.setLanguage(language).then((resolvedLanguage) => {
         if (sequence !== this.selectionSequence) return;
         this.syncLanguageState(resolvedLanguage);
         this.closeContainingDropdown();
@@ -63,10 +63,6 @@ export class LanguageSwitcher extends Component {
       option.classList.toggle("active", active);
       option.setAttribute("aria-pressed", active ? "true" : "false");
     }
-  }
-
-  private shouldSyncBackend(trigger: Element): boolean {
-    return this.root.dataset.omLanguageSync !== "false" && trigger.getAttribute("data-om-language-sync") !== "false";
   }
 
   /** Close only the dropdown that owns this switcher after a successful choice. */

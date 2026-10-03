@@ -34,7 +34,7 @@ function · defined in `oldman.web.i18n.translation`
 def current_language(request: Any=None) -> str
 ```
 
-The canonical language of a request: its resolved locale, then the language cookies, then the default.
+The canonical language of a request: its resolved locale, then the language cookie, then the default.
 
 ## `ensure_frontend_catalogs`
 

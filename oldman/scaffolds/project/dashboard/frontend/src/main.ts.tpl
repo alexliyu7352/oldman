@@ -9,7 +9,7 @@ import {
   startOldman,
   type OldmanApp
 } from "oldman-web/core";
-import { defaultLanguage, languageAliases, languageDefinitions } from "./i18n/generated";
+import { defaultLanguage, languageAliases, languageDefinitions, languagePreferencePath } from "./i18n/generated";
 
 const pageEntries = import.meta.glob("./pages/*.ts");
 let appPromise: Promise<OldmanApp> | null = null;
@@ -26,6 +26,7 @@ export async function startDashboard(): Promise<OldmanApp> {
       defaultLanguage,
       document,
       http,
+      languagePreferencePath,
       languages: languageDefinitions
     });
     const context = createOldmanContext({

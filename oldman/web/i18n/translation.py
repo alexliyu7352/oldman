@@ -147,10 +147,9 @@ class TranslationService:
         if request_language:
             return request_language
 
-        for cookie_name in ("lang", "preferred_language"):
-            cookie_language = self.resolve_language(str(request.cookies.get(cookie_name, "") or ""))
-            if cookie_language:
-                return cookie_language
+        cookie_language = self.resolve_language(str(request.cookies.get(conf.settings.i18n.cookie_name, "") or ""))
+        if cookie_language:
+            return cookie_language
 
         accept_language = str(request.headers.get("accept-language", "") or "")
         for entry in accept_language.split(","):
@@ -246,14 +245,14 @@ def language_registry(request: Any = None) -> LanguageRegistry:
 
 
 def current_language(request: Any = None) -> str:
-    """The canonical language of a request: its resolved locale, then the language cookies, then the default."""
+    """The canonical language of a request: its resolved locale, then the language cookie, then the default."""
     registry = language_registry(request)
     cookies = getattr(request, "cookies", None) or {}
+    config = conf.settings.i18n
     candidates = (
         str(getattr(getattr(request, "ctx", None), "locale", "") or ""),
-        str(cookies.get("lang", "") or ""),
-        str(cookies.get("preferred_language", "") or ""),
-        str(conf.settings.i18n.default_language or ""),
+        str(cookies.get(config.cookie_name, "") or ""),
+        str(config.default_language or ""),
     )
     for candidate in candidates:
         resolved = registry.resolve(candidate)

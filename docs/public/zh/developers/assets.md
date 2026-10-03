@@ -249,7 +249,7 @@ PO 不存在时会生成对应语言的空 messages 字典；这不等于该语�
 
 npm 包的底层工具为 `oldman-web-i18n extract --project-root . --source-root frontend/src` 和 `oldman-web-i18n compile-po --fallback-locale en`（从标准输入读取 PO）。普通项目优先使用 Oldman CLI 和脚手架脚本，不另写 PO 解析器。
 
-Demo main.ts 从 `./i18n/generated` 导入 defaultLanguage、languageAliases 和 languageDefinitions；从页面的 oldman-asset-base meta 取得资源基址。它创建 createI18n，交给 createOldmanContext，等待 i18n.init 后才 startOldman，完整代码见[前端入口](frontend.md#demo-的-dashboard-页面入口)。
+Demo main.ts 从 `./i18n/generated` 导入 defaultLanguage、languageAliases、languageDefinitions 和 languagePreferencePath；从页面的 oldman-asset-base meta 取得资源基址。它创建 createI18n，交给 createOldmanContext，等待 i18n.init 后才 startOldman，完整代码见[前端入口](frontend.md#demo-的-dashboard-页面入口)。
 
 词典加载不用自己写，`createFetchCatalogLoader` 来自 oldman-web/core：
 
@@ -261,13 +261,35 @@ const i18n = createI18n({
   defaultLanguage,
   document,
   http,
+  languagePreferencePath,
   languages: languageDefinitions
 });
 ```
 
-它按 URL 规则解析 `catalogPath`，不改写路径：项目的词典和 bundle 放在一起，写相对路径（`i18n/en.json`），相对 assetBaseUrl 解析；Admin 的词典是另一个挂载点上的路由，写站点绝对路径（`/admin/i18n/en.json`）。剥掉前导斜杠会让后者变成相对当前页面，于是每个非根页面都请求到 404。
+传了 `http` 就必须同时传 `languagePreferencePath`：切换语言后把选择 POST 到哪里，生成的 `generated.ts` 里就是 `i18n.preference_url`。少传时 `createI18n` 直接报错，不再替你猜一个地址；传 `null` 表示页面没有这个地址，切换只维持到下次加载页面。
+
+`createFetchCatalogLoader` 按 URL 规则解析 `catalogPath`，不改写路径：项目的词典和 bundle 放在一起，写相对路径（`i18n/en.json`），相对 assetBaseUrl 解析；Admin 的词典是另一个挂载点上的路由，写站点绝对路径（`/admin/i18n/en.json`）。剥掉前导斜杠会让后者变成相对当前页面，于是每个非根页面都请求到 404。
 
 生产基址为 /static/dist/，开发模式为 Vite URL，不能把 JSON 路径固定成另一个端口。加载失败（HTTP 错误、网络异常、非法 JSON）都回退空词典，让缺翻译退回 msgid 而不是整页起不来；不能把 fallback 当成加载成功。验证时在 Network 确认实际词典请求、正文翻译和语言切换，不只看下拉菜单是否有简繁选项。
+
+### 请求用哪种语言
+
+每个请求的语言由服务端决定，写进 `<html lang>`；浏览器启动时只读这个属性，不自己判断，也不读写 cookie 或 localStorage。服务端按 `i18n.use_i18n_path` 分两种模式：
+
+| 模式 | 语言从哪里来 | 适合 |
+| --- | --- | --- |
+| 路径模式（`use_i18n_path: true`） | 只看路径前缀：`/zh-hans/...` 是简体中文，没有前缀的路径是 `i18n.default_language`；不看 cookie，也不看 Accept-Language | 普通网站：每种语言有自己的地址，搜索引擎能分别收录，切换语言就是一条链接，不需要前端包 |
+| 非路径模式（默认） | 依次看查询参数 `?lang=`、语言 cookie（`i18n.cookie_name`，默认 `preferred_language`）、Accept-Language，都没有就用 `i18n.default_language` | dashboard 与内置 Admin |
+
+普通网站只有路径模式这一种做法，框架不提供“普通网站靠 cookie 记语言”的方式：那需要一个前端来发起切换，而前端包是给 dashboard 用的。
+
+非路径模式下切换语言的过程：
+
+1. 用户在切换器里选一种语言，浏览器把 `{"language": "<代码>"}` POST 到 `i18n.preference_url`（默认 `/preferences/language`，登录与否都可以）。
+2. 这个地址由 `save_language_preference` 处理，它是语言 cookie **唯一**的写入方：名字是 `i18n.cookie_name`，有效期 `i18n.cookie_max_age`（默认 365 天），`Path=/`、`SameSite=Lax`，`Secure` 跟随 `web.session.cookie_secure`。cookie 不设 HttpOnly，项目自己的脚本仍然可以读到当前语言。
+3. 浏览器跳到菜单项给的地址（当前页面去掉 `?lang=`），服务端按新 cookie 用新语言渲染。
+
+要换 cookie 名或有效期，改这两项设置；不要在前端另写一份 cookie。
 
 ## Dashboard 脚手架的范围
 

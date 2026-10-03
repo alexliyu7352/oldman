@@ -63,7 +63,7 @@ describe("startDashboard", () => {
     const context = getOldmanContext();
     const post = vi.spyOn(context.http, "postJson").mockResolvedValue({});
 
-    await context.i18n.setLanguage("en", { persist: false, syncBackend: true });
+    await context.i18n.setLanguage("en", { syncBackend: true });
 
     expect(post).toHaveBeenCalledWith("/account/language", { language: "en" });
   });

@@ -14,7 +14,7 @@ from sqlalchemy.schema import Table
 import oldman.conf as conf
 from oldman.auth.models import User
 from oldman.auth.settings import AuthSettings
-from oldman.conf.schemas import AccountConfig, DatabaseConfig, SessionConfig
+from oldman.conf.schemas import AccountConfig, DatabaseConfig, I18nConfig, SessionConfig
 from oldman.db.session import DatabaseManager
 from oldman.i18n import LanguageRegistry
 from oldman.web.auth import (
@@ -257,8 +257,8 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await form.validate())
         self.assertIn("current_password", form.errors)
 
-    def test_language_preference_normalizes_alias_and_writes_both_cookies(self) -> None:
-        """Both public language routes should consume one canonical cookie response."""
+    def test_language_preference_normalizes_alias_and_writes_the_one_language_cookie(self) -> None:
+        """The preference endpoint is the only writer of the language cookie; name and lifetime come from the settings."""
         registry = LanguageRegistry(
             {
                 "en": {},
@@ -270,27 +270,26 @@ class SharedUserSessionBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
         settings = SimpleNamespace(
             web=SimpleNamespace(session=SessionConfig(cookie_secure=True)),
+            i18n=I18nConfig(cookie_name="site_language", cookie_max_age=3600),
         )
         with patch.dict(conf.__dict__, {"settings": settings}):
             response = save_language_preference(request, registry=registry)
         assert response.body is not None
         payload = json.loads(response.body)
-        language_cookie = response.cookies.get_cookie("lang")
-        preference_cookie = response.cookies.get_cookie("preferred_language")
+        language_cookie = response.cookies.get_cookie("site_language")
         assert language_cookie is not None
-        assert preference_cookie is not None
 
         self.assertEqual(200, response.status)
         self.assertEqual("zh-Hans", payload["data"]["language"])
         self.assertEqual("zh-Hans", language_cookie.value)
-        self.assertEqual(
-            "zh-Hans",
-            preference_cookie.value,
-        )
+        self.assertEqual(3600, language_cookie.max_age)
         self.assertTrue(language_cookie.secure)
+        self.assertIsNone(response.cookies.get_cookie("lang"))
+        self.assertIsNone(response.cookies.get_cookie("preferred_language"))
 
         request.json = {"language": "not-supported"}
-        invalid = save_language_preference(request, registry=registry)
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            invalid = save_language_preference(request, registry=registry)
         self.assertEqual(200, invalid.status)
         assert invalid.body is not None
         self.assertEqual(1100, json.loads(invalid.body)["error_code"])

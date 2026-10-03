@@ -18,9 +18,9 @@ LANGUAGES = {
 }
 
 
-def fake_settings(*, use_i18n: bool = True, use_i18n_path: bool = False) -> Any:
+def fake_settings(*, use_i18n: bool = True, use_i18n_path: bool = False, cookie_name: str = "preferred_language") -> Any:
     return SimpleNamespace(
-        i18n=SimpleNamespace(use_i18n=use_i18n, languages=LANGUAGES, default_language="en", use_i18n_path=use_i18n_path),
+        i18n=SimpleNamespace(use_i18n=use_i18n, languages=LANGUAGES, default_language="en", use_i18n_path=use_i18n_path, cookie_name=cookie_name),
         web=SimpleNamespace(static=SimpleNamespace(url="/static")),
     )
 
@@ -33,11 +33,12 @@ class LanguageContextTest(unittest.TestCase):
     def setUp(self) -> None:
         self.enterContext(patch.dict(conf.__dict__, {"settings": fake_settings()}))
 
-    def test_current_language_prefers_the_request_locale_then_the_cookies_then_the_default(self) -> None:
-        self.assertEqual("zh-Hans", current_language(request_with(locale="zh-CN", cookies={"lang": "en"})))
-        self.assertEqual("zh-Hans", current_language(request_with(cookies={"lang": "zh-Hans"})))
+    def test_current_language_prefers_the_request_locale_then_the_cookie_then_the_default(self) -> None:
+        self.assertEqual("zh-Hans", current_language(request_with(locale="zh-CN", cookies={"preferred_language": "en"})))
         self.assertEqual("zh-Hans", current_language(request_with(cookies={"preferred_language": "zh-CN"})))
-        self.assertEqual("en", current_language(request_with(cookies={"lang": "fr"})))
+        # Only the configured cookie (i18n.cookie_name) counts; the old second name is not read.
+        self.assertEqual("en", current_language(request_with(cookies={"lang": "zh-Hans"})))
+        self.assertEqual("en", current_language(request_with(cookies={"preferred_language": "fr"})))
         self.assertEqual("en", current_language(None))
 
     def test_menu_items_carry_flags_current_marker_and_switch_urls(self) -> None:
@@ -69,6 +70,16 @@ class LanguageContextTest(unittest.TestCase):
         request = SimpleNamespace(ctx=SimpleNamespace(), args={}, cookies={"preferred_language": "zh-CN"}, headers={})
 
         self.assertEqual("zh-Hans", service.get_locale(request))
+
+    def test_a_renamed_language_cookie_is_the_one_read(self) -> None:
+        cookies = {"site_language": "zh-CN", "preferred_language": "en"}
+        service = cast(Any, TranslationService).__wrapped__()
+        service.registry = LanguageRegistry(LANGUAGES)
+        service.default_language = "en"
+        service.is_initialized = True
+        with patch.dict(conf.__dict__, {"settings": fake_settings(cookie_name="site_language")}):
+            self.assertEqual("zh-Hans", current_language(request_with(cookies=cookies)))
+            self.assertEqual("zh-Hans", service.get_locale(SimpleNamespace(ctx=SimpleNamespace(), args={}, cookies=cookies, headers={})))
 
 
 class CsrfTokenForTest(unittest.TestCase):

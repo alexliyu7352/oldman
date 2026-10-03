@@ -75,7 +75,7 @@ function readAdminI18nBootstrap(): AdminI18nBootstrap {
         name: language
       }
     ],
-    // Without the server's bootstrap there is no endpoint to name: the choice stays in this browser.
+    // Without the server's bootstrap there is no endpoint to name: a switch lasts until the next page load.
     preferencePath: null
   };
   const source = document.querySelector<HTMLScriptElement>("#oldman-admin-i18n")?.textContent;

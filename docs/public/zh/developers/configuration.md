@@ -259,6 +259,7 @@ Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时�
 | `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` 秒；模型缓存未命中时查库用的独立连接池，见[模型缓存](cache.md#缓存连接池) |
 | `i18n.use_i18n`、`use_i18n_path` | `False` |
 | `i18n.default_language` | `en` |
+| `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 天（以秒计）。非路径模式下记住访客所选语言的 cookie，只由 `i18n.preference_url` 那个地址写入，见[请求用哪种语言](assets.md#请求用哪种语言) |
 | `cache.client` / `serializer` | `CACHE` / `pickle`；键前缀是 `<core.namespace>:cache` |
 | `http_client.max_connections` | `300` |
 | `mail.backend` | `oldman.mail.backends.console.ConsoleEmailBackend`，打印到标准输出；生产改成 smtp |

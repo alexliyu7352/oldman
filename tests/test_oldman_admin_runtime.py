@@ -706,12 +706,9 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
 
         self.assertEqual(200, response.status)
         self.assertEqual("zh-Hans", json.loads(response.body)["data"]["language"])
-        self.assertEqual("zh-Hans", response.cookies.get_cookie("lang").value)
-        self.assertTrue(response.cookies.get_cookie("lang").secure)
-        self.assertEqual(
-            "zh-Hans",
-            response.cookies.get_cookie("preferred_language").value,
-        )
+        self.assertEqual("zh-Hans", response.cookies.get_cookie("preferred_language").value)
+        self.assertTrue(response.cookies.get_cookie("preferred_language").secure)
+        self.assertIsNone(response.cookies.get_cookie("lang"))
         self.assertEqual("admin", session.username)
 
         # A visitor who has not signed in saves a choice too: the login page has a language switcher.

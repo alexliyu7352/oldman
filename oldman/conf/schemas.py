@@ -454,6 +454,12 @@ class I18nConfig(ConfigModel):
         default="/preferences/language",
         description="Endpoint the browser posts a visitor's language choice to after switching",
     )
+    cookie_name: str = Field(
+        default="preferred_language",
+        min_length=1,
+        description="Cookie remembering a visitor's language choice; only the preference endpoint writes it",
+    )
+    cookie_max_age: int = Field(default=365 * 24 * 60 * 60, gt=0, description="Lifetime of the language cookie in seconds")
 
     @field_validator("preference_url")
     @classmethod
