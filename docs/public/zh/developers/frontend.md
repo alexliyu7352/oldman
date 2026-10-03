@@ -47,7 +47,7 @@ Jinja 的 gettext 直接出译文。
 
 `oldman-web/dashboard` 另导出 `startDashboard(options)`，替 dashboard 或内置 Admin 一次做完上面 main.ts 手写的几步：建 HTTP Client（请求回 401 时按服务端给的 `login_url` 跳登录页）、i18n 和 OldmanContext，等语言初始化，把认证页类登记在 `AUTH_PAGE_NAME`（`"login"`，即框架认证页的 `data-om-page`）下，再调用 `startOldman`。重复调用返回同一个应用，启动失败后可以再调；`stopDashboard()` 用于测试和整页拆除。
 
-`options.i18n` 是语言契约：`languages`、`defaultLanguage`、可选 `aliases`、`languagePreferencePath`（项目由 `i18n compile-frontend` 生成，来自 `i18n.preference_url`，这个地址是语言 cookie 唯一的写入方；为 null 表示页面没有这个地址，切换只维持到下次加载页面）和可选的 `initialCatalog`。其余选项是 `assetBaseFallback`、`fallbackPage`、`pageLoader` 和 `authPage`；`authPage` 默认是框架的 `AuthPage`，只挂表单、语言切换和预加载，没有 dashboard 外壳。内置 Admin 的入口用它启动；EPG Demo 的 main.ts 仍是上面手写的版本。
+`options.i18n` 是语言契约：`languages`、`defaultLanguage`、可选 `aliases`、`languagePreferencePath`（项目由 `i18n compile-frontend` 生成，来自 `i18n.preference_url`，这个地址是语言 cookie 唯一的写入方；为 null 表示页面没有这个地址，只用于单语言页面，多语言页面在非路径模式下传 null 时切换后的跳转会回到原语言，见[请求用哪种语言](assets.md#请求用哪种语言)）和可选的 `initialCatalog`。其余选项是 `assetBaseFallback`、`fallbackPage`、`pageLoader` 和 `authPage`；`authPage` 默认是框架的 `AuthPage`，只挂表单、语言切换和预加载，没有 dashboard 外壳。内置 Admin 的入口用它启动；EPG Demo 的 main.ts 仍是上面手写的版本。
 
 ## 三层对象的职责
 

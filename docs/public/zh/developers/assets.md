@@ -266,7 +266,7 @@ const i18n = createI18n({
 });
 ```
 
-传了 `http` 就必须同时传 `languagePreferencePath`：切换语言后把选择 POST 到哪里，生成的 `generated.ts` 里就是 `i18n.preference_url`。少传时 `createI18n` 直接报错，不再替你猜一个地址；传 `null` 表示页面没有这个地址，切换只维持到下次加载页面。
+传了 `http` 就必须同时传 `languagePreferencePath`：切换语言后把选择 POST 到哪里，生成的 `generated.ts` 里就是 `i18n.preference_url`。少传时 `createI18n` 直接报错，不再替你猜一个地址；传 `null` 表示页面没有这个地址，只适合单语言页面（内置 Admin 拿不到服务端语言数据时的兜底就是这种情况）。多语言页面在非路径模式下传 `null`，切换器随后跳回当前页面时没有 cookie 记住选择，页面会回到原来的语言；路径模式不受影响，因为跳转的地址本身带语言前缀。
 
 `createFetchCatalogLoader` 按 URL 规则解析 `catalogPath`，不改写路径：项目的词典和 bundle 放在一起，写相对路径（`i18n/en.json`），相对 assetBaseUrl 解析；Admin 的词典是另一个挂载点上的路由，写站点绝对路径（`/admin/i18n/en.json`）。剥掉前导斜杠会让后者变成相对当前页面，于是每个非根页面都请求到 404。
 
