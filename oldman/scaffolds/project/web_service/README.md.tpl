@@ -1,5 +1,7 @@
 # {{ project_name }}
 
+给 coding agent 的说明在 [AGENTS.md](AGENTS.md)（Claude Code 经 `CLAUDE.md` 读到同一份），让 agent 开工前读完。
+
 基于 Oldman 的服务端 HTML 项目。服务入口是 `services/{{ service_name }}.py`，使用异步 Jinja 模板；配置位于 `data/{{ service_name }}_settings.yaml`。
 
 ## 开始运行

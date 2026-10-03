@@ -68,6 +68,7 @@ REQUIRED_SCAFFOLD_PREFIXES = (
     "oldman/scaffolds/project/api_service/",
     "oldman/scaffolds/project/web_service/",
     "oldman/scaffolds/project/dashboard/",
+    "oldman/scaffolds/project/common/",
     "oldman/scaffolds/app/service_app/",
     "oldman/scaffolds/app/api_app/",
     "oldman/scaffolds/app/web_app/",

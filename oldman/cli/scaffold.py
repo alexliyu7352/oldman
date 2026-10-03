@@ -6,6 +6,7 @@ import json
 import re
 import secrets
 import shutil
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from importlib.resources import files
@@ -13,6 +14,7 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 from uuid import uuid4
 
+from oldman.cli.agent_instructions import agent_instructions
 from oldman.conf.constants import _find_project_root
 from oldman.version import __VERSION__
 
@@ -79,6 +81,8 @@ PROJECT_TEMPLATE_DIRS = {
     ProjectType.WEB: "web_service",
     ProjectType.DASHBOARD: "dashboard",
 }
+# Files every project gets on top of its type's (AGENTS.md, CLAUDE.md).
+COMMON_PROJECT_TEMPLATE_DIR = "common"
 
 APP_TEMPLATE_DIRS = {
     AppType.SERVICE: "service_app",
@@ -178,7 +182,7 @@ def start_project(
     context = project_context(target.name, project_type=project_type, db=db, admin=admin)
     ensure_writable_directory(target)
     copy_template_tree(
-        scaffold_root("project", PROJECT_TEMPLATE_DIRS[project_type]),
+        (scaffold_root("project", PROJECT_TEMPLATE_DIRS[project_type]), scaffold_root("project", COMMON_PROJECT_TEMPLATE_DIR)),
         target,
         context=context,
     )
@@ -212,7 +216,7 @@ def start_app(
         "display_name_literal": repr(normalized_display_name),
     }
     copy_template_tree(
-        scaffold_root("app", APP_TEMPLATE_DIRS[app_type]),
+        (scaffold_root("app", APP_TEMPLATE_DIRS[app_type]),),
         target_root,
         context=context,
     )
@@ -231,7 +235,7 @@ def start_service(name: str, *, service_type: ServiceType) -> CreatedService:
         "service_class": f"{pascal_case(service_name)}Service",
     }
     copy_template_tree(
-        scaffold_root("service", SERVICE_TEMPLATE_DIRS[service_type]),
+        (scaffold_root("service", SERVICE_TEMPLATE_DIRS[service_type]),),
         target_root,
         context=context,
     )
@@ -251,17 +255,26 @@ def scaffold_root(scope: str, name: str):
 
 
 def copy_template_tree(
-    template_root: Traversable,
+    template_roots: Sequence[Traversable],
     target_root: Path,
     *,
     context: dict[str, str],
 ) -> None:
-    """Copy a template tree after checking every destination conflict."""
+    """Copy one or more template trees into one target, after checking every destination before writing any."""
     resources = [
         (resource, target_root / render_path(relative, context))
+        for template_root in template_roots
         for resource, relative in iter_template_resources(template_root)
         if resource.name != ".gitkeep"
     ]
+    files_by_destination: dict[Path, Traversable] = {}
+    for resource, destination in resources:
+        if resource.is_dir():
+            continue
+        if destination in files_by_destination:
+            # Two trees writing one file is a scaffold bug; one of them would silently win.
+            raise FileExistsError(f"Two template trees both write {destination}")
+        files_by_destination[destination] = resource
     for resource, destination in resources:
         if resource.is_dir():
             if destination.exists() and not destination.is_dir():
@@ -320,6 +333,7 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
     settings_apps = "".join(f"\n  - {package}" for package in apps) if apps else " []"
     database_url = DB_URLS[db]
     return {
+        **agent_instructions(project_type.value, admin=admin, service_name=service_name),
         "project_name": project_name,
         "project_slug": project_slug,
         "project_type": project_type.value,

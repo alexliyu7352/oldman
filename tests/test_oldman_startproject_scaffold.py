@@ -25,9 +25,10 @@ from typer.testing import CliRunner
 import oldman.conf as conf
 from oldman.cli import tui
 from oldman.cli._main import create_app
+from oldman.cli.agent_instructions import GUIDES
 from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
-from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, start_app, start_project
+from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, copy_template_tree, start_app, start_project
 from oldman.conf import DefaultSettings
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
 from oldman.version import __VERSION__
@@ -448,6 +449,73 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 # logging.dir and process.pid_dir default to these; the first command already creates logs/.
                 self.assertIn("/logs/", gitignore)
                 self.assertIn("/pids/", gitignore)
+
+    def test_every_project_tells_agents_how_to_work_on_it(self) -> None:
+        """AGENTS.md (CLAUDE.md points at it) has the lines for what was generated, and none for what was not."""
+        cases = (
+            (ProjectType.CLI, DatabaseChoice.NONE, False),
+            (ProjectType.SERVICE, DatabaseChoice.NONE, False),
+            (ProjectType.API, DatabaseChoice.NONE, False),
+            (ProjectType.WEB, DatabaseChoice.SQLITE, False),
+            (ProjectType.WEB, DatabaseChoice.SQLITE, True),
+            (ProjectType.DASHBOARD, DatabaseChoice.SQLITE, False),
+            (ProjectType.DASHBOARD, DatabaseChoice.SQLITE, True),
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            for project_type, database, admin in cases:
+                name = f"{project_type.value}_{admin}"
+                with self.subTest(project_type=project_type, admin=admin), working_directory(parent):
+                    target = start_project(name, project_type=project_type, db=database, admin=admin)
+                    agents = (target / "AGENTS.md").read_text(encoding="utf-8")
+
+                    self.assertEqual("@AGENTS.md\n", (target / "CLAUDE.md").read_text(encoding="utf-8"))
+                    self.assertTrue(agents.startswith(f"# Agent instructions for {name}\n"))
+                    self.assertNotIn("{{", agents)
+                    self.assertNotIn("{service_name}", agents)
+                    self.assertIn("/.oldman-docs/", (target / ".gitignore").read_text(encoding="utf-8").splitlines())
+                    self.assertIn("[AGENTS.md](AGENTS.md)", (target / "README.md").read_text(encoding="utf-8"))
+
+                    service = project_type != ProjectType.CLI
+                    self.assertEqual(service, "`./run.sh --version`" in agents)
+                    self.assertEqual(not service, "`uv run oldman --version`" in agents)
+                    # A script project has no guide table, so the API index is its second step.
+                    self.assertEqual(service, "\n3. Look up every `oldman` import" in agents)
+                    self.assertEqual(not service, "\n2. Look up every `oldman` import" in agents)
+                    if service:
+                        self.assertIn(f"OLDMAN_ANSWER_STARTAPP_TEMPLATE={project_type.value} ./run.sh startapp", agents)
+                    self.assertEqual(project_type == ProjectType.SERVICE, "self.task_manager.spawn" in agents)
+                    self.assertEqual(
+                        project_type in {ProjectType.API, ProjectType.WEB, ProjectType.DASHBOARD}, "request.app.ctx.tasks.spawn" in agents
+                    )
+                    self.assertEqual(project_type == ProjectType.API, "`/api/caller`" in agents)
+                    self.assertEqual(project_type == ProjectType.DASHBOARD, "`templates/partials/sidebar.html`" in agents)
+                    self.assertEqual(project_type == ProjectType.DASHBOARD, "zh/agents/dashboard-crud.md" in agents)
+                    # The Admin's guide and first account only when it was included; a dashboard always signs users in.
+                    self.assertEqual(admin, "zh/agents/admin.md" in agents)
+                    self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser" in agents)
+
+    def test_every_guide_agents_are_sent_to_is_in_the_docs(self) -> None:
+        """A generated AGENTS.md names guides by their path in the docs of the same version."""
+        for _applies, row in GUIDES:
+            path = row.split("`")[1]
+            with self.subTest(path=path):
+                self.assertTrue((ROOT / "docs" / "public" / path).is_file())
+
+    def test_two_template_trees_never_write_the_same_file(self) -> None:
+        """A path both trees produce is a scaffold bug: nothing is written rather than one copy silently winning."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            for tree in ("own", "common"):
+                (root / tree).mkdir()
+                (root / tree / "AGENTS.md.tpl").write_text(f"from {tree}\n", encoding="utf-8")
+            (root / "own" / "README.md.tpl").write_text("readme\n", encoding="utf-8")
+            target = root / "project"
+            target.mkdir()
+
+            with self.assertRaisesRegex(FileExistsError, "Two template trees both write"):
+                copy_template_tree((root / "own", root / "common"), target, context={})
+            self.assertEqual([], list(target.iterdir()))
 
     def test_the_dashboard_skeleton_signs_its_users_in(self) -> None:
         """A generated dashboard has its User model, the account pages, a home page and one menu."""

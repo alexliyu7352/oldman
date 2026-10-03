@@ -1,5 +1,7 @@
 # {{ project_name }}
 
+给 coding agent 的说明在 [AGENTS.md](AGENTS.md)（Claude Code 经 `CLAUDE.md` 读到同一份），让 agent 开工前读完。
+
 Oldman Dashboard 项目。默认服务是 {{ service_name }}，配置在 data/{{ service_name }}_settings.yaml。run.sh 只透传命令，不会替你创建数据、构建前端或启动全部服务。
 
 生成后就是一个能登录的后台：登录与登出、首页、个人页（语言、修改自己的密码）、通知、用户管理。所有启用的账户都能登录；用户管理要 `auth.users.view` 等权限（超级用户都有，其他人经角色授予）。

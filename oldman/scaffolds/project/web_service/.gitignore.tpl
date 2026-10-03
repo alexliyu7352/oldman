@@ -5,3 +5,5 @@ __pycache__/
 /logs/
 /pids/
 /static/dist/
+# The framework docs AGENTS.md has an agent clone for the installed version.
+/.oldman-docs/

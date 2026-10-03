@@ -1,5 +1,7 @@
 # {{ project_name }}
 
+给 coding agent 的说明在 [AGENTS.md](AGENTS.md)（Claude Code 经 `CLAUDE.md` 读到同一份），让 agent 开工前读完。
+
 基于 Oldman `SimpleApplication` 的后台服务项目，不启动 HTTP 服务。入口是 `services/{{ service_name }}.py`，配置是 `data/{{ service_name }}_settings.yaml`。
 
 在本项目根目录执行：

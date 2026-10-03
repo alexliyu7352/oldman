@@ -34,6 +34,8 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | `web` | `services/web.py`，启用异步模板环境的 WebApplication；`/` 是欢迎页（项目 App `apps.home`，可改可删），`templates/base.html` 的 `<html lang>` 跟随请求语言 |
 | `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
 
+每种项目都带 `AGENTS.md`（给 coding agent 的说明：按已装版本克隆文档到 `.oldman-docs/`、按任务必读的指南、规则与事实，内容随项目类型和是否集成 Admin 增减）和只有一行 `@AGENTS.md` 的 `CLAUDE.md`；`.gitignore` 排除 `.oldman-docs/`。这两个文件建项目时生成，升级框架后不会自动更新。
+
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 
 `web` 选了数据库、以及 `dashboard`，接着问是否集成内置 Admin（默认否）。选了的项目装 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin`，打开 Session，服务在 `init()` 里调用 `install_admin(app)`，挂在 `app_settings.admin.prefix`（默认 `/admin`），与站点共用登录。没有数据库的 `web` 不问，因为 Admin 的用户存在数据库里。不选也能以后加：把这三个 App 加进服务配置、打开 Session、在服务里调用 `install_admin`。`dashboard` 不论选不选都装用户与角色两个 App。

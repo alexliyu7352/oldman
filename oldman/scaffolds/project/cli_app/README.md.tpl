@@ -1,5 +1,7 @@
 # {{ project_name }}
 
+给 coding agent 的说明在 [AGENTS.md](AGENTS.md)（Claude Code 经 `CLAUDE.md` 读到同一份），让 agent 开工前读完。
+
 这是普通 Python CLI 脚本项目，入口是 `main.py`，不创建 Oldman 服务、服务配置或 Web 运行时。
 
 在本项目根目录执行：
