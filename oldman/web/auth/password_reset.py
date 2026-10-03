@@ -80,16 +80,15 @@ class RequestOutcome(enum.Enum):
 class PasswordResetFlow:
     """Paths, settings and collaborators for one site's reset flow.
 
-    `confirm_path` must build the set-password URL by plain interpolation of the two segments:
-    `register_routes` calls it with the route placeholders to obtain the route pattern.
-    `home_path` is where a browser that is already signed in goes instead of the request page.
+    The request page sits at `base_path`; the "check your email" page at `<base_path>/sent`, the
+    set-password page at `<base_path>/<uidb64>/<token>` and the finished page at `<base_path>/done`.
+    A dashboard passes `settings.web.account.password_reset_url`, the address its login page links
+    to; the built-in Admin passes the one under its prefix. `home_path` is where a browser that is
+    already signed in goes instead of the request page.
     """
 
-    request_path: str
-    sent_path: str
-    done_path: str
+    base_path: str
     login_path: str
-    confirm_path: Callable[[str, str], str]
     home_path: str | None = None
     site_name: str = "Oldman"
     mail_template: str = "oldman/auth/mail/password_reset"
@@ -98,6 +97,25 @@ class PasswordResetFlow:
     token_generator: PasswordResetTokenGenerator | None = None
     rate_limiter: RateLimiter | None = None
     public_url: str | None = None
+
+    @property
+    def request_path(self) -> str:
+        """The request page and its submit."""
+        return self.base_path
+
+    @property
+    def sent_path(self) -> str:
+        """Where a submitted request lands, mail or not."""
+        return f"{self.base_path}/sent"
+
+    @property
+    def done_path(self) -> str:
+        """Where a new password lands."""
+        return f"{self.base_path}/done"
+
+    def confirm_path(self, uidb64: str, token: str) -> str:
+        """The set-password page one mailed link opens."""
+        return f"{self.base_path}/{uidb64}/{token}"
 
     def generator(self) -> PasswordResetTokenGenerator:
         """Token generator bound to this flow's reset settings (lifetime from `auth_settings`)."""

@@ -255,11 +255,8 @@ Paths, settings and collaborators for one site's reset flow.
 
 Members:
 
-- `request_path: str`
-- `sent_path: str`
-- `done_path: str`
+- `base_path: str`
 - `login_path: str`
-- `confirm_path: Callable[[str, str], str]`
 - `home_path: str | None = None`
 - `site_name: str = 'Oldman'`
 - `mail_template: str = 'oldman/auth/mail/password_reset'`
@@ -268,6 +265,10 @@ Members:
 - `token_generator: PasswordResetTokenGenerator | None = None`
 - `rate_limiter: RateLimiter | None = None`
 - `public_url: str | None = None`
+- `property request_path: str` — The request page and its submit.
+- `property sent_path: str` — Where a submitted request lands, mail or not.
+- `property done_path: str` — Where a new password lands.
+- `def confirm_path(uidb64: str, token: str) -> str` — The set-password page one mailed link opens.
 - `def generator() -> PasswordResetTokenGenerator` — Token generator bound to this flow's reset settings (lifetime from `auth_settings`).
 - `def limiter() -> RateLimiter`
 - `async def request_reset(request: Any, email: str, *, language: str | None=None) -> RequestOutcome` — Apply both limits, look the address up and mail the link when there is an active account.

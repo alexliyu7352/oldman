@@ -246,11 +246,21 @@ class AdminSite:
             """Whether the request may use the Admin at all; model pages add their own permission on top."""
             return has_admin_permission(request, require_superuser=self.require_superuser)
 
+        reset_flow = PasswordResetFlow(
+            base_path=f"{prefix}/password-reset",
+            login_path=login_path,
+            home_path=prefix,
+            site_name="Oldman Admin",
+            auth_settings=auth_settings,
+            db_manager=manager,
+            rate_limiter=password_reset_rate_limiter,
+        )
+
         login_flow = LoginFlow(
             login_path=login_path,
             logout_path=f"{prefix}/sign-out",
             home_path=prefix,
-            password_reset_path=f"{prefix}/password-reset",
+            password_reset_path=reset_flow.request_path,
             # Every login requires an active account; the Admin adds staff (or superuser) on top.
             accept_user=lambda user: has_staff_access(user, require_superuser=admin_settings.require_superuser),
             rate_limit=login_rate_limit,
@@ -260,19 +270,6 @@ class AdminSite:
 
         async def render_login(request: Request, page: str, /, **context: Any):
             return await render_admin_template(f"admin/{page}.html", request, admin_prefix=prefix, site=self, **context)
-
-        reset_flow = PasswordResetFlow(
-            request_path=f"{prefix}/password-reset",
-            sent_path=f"{prefix}/password-reset/sent",
-            done_path=f"{prefix}/password-reset/done",
-            login_path=login_path,
-            home_path=prefix,
-            confirm_path=lambda uidb64, token: f"{prefix}/password-reset/{uidb64}/{token}",
-            site_name="Oldman Admin",
-            auth_settings=auth_settings,
-            db_manager=manager,
-            rate_limiter=password_reset_rate_limiter,
-        )
 
         async def render_password_reset(request: Request, page: str, /, **context: Any):
             return await render_admin_template(f"admin/password_reset/{page}.html", request, admin_prefix=prefix, site=self, **context)

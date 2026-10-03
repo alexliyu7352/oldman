@@ -51,12 +51,9 @@ class AlwaysLimited:
 
 def make_flow(**overrides: Any) -> PasswordResetFlow:
     options: dict[str, Any] = {
-        "request_path": "/account/reset",
-        "sent_path": "/account/reset/sent",
-        "done_path": "/account/reset/done",
+        "base_path": "/account/reset",
         "login_path": "/account/login",
         "home_path": "/",
-        "confirm_path": lambda uidb64, token: f"/account/reset/{uidb64}/{token}",
         "auth_settings": AuthSettings(),
         "rate_limiter": AlwaysLimited(),
     }

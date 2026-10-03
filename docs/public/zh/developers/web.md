@@ -200,6 +200,7 @@ dashboard 的路径来自[账户页面地址](configuration.md#账户页面地�
 | `AccountFlow` 的 `profile_path`、`login_path`、`logout_path`、`language_path`、`user_events_path` | `web.account.profile_url`、`login_url`、`logout_url`，`i18n.preference_url`，`web.account.user_events_url` |
 | `AccountFlow` 的 `notification_routes` | 装了通知时，`oldman.web.messages.notifications.init_app(app)` 的返回值 |
 | `UserManagementFlow` 的 `base_path`、`login_path` | `web.account.users_url`、`login_url` |
+| `PasswordResetFlow` 的 `base_path`、`login_path`、`home_path`（见[找回密码](security.md#找回密码的-token)） | `web.account.password_reset_url`（未设置就不装）、`login_url`、`login_redirect_url` |
 
 流程在服务 `init()` 里 `super().init()` 之后安装，与 `install_admin` 同一处；`app` 是 `self.runtime_app`。`template_prefix="oldman/dashboard/account"` 用框架自带的 dashboard 账户页：登录页和找回密码页（`PasswordResetFlow` 用 `oldman/dashboard/account/password_reset`）继承 `oldman/dashboard/account/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏和顶栏，`data-om-page="login"`，加载项目的 `app_main_bundle`）；个人页、通知中心和用户管理页继承项目自己的 `base.html`。改外观就在项目模板目录放同名文件覆盖，或用 `framework:` 继承原版只改一块（见[启用模板](#启用模板)）。浏览器端由 `startDashboard` 的 `AuthPage` 挂载认证页，见[前端](frontend.md#框架的启动入口)。
 

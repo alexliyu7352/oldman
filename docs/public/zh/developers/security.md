@@ -31,20 +31,20 @@ from oldman.web.security import (
 
 `oldman.auth.password_reset.PasswordResetTokenGenerator` 照 Django 的 `PasswordResetTokenGenerator` 实现：用 `web.security.secret_key` 派生的密钥对"用户 id、当前密码哈希、上次登录时间、邮箱、签发时间"做 HMAC-SHA256，token 形如 `<base36 时间戳>-<32 位摘要>`。它不落库，因此改了密码、登录过、过期（`auth.password_reset.expiry`，默认 24 小时）或篡改任何一项都会让校验失败。链接里的用户标识由 `encode_user_id()` 生成，`decode_user_id()` 对非法输入返回 None。
 
-Web 层的 `oldman.web.auth.PasswordResetFlow` 把申请、发信、校验、改密和结束其他会话串起来，Admin 的 `/password-reset` 就是它的一个接线；项目接自己的登录页时传入自己的路径和站点名即可。
+Web 层的 `oldman.web.auth.PasswordResetFlow` 把申请、发信、校验、改密和结束其他会话串起来，Admin 的 `/password-reset` 就是它的一个接线。流程只收一个基础地址 `base_path`：申请页在它本身，"请查收邮件"页在 `<base_path>/sent`，邮件里的设置新密码链接是 `<base_path>/<uidb64>/<token>`，完成页在 `<base_path>/done`，这几个子路径在流程里定死，可以从 `request_path`、`sent_path`、`done_path`、`confirm_path(uidb64, token)` 读到。dashboard 传设置 `web.account.password_reset_url`，登录页的"忘记密码"链接指向的也是它（见[账户页面的现成流程](web.md#账户页面的现成流程)）；没设置它就不装找回密码。
 
 ```python
+account = settings.web.account
 flow = PasswordResetFlow(
-    request_path="/password-reset",
-    sent_path="/password-reset/sent",
-    done_path="/password-reset/done",
-    login_path="/login",
-    home_path="/",
-    confirm_path=lambda uidb64, token: f"/password-reset/{uidb64}/{token}",
+    base_path=account.password_reset_url,
+    login_path=account.login_url,
+    home_path=account.login_redirect_url,
     site_name="Oldman",
 )
 flow.register_routes(template_prefix="pages/password_reset")
 ```
+
+`settings` 是项目的 `config.settings`；这段在 `account.password_reset_url` 不为 None 时执行。
 
 `register_routes()` 装好六个视图：申请页与提交、"请查收邮件"页、设置新密码页与提交、完成页，CSRF 装饰器、`no-store`/`Referrer-Policy: same-origin`(带令牌的地址不会作为 Referer 发给别的站,本站表单提交仍带真实 Origin)、429 的 `Retry-After`、已登录跳 `home_path` 都在里面，不需要各自再写一遍。`template_prefix` 下要有 `request/sent/confirm/invalid/done.html` 五个模板，模板拿到 `csrf_token`、`login_url`、`request_url`、`expiry_hours`，申请页和设置页另有 `form`、`action`，设置页有 `username`，被限流的申请页有 `rate_limited`。需要自己的渲染上下文（例如 Admin 要带菜单）就传 `render=` 换掉默认渲染，签名是 `async def render(request, page, /, **context)`；两个参数只能给一个。路由名前缀由 `name_prefix=` 决定。省略第一个参数时路由经 `oldman.web` 的 `router` 注册;显式传入仍然支持(Admin 传它安装时拿到的实例)。申请接口用下面的固定窗口限流，IP 超限返回 429，邮箱超限静默不发，这样限流本身不能用来探测账号。IP 取的是 `request.client_ip`，反向代理后面要配置 `web.proxies_count`（见 [客户端地址与代理](web.md#客户端地址与代理)），否则所有访客共用代理的一个计数桶。发信交给进程内后台任务（`request.app.ctx.tasks.spawn()`），页面不等 SMTP 往返，发信失败也只写日志、不改变页面的回答，所以响应时间和状态码都不暴露账号是否存在。
 
