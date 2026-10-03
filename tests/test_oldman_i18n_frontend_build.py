@@ -136,6 +136,48 @@ class FrontendI18nBuildTest(unittest.TestCase):
         self.assertEqual(chinese["messages"]["Request failed"], "请求失败")
         self.assertNotIn("Backend only", chinese["messages"])
 
+    def test_framework_messages_the_project_leaves_untranslated_come_from_the_framework(self) -> None:
+        """A project translates its own frontend messages; the framework's come from oldman/locales unless it overrides them."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_file = root / "settings.yaml"
+            locales_dir = root / "locales"
+            output_dir = root / "public" / "i18n"
+            write_settings(settings_file)
+            _, configured = frontend_build.read_i18n_languages(settings_file)
+            po_directory = locales_dir / "zh_Hans" / "LC_MESSAGES"
+            po_directory.mkdir(parents=True)
+            (po_directory / "messages.po").write_text(
+                'msgid "Load more"\nmsgstr "再来一些"\n\nmsgid "Retry"\nmsgstr ""\n\n'
+                # An untranslated plural compiles to its source forms, which count as untranslated too.
+                'msgid "{count} value can be added"\nmsgid_plural "{count} values can be added"\nmsgstr[0] ""\n',
+                encoding="utf-8",
+            )
+
+            frontend_build.write_language_catalogs(output_dir, locales_dir, configured, compiler_command=COMPILER, project_root=ROOT)
+            english = json.loads((output_dir / "en.json").read_text(encoding="utf-8"))
+            chinese = json.loads((output_dir / "zh-hans.json").read_text(encoding="utf-8"))
+
+        self.assertEqual("再来一些", chinese["messages"]["Load more"])
+        self.assertEqual("重试", chinese["messages"]["Retry"])
+        self.assertEqual(["最多可添加 {count} 个值"], chinese["messages"]["{count} value can be added"])
+        # The framework ships no English catalog: English stays the source text.
+        self.assertEqual({"locale": "en", "messages": {}}, english)
+
+    def test_a_language_without_a_project_catalog_still_gets_the_framework_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            settings_file = root / "settings.yaml"
+            output_dir = root / "public" / "i18n"
+            write_settings(settings_file)
+            _, configured = frontend_build.read_i18n_languages(settings_file)
+
+            frontend_build.write_language_catalogs(output_dir, root / "locales", configured, compiler_command=COMPILER, project_root=ROOT)
+            chinese = json.loads((output_dir / "zh-hans.json").read_text(encoding="utf-8"))
+
+        self.assertEqual("加载更多", chinese["messages"]["Load more"])
+        self.assertEqual("0", chinese["pluralRule"])
+
     def test_complete_publish_removes_stale_catalogs(self) -> None:
         """Every run publishes all configured languages and removes old JSON."""
         with tempfile.TemporaryDirectory() as temporary_directory:

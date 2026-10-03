@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 
 from oldman.conf.schemas import I18nConfig, StaticConfig
 from oldman.i18n import LanguageRegistry, language_code_variants
-from oldman.i18n.frontend import compile_project_frontend_catalog
+from oldman.i18n.frontend import compile_project_frontend_catalog, with_framework_fallback
 from oldman.web.i18n.assets import direct_flag_url
 
 
@@ -208,7 +208,11 @@ def write_language_catalogs(
     compiler_command: Sequence[str] | None = None,
     project_root: Path = Path.cwd(),
 ) -> None:
-    """Compile the complete configured set from unified ``messages.po`` files."""
+    """Compile the complete configured set from unified ``messages.po`` files.
+
+    Framework messages a project's catalog leaves untranslated come from the framework's own catalog
+    (``oldman/locales``), as they do on the server.
+    """
     for definition in configured_languages:
         language_code = str(definition["code"])
         babel_locale = str(definition["babel_locale"])
@@ -225,7 +229,7 @@ def write_language_catalogs(
             catalog = {"locale": language_code, "messages": {}}
         write_catalog_json(
             output_dir / f"{catalog_filename(language_code)}.json",
-            catalog,
+            with_framework_fallback(catalog, babel_locale),
         )
 
 

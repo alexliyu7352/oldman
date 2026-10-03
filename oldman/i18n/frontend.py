@@ -13,6 +13,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from oldman.i18n.catalogs import CatalogLoader, package_locale_root
+
 _MANIFEST_PATH = "data/oldman_web_messages.json"
 _CONTEXT_SEPARATOR = "\x04"
 _PLURAL_RULE_PATTERN = re.compile(r"plural\s*=\s*([^;]+)")
@@ -328,6 +330,58 @@ def _catalog_plural_values(
         index += 1
 
 
+def framework_frontend_messages(babel_locale: str) -> dict[str, str | list[str]]:
+    """The ``oldman-web`` messages the framework's own catalog translates into ``babel_locale``.
+
+    Messages it does not translate are left out, so a caller can tell a fallback from the source text.
+    """
+    framework_root = package_locale_root("oldman")
+    if framework_root is None:
+        return {}
+    catalog = CatalogLoader((framework_root,), domains=("messages",)).load(babel_locale)
+    raw_catalog = getattr(catalog, "_catalog", None)
+    if not isinstance(raw_catalog, Mapping):
+        return {}
+    translated: dict[str, str | list[str]] = {}
+    for message in oldman_web_messages():
+        if message.plural is None:
+            value = raw_catalog.get(message.catalog_key)
+            if isinstance(value, str) and value:
+                translated[message.catalog_key] = value
+        elif (message.catalog_key, 0) in raw_catalog:
+            translated[message.catalog_key] = list(_catalog_plural_values(raw_catalog, message))
+    return translated
+
+
+def with_framework_fallback(payload: Mapping[str, object], babel_locale: str) -> dict[str, object]:
+    """One browser catalog with every framework message the project left untranslated taken from the framework's catalog.
+
+    The project's own translations stay. Untranslated means absent, or what the PO compiler emits for
+    an untranslated plural: the source forms. The plural rule comes from the framework's catalog when
+    the project gave none (it has no catalog for this language at all).
+    """
+    fallback = framework_frontend_messages(babel_locale)
+    raw_messages = payload.get("messages")
+    messages: dict[str, object] = dict(raw_messages) if isinstance(raw_messages, Mapping) else {}
+    for message in oldman_web_messages():
+        key = message.catalog_key
+        if key not in fallback:
+            continue
+        current = messages.get(key)
+        source_forms = {message.id, message.plural}
+        untranslated = current is None or (isinstance(current, list) and all(form in source_forms for form in current))
+        if untranslated:
+            messages[key] = fallback[key]
+    result = {**payload, "messages": dict(sorted(messages.items()))}
+    if "pluralRule" not in result and fallback:
+        framework_root = package_locale_root("oldman")
+        if framework_root is not None:
+            plural_rule = _catalog_plural_rule(CatalogLoader((framework_root,), domains=("messages",)).load(babel_locale))
+            if plural_rule is not None:
+                result["pluralRule"] = plural_rule
+    return result
+
+
 def _catalog_plural_rule(catalog: Any) -> str | None:
     """Extract the JavaScript-compatible expression from a gettext header."""
     info = getattr(catalog, "_info", None)
@@ -351,6 +405,8 @@ __all__ = [
     "filter_frontend_catalog_payload",
     "frontend_catalog_messages",
     "frontend_catalog_payload",
+    "framework_frontend_messages",
     "frontend_messages_from_manifest",
     "oldman_web_messages",
+    "with_framework_fallback",
 ]

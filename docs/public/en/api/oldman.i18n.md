@@ -286,6 +286,16 @@ def filter_frontend_catalog_payload(payload: object, messages: Iterable[Frontend
 
 Keep only AST-discovered identities in one compiled browser catalog.
 
+### `framework_frontend_messages`
+
+function · defined in `oldman.i18n.frontend`
+
+```python
+def framework_frontend_messages(babel_locale: str) -> dict[str, str | list[str]]
+```
+
+The ``oldman-web`` messages the framework's own catalog translates into ``babel_locale``.
+
 ### `frontend_catalog_messages`
 
 function · defined in `oldman.i18n.frontend`
@@ -359,6 +369,16 @@ def oldman_web_messages() -> tuple[FrontendMessage, ...]
 ```
 
 Load and validate the generated ``oldman-web`` message manifest.
+
+### `with_framework_fallback`
+
+function · defined in `oldman.i18n.frontend`
+
+```python
+def with_framework_fallback(payload: Mapping[str, object], babel_locale: str) -> dict[str, object]
+```
+
+One browser catalog with every framework message the project left untranslated taken from the framework's catalog.
 
 ## Module `oldman.i18n.profiles`
 
