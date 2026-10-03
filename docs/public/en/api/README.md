@@ -10,9 +10,9 @@ notice. Open a page for signatures, docstring summaries and class members.
 | --- | --- | --- |
 | [`oldman`](oldman.md) | 2 | @author:alex |
 | [`oldman.apps`](oldman.apps.md) | 5 | @author:alex |
-| [`oldman.apps.admin`](oldman.apps.admin.md) | 20 | Built-in Admin application. |
+| [`oldman.apps.admin`](oldman.apps.admin.md) | 17 | Built-in Admin application. |
 | [`oldman.apps.roles`](oldman.apps.roles.md) | 12 | Roles: named sets of permissions that users hold. |
-| [`oldman.auth`](oldman.auth.md) | 59 | Framework authentication models and identity services. |
+| [`oldman.auth`](oldman.auth.md) | 62 | Framework authentication models and identity services. |
 | [`oldman.cache`](oldman.cache.md) | 15 | Native cache contracts. |
 | [`oldman.cache.backends`](oldman.cache.backends.md) | 5 |  |
 | [`oldman.cli`](oldman.cli.md) | 35 | Lazy public entry point for the Oldman command line. |

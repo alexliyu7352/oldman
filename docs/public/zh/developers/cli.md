@@ -100,7 +100,7 @@ Demo 的 `WebService.get_default_commands()` 保留父类命令并增加 `dev`�
 
 `dumpdata` 的 selector 选择当前服务注册的 App 或模型；没有 `--output` 时向 stdout 输出 JSON。`loaddata` 会写数据库，并非数据库备份恢复或 schema 迁移工具。执行前核对目标数据库和数据冲突规则，不把用户的生产表当作教程试验场。
 
-Demo 的 YAML 已安装 `oldman.auth` 与 `oldman.apps.admin`，因此在 web 服务下可以使用 Admin App 提供的命令：
+装了 Auth App（`oldman.auth`）的服务都有这两个账户命令，与是否安装 Admin 无关：
 
 ```sh
 ./run.sh web createsuperuser

@@ -29,7 +29,7 @@
 
 配置模板已安装 `oldman.auth`、`oldman.apps.admin`、通知 App 和 Demo 业务 Apps，并启用 Session。Auth 的具体 User 是 `apps.auth.models.OldmanUser`。首次运行通过 `./run.sh web createsuperuser` 创建自己的账户。
 
-这里的 Admin App 提供账户命令，**EPG 的管理界面不是通过 install_admin() 自动生成的站点**。`/users`、`/login` 等是 Demo 的业务视图；内置 Admin 站点另见[Admin 指南](admin.md)。
+账户命令（`createsuperuser`、`changepassword`）来自 Auth App。**EPG 的管理界面不是通过 install_admin() 自动生成的站点**。`/users`、`/login` 等是 Demo 的业务视图；内置 Admin 站点另见[Admin 指南](admin.md)。
 
 WebService 先执行框架初始化，再安装 StatelessCSRFManager、通知路由和模板帮助函数。Jinja 的 `_`、`gettext` 直接使用 `oldman.i18n.gettext`，不是只接受一个字符串的自制包装，因此表格摘要带参数、关闭翻译时也能正常渲染。
 

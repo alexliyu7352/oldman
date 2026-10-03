@@ -1,4 +1,10 @@
-"""User administration commands provided by the built-in Admin app."""
+"""Account commands of the Auth App: create a superuser, change a password.
+
+They belong with the users, not with the built-in Admin: a dashboard without the Admin creates its first
+account with them too. Ending the logins a password change leaves behind is the web layer's work
+(sessions, tokens), so that import waits until a command runs and ``oldman.auth`` itself never imports
+``oldman.web``.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +19,6 @@ from oldman.auth import (
 from oldman.cli import Command, tui
 from oldman.i18n import gettext
 from oldman.i18n import gettext_lazy as _
-from oldman.web.auth import end_user_logins
 
 
 def _username(value: str | None, *, noinput: bool = False) -> str:
@@ -87,6 +92,8 @@ class CreateSuperuser(Command):
         )
         if existing is None:
             return gettext("User created")
+        from oldman.web.auth import end_user_logins
+
         await end_user_logins(user_identity(existing))
         return gettext("User updated")
 
@@ -108,6 +115,8 @@ class ChangePassword(Command):
         changed = await change_user_password(user_id, _prompt_password(key="changepassword.password"))
         if changed is None:
             raise ValueError(gettext("User not found."))
+        from oldman.web.auth import end_user_logins
+
         await end_user_logins(user_id)
         return gettext("Password changed")
 

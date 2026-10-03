@@ -2,71 +2,6 @@
 msgid "Administration"
 msgstr ""
 
-#: oldman/apps/admin/commands.py
-msgid "--username is required for a non-interactive run."
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/forms.py oldman/web/auth/tables.py
-#: oldman/web/templates/oldman/auth/user_session_content.html
-msgid "Username"
-msgstr ""
-
-#: oldman/apps/admin/commands.py
-msgid "Username cannot be empty."
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
-msgid "Password"
-msgstr ""
-
-#: oldman/apps/admin/commands.py
-#, python-format
-msgid "%(variable)s must be set for a non-interactive run."
-msgstr ""
-
-#: oldman/apps/admin/commands.py
-msgid "Create Superuser"
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
-msgid "Username already exists"
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
-#: oldman/web/auth/tables.py
-msgid "Email"
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/user_management.py
-msgid "User created"
-msgstr ""
-
-#: oldman/apps/admin/commands.py
-msgid "User updated"
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/tables.py oldman/web/auth/user_management.py
-#: oldman/web/auth/user_session.py
-#: oldman/web/templates/oldman/auth/partials/password_form.html
-#: oldman/web/templates/oldman/auth/partials/user_modals.html
-#: oldman/web/templates/oldman/auth/user_session_content.html
-msgid "Change Password"
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/modals.py oldman/web/auth/user_management.py
-msgid "User not found."
-msgstr ""
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/user_management.py
-msgid "Password changed"
-msgstr ""
-
 #: oldman/apps/admin/model_admin.py
 #, python-format
 msgid "View %(name)s"
@@ -173,6 +108,18 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Username"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
+#: oldman/web/auth/tables.py
+msgid "Email"
+msgstr ""
+
 #: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
 #: oldman/web/auth/tables.py
 #: oldman/web/templates/oldman/auth/user_session_content.html
@@ -198,6 +145,11 @@ msgstr ""
 #: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
 #: oldman/web/auth/tables.py
 msgid "Last Login"
+msgstr ""
+
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/user_management.py
+msgid "User created"
 msgstr ""
 
 #: oldman/apps/admin/model_admin.py oldman/web/auth/user_management.py
@@ -242,6 +194,24 @@ msgstr ""
 
 #: oldman/apps/admin/site.py oldman/web/auth/user_management.py
 msgid "User deleted"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py oldman/web/auth/tables.py
+#: oldman/web/auth/user_management.py oldman/web/auth/user_session.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Change Password"
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py oldman/web/auth/modals.py
+#: oldman/web/auth/user_management.py
+msgid "User not found."
+msgstr ""
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py
+#: oldman/web/auth/user_management.py
+msgid "Password changed"
 msgstr ""
 
 #: oldman/apps/admin/site.py oldman/web/auth/user_management.py
@@ -398,6 +368,35 @@ msgstr ""
 
 #: oldman/auth/apps.py
 msgid "Authentication"
+msgstr ""
+
+#: oldman/auth/commands.py
+msgid "--username is required for a non-interactive run."
+msgstr ""
+
+#: oldman/auth/commands.py
+msgid "Username cannot be empty."
+msgstr ""
+
+#: oldman/auth/commands.py oldman/web/auth/forms.py
+msgid "Password"
+msgstr ""
+
+#: oldman/auth/commands.py
+#, python-format
+msgid "%(variable)s must be set for a non-interactive run."
+msgstr ""
+
+#: oldman/auth/commands.py
+msgid "Create Superuser"
+msgstr ""
+
+#: oldman/auth/commands.py oldman/web/auth/forms.py
+msgid "Username already exists"
+msgstr ""
+
+#: oldman/auth/commands.py
+msgid "User updated"
 msgstr ""
 
 #: oldman/auth/services.py oldman/web/auth/forms.py

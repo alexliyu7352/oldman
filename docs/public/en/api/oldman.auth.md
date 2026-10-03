@@ -539,6 +539,48 @@ value · defined in `oldman.auth.base`
 USER_TABLE_OWNER_LABEL = 'auth'
 ```
 
+## Module `oldman.auth.commands`
+
+Account commands of the Auth App: create a superuser, change a password.
+
+Import with `from oldman.auth.commands import <name>`.
+
+### `ChangePassword`
+
+class · defined in `oldman.auth.commands`
+
+```python
+class ChangePassword(Command)
+```
+
+Change one existing configured User password.
+
+Members:
+
+- `async def handle(username: str) -> str` — Find the selected User, replace its password and end the logins opened under the old one.
+
+### `CreateSuperuser`
+
+class · defined in `oldman.auth.commands`
+
+```python
+class CreateSuperuser(Command)
+```
+
+Create one new active staff superuser.
+
+Members:
+
+- `async def handle(username: str | None=None, email: str | None=None, noinput: bool=False, update: bool=False) -> str` — Prompt for missing credentials and create one configured User.
+
+### `SUPERUSER_PASSWORD_ENV`
+
+value · defined in `oldman.auth.commands`
+
+```python
+SUPERUSER_PASSWORD_ENV = 'OLDMAN_SUPERUSER_PASSWORD'
+```
+
 ## Module `oldman.auth.contracts`
 
 Stable database contract shared by every concrete User model.

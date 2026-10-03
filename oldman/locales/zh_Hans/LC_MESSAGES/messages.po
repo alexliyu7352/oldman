@@ -20,71 +20,6 @@ msgstr ""
 msgid "Administration"
 msgstr "管理后台"
 
-#: oldman/apps/admin/commands.py
-msgid "--username is required for a non-interactive run."
-msgstr "非交互执行需要 --username。"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/forms.py oldman/web/auth/tables.py
-#: oldman/web/templates/oldman/auth/user_session_content.html
-msgid "Username"
-msgstr "用户名"
-
-#: oldman/apps/admin/commands.py
-msgid "Username cannot be empty."
-msgstr "用户名不能为空。"
-
-#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
-msgid "Password"
-msgstr "密码"
-
-#: oldman/apps/admin/commands.py
-#, python-format
-msgid "%(variable)s must be set for a non-interactive run."
-msgstr "非交互执行需要设置 %(variable)s。"
-
-#: oldman/apps/admin/commands.py
-msgid "Create Superuser"
-msgstr "创建超级用户"
-
-#: oldman/apps/admin/commands.py oldman/web/auth/forms.py
-msgid "Username already exists"
-msgstr "用户名已存在"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
-#: oldman/web/auth/tables.py
-msgid "Email"
-msgstr "邮箱"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/model_admin.py
-#: oldman/web/auth/user_management.py
-msgid "User created"
-msgstr "用户已创建"
-
-#: oldman/apps/admin/commands.py
-msgid "User updated"
-msgstr "用户已更新"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/tables.py oldman/web/auth/user_management.py
-#: oldman/web/auth/user_session.py
-#: oldman/web/templates/oldman/auth/partials/password_form.html
-#: oldman/web/templates/oldman/auth/partials/user_modals.html
-#: oldman/web/templates/oldman/auth/user_session_content.html
-msgid "Change Password"
-msgstr "修改密码"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/modals.py oldman/web/auth/user_management.py
-msgid "User not found."
-msgstr "未找到用户。"
-
-#: oldman/apps/admin/commands.py oldman/apps/admin/site.py
-#: oldman/web/auth/user_management.py
-msgid "Password changed"
-msgstr "密码已修改"
-
 #: oldman/apps/admin/model_admin.py
 #, python-format
 msgid "View %(name)s"
@@ -191,6 +126,18 @@ msgstr "编辑用户"
 msgid "Save"
 msgstr "保存"
 
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/forms.py oldman/web/auth/tables.py
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Username"
+msgstr "用户名"
+
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/forms.py oldman/web/auth/password_reset.py
+#: oldman/web/auth/tables.py
+msgid "Email"
+msgstr "邮箱"
+
 #: oldman/apps/admin/model_admin.py oldman/web/auth/forms.py
 #: oldman/web/auth/tables.py
 #: oldman/web/templates/oldman/auth/user_session_content.html
@@ -217,6 +164,11 @@ msgstr "超级用户"
 #: oldman/web/auth/tables.py
 msgid "Last Login"
 msgstr "最后登录"
+
+#: oldman/apps/admin/model_admin.py oldman/auth/commands.py
+#: oldman/web/auth/user_management.py
+msgid "User created"
+msgstr "用户已创建"
 
 #: oldman/apps/admin/model_admin.py oldman/web/auth/user_management.py
 msgid "User saved"
@@ -261,6 +213,24 @@ msgstr "没有权限"
 #: oldman/apps/admin/site.py oldman/web/auth/user_management.py
 msgid "User deleted"
 msgstr "用户已删除"
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py oldman/web/auth/tables.py
+#: oldman/web/auth/user_management.py oldman/web/auth/user_session.py
+#: oldman/web/templates/oldman/auth/partials/password_form.html
+#: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/auth/user_session_content.html
+msgid "Change Password"
+msgstr "修改密码"
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py oldman/web/auth/modals.py
+#: oldman/web/auth/user_management.py
+msgid "User not found."
+msgstr "未找到用户。"
+
+#: oldman/apps/admin/site.py oldman/auth/commands.py
+#: oldman/web/auth/user_management.py
+msgid "Password changed"
+msgstr "密码已修改"
 
 #: oldman/apps/admin/site.py oldman/web/auth/user_management.py
 msgid "User status updated"
@@ -417,6 +387,35 @@ msgstr "用户角色"
 #: oldman/auth/apps.py
 msgid "Authentication"
 msgstr "身份认证"
+
+#: oldman/auth/commands.py
+msgid "--username is required for a non-interactive run."
+msgstr "非交互执行需要 --username。"
+
+#: oldman/auth/commands.py
+msgid "Username cannot be empty."
+msgstr "用户名不能为空。"
+
+#: oldman/auth/commands.py oldman/web/auth/forms.py
+msgid "Password"
+msgstr "密码"
+
+#: oldman/auth/commands.py
+#, python-format
+msgid "%(variable)s must be set for a non-interactive run."
+msgstr "非交互执行需要设置 %(variable)s。"
+
+#: oldman/auth/commands.py
+msgid "Create Superuser"
+msgstr "创建超级用户"
+
+#: oldman/auth/commands.py oldman/web/auth/forms.py
+msgid "Username already exists"
+msgstr "用户名已存在"
+
+#: oldman/auth/commands.py
+msgid "User updated"
+msgstr "用户已更新"
 
 #: oldman/auth/services.py oldman/web/auth/forms.py
 msgid "cannot disable current user"

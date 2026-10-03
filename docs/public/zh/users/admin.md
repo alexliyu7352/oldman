@@ -142,7 +142,7 @@ python3 scripts/dev.py
 
 | 现象 | 检查 |
 | --- | --- |
-| 没有 createsuperuser 命令 | 当前服务是否安装 oldman.apps.admin |
+| 没有 createsuperuser 命令 | 当前服务是否安装 oldman.auth |
 | App auth 未安装 | 当前 YAML 是否安装 oldman.auth，并完成 settings sync |
 | 页面 404 | 是否运行正确 Demo/端口，服务是否调用 install_admin |
 | 模型不在菜单 | 是否注册 ModelAdmin，当前用户是否满足模型权限 |

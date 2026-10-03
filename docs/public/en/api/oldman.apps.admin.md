@@ -192,48 +192,6 @@ value · defined in `oldman.apps.admin.apps`
 app = AdminAppConfig()
 ```
 
-## Module `oldman.apps.admin.commands`
-
-User administration commands provided by the built-in Admin app.
-
-Import with `from oldman.apps.admin.commands import <name>`.
-
-### `ChangePassword`
-
-class · defined in `oldman.apps.admin.commands`
-
-```python
-class ChangePassword(Command)
-```
-
-Change one existing configured User password.
-
-Members:
-
-- `async def handle(username: str) -> str` — Find the selected User, replace its password and end the logins opened under the old one.
-
-### `CreateSuperuser`
-
-class · defined in `oldman.apps.admin.commands`
-
-```python
-class CreateSuperuser(Command)
-```
-
-Create one new active staff superuser.
-
-Members:
-
-- `async def handle(username: str | None=None, email: str | None=None, noinput: bool=False, update: bool=False) -> str` — Prompt for missing credentials and create one configured User.
-
-### `SUPERUSER_PASSWORD_ENV`
-
-value · defined in `oldman.apps.admin.commands`
-
-```python
-SUPERUSER_PASSWORD_ENV = 'OLDMAN_SUPERUSER_PASSWORD'
-```
-
 ## Module `oldman.apps.admin.roles`
 
 The Admin page for roles, registered when the service installs ``oldman.apps.roles``.

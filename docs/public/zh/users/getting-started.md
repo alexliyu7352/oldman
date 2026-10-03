@@ -84,7 +84,7 @@ SQLite 保存业务数据，Redis 的 SESSION 连接保存会话，SSE 连接用
 
 - `db migrate` 执行仓库已经携带的迁移。新数据库选择“首次使用”；如果不是新数据库，不要为了绕过提示把它当成首次使用。
 - `loaddata demo` 读取 `apps/examples/fixtures/demo.json`，导入示例和 EPG 业务页面的真实记录。
-- `createsuperuser` 来自已安装的 Admin App，在交互中输入账号和密码。不要假设存在默认账号或默认密码。
+- `createsuperuser` 来自 Auth App（`oldman.auth`），在交互中输入账号和密码。不要假设存在默认账号或默认密码。
 
 已有数据库不应重新生成初始迁移。重复导入 fixture 会更新相同主键的指定字段，可能覆盖你对预设记录的编辑；它不是“只补缺失数据”的操作。详见[数据教程](tutorial-tasks.md)。
 

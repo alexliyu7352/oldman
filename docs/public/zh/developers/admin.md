@@ -122,7 +122,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 
 `AdminUserModelAdmin` 提供 User 专用表单、密码和状态操作。希望扩展选定 User 的管理界面时，先用该类的子类注册，而不是普通 ModelAdmin；安装器会保留已经注册的专用管理器。自定义 User 的字段、真实外键和迁移归属见[数据库参考](database.md)。
 
-`createsuperuser`、`changepassword` 是 Admin App 的异步命令；执行命令需要该服务安装 App，但不启动 Sanic。脚本和门禁用 `createsuperuser --noinput`：用户名（必须显式给 `--username`）和邮箱走参数，密码读环境变量 `OLDMAN_SUPERUSER_PASSWORD`（不放进命令行参数，避免进入进程列表和 shell 历史）。同名用户存在时两种模式都直接报错：`ensure_superuser` 会覆盖密码并把账号提成 active+staff+superuser，发布脚本重复执行会静默回滚管理员自己改过的密码，拿一个普通用户名执行则等于提权。确实要「有就更新」时显式加 `--update`。`change_user_password()` 本身只更新数据库密码；`changepassword` 与 `createsuperuser --update` 改完后调用 `end_user_logins(user_id)`，该用户已有的 Session 与访问令牌全部作废。Admin 里停用、删除用户，或保存时改变了启用/staff/超级用户标志，同样结束该用户的登录；只改资料（用户名、邮箱、显示名）不影响登录。
+`createsuperuser`、`changepassword` 是 Auth App（`oldman.auth`）的异步命令，不装 Admin 的服务也有；执行命令需要该服务安装 Auth App，但不启动 Sanic。脚本和门禁用 `createsuperuser --noinput`：用户名（必须显式给 `--username`）和邮箱走参数，密码读环境变量 `OLDMAN_SUPERUSER_PASSWORD`（不放进命令行参数，避免进入进程列表和 shell 历史）。同名用户存在时两种模式都直接报错：`ensure_superuser` 会覆盖密码并把账号提成 active+staff+superuser，发布脚本重复执行会静默回滚管理员自己改过的密码，拿一个普通用户名执行则等于提权。确实要「有就更新」时显式加 `--update`。`change_user_password()` 本身只更新数据库密码；`changepassword` 与 `createsuperuser --update` 改完后调用 `end_user_logins(user_id)`，该用户已有的 Session 与访问令牌全部作废。Admin 里停用、删除用户，或保存时改变了启用/staff/超级用户标志，同样结束该用户的登录；只改资料（用户名、邮箱、显示名）不影响登录。
 
 ## 资源与模板
 

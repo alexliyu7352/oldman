@@ -13,7 +13,7 @@
 3. 现有 `services/<服务名>.py`：显式导入 ModelAdmin 和模型，在 super().init() 后创建/注册站点并 install_admin。
 4. 确有覆盖需求时才增加项目 `templates/admin/...` 或应用 CSS bundle。
 
-已有 Dashboard 服务时保留其前端和模板接线，在末尾添加 Admin；不要用教程的最小服务覆盖真实业务逻辑。只要求创建账户时，执行 Admin App 命令即可，不必安装站点路由。
+已有 Dashboard 服务时保留其前端和模板接线，在末尾添加 Admin；不要用教程的最小服务覆盖真实业务逻辑。只要求创建账户时，执行 Auth App 的 `createsuperuser` 即可，不必安装 Admin。
 
 ## 必须保持的接线
 
