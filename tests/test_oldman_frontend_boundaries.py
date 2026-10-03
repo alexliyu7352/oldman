@@ -432,7 +432,6 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
         self.assertIn(".om-modal-body {\n    @apply px-6 py-4;", shared_css)
         self.assertIn("[hidden] {\n    display: none !important;", shared_css)
         for utility in (
-            "text-end",
             "border-danger",
             "focus:border-danger",
             "focus:ring-danger/20",

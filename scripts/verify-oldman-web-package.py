@@ -963,7 +963,7 @@ def verify_clean_consumer_build(
         # utility 金丝雀：证明"消费者的 Tailwind 构建确实看得见框架标记里的类"这条链路还活着。
         # 动态检查（下面的 framework_tailwind_utilities）在扫描本身出 bug 返回空集时会空过，
         # 这几条固定值是那种情况下唯一的哨兵。
-        required_utility_canaries = ("border-danger", "line-clamp-2", "min-w-0", "rounded-lg", "text-end")
+        required_utility_canaries = ("border-danger", "line-clamp-2", "min-w-0", "rounded-lg")
         errors = [
             f"Clean Dashboard consumer CSS is missing published runtime selector: {selector}"
             for selector in required_component_selectors

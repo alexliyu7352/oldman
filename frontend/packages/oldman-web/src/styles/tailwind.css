@@ -57,7 +57,6 @@
 @source inline("min-w-0");
 @source inline("min-w-20");
 @source inline("min-w-[680px]");
-@source inline("min-w-full");
 @source inline("mt-0.5");
 @source inline("mt-1");
 @source inline("mt-2");
@@ -72,7 +71,6 @@
 @source inline("px-0");
 @source inline("px-3");
 @source inline("py-2");
-@source inline("py-4");
 @source inline("relative");
 @source inline("right-0.5");
 @source inline("right-5");
@@ -85,13 +83,11 @@
 @source inline("sr-only");
 @source inline("text-2xl");
 @source inline("text-base");
-@source inline("text-center");
 @source inline("text-content");
 @source inline("text-content-muted");
 @source inline("text-content-strong");
 @source inline("text-default-500");
 @source inline("text-default-900");
-@source inline("text-end");
 @source inline("text-lg");
 @source inline("text-primary-soft-text");
 @source inline("text-sm");
