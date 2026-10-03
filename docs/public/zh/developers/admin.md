@@ -19,7 +19,7 @@ from oldman.apps.admin import AdminSite, AdminUserModelAdmin, ModelAdmin, instal
 | `is_registered(model)` | 该模型是否已在这个站点注册 |
 | `get_model_admin(model)` | 返回该模型的管理器 |
 | `register_user_model(model)` | 保留唯一专用 User 管理器，由安装器正常调用 |
-| `await menu_items(request)` / `await menu_groups(request)` | 从 Registry 展示元数据生成模型菜单及 App 分组，只列出这个请求能查看的模型；链接位于站点安装时的前缀下，站点未经 `install_admin()` 安装时调用会报错 |
+| `await menu_items(request)` / `await menu_groups(request)` | 从 Registry 展示元数据生成模型菜单及 App 分组（按 ModelAdmin 的 `menu_group`，默认是模型所属的 App），只列出这个请求能查看的模型；链接位于站点安装时的前缀下，站点未经 `install_admin()` 安装时调用会报错 |
 
 Registry 根据已安装 App 加载 models、views 和命令，不自动导入 `admin.py`。服务必须显式导入并注册业务 ModelAdmin。菜单只是不列出看不了的模型，访问仍由各路由自己检查。
 
@@ -97,7 +97,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 
 保存钩子拿到的是当前请求事务。可以在里面设置业务字段，再 `await super().save_model(session, instance)`；不要另开一次提交，也不要在 flush 后就假定提交成功。文件字段仍遵循[模型文件生命周期](storage.md)，不由 Admin 单独删除附件。
 
-显示名默认读取模型 Meta，可由 ModelAdmin 的 `verbose_name` / `verbose_name_plural` 属性覆盖。一级菜单使用 App 的 display_name 与 icon，二级使用模型名称。`model_path` 默认取数据库表名，改显示名不会改 URL 或表结构。
+显示名默认读取模型 Meta，可由 ModelAdmin 的 `verbose_name` / `verbose_name_plural` 属性覆盖。一级菜单是 App 分组，使用 App 的 display_name 与 icon，二级使用模型名称。模型默认列在它所属 App 的组下；ModelAdmin 设 `menu_group = "<App 标签>"` 就列到那个 App 的组下，组名和图标用那个 App 的，不另写一份。框架自带的用户与角色两个 ModelAdmin 都设了 `menu_group = "auth"`：项目用自己的 User 模型时用户属于项目的 App、角色属于 `oldman.apps.roles`，它们仍一起列在 auth App（Authentication）的组下。`menu_group` 写的标签没有对应的已安装 App 时，`install_admin` 装路由时报错。`model_path` 默认取数据库表名，改显示名不会改 URL 或表结构。
 
 ## 权限与 User
 
@@ -111,7 +111,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 
 ### 角色管理
 
-服务安装了 `oldman.apps.roles` 时，安装器把角色模型注册到 Admin（项目已经用自己的 ModelAdmin 注册了 `Role` 时保留项目的），菜单里出现「角色」。它的四个权限就是上面说的模型权限 `admin.roles.role.view/add/change/delete`。
+服务安装了 `oldman.apps.roles` 时，安装器把角色模型注册到 Admin（项目已经用自己的 ModelAdmin 注册了 `Role` 时保留项目的），菜单里在 Authentication 组下、用户旁边出现「角色」。它的四个权限就是上面说的模型权限 `admin.roles.role.view/add/change/delete`。
 
 - 新建和编辑用 `oldman.apps.roles.forms.RoleForm`：名称（唯一）、说明、权限。权限列出服务声明的全部权限，按声明它的 App 分组成复选框（组名是 App 的显示名）；保存时排序去重。不是超级用户的人编辑角色时，新勾上的权限必须是自己持有的；取消、保留原有的权限不受限制。角色里存着、但本服务没有声明的权限名（例如共用角色表的另一个服务声明的 `admin.*`），编辑页不显示，保存时原样保留：保存只改本服务声明的那些。代码已经不再声明的旧权限名从这里分辨不出来，也会保留。
 - 保存的事务提交之后，`RoleModelAdmin` 用 `after_save` 把角色的权限写进它的缓存键；Redis 写失败时响应是 503，角色已经保存，Redis 恢复后再保存一次这个角色就修好了；这个 503 用框架的响应格式（`error_code` 1503），界面显示翻译后的「权限存储暂时不可用」，而不是笼统的「请求失败」。删除时先在事务里删掉缓存键、再删行，提交后用 `after_delete` 再删一次（见[权限](permissions.md#角色oldmanappsroles)）；Redis 不可用时第一步就失败，响应 503，什么都没删，Redis 恢复后再删即可。

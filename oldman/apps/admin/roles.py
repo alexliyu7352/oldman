@@ -25,6 +25,8 @@ class RoleModelAdmin(ModelAdmin):
     list_display = ("name", "description")
     search_fields = ("name", "description")
     ordering = ("name",)
+    # Beside the users, in the auth group, though the roles have their own App.
+    menu_group = "auth"
 
     def get_form_class(self, *, create: bool = True, dialect: Any = None) -> type[Any]:
         """Every role is edited through the same form: name, description and grouped permission checkboxes."""

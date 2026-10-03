@@ -13,6 +13,7 @@ from sanic.exceptions import ServiceUnavailable
 from sanic.response import redirect
 
 import oldman.conf as conf
+from oldman.apps import AppNotInstalledError
 from oldman.apps.admin.model_admin import (
     AdminUserModelAdmin,
     InvalidAdminObjectId,
@@ -165,7 +166,11 @@ class AdminSite:
         return [RegisteredModelAdmin(model=model, admin=admin) for model, admin in self._registry.items()]
 
     async def menu_items(self, request: Any) -> list[dict[str, Any]]:
-        """Return neutral menu metadata for the models this request may view, under the installed prefix."""
+        """Return neutral menu metadata for the models this request may view, under the installed prefix.
+
+        `app_label`, `app_display_name` and `icon` describe the App whose group lists the model: the
+        ModelAdmin's `menu_group`, by default the App that owns the model.
+        """
         if self.prefix is None:
             raise RuntimeError("The Admin site has no URLs until install_admin() installs its routes")
         resolved_prefix = self.prefix
@@ -173,22 +178,42 @@ class AdminSite:
         for registered in self.each_model_admin():
             if not await registered.admin.has_view_permission(request):
                 continue
-            metadata = registered.admin.get_model_metadata()
-            app_config = self._app_registry.get_by_label(metadata.app_label) if self._app_registry is not None and metadata is not None else None
+            group_label = self._menu_group_label(registered.admin)
+            app_config = self._app_registry.get_by_label(group_label) if self._app_registry is not None and group_label else None
             items.append(
                 {
                     "label": registered.admin.verbose_name_plural,
                     "path": registered.admin.model_path,
                     "url": f"{resolved_prefix}/{registered.admin.model_path}",
-                    "app_label": metadata.app_label if metadata is not None else "",
+                    "app_label": group_label,
                     "app_display_name": app_config.display_name if app_config is not None else "",
                     "icon": app_config.icon if app_config is not None else "ri-database-2-line",
                 }
             )
         return items
 
+    @staticmethod
+    def _menu_group_label(admin: ModelAdmin) -> str:
+        """The App label of the sidebar group listing this admin's model; empty for a model outside any App."""
+        if admin.menu_group:
+            return admin.menu_group
+        metadata = admin.get_model_metadata()
+        return metadata.app_label if metadata is not None else ""
+
+    def _check_menu_group(self, admin: ModelAdmin) -> None:
+        """Refuse a menu group that names no installed App: the sidebar would fail on every page."""
+        if not admin.menu_group or self._app_registry is None:
+            return
+        try:
+            self._app_registry.get_by_label(admin.menu_group)
+        except AppNotInstalledError as exc:
+            raise RuntimeError(
+                f"{type(admin).__qualname__} lists {admin.model.__qualname__} under the menu group {admin.menu_group!r}, "
+                "but no installed App has that label"
+            ) from exc
+
     async def menu_groups(self, request: Any) -> list[dict[str, Any]]:
-        """Group the models this request may view under their owning App for sidebar rendering."""
+        """Group the models this request may view under their menu group's App for sidebar rendering."""
         groups: dict[str, dict[str, Any]] = {}
         for item in await self.menu_items(request):
             app_label = str(item["app_label"] or "models")
@@ -218,6 +243,7 @@ class AdminSite:
         """Install neutral Admin CRUD routes into a Sanic app, under `admin_settings.prefix`."""
         for registered in self.each_model_admin():
             registered.admin._check_permission_names()
+            self._check_menu_group(registered.admin)
         manager = db_manager if db_manager is not None else default_db_manager
         self.db_manager = manager
         if auth_settings is None:

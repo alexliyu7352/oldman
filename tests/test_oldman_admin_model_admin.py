@@ -14,8 +14,10 @@ from sqlalchemy.dialects import oracle
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
 
+from oldman.apps import AppNotInstalledError
 from oldman.apps.admin import crud
-from oldman.apps.admin.model_admin import ModelAdmin
+from oldman.apps.admin.model_admin import AdminUserModelAdmin, ModelAdmin
+from oldman.apps.admin.roles import RoleModelAdmin
 from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.site import AdminSite
 from oldman.auth import declared_permissions
@@ -474,6 +476,84 @@ class OldmanModelAdminTest(unittest.TestCase):
             ],
             groups,
         )
+
+    def test_a_menu_group_lists_models_under_another_apps_name_and_icon(self) -> None:
+        """Users and roles share the auth group, though the project's User model and the roles each have an App of their own."""
+        # Models of this test's own: registering declares permissions process-wide, under the names given here.
+        accounts_user = menu_group_model("MenuGroupUser", "test_admin_menu_group_user")
+        roles_role = menu_group_model("MenuGroupRole", "test_admin_menu_group_role")
+        model_metadata = {
+            accounts_user: ModelMetadata(
+                model=accounts_user,
+                table=cast(Table, accounts_user.__table__),
+                app_label="accounts",
+                verbose_name="User",
+                verbose_name_plural="Users",
+                managed=True,
+            ),
+            roles_role: ModelMetadata(
+                model=roles_role,
+                table=cast(Table, roles_role.__table__),
+                app_label="roles",
+                verbose_name="Role",
+                verbose_name_plural="Roles",
+                managed=True,
+            ),
+        }
+        apps = {
+            "accounts": SimpleNamespace(label="accounts", display_name=gettext_lazy("Accounts"), icon="ri-user-line"),
+            "roles": SimpleNamespace(label="roles", display_name=gettext_lazy("Roles"), icon="ri-shield-line"),
+            "auth": SimpleNamespace(label="auth", display_name=gettext_lazy("Authentication"), icon="ri-shield-user-line"),
+        }
+        registry = SimpleNamespace(get_model_metadata=model_metadata.__getitem__, get_by_label=apps.__getitem__)
+
+        class AuthGroupAdmin(ModelAdmin):
+            menu_group = "auth"
+
+        site = AdminSite(app_registry=cast(Any, registry))
+        site.prefix = "/admin"
+        site.register(accounts_user, AuthGroupAdmin)
+        site.register(roles_role, AuthGroupAdmin)
+
+        groups = asyncio.run(site.menu_groups(as_user(is_superuser=True)))
+
+        self.assertEqual(
+            [("auth", "Authentication", "ri-shield-user-line", ["Users", "Roles"])],
+            [(group["app_label"], str(group["label"]), group["icon"], [str(model["label"]) for model in group["models"]]) for group in groups],
+        )
+        # The framework's own user and role admins are the ones that declare it.
+        self.assertEqual(("auth", "auth"), (AdminUserModelAdmin.menu_group, RoleModelAdmin.menu_group))
+
+    def test_a_menu_group_naming_no_installed_app_stops_the_admin_from_starting(self) -> None:
+        """Every page renders the sidebar; a group nobody installed would fail them all, so the start fails instead."""
+
+        def get_by_label(label: str) -> Any:
+            raise AppNotInstalledError(f"App {label!r} is not installed in the current service.")
+
+        report = menu_group_model("MenuGroupReport", "test_admin_menu_group_report")
+        metadata = ModelMetadata(
+            model=report,
+            table=cast(Table, report.__table__),
+            app_label="",
+            verbose_name="Report",
+            verbose_name_plural="Reports",
+            managed=True,
+        )
+        registry = SimpleNamespace(get_model_metadata=lambda model: metadata, get_by_label=get_by_label)
+
+        class StrayGroupAdmin(ModelAdmin):
+            menu_group = "reports"
+
+        site = AdminSite(app_registry=cast(Any, registry))
+        site.register(report, StrayGroupAdmin)
+
+        with self.assertRaisesRegex(RuntimeError, "menu group 'reports'"):
+            site.register_routes(Mock(), admin_settings=AdminSettings(prefix="/control"))
+
+
+def menu_group_model(name: str, table_name: str) -> Any:
+    """A model class of one test's own, outside any App."""
+    return type(name, (DatabaseModel,), {"__tablename__": table_name, "__module__": __name__, "id": mapped_column(Integer, primary_key=True)})
 
 
 def make_request(form: dict[str, Any]) -> SimpleNamespace:

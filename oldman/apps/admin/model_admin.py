@@ -73,6 +73,9 @@ class ModelAdmin:
     form_back_label: str | None = None
     form_card_classes = "max-w-3xl"
     show_form_card_header = True
+    # The label of the App whose sidebar group lists this model, under that App's name and icon;
+    # None lists it under the model's own App.
+    menu_group: str | None = None
 
     def __init__(self, model: type[Any], site: Any = None) -> None:
         self.model = model
@@ -421,6 +424,8 @@ class AdminUserModelAdmin(ModelAdmin):
     form_back_label = cast(str, gettext_lazy("Users"))
     form_card_classes = ""
     show_form_card_header = False
+    # Users and roles share the auth group whichever App holds the project's User model.
+    menu_group = "auth"
 
     @property
     def verbose_name(self) -> str:

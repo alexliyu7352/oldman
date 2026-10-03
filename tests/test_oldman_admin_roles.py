@@ -68,9 +68,9 @@ class FakeRegistry:
         raise AppNotInstalledError(package)
 
     def get_by_label(self, label: str) -> Any:
-        if label == "role_admin_test":
-            return SimpleNamespace(display_name="Reports")
-        raise AppNotInstalledError(label)
+        if label not in self.labels:
+            raise AppNotInstalledError(label)
+        return SimpleNamespace(label=label, display_name="Reports" if label == "role_admin_test" else label.title(), icon="ri-apps-line")
 
 
 def superuser_session() -> FakeSession:
