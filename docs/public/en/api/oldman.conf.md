@@ -355,6 +355,7 @@ Core application config.
 Members:
 
 - `app_name: str = Field(default='oldman', description='Application name')`
+- `site_name: str | None = Field(default=None, min_length=1, description='The name people see: page brand, error pages, passwo…`
 - `namespace: str | None = Field(default=None, description='Prefix of every Redis key and channel this service uses. Services …`
 - `data_dir: Path = Field(default=PROJECT_ROOT / 'data', description='Application data directory')`
 - `time_zone: str = Field(default='Asia/Singapore', description='Application time zone')`
@@ -362,6 +363,7 @@ Members:
 - `debug: bool = Field(default=False, description='Debug mode for every service: Sanic debug and error details, DEBU…`
 - `classmethod def validate_id_alphabet(value: object) -> str | None` — Blank means not generated yet; a set alphabet must be one Sqids accepts.
 - `classmethod def validate_namespace(value: object) -> str | None` — The namespace is the first segment of every key, so it may not contain the separator.
+- `def resolved_site_name() -> str` — The name shown to people: `site_name`, or `app_name` when it is unset.
 - `def validate_namespace_fallback() -> CoreConfig` — Unset, the namespace is app_name, which then has to be one as well.
 
 ### `CSRFConfig`

@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
-{% block title %}{{ model_admin.verbose_name_plural }} · Oldman Admin{% endblock %}
+{% block title %}{{ model_admin.verbose_name_plural }} · {{ admin_site_title }}{% endblock %}
 
 {% block content %}
   <div class="om-page-section">

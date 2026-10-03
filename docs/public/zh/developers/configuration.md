@@ -238,6 +238,7 @@ Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时�
 | 字段 | 默认 |
 | --- | --- |
 | `core.app_name` | `oldman` |
+| `core.site_name` | 未设置时等于 `core.app_name`。给人看的站点名：错误页、dashboard 侧栏与认证页的品牌、找回密码邮件；模板里用全局 `site_name()` 读它 |
 | `core.namespace` | 未设置时等于 `core.app_name`。本服务所有 Redis 键和频道的第一段（session、令牌撤销、缓存、限流、SSE 频道、锁……）。共用 session、令牌或缓存的相关服务（例如前台网站和后台 dashboard）设成相同的值；需要独立的服务设成自己的值，互不干扰。都没设这一项的几个服务，只有 `app_name` 相同才共用：`app_name` 不同时，在一个服务上改密码结束不了另一个服务的 session 和令牌，另一个服务的缓存也不会失效。不能含冒号或空白；未设置时这条规则同样适用于 `core.app_name`，不符合时启动报错，提示设置 `core.namespace` |
 | `core.data_dir` | 项目根下 `data` |
 | `core.time_zone` | `Asia/Singapore` |

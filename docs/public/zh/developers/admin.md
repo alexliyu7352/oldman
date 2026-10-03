@@ -13,6 +13,7 @@ from oldman.apps.admin import AdminSite, AdminUserModelAdmin, ModelAdmin, instal
 | 方法 | 职责 |
 | --- | --- |
 | `AdminSite(name="oldman_admin", *, app_registry=None)` | 持有本管理站点的模型注册 |
+| `site_title` | Admin 的名字，默认 `"Oldman Admin"`：页面标题、侧栏品牌、登录页和找回密码邮件都读它。在站点实例上赋值（或子类里覆盖）即可改名；要改样子照常覆盖模板 |
 | `register(model, admin_class=None)` | 返回 ModelAdmin；默认使用基类，重复注册同一模型报错 |
 | `unregister(model)` | 移除已注册模型，不修改数据库 |
 | `is_registered(model)` | 该模型是否已在这个站点注册 |

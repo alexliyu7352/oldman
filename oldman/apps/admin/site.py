@@ -85,7 +85,14 @@ def _admin_table_class(model_admin: ModelAdmin) -> type[AdminModelTable]:
 
 
 class AdminSite:
-    """Registry and route installer for the built-in Admin site."""
+    """Registry and route installer for the built-in Admin site.
+
+    `site_title` is the Admin's name: page titles, the sidebar brand, the sign-in page and the
+    password reset mail. Set it on the site (or in a subclass) to rename the Admin; override the
+    templates to change how it looks.
+    """
+
+    site_title = "Oldman Admin"
 
     def __init__(
         self,
@@ -250,7 +257,7 @@ class AdminSite:
             base_path=f"{prefix}/password-reset",
             login_path=login_path,
             home_path=prefix,
-            site_name="Oldman Admin",
+            site_name=self.site_title,
             auth_settings=auth_settings,
             db_manager=manager,
             rate_limiter=password_reset_rate_limiter,
@@ -877,6 +884,7 @@ async def render_admin_template(template_name: str, request: Request, **context:
     site = context.get("site")
     context.setdefault("admin_bundle_name", "oldman:admin")
     if isinstance(site, AdminSite):
+        context.setdefault("admin_site_title", site.site_title)
         context.setdefault("admin_prefix", site.prefix)
         context.setdefault("menu_groups", await site.menu_groups(request))
     context.setdefault(

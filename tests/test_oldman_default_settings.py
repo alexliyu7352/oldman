@@ -45,6 +45,14 @@ class DefaultSettingsTest(unittest.TestCase):
                 AccountConfig(**{field: "https://evil.example/"})
         self.assertIsNone(AccountConfig().password_reset_url)
 
+    def test_the_site_name_falls_back_to_the_app_name(self) -> None:
+        from oldman.conf.schemas import CoreConfig
+
+        self.assertEqual("acme_ops", CoreConfig(app_name="acme_ops").resolved_site_name())
+        self.assertEqual("Acme Operations", CoreConfig(app_name="acme_ops", site_name="Acme Operations").resolved_site_name())
+        with self.assertRaises(ValueError):
+            CoreConfig(site_name="")
+
     def test_root_schema_has_apps_but_no_profile_or_hash_api(self) -> None:
         settings = DefaultSettings()
 

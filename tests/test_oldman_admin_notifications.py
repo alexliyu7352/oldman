@@ -268,7 +268,9 @@ class AdminNotificationRoutesTest(TestCase):
             path="/control/user-events",
             session=FakeSession(user_id=9, is_active=True, is_staff=False),
         )
-        denied = asyncio.run(handler(denied_request))  # type: ignore[operator]
+        # The 403 page names the site, so the requests run with the settings too.
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            denied = asyncio.run(handler(denied_request))  # type: ignore[operator]
         self.assertEqual(denied.status, 403)
         self.assertEqual(opened, [])
 
@@ -277,7 +279,8 @@ class AdminNotificationRoutesTest(TestCase):
             path="/control/user-events",
             session=FakeSession(user_id=9, is_active=True, is_staff=True),
         )
-        asyncio.run(handler(staff_request))  # type: ignore[operator]
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            asyncio.run(handler(staff_request))  # type: ignore[operator]
         self.assertEqual(opened, [True])
         self.assertEqual(stream.user_ids, [9])
 

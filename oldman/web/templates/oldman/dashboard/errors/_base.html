@@ -27,9 +27,9 @@
   </head>
   <body>
     <main>
-      <a class="brand" href="/" aria-label="Oldman">
+      <a class="brand" href="/" aria-label="{{ site_name() }}">
         <span class="brand-mark" aria-hidden="true"></span>
-        <span>Oldman</span>
+        <span>{{ site_name() }}</span>
       </a>
       <section class="error-panel">
         {% block content %}{% endblock %}

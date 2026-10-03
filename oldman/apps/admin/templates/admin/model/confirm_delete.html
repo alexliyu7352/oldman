@@ -2,7 +2,7 @@
 {% from "oldman/dashboard/partials/confirm.html" import confirm_body with context %}
 {% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
-{% block title %}{{ model_admin.get_delete_label() }} · Oldman Admin{% endblock %}
+{% block title %}{{ model_admin.get_delete_label() }} · {{ admin_site_title }}{% endblock %}
 
 {% block content %}
   <div class="om-page-section">

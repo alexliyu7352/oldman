@@ -14,6 +14,8 @@ from sanic.exceptions import Forbidden, SanicException, Unauthorized
 from sanic_ext import Config, Extend
 from sanic_ext.extensions.templating.extension import TemplatingExtension
 
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings
 from oldman.web.errors import ErrorPageHandler
 from oldman.web.exceptions import CSRFFailure
 from oldman.web.template import install_template_loaders
@@ -21,6 +23,10 @@ from oldman.web.template import install_template_loaders
 
 class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
     """Verify HTML pages without changing API error negotiation."""
+
+    def setUp(self) -> None:
+        # Error pages name the site (core.site_name), as every page a running service renders does.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
 
     async def test_dashboard_errors_are_static_documents(self) -> None:
         """Inherited error pages need no JS Page registration to display or leave."""
@@ -37,6 +43,27 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIn(str(status), content)
                 self.assertIn('href="/"', content)
                 self.assertNotIn("data-om-page=", content)
+
+    async def test_error_pages_name_the_site_from_the_settings(self) -> None:
+        """The brand is core.site_name (core.app_name when unset), on both the site and the dashboard pages."""
+        from jinja2 import Environment
+
+        from oldman.conf.schemas import CoreConfig
+
+        environment = Environment(enable_async=True)
+        install_template_loaders(environment)
+        request = SimpleNamespace(ctx=SimpleNamespace(locale="en"))
+        for core, expected in (
+            (CoreConfig(app_name="acme_ops", site_name="Acme Operations"), "Acme Operations"),
+            (CoreConfig(app_name="acme_ops"), "acme_ops"),
+        ):
+            settings = DefaultSettings().model_copy(update={"core": core})
+            with patch.dict(conf.__dict__, {"settings": settings}):
+                for name in ("oldman/errors/404.html", "oldman/dashboard/errors/404.html"):
+                    content = await environment.get_template(name).render_async(request=request, status_code=404)
+                    with self.subTest(name=name, expected=expected):
+                        self.assertIn(f'aria-label="{expected}"', content)
+                        self.assertNotIn(">Oldman<", content)
 
     async def test_csrf_failure_page_says_how_to_recover(self) -> None:
         """A rejected form is not a permission problem; only the opted-in sentence reaches the page."""

@@ -143,6 +143,11 @@ def sync_template_environment() -> Environment:
     return environment
 
 
+def site_name() -> str:
+    """The site's name for templates (brand, error pages): `core.site_name`, or `core.app_name` when unset."""
+    return conf.settings.core.resolved_site_name()
+
+
 def current_year() -> int:
     """Return the calendar year for footers; evaluated per render so long-running processes stay right."""
     return datetime.now().year
@@ -164,6 +169,7 @@ def register_component_filters(environment: Environment) -> None:
     template_globals(environment).setdefault("csrf_token_for", csrf_token_for)
     # A dashboard's topbar and base read the site's account addresses (settings.web.account) through this.
     template_globals(environment).setdefault("account_urls", account_urls)
+    template_globals(environment).setdefault("site_name", site_name)
     # 框架自带的表单片段用 `{% csrf_token %}`（web.md 里记的那个写法），所以这个标签必须跟着组件
     # 环境一起到位，而不是只在装了 CSRF manager 的 app 上可用。标签本身只读 request.ctx，没有别的依赖。
     environment.add_extension(CsrfExtension)
@@ -226,6 +232,7 @@ __all__ = [
     "render_component_template",
     "render_component_template_sync",
     "render_fragment",
+    "site_name",
     "sync_template_environment",
     "template_globals",
 ]

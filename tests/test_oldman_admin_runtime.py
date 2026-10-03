@@ -31,6 +31,7 @@ from oldman.apps.admin.site import AdminSite, admin_i18n_bootstrap
 from oldman.auth import AuthSettings
 from oldman.auth.models import User
 from oldman.conf.schemas import (
+    CoreConfig,
     I18nConfig,
     I18nLanguageConfig,
     SessionConfig,
@@ -172,6 +173,7 @@ def runtime_settings(
 ) -> SimpleNamespace:
     """Return the minimum typed-settings shape required by Admin tests."""
     return SimpleNamespace(
+        core=CoreConfig(),
         i18n=i18n or I18nConfig(),
         web=WebConfig(
             security=WebSecurityConfig(secret_key="oldman-admin-runtime-test-root-secret"),
@@ -288,6 +290,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             "admin_i18n": {},
             "dashboard_body_classes": " oldman-auth-page",
             "page_entry": "admin",
+            "admin_site_title": AdminSite.site_title,
             "request": template_request,
         }
         rendered = app.ext.environment.get_template("admin/index.html").render(
@@ -1089,6 +1092,22 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(b"<span>New User</span>", response.body)
         self.assertNotIn(b"Admin User", response.body)
 
+    def test_the_admin_name_comes_from_the_site_title(self) -> None:
+        """One attribute names the Admin: page titles and the sidebar brand follow it."""
+        app, model_path = install_user_admin(make_admin_user(), site_title="Ops Console")
+        route_path = f"/control/{model_path}"
+        handler = app.route_handlers[(route_path, ("GET",))]
+        session = FakeSession(user_id=99, is_active=True, is_staff=True, is_superuser=True)
+        request = make_request(app, path=route_path, session=session)
+        request.headers = {"accept": "text/html"}
+
+        with patch("oldman.apps.admin.site.render_template", side_effect=render_with_request_environment):
+            response = asyncio.run(handler(request))  # type: ignore[operator]
+
+        self.assertIn(b"<title>Users \xc2\xb7 Ops Console</title>", response.body)
+        self.assertIn(b'<span class="oldman-brand-name">Ops Console</span>', response.body)
+        self.assertNotIn(b"Oldman Admin", response.body)
+
     def test_staff_reach_a_model_only_through_the_permissions_their_roles_grant(self) -> None:
         app, model_path = install_user_admin(make_admin_user())
         list_path, new_path = f"/control/{model_path}", f"/control/{model_path}/new"
@@ -1692,10 +1711,13 @@ def install_user_admin(
     *,
     admin_settings: AdminSettings | None = None,
     admin_class: type[AdminUserModelAdmin] = AdminUserModelAdmin,
+    site_title: str | None = None,
 ) -> tuple[FakeApp, str]:
     """Install the built-in user admin against an in-memory object manager."""
     app = FakeApp()
     site = AdminSite("runtime_user_modal_admin")
+    if site_title is not None:
+        site.site_title = site_title
     user_model = type(user)
     auth_settings = AuthSettings(user_model=f"{user_model.__module__}.{user_model.__name__}")
     site.register(user_model, admin_class)

@@ -140,6 +140,16 @@ from sanic_ext import render
 
 Re-exported unchanged from `sanic_ext`; see that library's documentation.
 
+## `site_name`
+
+function · defined in `oldman.web.template`
+
+```python
+def site_name() -> str
+```
+
+The site's name for templates (brand, error pages): `core.site_name`, or `core.app_name` when unset.
+
 ## `sync_template_environment`
 
 function · defined in `oldman.web.template`

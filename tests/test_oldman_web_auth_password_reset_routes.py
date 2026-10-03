@@ -10,7 +10,9 @@ from unittest.mock import ANY, patch
 from jinja2 import DictLoader, Environment
 
 import oldman.conf as conf
+from oldman import mail
 from oldman.auth import AuthSettings
+from oldman.auth.models import User
 from oldman.web.auth import PasswordResetFlow
 from oldman.web.security.csrf import StatelessCSRFManager
 from tests.test_oldman_admin_runtime import (
@@ -162,6 +164,33 @@ class PasswordResetRoutesTest(unittest.TestCase):
         self.assertEqual(str(AuthSettings().password_reset.ip_window), response.headers["Retry-After"])
         self.assertEqual("no-store", response.headers["Cache-Control"])
         self.assertTrue(response.body.decode().endswith("|/account/reset|email|True"))
+
+
+class PasswordResetMailSiteNameTest(unittest.TestCase):
+    """A flow given no site_name calls the site by the settings' name in its mail."""
+
+    def setUp(self) -> None:
+        from oldman.conf.schemas import CoreConfig, MailConfig
+        from oldman.mail import use_mail_config
+
+        settings = runtime_settings()
+        settings.core = CoreConfig(app_name="acme_ops", site_name="Acme Operations")
+        self.enterContext(patch.dict(conf.__dict__, {"settings": settings}))
+        self.enterContext(
+            use_mail_config(MailConfig(backend="oldman.mail.backends.locmem.LocmemEmailBackend", default_from_email="noreply@example.test"))
+        )
+        mail.outbox.clear()
+        self.addCleanup(mail.outbox.clear)
+
+    def test_the_mail_names_the_site_from_the_settings(self) -> None:
+        user = User(id=3, username="alice", email="alice@example.test", password_hash="", is_active=True)
+        asyncio.run(make_flow().send_reset_mail(user))
+        self.assertEqual("Reset your Acme Operations password", mail.outbox[0].subject)
+
+    def test_a_flow_with_its_own_name_keeps_it(self) -> None:
+        user = User(id=3, username="alice", email="alice@example.test", password_hash="", is_active=True)
+        asyncio.run(make_flow(site_name="Back Office").send_reset_mail(user))
+        self.assertEqual("Reset your Back Office password", mail.outbox[0].subject)
 
 
 if __name__ == "__main__":

@@ -258,7 +258,7 @@ Members:
 - `base_path: str`
 - `login_path: str`
 - `home_path: str | None = None`
-- `site_name: str = 'Oldman'`
+- `site_name: str | None = None`
 - `mail_template: str = 'oldman/auth/mail/password_reset'`
 - `auth_settings: AuthSettings | None = None`
 - `db_manager: DatabaseManager | None = None`

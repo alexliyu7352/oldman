@@ -47,6 +47,11 @@ class CoreConfig(ConfigModel):
     """Core application config."""
 
     app_name: str = Field(default="oldman", description="Application name")
+    site_name: str | None = Field(
+        default=None,
+        min_length=1,
+        description="The name people see: page brand, error pages, password reset mail. Unset: app_name",
+    )
     namespace: str | None = Field(
         default=None,
         description=(
@@ -104,6 +109,10 @@ class CoreConfig(ConfigModel):
         if not _is_namespace(normalized):
             raise ValueError("core.namespace may not contain ':' or whitespace")
         return normalized
+
+    def resolved_site_name(self) -> str:
+        """The name shown to people: `site_name`, or `app_name` when it is unset."""
+        return self.site_name or self.app_name
 
     @model_validator(mode="after")
     def validate_namespace_fallback(self) -> CoreConfig:

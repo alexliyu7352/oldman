@@ -39,12 +39,11 @@ flow = PasswordResetFlow(
     base_path=account.password_reset_url,
     login_path=account.login_url,
     home_path=account.login_redirect_url,
-    site_name="Oldman",
 )
 flow.register_routes(template_prefix="pages/password_reset")
 ```
 
-`settings` 是项目的 `config.settings`；这段在 `account.password_reset_url` 不为 None 时执行。
+`settings` 是项目的 `config.settings`；这段在 `account.password_reset_url` 不为 None 时执行。邮件里称呼站点用 `core.site_name`（未设置时 `core.app_name`），要另起一个名字就传 `site_name=`，内置 Admin 传的是它的 `site_title`。
 
 `register_routes()` 装好六个视图：申请页与提交、"请查收邮件"页、设置新密码页与提交、完成页，CSRF 装饰器、`no-store`/`Referrer-Policy: same-origin`(带令牌的地址不会作为 Referer 发给别的站,本站表单提交仍带真实 Origin)、429 的 `Retry-After`、已登录跳 `home_path` 都在里面，不需要各自再写一遍。`template_prefix` 下要有 `request/sent/confirm/invalid/done.html` 五个模板，模板拿到 `csrf_token`、`login_url`、`request_url`、`expiry_hours`，申请页和设置页另有 `form`、`action`，设置页有 `username`，被限流的申请页有 `rate_limited`。需要自己的渲染上下文（例如 Admin 要带菜单）就传 `render=` 换掉默认渲染，签名是 `async def render(request, page, /, **context)`；两个参数只能给一个。路由名前缀由 `name_prefix=` 决定。省略第一个参数时路由经 `oldman.web` 的 `router` 注册;显式传入仍然支持(Admin 传它安装时拿到的实例)。申请接口用下面的固定窗口限流，IP 超限返回 429，邮箱超限静默不发，这样限流本身不能用来探测账号。IP 取的是 `request.client_ip`，反向代理后面要配置 `web.proxies_count`（见 [客户端地址与代理](web.md#客户端地址与代理)），否则所有访客共用代理的一个计数桶。发信交给进程内后台任务（`request.app.ctx.tasks.spawn()`），页面不等 SMTP 往返，发信失败也只写日志、不改变页面的回答，所以响应时间和状态码都不暴露账号是否存在。
 

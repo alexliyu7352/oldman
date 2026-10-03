@@ -4,7 +4,7 @@
   the Admin's auth pages without touching the dashboard's.
 -#}
 {% extends "oldman/auth/base.html" %}
-{% set auth_brand_name = "Oldman Admin" %}
+{% set auth_brand_name = admin_site_title %}
 
 {% block auth_head_meta %}
   <meta name="oldman-asset-base" content="{{ bundle_asset_base_url(admin_bundle_name) }}">

@@ -90,7 +90,8 @@ class PasswordResetFlow:
     base_path: str
     login_path: str
     home_path: str | None = None
-    site_name: str = "Oldman"
+    # The name the mail calls the site by; None takes the site name (core.site_name, else core.app_name).
+    site_name: str | None = None
     mail_template: str = "oldman/auth/mail/password_reset"
     auth_settings: AuthSettings | None = None
     db_manager: DatabaseManager | None = None
@@ -174,7 +175,7 @@ class PasswordResetFlow:
             "user": user,
             "username": user.username,
             "reset_url": self.reset_url(user),
-            "site_name": self.site_name,
+            "site_name": self.site_name or conf.settings.core.resolved_site_name(),
             "expiry_hours": max(1, round(settings.expiry / 3600)),
         }
         return await send_templated_mail(self.mail_template, context, to=[str(user.email)], language=language)

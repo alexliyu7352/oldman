@@ -1,6 +1,6 @@
 {% extends "admin/password_reset/base.html" %}
 
-{% block title %}{{ _("Your password has been updated") }} · Oldman Admin{% endblock %}
+{% block title %}{{ _("Your password has been updated") }} · {{ admin_site_title }}{% endblock %}
 
 {% block auth_card %}
   {% include "oldman/auth/password_reset/done.html" %}

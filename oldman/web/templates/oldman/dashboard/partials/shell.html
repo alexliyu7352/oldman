@@ -1,4 +1,4 @@
-{% macro dashboard_sidebar(home_href, menu_title, brand_subtitle=none, scroll_container_id=none, two_column_menu=false, declarative_menu=false) %}
+{% macro dashboard_sidebar(home_href, menu_title, brand_subtitle=none, scroll_container_id=none, two_column_menu=false, declarative_menu=false, brand_name=none) %}
   <turbo-frame id="oldman-sidebar-nav" target="oldman-main">
     <aside class="app-menu oldman-sidebar" data-om-sidebar data-om-component="sidebar-menu" aria-label="{{ _('Primary navigation') }}">
       <div class="logo-box oldman-sidebar-brand">
@@ -7,7 +7,7 @@
             <span></span>
           </span>
           <span class="min-w-0">
-            <span class="oldman-brand-name">Oldman</span>
+            <span class="oldman-brand-name">{{ brand_name or site_name() }}</span>
             {% if brand_subtitle %}
               <span class="oldman-brand-subtitle">{{ brand_subtitle }}</span>
             {% endif %}

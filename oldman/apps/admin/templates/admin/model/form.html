@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
-{% block title %}{{ form_title|default(model_admin.get_form_document_title(object)) }} · Oldman Admin{% endblock %}
+{% block title %}{{ form_title|default(model_admin.get_form_document_title(object)) }} · {{ admin_site_title }}{% endblock %}
 
 {% block content %}
   {% set card_classes = "max-w-3xl" if form_title is defined else model_admin.form_card_classes %}
