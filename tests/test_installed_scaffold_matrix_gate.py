@@ -46,19 +46,24 @@ class InstalledScaffoldMatrixGateTest(unittest.TestCase):
         self.assertEqual("/tmp/oldman-web.tgz", args.npm_tarball)
         self.assertEqual(Path("/tmp/evidence"), args.evidence_dir)
 
-    def test_matrix_contains_five_representative_cases(self) -> None:
+    def test_matrix_contains_the_representative_cases(self) -> None:
+        """Each project type once, plus web and dashboard with the built-in Admin (on SQLite, which the gate migrates)."""
         cases = self.gate.matrix_cases()
 
         self.assertEqual(
             (
-                ("cli", "none"),
-                ("service", "none"),
-                ("api", "postgres"),
-                ("web", "mysql"),
-                ("dashboard", "sqlite"),
+                ("cli", "none", False),
+                ("service", "none", False),
+                ("api", "postgres", False),
+                ("web", "mysql", False),
+                ("web", "sqlite", True),
+                ("dashboard", "sqlite", False),
+                ("dashboard", "sqlite", True),
             ),
             cases,
         )
+        self.assertEqual(len(cases), len({self.gate.case_name(*case) for case in cases}))
+        self.assertEqual("dashboard-sqlite-admin", self.gate.case_name("dashboard", "sqlite", True))
 
     def test_artifact_resolution_rejects_globs_missing_files_and_wrong_suffixes(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "explicit path"):
@@ -390,7 +395,7 @@ snapshots:
     def test_generation_uses_current_interactive_scaffold_and_service_commands(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
 
-        self.assertIn('"startproject", case_name)', source)
+        self.assertIn('"startproject", name)', source)
         self.assertIn('"startapp", "matrix_probe"', source)
         self.assertIn('"startservice", "matrix_worker"', source)
         self.assertIn('service_name, "settings", "sync"', source)
@@ -563,6 +568,8 @@ snapshots:
                     launcher=project / "run.sh",
                     environment={"PATH": "/bin"},
                     log_path=project / "http.log",
+                    admin=False,
+                    framework_version="9.9.9",
                 )
 
     def test_post_readiness_settle_rejects_an_early_clean_exit(self) -> None:
@@ -753,7 +760,7 @@ while True:
     def test_each_dashboard_case_requires_real_chrome_while_its_server_is_live(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
 
-        self.assertIn("with ChromePage(browser_result) as client:", source)
+        self.assertIn('with ChromePage(browser_result, accept_language="en") as client:', source)
         self.assertIn("navigate(client, url)", source)
         self.assertIn("save_screenshot(client", source)
         self.assertIn('document.documentElement.dataset.omReady !== "true"', self.gate.DASHBOARD_BROWSER_CONTRACT)
@@ -879,6 +886,79 @@ esac
         template = ROOT / "oldman" / "scaffolds" / "project" / "app_service" / "services" / "{{ service_name }}.py.tpl"
         loop_message = self.gate.SERVICE_LOOP_MARKER.replace("round 1", "round %d")
         self.assertIn(f'log.info("{loop_message}', template.read_text(encoding="utf-8"))
+
+    def api_answers(self, **changes):
+        """A fake API skeleton answering the gate's requests; `changes` replaces single answers by (path, header names)."""
+        key, password = "the-key", "the-password"
+        basic = "Basic " + self.gate.base64.b64encode(f"ops:{password}".encode()).decode("ascii")
+        answers = {
+            ("/", ()): (200, b'{"service": "api", "framework": "9.9.9", "status": "ok"}', {}),
+            ("/api/caller", ("X-API-Key", key)): (200, b'{"method": "api_key", "caller": "example"}', {}),
+            ("/api/ops", ("Authorization", basic)): (200, b'{"method": "http_basic", "caller": "ops"}', {}),
+            ("/api/caller", ()): (401, b"{}", {}),
+            ("/api/caller", ("X-API-Key", "not-the-key")): (401, b"{}", {}),
+            ("/api/caller", ("Authorization", basic)): (403, b"{}", {}),
+            ("/api/ops", ()): (401, b"{}", {"WWW-Authenticate": 'Basic realm="oldman"'}),
+        }
+        answers.update(changes.get("answers", {}))
+
+        def fetch(path, headers):
+            return answers[(path, tuple(item for pair in headers.items() for item in pair))]
+
+        return self.gate.skeleton_http_errors(
+            "api",
+            fetch=fetch,
+            admin=False,
+            project_name="api-postgres",
+            service_name="api",
+            framework_version="9.9.9",
+            api_credentials=(key, password),
+        )
+
+    def test_the_api_skeleton_check_wants_each_endpoint_to_answer_as_generated(self) -> None:
+        self.assertEqual([], self.api_answers())
+        basic = "Basic " + self.gate.base64.b64encode(b"ops:the-password").decode("ascii")
+        for label, answers in (
+            ("wrong framework version", {("/", ()): (200, b'{"service": "api", "framework": "1.0", "status": "ok"}', {})}),
+            ("open caller endpoint", {("/api/caller", ()): (200, b"{}", {})}),
+            ("wrong key accepted", {("/api/caller", ("X-API-Key", "not-the-key")): (200, b"{}", {})}),
+            ("Basic accepted by the key endpoint", {("/api/caller", ("Authorization", basic)): (200, b"{}", {})}),
+            ("no Basic challenge", {("/api/ops", ()): (401, b"{}", {})}),
+            ("wrong caller", {("/api/ops", ("Authorization", basic)): (200, b'{"method": "http_basic", "caller": "root"}', {})}),
+        ):
+            with self.subTest(label):
+                self.assertTrue(self.api_answers(answers=answers))
+
+    def test_the_web_skeleton_check_wants_the_welcome_page_and_the_admin_only_when_included(self) -> None:
+        welcome = b'<!doctype html><html lang="en"><body><h1>web-sqlite-admin</h1><a href="/admin">Sign in to the Admin</a></body></html>'
+        pages = {"/": (200, welcome, {}), "/admin/login": (200, b'<form><input name="password"></form>', {})}
+
+        def errors(*, admin, page=welcome):
+            return self.gate.skeleton_http_errors(
+                "web",
+                fetch=lambda path, _headers: {**pages, "/": (200, page, {})}[path],
+                admin=admin,
+                project_name="web-sqlite-admin",
+                service_name="web",
+                framework_version="9.9.9",
+                api_credentials=None,
+            )
+
+        self.assertEqual([], errors(admin=True))
+        self.assertTrue(errors(admin=False))
+        self.assertTrue(errors(admin=True, page=welcome.replace(b'lang="en"', b'lang="zh"')))
+        self.assertTrue(errors(admin=True, page=welcome.replace(b'<a href="/admin">Sign in to the Admin</a>', b"")))
+
+    def test_a_dashboard_case_turns_on_a_second_language_in_its_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "dashboard_settings.yaml"
+            config.write_text("apps: []\n", encoding="utf-8")
+
+            self.gate.update_service_settings(config, languages=self.gate.MATRIX_LANGUAGES)
+
+            i18n = self.gate.YAML(typ="safe", pure=True).load(config.read_text(encoding="utf-8"))["i18n"]
+            self.assertEqual({"use_i18n": True, "default_language": "en", "languages": self.gate.MATRIX_LANGUAGES}, i18n)
+            self.assertEqual(["en", "zh-Hans"], list(i18n["languages"]))
 
     def test_only_the_pages_own_data_requests_are_not_build_output(self) -> None:
         """The topbar's notification list is a fetch to the server; scripts, catalogs and other origins stay checked."""

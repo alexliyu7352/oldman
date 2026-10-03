@@ -26,7 +26,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from email.parser import Parser
 from pathlib import Path
@@ -56,6 +56,13 @@ from oldman.testing import (
 # (`createsuperuser`, here with --noinput) and signs in with it before the browser probe.
 MATRIX_ADMIN_USERNAME = "matrix_admin"
 MATRIX_ADMIN_PASSWORD = "Matrix-Probe-2026!"
+# The account changes its own password in the browser and signs in with this one afterwards.
+MATRIX_ADMIN_NEW_PASSWORD = "Matrix-Probe-Changed-2026!"
+# A dashboard case turns on a second language the way its README says, so the switcher shows and is used.
+MATRIX_LANGUAGES = {
+    "en": {"name": "English", "aliases": ["en-US"]},
+    "zh-Hans": {"name": "简体中文", "aliases": ["zh-CN", "zh"]},
+}
 # Where the HTTP probe waits for the service: the probe App's page, or for a dashboard (whose pages need a
 # signed-in user) its sign-in page.
 HTTP_PROBE_PATHS = {"api": "/matrix_probe", "web": "/matrix_probe", "dashboard": "/login"}
@@ -68,12 +75,15 @@ SERVER_ERROR_PATTERN = re.compile(r"(?im)(?:\[ERROR\]|\bERROR\b|Traceback \(most
 # The generated background service's example loop logs this on its first round (services/service.py).
 SERVICE_LOOP_MARKER = "Example loop, round 1"
 
+# (project type, database, include the built-in Admin). The Admin needs a database the gate can migrate.
 MATRIX_CASES = (
-    ("cli", "none"),
-    ("service", "none"),
-    ("api", "postgres"),
-    ("web", "mysql"),
-    ("dashboard", "sqlite"),
+    ("cli", "none", False),
+    ("service", "none", False),
+    ("api", "postgres", False),
+    ("web", "mysql", False),
+    ("web", "sqlite", True),
+    ("dashboard", "sqlite", False),
+    ("dashboard", "sqlite", True),
 )
 PROJECT_SERVICE_NAMES = {
     "service": "service",
@@ -352,9 +362,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def matrix_cases() -> tuple[tuple[str, str], ...]:
+def matrix_cases() -> tuple[tuple[str, str, bool], ...]:
     """Return the representative installed-consumer scenarios in execution order."""
     return MATRIX_CASES
+
+
+def case_name(project_type: str, database: str, admin: bool) -> str:
+    """One case's project and evidence directory name."""
+    return f"{project_type}-{database}-admin" if admin else f"{project_type}-{database}"
 
 
 def resolve_artifact(value: str, *, label: str, suffix: str) -> Path:
@@ -528,6 +543,7 @@ def update_service_settings(
     install_app: str | None = None,
     listen_port: int | None = None,
     redis_url: str | None = None,
+    languages: Mapping[str, object] | None = None,
 ) -> None:
     """Apply gate-only App, listener or Redis values to one generated YAML file.
 
@@ -562,6 +578,11 @@ def update_service_settings(
         )
     if redis_url is not None:
         use_owned_redis(data, redis_url)
+    if languages is not None:
+        i18n = data.setdefault("i18n", {})
+        if not isinstance(i18n, dict):
+            raise RuntimeError(f"Generated settings.i18n is not a mapping: {config_file}")
+        i18n.update({"use_i18n": True, "default_language": next(iter(languages)), "languages": dict(languages)})
     with config_file.open("w", encoding="utf-8") as stream:
         yaml.dump(data, stream)
 
@@ -1152,16 +1173,23 @@ def run_dashboard_browser_probe(
     login_url: str,
     evidence_dir: Path,
     package_provenance: Mapping[str, object],
+    admin: bool,
 ) -> dict[str, object]:
-    """Sign in, then require the exact-tarball Dashboard to initialize in a real Chrome page."""
+    """Sign in, require the exact-tarball Dashboard to initialize in Chrome, then walk the skeleton's own pages."""
     evidence_dir.mkdir(parents=True, exist_ok=True)
     screenshot = evidence_dir / "matrix-probe.png"
     browser_result = BrowserResult()
     dom_state: dict[str, object] = {}
+    account_flows: dict[str, object] = {}
     browser_failure = ""
+    base_url = url.removesuffix(urllib.parse.urlsplit(url).path)
     try:
-        with ChromePage(browser_result) as client:
+        # English first, whatever the machine's locale: the flows switch to Chinese themselves, and a browser that
+        # already asked for Chinese would make that switch prove nothing.
+        with ChromePage(browser_result, accept_language="en") as client:
             configure_viewport(client, 1440, 1000, mobile=False)
+            navigate(client, f"{base_url}/")
+            wait_for_page(client, "location.pathname === '/login'", step="an anonymous visit to / goes to sign-in")
             sign_in(client, login_url)
             navigate(client, url)
             evaluated = client.evaluate(DASHBOARD_BROWSER_CONTRACT, timeout=25.0)
@@ -1170,6 +1198,7 @@ def run_dashboard_browser_probe(
             dom_state = dict(evaluated)
             client.pump(0.5)
             save_screenshot(client, str(screenshot), capture_beyond_viewport=False)
+            account_flows = run_dashboard_account_flows(client, base_url, admin=admin)
     except (OSError, RuntimeError) as exc:
         browser_failure = str(exc)
 
@@ -1235,6 +1264,7 @@ def run_dashboard_browser_probe(
         except RuntimeError as exc:
             contract_failures.append(str(exc))
     payload: dict[str, object] = {
+        "accountFlows": account_flows,
         "browserFailure": browser_failure,
         "consoleErrors": browser_result.console_errors,
         "contractFailures": contract_failures,
@@ -1256,20 +1286,332 @@ def run_dashboard_browser_probe(
     return payload
 
 
-def sign_in(client: CDPClient, login_url: str) -> None:
+def sign_in(client: CDPClient, login_url: str, *, password: str = MATRIX_ADMIN_PASSWORD) -> None:
     """Sign in through the generated sign-in page with the gate's account; fail when the page does not let it in."""
     navigate(client, login_url)
     client.load_seen = False
     client.evaluate(
         "(() => { const form = document.querySelector('form');"
         f" form.querySelector('[name=username]').value = {json.dumps(MATRIX_ADMIN_USERNAME)};"
-        f" form.querySelector('[name=password]').value = {json.dumps(MATRIX_ADMIN_PASSWORD)};"
+        f" form.querySelector('[name=password]').value = {json.dumps(password)};"
         " form.requestSubmit(); return true; })()"
     )
     client.wait_for_load(timeout=15.0)
     path = client.evaluate("location.pathname", timeout=5.0)
     if path == urllib.parse.urlsplit(login_url).path:
         raise RuntimeError(f"Signing in to the generated Dashboard as {MATRIX_ADMIN_USERNAME} failed; still at {path}")
+
+
+# --- The generated skeletons' own pages and endpoints -------------------------------------------------
+
+
+def signs_users_in(project_type: str, admin: bool) -> bool:
+    """A dashboard signs its users in; a web project does when it includes the Admin (sessions, Redis, an account)."""
+    return project_type == "dashboard" or admin
+
+
+def api_credentials(project: Path, service_name: str) -> tuple[str, str]:
+    """The API key and the HTTP Basic password `startproject` generated into the service's settings."""
+    data = YAML(typ="safe", pure=True).load((project / "data" / f"{service_name}_settings.yaml").read_text(encoding="utf-8"))
+    auth = data["web"]["auth"]
+    return str(auth["api_keys"]["example"]["secret"]), str(auth["http_basic"]["accounts"]["ops"])
+
+
+# fetch(path, headers) -> (status, body, response headers); an HTTP error status is an answer, not an exception.
+SkeletonFetch = Callable[[str, Mapping[str, str]], tuple[int, bytes, Mapping[str, str]]]
+
+
+def http_fetcher(opener: urllib.request.OpenerDirector, base_url: str) -> SkeletonFetch:
+    """GET paths of the running service through the gate's proxy-free opener."""
+
+    def fetch(path: str, headers: Mapping[str, str]) -> tuple[int, bytes, Mapping[str, str]]:
+        request = urllib.request.Request(f"{base_url}{path}", headers=dict(headers))
+        try:
+            with opener.open(request, timeout=5) as response:
+                return int(response.status), response.read(), dict(response.headers)
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read(), dict(exc.headers)
+
+    return fetch
+
+
+def json_answer(fetch: SkeletonFetch, path: str, headers: Mapping[str, str], *, status: int, payload: object) -> list[str]:
+    """One request that must answer `status` with exactly `payload`."""
+    answered, body, _headers = fetch(path, headers)
+    if answered != status:
+        return [f"GET {path} answered {answered}, expected {status}"]
+    try:
+        received = json.loads(body)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return [f"GET {path} did not answer JSON: {body[:200]!r}"]
+    return [] if received == payload else [f"GET {path} answered {received!r}, expected {payload!r}"]
+
+
+def skeleton_http_errors(
+    project_type: str,
+    *,
+    fetch: SkeletonFetch,
+    admin: bool,
+    project_name: str,
+    service_name: str,
+    framework_version: str,
+    api_credentials: tuple[str, str] | None,
+) -> list[str]:
+    """What the generated skeleton itself serves: the API's three endpoints, the web welcome page and its Admin."""
+    errors: list[str] = []
+    if project_type == "api":
+        if api_credentials is None:
+            return ["the API skeleton's credentials were not read from its settings"]
+        key, password = api_credentials
+        basic = "Basic " + base64.b64encode(f"ops:{password}".encode()).decode("ascii")
+        errors += json_answer(fetch, "/", {}, status=200, payload={"service": service_name, "framework": framework_version, "status": "ok"})
+        errors += json_answer(fetch, "/api/caller", {"X-API-Key": key}, status=200, payload={"method": "api_key", "caller": "example"})
+        errors += json_answer(fetch, "/api/ops", {"Authorization": basic}, status=200, payload={"method": "http_basic", "caller": "ops"})
+        for path, headers, expected in (
+            ("/api/caller", {}, 401),
+            ("/api/caller", {"X-API-Key": "not-the-key"}, 401),
+            # Signed in, but not by the one method this endpoint takes.
+            ("/api/caller", {"Authorization": basic}, 403),
+            ("/api/ops", {}, 401),
+        ):
+            answered, _body, response_headers = fetch(path, headers)
+            if answered != expected:
+                errors.append(f"GET {path} with {sorted(headers)} answered {answered}, expected {expected}")
+            elif path == "/api/ops" and not str(response_headers.get("WWW-Authenticate", "")).startswith("Basic "):
+                errors.append("GET /api/ops without credentials has no Basic challenge")
+    elif project_type == "web":
+        status, body, _headers = fetch("/", {})
+        page = body.decode("utf-8", errors="replace")
+        if status != 200:
+            errors.append(f"the welcome page answered {status}")
+        for marker in ('<html lang="en">', f"<h1>{project_name}</h1>"):
+            if marker not in page:
+                errors.append(f"the welcome page is missing {marker!r}")
+        if admin != ('href="/admin"' in page):
+            errors.append(f"the welcome page's Admin link is {'missing' if admin else 'present without the Admin'}")
+        if admin:
+            status, body, _headers = fetch("/admin/login", {})
+            if status != 200 or b'name="password"' not in body:
+                errors.append(f"the Admin sign-in page answered {status} without a password field")
+    return errors
+
+
+# A response's feedback is a toast at the top right (oldman-web Feedback.toast), toned by its icon. Matched by
+# tone, not text: the text follows the page's language.
+SUCCESS_TOAST_SHOWN = "document.querySelector('.toastify.om-toast.om-toast-success')"
+
+USER_LIST_ROW = r"""
+(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const username = __USERNAME__;
+  const form = document.querySelector("form[data-om-table-target='#users-table']");
+  const table = document.querySelector("#users-table");
+  if (!form || !table) return { error: "no user filter or table" };
+  form.querySelector("[name='q']").value = username;
+  for (const name of ["is_active", "is_superuser", "is_staff"]) {
+    const field = form.querySelector(`[name='${name}']`);
+    if (field) field.value = "";
+  }
+  form.requestSubmit();
+  await sleep(300);
+  for (let index = 0; index < 80 && table.dataset.omStatus !== "success"; index += 1) await sleep(100);
+  const row = Array.from(table.querySelectorAll("[data-om-table-row]")).find((item) => item.textContent.includes(username));
+  return { row: row ? row.innerText.replace(/\s+/g, " ").trim() : null };
+})()
+"""
+
+USER_ROW_ACTION = r"""
+(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const username = __USERNAME__;
+  const modalId = __MODAL__;
+  const row = Array.from(document.querySelectorAll("#users-table [data-om-table-row]")).find((item) => item.textContent.includes(username));
+  if (!row) return { error: "row not found" };
+  row.querySelector("[data-om-dropdown-toggle]")?.click();
+  await sleep(150);
+  const action = row.querySelector(`[data-om-modal-target='${modalId}'][data-om-modal-url]`);
+  if (!action) return { error: `no ${modalId} action in the row` };
+  action.click();
+  for (let index = 0; index < 60 && !document.querySelector(`${modalId}.is-open form[data-om-form]`); index += 1) await sleep(100);
+  const form = document.querySelector(`${modalId}.is-open form[data-om-form]`);
+  if (!form) return { error: `${modalId} did not open with a form` };
+  const submitted = new URL(form.getAttribute("action") || "", location.href).pathname;
+  form.requestSubmit();
+  for (let index = 0; index < 60 && document.querySelector(`${modalId}.is-open`); index += 1) await sleep(100);
+  if (document.querySelector(`${modalId}.is-open`)) return { error: `${modalId} did not close after submitting` };
+  return { action: submitted };
+})()
+"""
+
+FILL_FORM = r"""
+(() => {
+  const form = document.querySelector(__SELECTOR__);
+  if (!form) return false;
+  for (const [name, value] of Object.entries(__VALUES__)) {
+    const field = form.querySelector(`[name='${name}']`);
+    if (!field) return `no ${name} field`;
+    if (field.type === "checkbox") field.checked = Boolean(value); else field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  form.requestSubmit();
+  return true;
+})()
+"""
+
+
+def wait_for_page(client: CDPClient, condition: str, *, step: str, timeout: float = 15.0) -> None:
+    """Poll a JavaScript condition until it holds, across navigations; fail the step when it never does."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if client.evaluate(f"Boolean({condition})", timeout=5.0) is True:
+                return
+        except RuntimeError:
+            pass  # the page is navigating
+        client.pump(0.1)
+    raise RuntimeError(f"{step}: {condition} never held")
+
+
+def submit_form(client: CDPClient, selector: str, values: Mapping[str, object], *, step: str) -> None:
+    """Fill a mounted framework form and submit it through its component (JSON), not the browser's native post."""
+    mounted = f"{selector}[data-om-component-state='mounted']"
+    wait_for_page(client, f"document.querySelector({json.dumps(mounted)})", step=step)
+    filled = client.evaluate(FILL_FORM.replace("__SELECTOR__", json.dumps(mounted)).replace("__VALUES__", json.dumps(dict(values))))
+    if filled is not True:
+        raise RuntimeError(f"{step}: {filled!r}")
+
+
+def user_list_row(client: CDPClient, username: str) -> str | None:
+    result = client.evaluate(USER_LIST_ROW.replace("__USERNAME__", json.dumps(username)), timeout=15.0)
+    if not isinstance(result, dict) or result.get("error"):
+        raise RuntimeError(f"filtering the user list failed: {result!r}")
+    row = result.get("row")
+    return row if isinstance(row, str) else None
+
+
+def user_row_action(client: CDPClient, username: str, modal_id: str) -> str:
+    script = USER_ROW_ACTION.replace("__USERNAME__", json.dumps(username)).replace("__MODAL__", json.dumps(modal_id))
+    result = client.evaluate(script, timeout=15.0)
+    if not isinstance(result, dict) or result.get("error"):
+        raise RuntimeError(f"{modal_id} on {username}: {result!r}")
+    return str(result["action"])
+
+
+def manage_a_user(client: CDPClient, base_url: str) -> dict[str, object]:
+    """Create, edit, disable, enable and delete one account through the generated user-management pages."""
+    username = f"matrix_flow_{int(time.time())}"
+    password = "Matrix-Flow-User-2026!"
+    navigate(client, f"{base_url}/users/new")
+    submit_form(
+        client,
+        "form[data-om-form][action='/users/new']",
+        {
+            "username": username,
+            "email": f"{username}@example.test",
+            "display_name": "Matrix Flow User",
+            "password": password,
+            "confirm_password": password,
+            "is_active": True,
+        },
+        step="new user form",
+    )
+    wait_for_page(client, SUCCESS_TOAST_SHOWN, step="created toast")
+    wait_for_page(client, "/^\\/users\\/\\d+\\/edit$/.test(location.pathname)", step="the new user's edit page", timeout=20.0)
+    edit_path = str(client.evaluate("location.pathname"))
+    submit_form(client, f"form[data-om-form][action='{edit_path}']", {"display_name": "Matrix Flow User Edited"}, step="edit form")
+    wait_for_page(client, SUCCESS_TOAST_SHOWN, step="saved toast")
+    navigate(client, f"{base_url}/users")
+    wait_for_page(client, "document.querySelector('#users-table')?.dataset.omStatus === 'success'", step="user list")
+    edited = user_list_row(client, username)
+    if edited is None or "Matrix Flow User Edited" not in edited:
+        raise RuntimeError(f"the edited user is not listed under its new name: {edited!r}")
+    user_row_action(client, username, "#user-status-modal")
+    disabled = user_list_row(client, username)
+    user_row_action(client, username, "#user-status-modal")
+    enabled = user_list_row(client, username)
+    if disabled is None or disabled == enabled or enabled != edited:
+        raise RuntimeError(f"disabling then enabling did not show in the list: {disabled!r} then {enabled!r}")
+    deleted = user_row_action(client, username, "#user-delete-modal")
+    if user_list_row(client, username) is not None:
+        raise RuntimeError("the deleted user is still listed")
+    return {"created": edit_path, "edited": edited, "disabled": disabled, "enabled": enabled, "deleted": deleted}
+
+
+def admin_entry(client: CDPClient, base_url: str, *, admin: bool) -> dict[str, object]:
+    """With the Admin, a staff user's menu links to it and it opens in the same session; without, there is no entry."""
+    navigate(client, f"{base_url}/")
+    wait_for_page(client, "document.querySelector('#navbar-nav')", step="menu")
+    # Found by where it goes (the Admin's default prefix), not by its label, which follows the page's language.
+    href = client.evaluate("document.querySelector('#navbar-nav a[href=\"/admin\"]')?.getAttribute('href') ?? null")
+    if not admin:
+        if href is not None:
+            raise RuntimeError(f"the menu links to an Admin that was not included: {href!r}")
+        return {"entry": None}
+    if not isinstance(href, str):
+        raise RuntimeError("the menu has no Admin entry for a staff user")
+    navigate(client, urllib.parse.urljoin(f"{base_url}/", href))
+    wait_for_page(client, f"location.pathname === {json.dumps(href)}", step="the Admin opens without signing in again")
+    return {"entry": href, "title": client.evaluate("document.title")}
+
+
+def switch_to_simplified_chinese(client: CDPClient, base_url: str) -> dict[str, object]:
+    """The topbar's switcher (two languages configured) reloads the page in Chinese, framework text included."""
+    navigate(client, f"{base_url}/users")
+    wait_for_page(client, "document.querySelector('[data-om-language-current]')", step="language switcher")
+    client.evaluate("document.querySelector('[data-om-language-current]').click(); true")
+    wait_for_page(client, "document.querySelector('[data-lang=\"zh-Hans\"]')?.offsetParent !== null", step="language menu")
+    client.evaluate("document.querySelector('[data-lang=\"zh-Hans\"]').click(); true")
+    wait_for_page(client, "document.documentElement.lang === 'zh-Hans'", step="the page in Simplified Chinese")
+    # "Users" is the framework's text (users/index.html), translated by the framework's own catalog.
+    wait_for_page(client, "document.querySelector('h1')?.textContent.trim() === '用户'", step="framework text in Chinese")
+    return {"lang": client.evaluate("document.documentElement.lang"), "heading": client.evaluate("document.querySelector('h1').textContent.trim()")}
+
+
+def change_own_password(client: CDPClient, base_url: str, *, current: str, new: str) -> dict[str, object]:
+    navigate(client, f"{base_url}/user-session")
+    button = "[data-om-modal-target='#user-session-password-modal']"
+    wait_for_page(client, f"document.querySelector({json.dumps(button)})", step="own password button")
+    client.evaluate(f"document.querySelector({json.dumps(button)}).click(); true")
+    submit_form(
+        client,
+        "#user-session-password-modal.is-open form[data-om-form]",
+        {"current_password": current, "password": new, "confirm_password": new},
+        step="own password form",
+    )
+    wait_for_page(client, "!document.querySelector('#user-session-password-modal.is-open')", step="own password saved")
+    return {"changed": True}
+
+
+def sign_out(client: CDPClient, base_url: str) -> dict[str, object]:
+    navigate(client, f"{base_url}/logout")
+    wait_for_page(client, "location.pathname === '/login'", step="signed out")
+    navigate(client, f"{base_url}/")
+    wait_for_page(client, "location.pathname === '/login'", step="home asks to sign in again")
+    return {"signedOut": True}
+
+
+def run_dashboard_account_flows(client: CDPClient, base_url: str, *, admin: bool) -> dict[str, object]:
+    """The skeleton's own pages, signed in as the gate's account: home, users, the Admin, language, password, sign-out."""
+    flows: dict[str, object] = {}
+    navigate(client, f"{base_url}/")
+    wait_for_page(client, f"document.querySelector('h1')?.textContent.includes({json.dumps(MATRIX_ADMIN_USERNAME)})", step="home page")
+    flows["home"] = client.evaluate("document.querySelector('h1').textContent.trim()")
+    flows["users"] = manage_a_user(client, base_url)
+    flows["admin"] = admin_entry(client, base_url, admin=admin)
+    flows["language"] = switch_to_simplified_chinese(client, base_url)
+    flows["password"] = change_own_password(client, base_url, current=MATRIX_ADMIN_PASSWORD, new=MATRIX_ADMIN_NEW_PASSWORD)
+    flows["signOut"] = sign_out(client, base_url)
+    login_url = f"{base_url}/login"
+    try:
+        sign_in(client, login_url)
+    except RuntimeError:
+        flows["oldPasswordRefused"] = True
+    else:
+        raise RuntimeError("the password from before the change still signs in")
+    sign_in(client, login_url, password=MATRIX_ADMIN_NEW_PASSWORD)
+    flows["newPasswordSignsIn"] = True
+    return flows
 
 
 def run_http_probe(
@@ -1280,6 +1622,8 @@ def run_http_probe(
     launcher: Path,
     environment: Mapping[str, str],
     log_path: Path,
+    admin: bool,
+    framework_version: str,
     browser_evidence_dir: Path | None = None,
     browser_package_provenance: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
@@ -1357,6 +1701,20 @@ def run_http_probe(
                     response_errors.extend(stable_errors)
                     error = "; ".join(stable_errors)
                     response_ready = False
+            if response_ready:
+                skeleton_errors = skeleton_http_errors(
+                    project_type,
+                    fetch=http_fetcher(opener, f"http://127.0.0.1:{port}"),
+                    admin=admin,
+                    project_name=project.name,
+                    service_name=service_name,
+                    framework_version=framework_version,
+                    api_credentials=api_credentials(project, service_name) if project_type == "api" else None,
+                )
+                if skeleton_errors:
+                    response_errors.extend(skeleton_errors)
+                    error = "; ".join(skeleton_errors)
+                    response_ready = False
             if response_ready and project_type == "dashboard":
                 if browser_evidence_dir is None or browser_package_provenance is None:
                     raise RuntimeError("Dashboard HTTP probe requires explicit browser and npm-package evidence")
@@ -1366,6 +1724,7 @@ def run_http_probe(
                     login_url=url,
                     evidence_dir=browser_evidence_dir,
                     package_provenance=browser_package_provenance,
+                    admin=admin,
                 )
         finally:
             stdout, stderr, cleanup_errors, shutdown_initiated = stop_http_probe_process(
@@ -1528,7 +1887,7 @@ def require_matching_artifact_versions(wheel_version: str, npm_version: str) -> 
         raise RuntimeError(f"Artifact version mismatch: Oldman {wheel_version} != oldman-web {npm_version}")
 
 
-def validate_generated_project(project: Path, project_type: str, database: str, *, framework_version: str) -> dict[str, object]:
+def validate_generated_project(project: Path, project_type: str, database: str, *, admin: bool, framework_version: str) -> dict[str, object]:
     """Validate generated metadata and database configuration without importing repository code."""
     pyproject = tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = pyproject.get("project", {}).get("dependencies", [])
@@ -1579,11 +1938,13 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
         if not isinstance(settings_data, Mapping):
             raise RuntimeError(f"{project.name} generated invalid service settings")
         apps = settings_data.get("apps")
-        # The matrix answers no to the built-in Admin: a dashboard has its users and roles, notifications, and
-        # the project's own accounts and home page; a web project its welcome page, an API its three endpoints.
+        # Users come with their roles; the Admin, when included, sits before the project's own accounts and
+        # home page. A dashboard also has notifications; a web project without the Admin only its welcome page.
+        user_apps = ["oldman.auth", "oldman.apps.roles"]
+        admin_apps = ["oldman.apps.admin"] if admin else []
         expected_apps = {
-            "dashboard": ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"],
-            "web": ["apps.home"],
+            "dashboard": [*user_apps, "oldman.web.messages.notifications", *admin_apps, "apps.accounts", "apps.home"],
+            "web": [*user_apps, *admin_apps, "apps.accounts", "apps.home"] if admin else ["apps.home"],
             "api": ["apps.home"],
         }.get(project_type, [])
         if apps != expected_apps:
@@ -1592,6 +1953,7 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
         if not isinstance(database_config, Mapping) or database_config.get("url") != (DB_URLS[database] or None):
             raise RuntimeError(f"{project.name} generated an unexpected database.url")
     return {
+        "admin": admin,
         "database": database,
         "dependencies": dependencies,
         "project": project.name,
@@ -1676,22 +2038,25 @@ def generate_case(
     npm_version: str,
     evidence_dir: Path,
     environment: Mapping[str, str],
+    admin: bool,
 ) -> dict[str, object]:
-    case_name = f"{project_type}-{database}"
-    case_evidence = evidence_dir / "cases" / case_name
-    project = root / case_name
+    name = case_name(project_type, database, admin)
+    case_evidence = evidence_dir / "cases" / name
+    project = root / name
     run(
-        (str(generator_oldman), "startproject", case_name),
+        (str(generator_oldman), "startproject", name),
         cwd=root,
         # Preset answers: the questions do not read piped stdin (see the tui docs).
         environment={
             **environment,
             "OLDMAN_ANSWER_STARTPROJECT_TYPE": project_type,
             "OLDMAN_ANSWER_STARTPROJECT_DATABASE": database,
+            # Asked only of web projects with a database and of dashboards; ignored elsewhere.
+            "OLDMAN_ANSWER_STARTPROJECT_ADMIN": "yes" if admin else "no",
         },
         log_path=case_evidence / "startproject.log",
     )
-    metadata = validate_generated_project(project, project_type, database, framework_version=npm_version)
+    metadata = validate_generated_project(project, project_type, database, admin=admin, framework_version=npm_version)
     preserve_evidence_file(project / "pyproject.toml", case_evidence / "generated" / "pyproject.toml")
     preserve_evidence_file(project / "README.md", case_evidence / "generated" / "README.md")
     if project_type != "cli":
@@ -1708,7 +2073,7 @@ def generate_case(
     python = environment_executable(environment_root, "python")
     oldman = environment_executable(environment_root, "oldman")
     if not oldman.is_file():
-        raise RuntimeError(f"plain uv sync did not install the project-local Oldman CLI for {case_name}")
+        raise RuntimeError(f"plain uv sync did not install the project-local Oldman CLI for {name}")
     provenance = installed_import_provenance(
         python,
         environment_root,
@@ -1837,7 +2202,7 @@ def generate_case(
                 environment=environment,
                 log_path=case_evidence / "db-status.log",
             )
-            if project_type == "dashboard":
+            if signs_users_in(project_type, admin):
                 run(
                     (
                         str(oldman),
@@ -1904,26 +2269,34 @@ def generate_case(
             package["dependencies"]["oldman-web"] = f"file:{npm_tarball}"
             package_path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
             preserve_evidence_file(package_path, case_evidence / "generated" / "frontend-package.json")
-            for command, log_name, timeout in (
-                (("pnpm", "install", "--prefer-offline"), "frontend-install.log", 600),
-                (("pnpm", "typecheck"), "frontend-typecheck.log", 600),
-                (("pnpm", "build"), "frontend-build.log", 600),
-            ):
-                run(command, cwd=frontend, environment=environment, log_path=case_evidence / log_name, timeout=timeout)
+            run(
+                ("pnpm", "install", "--prefer-offline"),
+                cwd=frontend,
+                environment=environment,
+                log_path=case_evidence / "frontend-install.log",
+                timeout=600,
+            )
+            # A second language the way the README adds one (after the frontend install: extraction reads the
+            # frontend's messages too); the build then publishes both catalogs.
+            update_service_settings(project / "data" / f"{service_name}_settings.yaml", languages=MATRIX_LANGUAGES)
+            for step in (("extract",), ("init", "zh-Hans"), ("update",), ("compile",)):
+                run((str(oldman), "i18n", *step), cwd=project, environment=environment, log_path=case_evidence / f"i18n-{step[0]}.log")
+            for command, log_name in ((("pnpm", "typecheck"), "frontend-typecheck.log"), (("pnpm", "build"), "frontend-build.log")):
+                run(command, cwd=frontend, environment=environment, log_path=case_evidence / log_name, timeout=600)
             preserve_evidence_file(frontend / "pnpm-lock.yaml", case_evidence / "generated" / "pnpm-lock.yaml")
             installed_package_json = frontend / "node_modules" / "oldman-web" / "package.json"
             if not installed_package_json.is_file():
-                raise RuntimeError(f"{case_name} did not install oldman-web from the explicit tarball")
+                raise RuntimeError(f"{name} did not install oldman-web from the explicit tarball")
             resolved_package_json = installed_package_json.resolve()
             node_modules = (frontend / "node_modules").resolve()
             if not resolved_package_json.is_relative_to(node_modules):
-                raise RuntimeError(f"{case_name} oldman-web resolved outside the generated consumer: {resolved_package_json}")
+                raise RuntimeError(f"{name} oldman-web resolved outside the generated consumer: {resolved_package_json}")
             installed_package = json.loads(installed_package_json.read_text(encoding="utf-8"))
             if installed_package.get("name") != "oldman-web" or installed_package.get("version") != npm_version:
-                raise RuntimeError(f"{case_name} installed the wrong oldman-web package: {installed_package}")
+                raise RuntimeError(f"{name} installed the wrong oldman-web package: {installed_package}")
             installed_dist_entry = resolved_package_json.parent / "dist" / "index.js"
             if not installed_dist_entry.is_file():
-                raise RuntimeError(f"{case_name} installed oldman-web tarball has no built dist/index.js")
+                raise RuntimeError(f"{name} installed oldman-web tarball has no built dist/index.js")
             pnpm_lock = frontend / "pnpm-lock.yaml"
             lock_evidence = pnpm_tarball_lock_evidence(pnpm_lock, npm_tarball)
             installed_tree = installed_npm_tree_evidence(resolved_package_json.parent, npm_tarball)
@@ -1941,19 +2314,29 @@ def generate_case(
             write_json(case_evidence / "frontend-package.json", browser_package_provenance)
             manifest_path = project / "static" / "dist" / ".vite" / "manifest.json"
             if not manifest_path.is_file() or "src/main.ts" not in json.loads(manifest_path.read_text(encoding="utf-8")):
-                raise RuntimeError(f"{case_name} Dashboard build did not expose src/main.ts in the Vite manifest")
+                raise RuntimeError(f"{name} Dashboard build did not expose src/main.ts in the Vite manifest")
             preserve_evidence_file(manifest_path, case_evidence / "generated" / "vite-manifest.json")
             metadata["viteManifestSha256"] = sha256_file(manifest_path)
+        if signs_users_in(project_type, admin):
+            # The README's step before starting: the framework's and the Admin's static files.
+            run(
+                (str(oldman), service_name, "static", "collect"),
+                cwd=project,
+                environment=environment,
+                log_path=case_evidence / "static-collect.log",
+            )
         probe = {
             "project_type": project_type,
             "service_name": service_name,
             "launcher": project / "run.sh",
             "environment": environment,
             "log_path": case_evidence / "web-http.log",
+            "admin": admin,
+            "framework_version": npm_version,
             "browser_evidence_dir": case_evidence / "browser" if project_type == "dashboard" else None,
             "browser_package_provenance": browser_package_provenance,
         }
-        if project_type == "dashboard":
+        if signs_users_in(project_type, admin):
             # Sessions keep the sign-in, in Redis: the gate's own, never the developer's.
             with owned_redis_server(case_evidence / "redis", environment=environment) as redis_url:
                 update_service_settings(project / "data" / f"{service_name}_settings.yaml", redis_url=redis_url)
@@ -1985,7 +2368,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         write_json(
             evidence_dir / "inputs.json",
             {
-                "matrix": [{"database": database, "projectType": project_type} for project_type, database in matrix_cases()],
+                "matrix": [{"admin": admin, "database": database, "projectType": project_type} for project_type, database, admin in matrix_cases()],
                 "npmTarball": str(npm_tarball),
                 "npmTarballMetadata": npm_metadata,
                 "npmTarballSha256": sha256_file(npm_tarball),
@@ -2024,8 +2407,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             matrix_root = root / "matrix"
             matrix_root.mkdir()
             case_environments: set[Path] = set()
-            for project_type, database in matrix_cases():
-                case_project = matrix_root / f"{project_type}-{database}"
+            for project_type, database, admin in matrix_cases():
+                case_project = matrix_root / case_name(project_type, database, admin)
                 try:
                     result = generate_case(
                         matrix_root,
@@ -2039,6 +2422,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         npm_version=npm_metadata["version"],
                         evidence_dir=evidence_dir,
                         environment=environment,
+                        admin=admin,
                     )
                     case_environment = Path(str(result["environment"])).resolve()
                     if case_environment in case_environments:
@@ -2046,11 +2430,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     case_environments.add(case_environment)
                     results.append(result)
                 except (OSError, RuntimeError, ValueError, json.JSONDecodeError, tomllib.TOMLDecodeError) as exc:
-                    error = f"{project_type}/{database}: {exc}"
+                    error = f"{case_name(project_type, database, admin)}: {exc}"
                     errors.append(error)
                     write_json(
-                        evidence_dir / "cases" / f"{project_type}-{database}" / "result.json",
-                        {"database": database, "error": str(exc), "ok": False, "projectType": project_type},
+                        evidence_dir / "cases" / case_name(project_type, database, admin) / "result.json",
+                        {"admin": admin, "database": database, "error": str(exc), "ok": False, "projectType": project_type},
                     )
                 finally:
                     if case_project.exists():
