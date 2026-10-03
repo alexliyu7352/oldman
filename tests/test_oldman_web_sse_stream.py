@@ -31,8 +31,6 @@ from oldman.web.sse import (
 from oldman.web.sse.connection import SSEBackpressureError, SSEConnection, SSEWriter
 from oldman.web.sse.pool import SSEConnectionPool
 
-conf.__dict__.setdefault("settings", DefaultSettings())
-
 
 class LocalStatus(MsgspecModel, kw_only=True):
     """Representative strongly typed local event payload."""
@@ -130,6 +128,8 @@ class FakeRequest:
 
 class SSEStreamTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
+        # Its own settings, restored afterwards: one published at import time served every later module too.
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
         self.app = Sanic(f"oldman-sse-stream-{time.time_ns()}")
         self.extension = SSEExtension()
         self.extension.init_app(self.app)

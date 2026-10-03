@@ -26,8 +26,6 @@ from oldman.conf.schemas import DefaultSettings
 
 # Web consumers intentionally require project settings before import. Preserve an
 # existing project instance, but provide the same bootstrap order in isolated tests.
-conf.__dict__.setdefault("settings", DefaultSettings())
-
 from oldman.logging import LOGGING_CONFIG_DEFAULTS
 from oldman.runtime import ServiceBootstrapContext
 from oldman.runtime.web import (

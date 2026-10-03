@@ -16,7 +16,8 @@ import msgspec
 from sanic import Request, Sanic
 from sanic.response import BaseHTTPResponse, empty, text
 
-from oldman.conf.schemas import RedisConfig
+import oldman.conf as conf
+from oldman.conf.schemas import DefaultSettings, RedisConfig
 from oldman.providers.redis import RedisClientRegistry
 from oldman.serializers import MsgspecModel
 from oldman.web.session import DefaultSessionInterface, Session, SessionData, get_session_data
@@ -87,6 +88,7 @@ class RedisSessionIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self) -> None:
         """Create a fresh registry and initialized typed interface per test."""
+        self.enterContext(patch.dict(conf.__dict__, {"settings": DefaultSettings()}))
         redis_url = f"unix://{self._socket_path.as_posix()}?db=0"
         config = RedisConfig.model_validate(
             {

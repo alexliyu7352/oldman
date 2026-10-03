@@ -24,13 +24,9 @@ from unittest.mock import patch
 import billiard
 from sqlalchemy import text
 
-import oldman.conf as conf
-from oldman.conf.schemas import DatabaseConfig, DefaultSettings
-
 # Spawned test processes import this module again, so mirror project bootstrap.
-conf.__dict__.setdefault("settings", DefaultSettings())
-
 import oldman.processes.executor as process_module
+from oldman.conf.schemas import DatabaseConfig
 from oldman.db import DatabaseManager
 from oldman.logging import ChildLoggingContext, get_active_runtime, init_logging, logger
 from oldman.processes.executor import AsyncProcessManager, ParentLogPipeReader, ProcessTimeoutError
