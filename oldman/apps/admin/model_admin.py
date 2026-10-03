@@ -25,6 +25,7 @@ from oldman.db import APP_LABEL_INFO_KEY, ModelMetadata, explicit_primary_key_co
 from oldman.i18n import gettext, gettext_lazy
 from oldman.web.auth.permissions import has_perm
 from oldman.web.auth.tables import user_cell_value, user_row_actions
+from oldman.web.auth.user_management import user_change_text
 from oldman.web.authentication import request_user
 from oldman.web.components.forms.models import model_field_for_column
 from oldman.web.components.tables import Column as WebTableColumn
@@ -524,11 +525,7 @@ class AdminUserModelAdmin(ModelAdmin):
             "url": self.get_object_url(instance, admin_prefix=admin_prefix, action="edit"),
             "notification": {
                 "title": gettext("User created") if created else gettext("User saved"),
-                "description": (
-                    gettext("%(username)s can now access the dashboard.", username=username)
-                    if created
-                    else gettext("%(username)s profile was updated.", username=username)
-                ),
+                "description": user_change_text("created" if created else "saved", username=username),
                 "tone": "success" if created else "primary",
                 "icon": "ri-user-add-line" if created else "ri-settings-3-line",
                 "href": f"{admin_prefix}/{self.model_path}",

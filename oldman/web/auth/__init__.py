@@ -38,11 +38,12 @@ from oldman.web.auth.password_reset import (
     PasswordResetRequestForm,
     RequestOutcome,
 )
-from oldman.web.auth.permissions import has_perm, permissions_not_held, require_perm, role_ids_for_login, roles_installed
+from oldman.web.auth.permissions import can_manage_user, has_perm, permissions_not_held, require_perm, role_ids_for_login, roles_installed
 from oldman.web.auth.redirects import safe_next_url
 from oldman.web.auth.session import end_user_logins, revoke_user_logins, session_data_for_user
 from oldman.web.auth.tables import UserTable, user_cell_value, user_row_actions
 from oldman.web.auth.tokens import TokenFlow
+from oldman.web.auth.user_management import UserManagementFlow, finish_user_change, user_change_text
 from oldman.web.auth.user_session import (
     SIGN_IN_AGAIN_DELAY_MS,
     UserSessionProfile,
@@ -70,13 +71,16 @@ __all__ = [
     "SessionPasswordForm",
     "TokenFlow",
     "UserFilterForm",
+    "UserManagementFlow",
     "UserModelForm",
     "UserPasswordForm",
     "UserSessionProfile",
     "authenticated_session",
+    "can_manage_user",
     "UserTable",
     "api_login_required",
     "authenticated_by",
+    "finish_user_change",
     "form_value",
     "has_perm",
     "permissions_not_held",
@@ -101,6 +105,7 @@ __all__ = [
     "superuser_required",
     "update_session_password",
     "user_cell_value",
+    "user_change_text",
     "user_create_form_class",
     "user_delete_modal_response",
     "user_edit_form_class",

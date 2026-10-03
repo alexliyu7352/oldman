@@ -76,6 +76,16 @@ def authenticated_session(request: Any) -> SessionData
 
 The request's signed-in browser session; a page about "this session" needs one.
 
+## `can_manage_user`
+
+function · defined in `oldman.web.auth.permissions`
+
+```python
+def can_manage_user(request: Any, target: Any=None, *, makes_privileged: bool=False) -> bool
+```
+
+Whether the request's user may change this account.
+
 ## `end_user_logins`
 
 function · defined in `oldman.web.auth.session`
@@ -85,6 +95,16 @@ async def end_user_logins(user_id: int) -> None
 ```
 
 End every session and token one user holds, where there is no request.
+
+## `finish_user_change`
+
+function · defined in `oldman.web.auth.user_management`
+
+```python
+async def finish_user_change(request: Any, user_id: int, *, login_url: str) -> Response | None
+```
+
+End the account's logins after a change to what it may do; the answer when that was the operator's own.
 
 ## `form_value`
 
@@ -480,6 +500,16 @@ def user_cell_value(user: Any, field_name: str, *, edit_url: str | None=None) ->
 
 Display value for the standard User columns; None for any other field so the caller can fall back.
 
+## `user_change_text`
+
+function · defined in `oldman.web.auth.user_management`
+
+```python
+def user_change_text(change: UserChange, *, username: str, request: Any=None) -> str
+```
+
+The sentence the Admin and a dashboard both show after changing an account.
+
 ## `user_create_form_class`
 
 function · defined in `oldman.web.auth.forms`
@@ -539,6 +569,30 @@ class UserFilterForm(TailwindTableFilterForm)
 ```
 
 Filter a configured User table: search, the three flags and a last-login range.
+
+## `UserManagementFlow`
+
+class · defined in `oldman.web.auth.user_management`
+
+```python
+class UserManagementFlow
+```
+
+A dashboard's user pages: list with filters, create, edit, password, enable or disable, delete.
+
+Members:
+
+- `base_path: str`
+- `login_path: str`
+- `user_model: type[Any] | None = None`
+- `auth_settings: AuthSettings | None = None`
+- `db_manager: DatabaseManager | None = None`
+- `def model() -> type[Any]` — The User model the pages manage.
+- `def database() -> DatabaseManager` — Where the users live, the process's database by default.
+- `def object_url(user: Any, action: str) -> str` — `edit`, `password`, `password-modal`, `status`, `status-modal`, `delete` or `delete-modal` for one user.
+- `def table_class(name_prefix: str='') -> type[UserTable]` — The user table data endpoint at `<base_path>/table`, refusing anyone without `auth.users.view`.
+- `def activity(request: Any, title: str, description: str, *, tone: str, icon: str) -> DashboardActivityAction` — The topbar's activity entry for one change.
+- `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, name_prefix: str='') -> None` — Install the pages, the table data endpoint, the modals and their submits under `base_path`.
 
 ## `UserModelForm`
 
@@ -820,3 +874,17 @@ Members:
 - `async def filter_is_superuser(query: Any, value: object, table_request: Any)`
 - `async def filter_last_login_from(query: Any, value: object, table_request: Any)`
 - `async def filter_last_login_to(query: Any, value: object, table_request: Any)`
+
+## Module `oldman.web.auth.user_management`
+
+Managing other users' accounts: the rules every site applies, and a dashboard's user pages.
+
+Import with `from oldman.web.auth.user_management import <name>`.
+
+### `UserChange`
+
+value · defined in `oldman.web.auth.user_management`
+
+```python
+UserChange = Literal['created', 'saved', 'password', 'enabled', 'disabled', 'deleted']
+```

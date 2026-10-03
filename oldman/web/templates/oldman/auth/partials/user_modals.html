@@ -1,0 +1,22 @@
+{#-
+  The three modals a user list's row menu opens (oldman.web.auth.tables.USER_MODAL_TARGETS): change
+  password, enable or disable, delete. The built-in Admin's list and a dashboard's user page both include it.
+-#}
+{% from "oldman/dashboard/components/modal.html" import modal %}
+{% for modal_id, title in (
+  ("user-password-modal", _("Change Password")),
+  ("user-status-modal", _("Change Status")),
+  ("user-delete-modal", _("Delete User")),
+) %}
+  {% call modal(
+    modal_id,
+    title,
+    component="modal",
+    close_label=_("Close"),
+    dialog_scrollable=true,
+    inline_hidden_style=true,
+    remote_content=true
+  ) %}
+    <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
+  {% endcall %}
+{% endfor %}

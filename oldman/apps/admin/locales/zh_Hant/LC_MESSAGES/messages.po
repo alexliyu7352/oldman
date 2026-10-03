@@ -129,8 +129,8 @@ msgid "User saved"
 msgstr "使用者已儲存"
 
 #, python-format
-msgid "%(username)s can now access the dashboard."
-msgstr "%(username)s 現在可以存取管理面板。"
+msgid "%(username)s was created."
+msgstr "已建立 %(username)s。"
 
 #, python-format
 msgid "%(username)s profile was updated."
@@ -185,8 +185,8 @@ msgid "User deleted"
 msgstr "使用者已刪除"
 
 #, python-format
-msgid "%(username)s was removed from dashboard access."
-msgstr "已移除 %(username)s 的管理面板存取權限。"
+msgid "%(username)s was deleted."
+msgstr "已刪除 %(username)s。"
 
 msgid "Password changed"
 msgstr "密碼已變更"
@@ -209,14 +209,12 @@ msgid "User status updated"
 msgstr "使用者狀態已更新"
 
 #, python-format
-msgid "%(username)s is now %(status)s."
-msgstr "%(username)s 現在為%(status)s狀態。"
+msgid "%(username)s is now active."
+msgstr "%(username)s 現在已啟用。"
 
-msgid "active"
-msgstr "啟用"
-
-msgid "disabled"
-msgstr "停用"
+#, python-format
+msgid "%(username)s is now disabled."
+msgstr "%(username)s 現在已停用。"
 
 msgid "Authentication required"
 msgstr "需要登入"
@@ -678,8 +676,8 @@ msgstr "有人申請重設你的 %(site_name)s 帳號密碼。開啟下面的連
 msgid "The link stays valid for %(hours)s hours. If you did not ask for this, ignore this message; your password stays as it is."
 msgstr "連結 %(hours)s 小時內有效。如果不是你本人申請，忽略這封郵件即可，密碼不會改變。"
 
-msgid "Can open the dashboard"
-msgstr "可以進入後台"
+msgid "Staff member; can sign in to the Admin"
+msgstr "工作人員，可以登入 Admin"
 
 #: oldman/apps/admin/commands.py
 msgid "User updated"

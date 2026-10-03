@@ -128,7 +128,10 @@ class OldmanAdminBoundaryTest(unittest.TestCase):
 
         self.assertIn('data-om-component="feedback"', list_template)
         self.assertNotIn("form-modal", list_template)
-        self.assertIn('"user-delete-modal"', list_template)
+        # The three row modals come from one shared partial the dashboard's user page includes too.
+        self.assertIn('{% include "oldman/auth/partials/user_modals.html" %}', list_template)
+        user_modals = (auth_partials / "user_modals.html").read_text(encoding="utf-8")
+        self.assertIn('"user-delete-modal"', user_modals)
         self.assertIn('data-om-component="form"', password_template)
         self.assertIn('data-om-component="form-validator"', password_template)
         self.assertIn("data-om-form-validate", password_template)

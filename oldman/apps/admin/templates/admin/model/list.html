@@ -1,5 +1,4 @@
 {% extends "admin/base.html" %}
-{% from "oldman/dashboard/components/modal.html" import modal %}
 {% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
 {% block title %}{{ model_admin.verbose_name_plural }} · Oldman Admin{% endblock %}
@@ -33,41 +32,6 @@
   </div>
 
   {% if admin_user_management %}
-    {% call modal(
-      "user-password-modal",
-      _("Change Password"),
-      component="modal",
-      close_label=_("Close"),
-      dialog_scrollable=true,
-      remote_content=true
-    ) %}
-      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
-    {% endcall %}
-  {% endif %}
-
-  {% if admin_user_management %}
-    {% call modal(
-      "user-status-modal",
-      _("Change Status"),
-      component="modal",
-      close_label=_("Close"),
-      dialog_scrollable=true,
-      remote_content=true
-    ) %}
-      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
-    {% endcall %}
-  {% endif %}
-
-  {% if admin_user_management %}
-    {% call modal(
-      "user-delete-modal",
-      _("Delete User"),
-      component="modal",
-      close_label=_("Close"),
-      dialog_scrollable=true,
-      remote_content=true
-    ) %}
-      <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
-    {% endcall %}
+    {% include "oldman/auth/partials/user_modals.html" %}
   {% endif %}
 {% endblock %}

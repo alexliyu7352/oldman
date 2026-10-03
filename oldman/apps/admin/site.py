@@ -19,14 +19,13 @@ from oldman.apps.admin.model_admin import (
     ModelAdmin,
     request_user_id,
 )
-from oldman.apps.admin.permissions import has_admin_permission, is_superuser
+from oldman.apps.admin.permissions import has_admin_permission
 from oldman.apps.admin.settings import AdminSettings
 from oldman.apps.admin.table import AdminModelTable, _AdminUserModelTable
 from oldman.auth import (
     AuthSettings,
     UserManagementError,
     has_staff_access,
-    is_ordinary_user,
     user_access_flags,
     user_identity,
 )
@@ -37,12 +36,9 @@ from oldman.i18n.translations import gettext
 from oldman.web.api import (
     ApiErrorCode,
     DefaultApiResponse,
-    FeedbackAction,
-    RedirectAction,
     accepts_html_form_response,
     accepts_json_form_response,
     form_error_response,
-    form_response,
     form_saved_response,
     form_success_response,
     modal_not_found_response,
@@ -50,15 +46,15 @@ from oldman.web.api import (
     modal_success_response,
 )
 from oldman.web.auth import (
-    SIGN_IN_AGAIN_DELAY_MS,
     AccountFlow,
     PasswordResetFlow,
-    revoke_user_logins,
     user_delete_modal_response,
     user_status_modal_response,
 )
 from oldman.web.auth.login import LoginFlow, LoginRateLimit, form_value
 from oldman.web.auth.password_reset import RateLimiter
+from oldman.web.auth.permissions import can_manage_user
+from oldman.web.auth.user_management import finish_user_change, user_change_text
 from oldman.web.exceptions import NotFound
 from oldman.web.http import access_denied_response, resolve_response_mode
 from oldman.web.i18n import current_language, language_menu_items, language_registry
@@ -576,7 +572,8 @@ class AdminSite:
                     # operator's own row can only gain access here (the form refuses taking
                     # it away); that ends the operator's session too, and the redirect below
                     # then lands on the login page. It runs before the project's hook, which may fail.
-                    await revoke_user_logins(request, user_identity(instance))
+                    # The edit answers with a redirect, which then lands on the login page by itself.
+                    await finish_user_change(request, user_identity(instance), login_url=login_path)
                 failed = await run_after_save(current_admin, request, instance, created=False)
                 if failed is not None:
                     return failed
@@ -646,7 +643,7 @@ class AdminSite:
                         return await access_denied_response(request, login_url=login_path)
                     if user_admin is not None:
                         # Staff and superuser accounts are managed by superusers only.
-                        if not is_superuser(request) and not is_ordinary_user(instance):
+                        if not can_manage_user(request, instance):
                             return form_error_response(gettext("Permission denied", request=request))
                         try:
                             user_admin.validate_delete(instance, current_user_id=request_user_id(request))
@@ -659,7 +656,7 @@ class AdminSite:
                 if user_admin is not None:
                     # The deleted user's logins end before the project's hook, which may fail.
                     assert target_user_id is not None
-                    await revoke_user_logins(request, target_user_id)
+                    await finish_user_change(request, target_user_id, login_url=login_path)
                 await current_admin.after_delete(request, instance)
                 if user_admin is not None:
                     assert username is not None
@@ -668,11 +665,7 @@ class AdminSite:
                         table_target=f"#admin-{current_admin.model_path}-table",
                         notification={
                             "title": gettext("User deleted", request=request),
-                            "description": gettext(
-                                "%(username)s was removed from dashboard access.",
-                                request=request,
-                                username=username,
-                            ),
+                            "description": user_change_text("deleted", username=username, request=request),
                             "tone": "danger",
                             "icon": "ri-delete-bin-line",
                             "href": f"{prefix}/{current_admin.model_path}",
@@ -727,7 +720,7 @@ class AdminSite:
                         )
                     if not await current_admin.has_change_permission(request, instance):
                         return await access_denied_response(request, login_url=login_path)
-                    if not is_superuser(request) and not is_ordinary_user(instance):
+                    if not can_manage_user(request, instance):
                         return form_error_response(gettext("Permission denied", request=request))
                     form = current_admin.build_password_form(request, session=session)
                     if not await form.validate():
@@ -738,30 +731,16 @@ class AdminSite:
                     target_user_id = user_identity(instance)
                 # The same rule as every other password path: the sessions opened under the old
                 # password end with it. An operator who changed their own row ends their own.
-                signed_self_out = await revoke_user_logins(request, target_user_id)
+                signed_out = await finish_user_change(request, target_user_id, login_url=login_path)
                 await current_admin.after_save(request, instance, created=False)
-                if signed_self_out:
-                    return form_response(
-                        gettext("Password changed", request=request),
-                        actions=[
-                            FeedbackAction(
-                                title=gettext("Password changed", request=request),
-                                text=gettext("Your password was updated. Please sign in again.", request=request),
-                                icon="success",
-                            ),
-                            RedirectAction(url=login_path, delay_ms=SIGN_IN_AGAIN_DELAY_MS),
-                        ],
-                    )
+                if signed_out is not None:
+                    return signed_out
                 return admin_modal_success_response(
                     gettext("Password changed", request=request),
                     table_target=f"#admin-{current_admin.model_path}-table",
                     notification={
                         "title": gettext("Password changed", request=request),
-                        "description": gettext(
-                            "%(username)s was signed out and needs the new password.",
-                            request=request,
-                            username=username,
-                        ),
+                        "description": user_change_text("password", username=username, request=request),
                         "tone": "success",
                         "icon": "ri-lock-password-line",
                         "href": f"{prefix}/{current_admin.model_path}",
@@ -805,7 +784,7 @@ class AdminSite:
                         )
                     if not await current_admin.has_change_permission(request, instance):
                         return await access_denied_response(request, login_url=login_path)
-                    if not is_superuser(request) and not is_ordinary_user(instance):
+                    if not can_manage_user(request, instance):
                         return form_error_response(gettext("Permission denied", request=request))
                     target_active = form_value(request, "is_active").strip().lower() in {"1", "true", "yes", "on"}
                     try:
@@ -819,19 +798,14 @@ class AdminSite:
                 if not target_active:
                     # Also when the user was disabled already: one disabled before disabling
                     # ended logins may still hold some.
-                    await revoke_user_logins(request, target_user_id)
+                    await finish_user_change(request, target_user_id, login_url=login_path)
                 await current_admin.after_save(request, instance, created=False)
                 return admin_modal_success_response(
                     gettext("User status updated", request=request),
                     table_target=f"#admin-{current_admin.model_path}-table",
                     notification={
                         "title": gettext("User status updated", request=request),
-                        "description": gettext(
-                            "%(username)s is now %(status)s.",
-                            request=request,
-                            username=username,
-                            status=(gettext("active", request=request) if target_active else gettext("disabled", request=request)),
-                        ),
+                        "description": user_change_text("enabled" if target_active else "disabled", username=username, request=request),
                         "tone": "warning",
                         "icon": "ri-toggle-line",
                         "href": f"{prefix}/{current_admin.model_path}",

@@ -1,0 +1,31 @@
+{#-
+  A dashboard's create and edit page for one user: the project's base.html around the shared user form.
+  Context from UserManagementFlow: form, user (None when creating), action, users_url.
+-#}
+{% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% block title %}{{ _("New User") if user is none else _("Edit User") }}{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    {% call page_head(_("New User") if user is none else _("Edit User")) %}
+      <a href="{{ users_url }}" class="om-button om-button-secondary">
+        <i class="ri-arrow-left-line" aria-hidden="true"></i>{{ _("Users") }}
+      </a>
+    {% endcall %}
+
+    <div class="om-card">
+      <div class="om-card-body">
+        <div id="users-form-feedback" data-om-component="feedback"></div>
+        {{ form.render(
+          action=action,
+          cancel_url=users_url,
+          form_mode="json",
+          validate=True,
+          feedback_target="#users-form-feedback"
+        ) }}
+      </div>
+    </div>
+  </div>
+{% endblock %}

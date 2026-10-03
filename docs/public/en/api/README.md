@@ -43,7 +43,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.utils`](oldman.utils.md) | 14 | @author:alex |
 | [`oldman.web`](oldman.web.md) | 45 | Lightweight public Web primitives for Oldman applications. |
 | [`oldman.web.api`](oldman.web.api.md) | 24 | Public browser response protocol. |
-| [`oldman.web.auth`](oldman.web.auth.md) | 67 | Public Web authentication adapters. |
+| [`oldman.web.auth`](oldman.web.auth.md) | 72 | Public Web authentication adapters. |
 | [`oldman.web.authentication`](oldman.web.authentication.md) | 39 | Request authentication: who is calling, and how they proved it. |
 | [`oldman.web.components`](oldman.web.components.md) | 5 | @author:alex |
 | [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | 后端 Chart 组件封装入口。 |

@@ -18,6 +18,7 @@ from typing import Any
 from redis.exceptions import RedisError
 from sanic.exceptions import ServiceUnavailable
 
+from oldman.auth import is_ordinary_user
 from oldman.auth.permissions import Permission
 from oldman.db import DatabaseManager
 from oldman.i18n import gettext
@@ -87,6 +88,20 @@ async def require_perm(request: Any, permission: Permission, *, db_manager: Data
         raise Forbidden(gettext("Permission denied", request=request))
 
 
+def can_manage_user(request: Any, target: Any = None, *, makes_privileged: bool = False) -> bool:
+    """Whether the request's user may change this account.
+
+    A superuser may change any. Anyone else only ordinary accounts (neither staff nor
+    superuser), and may not make one staff or superuser. `target` is None when the account
+    is being created; `makes_privileged` says whether the change would give it either flag.
+    """
+    if request_user(request).is_superuser:
+        return True
+    if target is not None and not is_ordinary_user(target):
+        return False
+    return not makes_privileged
+
+
 def roles_installed(app: Any) -> bool:
     """Whether the service installs ``oldman.apps.roles``: without it there are no roles to read or assign."""
     registry = getattr(getattr(app, "ctx", None), "app_registry", None)
@@ -102,4 +117,4 @@ async def role_ids_for_login(request: Any, user_id: int, *, db_manager: Database
     return await user_role_ids(user_id, db_manager=db_manager)
 
 
-__all__ = ["has_perm", "permissions_not_held", "require_perm", "role_ids_for_login", "roles_installed"]
+__all__ = ["can_manage_user", "has_perm", "permissions_not_held", "require_perm", "role_ids_for_login", "roles_installed"]

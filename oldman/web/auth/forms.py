@@ -11,11 +11,10 @@ from sqlalchemy import inspect as sqlalchemy_inspect
 from wtforms import BooleanField, DateTimeLocalField, PasswordField, SelectField, StringField
 from wtforms.validators import DataRequired, InputRequired, Length, Optional, Regexp, ValidationError
 
-from oldman.auth import is_ordinary_user, normalize_email, user_identity, user_identity_matches
+from oldman.auth import normalize_email, user_identity, user_identity_matches
 from oldman.db import explicit_primary_key_column, session_dialect
 from oldman.i18n import gettext, gettext_lazy
-from oldman.web.auth.permissions import permissions_not_held, roles_installed
-from oldman.web.authentication import request_user
+from oldman.web.auth.permissions import can_manage_user, permissions_not_held, roles_installed
 from oldman.web.components.forms import (
     CheckboxGroupField,
     CheckboxWidget,
@@ -285,12 +284,12 @@ class UserModelForm(TailwindModelForm):
     async def clean(self) -> None:
         """Keep other operators to ordinary accounts, protect the current user and validate password confirmation."""
         await super().clean()
-        # Only a superuser may touch a staff or superuser account, or make one. A form bound
-        # to no request has no operator to go by, and refuses as it would for anyone else.
-        if not request_user(self.request).is_superuser:
-            makes_privileged = bool(self.cleaned_data.get("is_staff") or self.cleaned_data.get("is_superuser"))
-            if makes_privileged or (self.instance is not None and not is_ordinary_user(self.instance)):
-                raise ValidationError(gettext("Permission denied"))
+        # Only a superuser may touch a staff or superuser account, or make one (the rule every
+        # user-management path applies). A form bound to no request has no operator to go by,
+        # and refuses as it would for anyone else.
+        makes_privileged = bool(self.cleaned_data.get("is_staff") or self.cleaned_data.get("is_superuser"))
+        if not can_manage_user(self.request, self.instance, makes_privileged=makes_privileged):
+            raise ValidationError(gettext("Permission denied"))
         if self.instance is not None and user_identity_matches(self.instance, self.current_user_id):
             if self.cleaned_data.get("is_active") is False:
                 self.add_error("is_active", gettext("cannot disable current user"))
@@ -396,7 +395,7 @@ def _user_model_form_class(
             render_kw={"maxlength": 150},
         ),
         "is_active": BooleanField(cast(str, gettext_lazy("Active")), description=cast(str, gettext_lazy("Can sign in"))),
-        "is_staff": BooleanField(cast(str, gettext_lazy("Staff")), description=cast(str, gettext_lazy("Can open the dashboard"))),
+        "is_staff": BooleanField(cast(str, gettext_lazy("Staff")), description=cast(str, gettext_lazy("Staff member; can sign in to the Admin"))),
         "is_superuser": BooleanField(cast(str, gettext_lazy("Superuser")), description=cast(str, gettext_lazy("Has every permission"))),
         # Dropped per form where the service has no roles App; choices come from the database.
         "roles": CheckboxGroupField(cast(str, gettext_lazy("Roles")), coerce=int, choices=[]),

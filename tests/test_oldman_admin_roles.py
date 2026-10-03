@@ -366,7 +366,7 @@ class UserRolesTest(AdminWithRolesCase):
         return {"username": "alice", "email": "", "display_name": "", "is_active": "y", "is_staff": "y", **roles}
 
     async def save_user(self, form: dict[str, Any]) -> Any:
-        with patch("oldman.apps.admin.site.revoke_user_logins", AsyncMock()) as revoke:
+        with patch("oldman.web.auth.user_management.revoke_user_logins", AsyncMock()) as revoke:
             response = await self.call(USER_EDIT_PATH, ("POST",), self.post(USER_EDIT_PATH, form), object_id="12")
         self.assertEqual(0, json.loads(response.body)["error_code"], response.body)
         return revoke
@@ -394,7 +394,7 @@ class UserRolesTest(AdminWithRolesCase):
 
         async def save(*roles: str) -> int:
             form = {"username": "bob", "email": "", "display_name": "", "is_active": "y", "roles": [str(self.role_ids[name]) for name in roles]}
-            with grants(*USER_MANAGEMENT, "role_admin_test.view"), patch("oldman.apps.admin.site.revoke_user_logins", AsyncMock()):
+            with grants(*USER_MANAGEMENT, "role_admin_test.view"), patch("oldman.web.auth.user_management.revoke_user_logins", AsyncMock()):
                 response = await self.call(path, ("POST",), self.post(path, form, staff_session()), object_id="13")
             return json.loads(response.body)["error_code"]
 

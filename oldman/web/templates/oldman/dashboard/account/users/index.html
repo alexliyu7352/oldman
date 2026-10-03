@@ -1,0 +1,29 @@
+{#-
+  A dashboard's user list: the project's base.html around filters, the user table and the row modals.
+  Context from UserManagementFlow: table, filter_form, users_url, new_url.
+-#}
+{% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% block title %}{{ _("Users") }}{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    {% call page_head(_("Users")) %}
+      <a href="{{ new_url }}" class="om-button om-button-primary"><i class="ri-user-add-line" aria-hidden="true"></i>{{ _("New User") }}</a>
+    {% endcall %}
+
+    {{ filter_form.render(method="get", table_target="#users-table") }}
+    <div id="users-feedback" data-om-component="feedback"></div>
+    <div class="om-card om-table-card">
+      <div class="om-card-header">
+        <h2 class="om-card-title">{{ _("Users List") }}</h2>
+      </div>
+      <div class="om-card-body">
+        {{ table.render_shell(html_id="users-table", show_search=False, data_format="json") }}
+      </div>
+    </div>
+  </div>
+
+  {% include "oldman/auth/partials/user_modals.html" %}
+{% endblock %}
