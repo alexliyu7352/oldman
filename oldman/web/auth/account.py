@@ -178,7 +178,7 @@ def account_urls(request: Any = None) -> dict[str, Any]:
     """The site's account addresses for templates (a dashboard's topbar, base and error pages), from the settings.
 
     `home` is where a sign-in lands (`web.account.login_redirect_url`), the dashboard's own front
-    page. `user_events` is set only while `web.sse.enabled`; `notifications` holds the `center` and
+    page; `users` is user management (`web.account.users_url`). `user_events` is set only while `web.sse.enabled`; `notifications` holds the `center` and
     `topbar` URLs once the site installed notifications (`init_app` without a prefix).
     """
     account = conf.settings.web.account
@@ -195,6 +195,7 @@ def account_urls(request: Any = None) -> dict[str, Any]:
         "login": account.login_url,
         "logout": account.logout_url,
         "profile": account.profile_url,
+        "users": account.users_url,
         "password_reset": account.password_reset_url,
         "user_events": account.user_events_url if conf.settings.web.sse.enabled else None,
         "notifications": notifications,

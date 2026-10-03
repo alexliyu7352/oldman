@@ -176,7 +176,7 @@ class AccountUrlsTest(unittest.TestCase):
     def test_the_addresses_come_from_the_settings(self) -> None:
         settings = settings_with_sse(False)
         settings.web.account = AccountConfig(
-            login_url="/signin", profile_url="/me", password_reset_url="/signin/reset", login_redirect_url="/console"
+            login_url="/signin", profile_url="/me", password_reset_url="/signin/reset", login_redirect_url="/console", users_url="/people"
         )
         with patch.dict(conf.__dict__, {"settings": settings}):
             urls = account_urls(make_request(cast(Any, FakeApp()), path="/"))
@@ -187,6 +187,7 @@ class AccountUrlsTest(unittest.TestCase):
                 "login": "/signin",
                 "logout": "/logout",
                 "profile": "/me",
+                "users": "/people",
                 "password_reset": "/signin/reset",
                 "user_events": None,
                 "notifications": None,
