@@ -311,7 +311,6 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         self.assertIn(("/control/user-session/password-modal", ("GET",)), app.routes)
         self.assertIn(("/control/user-session/password", ("POST",)), app.routes)
         self.assertIn(("/control/preferences/language", ("POST",)), app.routes)
-        self.assertIn(("/control/user-session/language", ("POST",)), app.routes)
         self.assertTrue(any(path == "/control/test_oldman_admin_runtime_record/table" for path, _methods in app.routes))
         self.assertEqual([], app.static_routes)
 
@@ -330,8 +329,7 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
             db_manager=default_db_manager,
             auth_settings=DEFAULT_AUTH_SETTINGS,
             admin_settings=DEFAULT_ADMIN_SETTINGS,
-            notifications_enabled=False,
-            sse_enabled=False,
+            notification_routes=None,
             password_reset_rate_limiter=None,
             login_rate_limit=sign_in_limit,
         )
@@ -713,24 +711,22 @@ class OldmanAdminRuntimeTest(unittest.TestCase):
         )
         self.assertEqual("admin", session.username)
 
-        alias_request = make_request(
-            app,
-            path="/control/user-session/language",
-            session=session,
-        )
-        alias_request.method = "POST"
-        alias_request.json = {"language": "en"}
-        alias_request.headers = {
-            "X-CSRFToken": app.ctx.csrf.generate_token(alias_request),
+        # A visitor who has not signed in saves a choice too: the login page has a language switcher.
+        anonymous_request = make_request(app, path="/control/preferences/language", session=FakeSession())
+        anonymous_request.method = "POST"
+        anonymous_request.json = {"language": "en"}
+        anonymous_request.headers = {
+            "X-CSRFToken": app.ctx.csrf.generate_token(anonymous_request),
             "content-type": "application/json",
             "Origin": "http://example.test",
         }
-        alias_handler = app.route_handlers[("/control/user-session/language", ("POST",))]
 
-        alias_response = asyncio.run(alias_handler(alias_request))  # type: ignore[operator]
+        anonymous_response = asyncio.run(handler(anonymous_request))  # type: ignore[operator]
 
-        self.assertEqual(200, alias_response.status)
-        self.assertEqual("en", json.loads(alias_response.body)["data"]["language"])
+        self.assertEqual(200, anonymous_response.status)
+        self.assertEqual("en", json.loads(anonymous_response.body)["data"]["language"])
+        # One endpoint for the choice; the old second path is gone.
+        self.assertNotIn(("/control/user-session/language", ("POST",)), app.routes)
 
     def test_current_session_page_reads_typed_snapshot_without_database_access(self) -> None:
         """Admin Session 页面只消费登录快照，并复用共享页面与账户菜单。"""

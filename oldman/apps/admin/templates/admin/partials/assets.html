@@ -1,4 +1,4 @@
-{# The Admin bundle and the project's extension bundle; the Admin shell and its auth pages both load them. #}
+{# The Admin bundle and the project's extension bundle; the Admin shell and its auth pages both load them. -#}
 {% set extension_bundle_name = admin_extension_bundle_name | default(none) %}
 {{ bundle_client(admin_bundle_name) }}
 {% if extension_bundle_name %}

@@ -1,0 +1,15 @@
+{#
+  The notification center in a dashboard: the project's base.html around the shared center content
+  (notification_center_content, from AccountFlow).
+-#}
+{% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% block title %}{{ _("User notifications") }}{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    {{ page_head(_("User notifications")) }}
+    {{ notification_center_content }}
+  </div>
+{% endblock %}

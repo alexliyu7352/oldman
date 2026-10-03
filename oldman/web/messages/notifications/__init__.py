@@ -12,7 +12,7 @@ from oldman.web.messages.notifications.rendering import (
     render_center_content,
     render_topbar_fragment,
 )
-from oldman.web.messages.notifications.runtime import NotificationRoutes, init_app
+from oldman.web.messages.notifications.runtime import NotificationRoutes, init_app, installed_routes
 from oldman.web.messages.notifications.service import (
     NOTIFICATION_CREATED_EVENT,
     NOTIFICATION_PUSH_EVENT,
@@ -32,6 +32,7 @@ __all__ = [
     "NotificationState",
     "NotificationSyncPayload",
     "init_app",
+    "installed_routes",
     "notifications",
     "render_center_content",
     "render_topbar_fragment",

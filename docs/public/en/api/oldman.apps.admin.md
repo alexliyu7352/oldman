@@ -34,7 +34,7 @@ Members:
 - `def each_model_admin() -> list[RegisteredModelAdmin]` — Return registered admins in menu order.
 - `async def menu_items(request: Any) -> list[dict[str, Any]]` — Return neutral menu metadata for the models this request may view, under the installed prefix.
 - `async def menu_groups(request: Any) -> list[dict[str, Any]]` — Group the models this request may view under their owning App for sidebar rendering.
-- `def register_routes(app: WebApp, *, db_manager: DatabaseManager | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, notifications_enabled: bool=False, sse_enabled: bool=False, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> str | None` — Install neutral Admin CRUD routes into a Sanic app, under `admin_settings.prefix`.
+- `def register_routes(app: WebApp, *, db_manager: DatabaseManager | None=None, auth_settings: AuthSettings | None=None, admin_settings: AdminSettings | None=None, notification_routes: NotificationRoutes | None=None, password_reset_rate_limiter: RateLimiter | None=None, login_rate_limit: LoginRateLimit | None=None) -> str | None` — Install neutral Admin CRUD routes into a Sanic app, under `admin_settings.prefix`.
 
 ## `AdminUserManagementError`
 

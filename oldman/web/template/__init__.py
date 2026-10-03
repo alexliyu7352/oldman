@@ -154,6 +154,7 @@ def register_component_filters(environment: Environment) -> None:
     template_globals(environment).setdefault("_", gettext)
     template_globals(environment).setdefault("current_year", current_year)
     # Shell partials read the language and CSRF state through these; imported lazily (they import settings).
+    from oldman.web.auth.account import account_urls
     from oldman.web.i18n.translation import current_language, language_menu_items
     from oldman.web.security.csrf.csrf_extension import CsrfExtension
     from oldman.web.security.csrf.manager import csrf_token_for
@@ -161,6 +162,8 @@ def register_component_filters(environment: Environment) -> None:
     template_globals(environment).setdefault("current_language", current_language)
     template_globals(environment).setdefault("language_menu_items", language_menu_items)
     template_globals(environment).setdefault("csrf_token_for", csrf_token_for)
+    # A dashboard's topbar and base read the site's account addresses (settings.web.account) through this.
+    template_globals(environment).setdefault("account_urls", account_urls)
     # 框架自带的表单片段用 `{% csrf_token %}`（web.md 里记的那个写法），所以这个标签必须跟着组件
     # 环境一起到位，而不是只在装了 CSRF manager 的 app 上可用。标签本身只读 request.ctx，没有别的依赖。
     environment.add_extension(CsrfExtension)

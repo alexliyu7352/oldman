@@ -8,9 +8,9 @@ request page answers the same way whether or not the address has an account; the
 from __future__ import annotations
 
 import enum
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from sanic import Sanic
 from sanic.response import HTTPResponse
@@ -33,6 +33,7 @@ from oldman.i18n import gettext_lazy
 from oldman.logging import get_logger
 from oldman.mail import send_templated_mail
 from oldman.providers.redis import redis_key
+from oldman.web.auth.flows import PageRenderer, resolve_page_renderer, session_is_authenticated
 from oldman.web.auth.forms import UserPasswordForm
 from oldman.web.auth.session import revoke_user_logins
 from oldman.web.components.forms import EmailField, TailwindForm
@@ -41,8 +42,6 @@ from oldman.web.response import redirect_response
 from oldman.web.routing import Router, router
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
 from oldman.web.security.rate_limiter import RateLimiter, redis_rate_limiter
-from oldman.web.session import SessionData
-from oldman.web.template import render_template
 
 logger = get_logger("default.web.auth.password_reset")
 
@@ -75,21 +74,6 @@ class RequestOutcome(enum.Enum):
     SENT = "sent"
     SKIPPED = "skipped"
     IP_LIMITED = "ip_limited"
-
-
-class PageRenderer(Protocol):
-    """Renders one page of the flow (`request`, `sent`, `confirm`, `invalid`, `done`) with the given context.
-
-    `register_routes` sets the status and the no-store headers on the response it gets back.
-    """
-
-    def __call__(self, request: Any, page: str, /, **context: Any) -> Awaitable[HTTPResponse]: ...
-
-
-def session_is_authenticated(request: Any) -> bool:
-    """Whether the request carries a signed-in Session; the default check for skipping the request page."""
-    session = getattr(getattr(request, "ctx", None), "session", None)
-    return isinstance(session, SessionData) and session.is_authenticated()
 
 
 @dataclass
@@ -209,24 +193,17 @@ class PasswordResetFlow:
         `app` 省略时用 `oldman.web.router` 注册——应用没有、也不需要取得服务器实例的途径。
         显式传入仍然支持:Admin 传它自己安装时拿到的那个,测试传自己的替身做隔离。
 
-        Pages render through `render(request, page, **context)` or, without one, through
-        `render_template("<template_prefix>/<page>.html")`. Either way the context carries `csrf_token`,
+        Pages (`request`, `sent`, `confirm`, `invalid`, `done`) render through
+        `render(request, page, **context)` or, without one, through
+        `render_template("<template_prefix>/<page>.html")`; this flow then sets the status and the
+        no-store headers on the response. Either way the context carries `csrf_token`,
         `login_url`, `request_url` and `expiry_hours` plus the page's own values: `form` and `action`
         on the request and confirm pages, `username` on the confirm page, `rate_limited=True` on a
         429. A browser that `is_authenticated` goes to `home_path` instead of the request page.
         Route names are `<name_prefix>password_reset`, `..._submit`, `..._sent`, `..._confirm`,
         `..._confirm_submit` and `..._done`.
         """
-        if (render is None) == (template_prefix is None):
-            raise ValueError("register_routes takes exactly one of render= or template_prefix=")
-        if render is None:
-            page_prefix = cast(str, template_prefix).rstrip("/")
-
-            async def render_page(request: Any, page: str, /, **context: Any) -> HTTPResponse:
-                return await render_template(f"{page_prefix}/{page}.html", context={"request": request, **context})
-
-            render = render_page
-        render_view = render
+        render_view = resolve_page_renderer(render, template_prefix)
 
         async def page(request: Any, name: str, *, status: int = 200, **context: Any) -> HTTPResponse:
             settings = password_reset_settings(self.auth_settings)
@@ -305,7 +282,6 @@ class PasswordResetFlow:
 
 
 __all__ = [
-    "PageRenderer",
     "PasswordResetFlow",
     "PasswordResetForm",
     "PasswordResetRequestForm",
@@ -313,5 +289,4 @@ __all__ = [
     "RequestOutcome",
     "client_ip",
     "redis_rate_limiter",
-    "session_is_authenticated",
 ]

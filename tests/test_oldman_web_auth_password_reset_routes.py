@@ -67,7 +67,7 @@ def make_flow(**overrides: Any) -> PasswordResetFlow:
 class PasswordResetRoutesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.enterContext(patch.dict(conf.__dict__, {"settings": runtime_settings()}))
-        self.enterContext(patch("oldman.web.auth.password_reset.render_template", side_effect=render_with_request_environment))
+        self.enterContext(patch("oldman.web.auth.flows.render_template", side_effect=render_with_request_environment))
         self.app = RoutesApp()
         StatelessCSRFManager(cast(Any, self.app))
 

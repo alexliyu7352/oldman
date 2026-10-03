@@ -229,4 +229,12 @@ def init_app(app: Sanic, *, url_prefix: str = "", login_url: str | None = None) 
     return routes
 
 
-__all__ = ["NotificationRoutes", "init_app"]
+def installed_routes(app: Any, *, url_prefix: str = "") -> NotificationRoutes | None:
+    """The routes `init_app` installed for this prefix on `app`, or None when it did not run there."""
+    installed = getattr(getattr(app, "ctx", None), _ROUTES_CONTEXT_ATTRIBUTE, None)
+    if not isinstance(installed, dict):
+        return None
+    return installed.get(_normalize_prefix(url_prefix))
+
+
+__all__ = ["NotificationRoutes", "init_app", "installed_routes"]

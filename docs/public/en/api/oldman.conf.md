@@ -298,6 +298,8 @@ Members:
 - `logout_url: str = Field(default='/logout', description='Signs the browser out and returns it to the login page')`
 - `login_redirect_url: str = Field(default='/', description="Where a sign-in lands without a safe 'next', and where a signed-in …`
 - `password_reset_url: str | None = Field(default=None, description='The password reset request page; set, the login page links to it (…`
+- `profile_url: str = Field(default='/user-session', description="The signed-in user's own page; changing one's own passw…`
+- `user_events_url: str = Field(default='/user-events', description='Server-sent events for the signed-in user (session ended…`
 - `classmethod def validate_paths(value: str | None, info: ValidationInfo) -> str | None` — Registered as routes and redirected to, so plain local paths.
 
 ### `APIKeyConfig`

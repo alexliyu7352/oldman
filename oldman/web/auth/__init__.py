@@ -1,5 +1,6 @@
 """Public Web authentication adapters."""
 
+from oldman.web.auth.account import AccountFlow, account_urls
 from oldman.web.auth.decorators import (
     api_login_required,
     authenticated_by,
@@ -56,9 +57,11 @@ __all__ = [
     "INVALID_CREDENTIALS",
     "RATE_LIMITED",
     "SIGN_IN_AGAIN_DELAY_MS",
+    "AccountFlow",
     "LoginFlow",
     "LoginForm",
     "LoginRateLimit",
+    "account_urls",
     "authenticate_credentials",
     "PasswordResetFlow",
     "PasswordResetForm",

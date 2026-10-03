@@ -19,6 +19,7 @@ from oldman.apps.admin.site import AdminSite
 from oldman.auth import AuthSettings
 from oldman.conf.schemas import SessionConfig, SSEConfig
 from oldman.web.messages.notifications import NotificationRoutes
+from oldman.web.sse import sse
 from tests.test_oldman_admin_runtime import (
     FakeApp,
     FakeSession,
@@ -89,8 +90,7 @@ class AdminNotificationInstallerTest(TestCase):
             db_manager=register_routes.call_args.kwargs["db_manager"],
             auth_settings=register_routes.call_args.kwargs["auth_settings"],
             admin_settings=register_routes.call_args.kwargs["admin_settings"],
-            notifications_enabled=True,
-            sse_enabled=True,
+            notification_routes=routes,
             password_reset_rate_limiter=None,
             login_rate_limit=None,
         )
@@ -120,8 +120,7 @@ class AdminNotificationInstallerTest(TestCase):
             )
 
         installer.assert_not_called()
-        self.assertFalse(register_routes.call_args.kwargs["notifications_enabled"])
-        self.assertTrue(register_routes.call_args.kwargs["sse_enabled"])
+        self.assertIsNone(register_routes.call_args.kwargs["notification_routes"])
         self.assertIsNone(app.ctx.admin_notification_routes)
 
     def test_installer_keeps_notification_http_routes_when_sse_is_disabled(self) -> None:
@@ -152,8 +151,7 @@ class AdminNotificationInstallerTest(TestCase):
             )
 
         installer.assert_called_once_with(app, url_prefix="/control", login_url="/control/login")
-        self.assertTrue(register_routes.call_args.kwargs["notifications_enabled"])
-        self.assertFalse(register_routes.call_args.kwargs["sse_enabled"])
+        self.assertIs(register_routes.call_args.kwargs["notification_routes"], routes)
         self.assertIs(app.ctx.admin_notification_routes, routes)
         self.assertIsNone(app.ctx.admin_user_events_url)
 
@@ -178,14 +176,16 @@ class AdminNotificationRoutesTest(TestCase):
     """Verify Admin wrappers own URLs, permissions, and shared rendering only."""
 
     def test_optional_routes_default_to_disabled(self) -> None:
+        """No notification routes given and SSE off in the settings: neither page is installed."""
         app = FakeApp()
         site = AdminSite("notification_defaults")
 
-        result = site.register_routes(
-            cast(Sanic, app),
-            auth_settings=AuthSettings(),
-            admin_settings=AdminSettings(),
-        )
+        with patch.dict(conf.__dict__, {"settings": runtime_settings()}):
+            result = site.register_routes(
+                cast(Sanic, app),
+                auth_settings=AuthSettings(),
+                admin_settings=AdminSettings(),
+            )
 
         self.assertIsNone(result)
         self.assertNotIn(("/admin/user-notifications", ("GET",)), app.routes)
@@ -195,12 +195,19 @@ class AdminNotificationRoutesTest(TestCase):
         app = FakeApp()
         site = AdminSite("notification_center")
 
-        site.register_routes(
-            cast(Sanic, app),
-            auth_settings=AuthSettings(),
-            admin_settings=AdminSettings(prefix="/control"),
-            notifications_enabled=True,
+        routes = NotificationRoutes(
+            topbar_url="/control/user-notifications/topbar",
+            read_url="/control/user-notifications/read",
+            delete_url="/control/user-notifications/delete",
+            center_url="/control/user-notifications",
         )
+        with patch.dict(conf.__dict__, {"settings": runtime_settings()}):
+            site.register_routes(
+                cast(Sanic, app),
+                auth_settings=AuthSettings(),
+                admin_settings=AdminSettings(prefix="/control"),
+                notification_routes=routes,
+            )
         handler = app.route_handlers[("/control/user-notifications", ("GET",))]
         staff_request = make_request(
             app,
@@ -208,7 +215,7 @@ class AdminNotificationRoutesTest(TestCase):
             session=FakeSession(user_id=17, is_active=True, is_staff=True),
         )
         with (
-            patch("oldman.apps.admin.site.render_center_content", new=AsyncMock(return_value=Markup("<section>center</section>"))) as renderer,
+            patch("oldman.web.messages.notifications.render_center_content", new=AsyncMock(return_value=Markup("<section>center</section>"))) as renderer,
             patch("oldman.apps.admin.site.render_admin_template", new=AsyncMock(return_value="rendered")) as render_page,
         ):
             response = asyncio.run(handler(staff_request))  # type: ignore[operator]
@@ -220,7 +227,6 @@ class AdminNotificationRoutesTest(TestCase):
             staff_request,
             admin_prefix="/control",
             site=site,
-            menu_items=[],
             notification_center_content=Markup("<section>center</section>"),
         )
 
@@ -243,12 +249,14 @@ class AdminNotificationRoutesTest(TestCase):
 
             return decorator
 
-        with patch("oldman.apps.admin.site.sse.streaming", side_effect=streaming):
+        # The account flow installs the stream only while the settings turn SSE on.
+        settings = runtime_settings()
+        settings.web.sse = SSEConfig(enabled=True, redis_alias="SSE")
+        with patch.dict(conf.__dict__, {"settings": settings}), patch.object(sse, "streaming", side_effect=streaming):
             user_events_url = site.register_routes(
                 cast(Sanic, app),
                 auth_settings=AuthSettings(),
                 admin_settings=AdminSettings(prefix="/control", require_superuser=False),
-                sse_enabled=True,
             )
 
         self.assertEqual(user_events_url, "/control/user-events")

@@ -5,8 +5,8 @@
 
   A wrapper names its brand with `{% set auth_brand_name = "..." %}`; the brand links to the
   login page (`login_url`, which every auth flow puts in the context) unless `auth_brand_href` is set.
-#}
-{% from "oldman/auth/partials/auth_layout.html" import auth_layout with context %}
+-#}
+{% from "oldman/auth/partials/auth_layout.html" import auth_layout with context -%}
 <!doctype html>
 <html lang="{{ current_language(request) }}" data-layout="vertical" data-theme="light" data-sidenav-color="light" data-sidenav-size="default" data-topbar="light" data-sidebar-size="lg" data-preloader="enable">
   <head>

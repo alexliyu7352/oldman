@@ -6,6 +6,40 @@ Public Web authentication adapters.
 
 Import with `from oldman.web.auth import <name>`.
 
+## `account_urls`
+
+function · defined in `oldman.web.auth.account`
+
+```python
+def account_urls(request: Any=None) -> dict[str, Any]
+```
+
+The site's account addresses for templates (a dashboard's topbar and base), from the settings.
+
+## `AccountFlow`
+
+class · defined in `oldman.web.auth.account`
+
+```python
+class AccountFlow
+```
+
+The pages around one site's signed-in user.
+
+Members:
+
+- `profile_path: str`
+- `login_path: str`
+- `logout_path: str`
+- `language_path: str`
+- `notification_routes: NotificationRoutes | None = None`
+- `user_events_path: str | None = None`
+- `auth_settings: AuthSettings | None = None`
+- `db_manager: DatabaseManager | None = None`
+- `property password_modal_path: str` — The own-password form, loaded into a modal on the profile page.
+- `property password_path: str` — Where the own-password form posts.
+- `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, allow: Callable[[Any], bool]=user_is_signed_in, name_prefix: str='') -> str | None` — Install the pages; return the user events path when that stream was installed.
+
 ## `api_login_required`
 
 value · defined in `oldman.web.auth.decorators`
@@ -602,6 +636,58 @@ Members:
 - `def get_column_last_login_at_data(row: Any, **_: object)`
 - `def get_column_action_data(row: Any, **_: object)`
 
+## Module `oldman.web.auth.account`
+
+The signed-in user's own pages: profile, own password, language choice, notifications and user events.
+
+Import with `from oldman.web.auth.account import <name>`.
+
+### `user_is_signed_in`
+
+function · defined in `oldman.web.auth.account`
+
+```python
+def user_is_signed_in(request: Any) -> bool
+```
+
+Whether the request comes from a signed-in user, however it authenticated; AccountFlow's default `allow`.
+
+## Module `oldman.web.auth.flows`
+
+What the auth flows share: how a page is rendered and who counts as signed in by default.
+
+Import with `from oldman.web.auth.flows import <name>`.
+
+### `PageRenderer`
+
+class · defined in `oldman.web.auth.flows`
+
+```python
+class PageRenderer(Protocol)
+```
+
+Renders one page of a flow, named by `page`, with the given context.
+
+### `resolve_page_renderer`
+
+function · defined in `oldman.web.auth.flows`
+
+```python
+def resolve_page_renderer(render: PageRenderer | None, template_prefix: str | None) -> PageRenderer
+```
+
+The host's `render`, or one that renders `<template_prefix>/<page>.html`; exactly one of the two is given.
+
+### `session_is_authenticated`
+
+function · defined in `oldman.web.auth.flows`
+
+```python
+def session_is_authenticated(request: Any) -> bool
+```
+
+Whether the request carries a signed-in Session; the default for "already signed in, skip this page".
+
 ## Module `oldman.web.auth.forms`
 
 Forms shared by every site that manages the configured User model: login, filter, create/edit, password.
@@ -670,16 +756,6 @@ def client_ip(request: Any) -> str
 
 The address a request came from: Sanic's `client_ip` honours the configured proxy headers, `ip` is the socket peer.
 
-### `PageRenderer`
-
-class · defined in `oldman.web.auth.password_reset`
-
-```python
-class PageRenderer(Protocol)
-```
-
-Renders one page of the flow (`request`, `sent`, `confirm`, `invalid`, `done`) with the given context.
-
 ### `RateLimiter`
 
 class · defined in `oldman.web.security.rate_limiter.base`
@@ -703,16 +779,6 @@ def redis_rate_limiter(alias: str | None=None, namespace: str | None=None) -> Re
 ```
 
 The default limiter: a Redis fixed window on the session connection (the one a login site must have).
-
-### `session_is_authenticated`
-
-function · defined in `oldman.web.auth.password_reset`
-
-```python
-def session_is_authenticated(request: Any) -> bool
-```
-
-Whether the request carries a signed-in Session; the default check for skipping the request page.
 
 ## Module `oldman.web.auth.tables`
 

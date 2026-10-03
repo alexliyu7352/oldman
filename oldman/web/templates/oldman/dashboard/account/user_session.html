@@ -1,0 +1,12 @@
+{#
+  The signed-in user's own page in a dashboard: the project's base.html (sidebar, topbar) around the
+  shared session content. Context from AccountFlow: session_profile, session_path,
+  password_modal_path, logout_path.
+-#}
+{% extends "base.html" %}
+
+{% block title %}{{ _("User Session") }}{% endblock %}
+
+{% block content %}
+  {% include "oldman/auth/user_session_content.html" %}
+{% endblock %}

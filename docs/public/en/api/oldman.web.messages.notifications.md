@@ -16,6 +16,16 @@ def init_app(app: Sanic, *, url_prefix: str='', login_url: str | None=None) -> N
 
 Install shared endpoints once and return shared and host-wrapper URLs.
 
+## `installed_routes`
+
+function · defined in `oldman.web.messages.notifications.runtime`
+
+```python
+def installed_routes(app: Any, *, url_prefix: str='') -> NotificationRoutes | None
+```
+
+The routes `init_app` installed for this prefix on `app`, or None when it did not run there.
+
 ## `NOTIFICATION_CREATED_EVENT`
 
 value · defined in `oldman.web.messages.notifications.service`

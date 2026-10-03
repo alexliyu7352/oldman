@@ -114,8 +114,7 @@ def install_admin(
         db_manager=manager,
         auth_settings=auth_settings,
         admin_settings=admin_settings,
-        notifications_enabled=notification_routes is not None,
-        sse_enabled=conf.settings.web.sse.enabled,
+        notification_routes=notification_routes,
         password_reset_rate_limiter=password_reset_rate_limiter,
         login_rate_limit=login_rate_limit,
     )

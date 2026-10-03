@@ -68,7 +68,7 @@ def member(*, is_staff: bool = False) -> Any:
 class LoginFlowRoutesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.enterContext(patch.dict(conf.__dict__, {"settings": runtime_settings()}))
-        self.enterContext(patch("oldman.web.auth.login.render_template", side_effect=render_with_request_environment))
+        self.enterContext(patch("oldman.web.auth.flows.render_template", side_effect=render_with_request_environment))
         self.app = RoutesApp()
         StatelessCSRFManager(cast(Any, self.app))
 
@@ -196,6 +196,7 @@ class AuthPageTemplatesTest(unittest.TestCase):
             self.assertIn(expected, html)
         self.assertNotIn("oldman-sidebar", html)
         self.assertNotIn("Forgot password?", html)
+        self.assertTrue(html.startswith("<!doctype html>"), "nothing may precede the doctype")
 
     def test_the_reset_link_appears_when_the_site_installs_the_reset_flow(self) -> None:
         with patch.dict(conf.__dict__, {"settings": runtime_settings()}):

@@ -1145,8 +1145,16 @@ class AccountConfig(ConfigModel):
         default=None,
         description="The password reset request page; set, the login page links to it (install the reset flow there)",
     )
+    profile_url: str = Field(
+        default="/user-session",
+        description="The signed-in user's own page; changing one's own password lives under it",
+    )
+    user_events_url: str = Field(
+        default="/user-events",
+        description="Server-sent events for the signed-in user (session ended, notifications); only with web.sse.enabled",
+    )
 
-    @field_validator("login_url", "logout_url", "login_redirect_url", "password_reset_url")
+    @field_validator("login_url", "logout_url", "login_redirect_url", "password_reset_url", "profile_url", "user_events_url")
     @classmethod
     def validate_paths(cls, value: str | None, info: ValidationInfo) -> str | None:
         """Registered as routes and redirected to, so plain local paths."""

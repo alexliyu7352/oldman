@@ -51,15 +51,9 @@ from oldman.web.api import (
 )
 from oldman.web.auth import (
     SIGN_IN_AGAIN_DELAY_MS,
+    AccountFlow,
     PasswordResetFlow,
-    authenticated_session,
-    render_session_password_modal,
     revoke_user_logins,
-    save_language_preference,
-    session_profile,
-    staff_required,
-    superuser_required,
-    update_session_password,
     user_delete_modal_response,
     user_status_modal_response,
 )
@@ -69,12 +63,11 @@ from oldman.web.exceptions import NotFound
 from oldman.web.http import access_denied_response, resolve_response_mode
 from oldman.web.i18n import current_language, language_menu_items, language_registry
 from oldman.web.messages.actions import DashboardActivityAction
-from oldman.web.messages.notifications import render_center_content
+from oldman.web.messages.notifications import NotificationRoutes
 from oldman.web.request import Request
 from oldman.web.response import html_response, json_response, redirect_response
 from oldman.web.routing import WebApp
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
-from oldman.web.sse import SSEStream, sse
 from oldman.web.template import render_fragment, render_template
 
 if TYPE_CHECKING:
@@ -215,8 +208,7 @@ class AdminSite:
         db_manager: DatabaseManager | None = None,
         auth_settings: AuthSettings | None = None,
         admin_settings: AdminSettings | None = None,
-        notifications_enabled: bool = False,
-        sse_enabled: bool = False,
+        notification_routes: NotificationRoutes | None = None,
         password_reset_rate_limiter: RateLimiter | None = None,
         login_rate_limit: LoginRateLimit | None = None,
     ) -> str | None:
@@ -237,7 +229,6 @@ class AdminSite:
         self.prefix = prefix
         login_path = admin_login_path(prefix)
         self.require_superuser = admin_settings.require_superuser
-        permission_required = superuser_required if admin_settings.require_superuser else staff_required
 
         async def run_after_save(current_admin: ModelAdmin, request: Request, instance: Any, *, created: bool) -> Any:
             """The project's hook once the save committed; a store it needs being down is answered, not raised.
@@ -319,54 +310,19 @@ class AdminSite:
                 )
             )
 
-        @csrf_protect()
-        async def language_preference(request: Request):
-            return save_language_preference(
-                request,
-                registry=language_registry(request),
-            )
+        account_flow = AccountFlow(
+            profile_path=f"{prefix}/user-session",
+            login_path=login_path,
+            logout_path=f"{prefix}/sign-out",
+            language_path=f"{prefix}/preferences/language",
+            notification_routes=notification_routes,
+            user_events_path=f"{prefix}/user-events",
+            auth_settings=auth_settings,
+            db_manager=manager,
+        )
 
-        @add_csrf_token()
-        async def user_session_page(request: Request):
-            if not admitted(request):
-                return await access_denied_response(request, login_url=login_path)
-            request_session = authenticated_session(request)
-            return await render_admin_template(
-                "admin/user_session.html",
-                request,
-                admin_prefix=prefix,
-                site=self,
-                menu_items=await self.menu_items(request),
-                session_profile=session_profile(request_session),
-                session_path=f"{prefix}/user-session",
-                password_modal_path=f"{prefix}/user-session/password-modal",
-                logout_path=f"{prefix}/sign-out",
-            )
-
-        @add_csrf_token()
-        async def user_session_password_modal(request: Request):
-            if not admitted(request):
-                return await access_denied_response(request, login_url=login_path)
-            return await render_session_password_modal(
-                request,
-                action=f"{prefix}/user-session/password",
-                auth_settings=auth_settings,
-                db_manager=manager,
-            )
-
-        @csrf_protect()
-        @add_csrf_token()
-        async def user_session_password_submit(request: Request):
-            if not admitted(request):
-                return await access_denied_response(request, login_url=login_path)
-            # No activity entry: the change signs this browser out, so anything added to the
-            # dashboard's transient menu would be replaced by the login page before it is read.
-            return await update_session_password(
-                request,
-                login_url=login_path,
-                auth_settings=auth_settings,
-                db_manager=manager,
-            )
+        async def render_account_page(request: Request, page: str, /, **context: Any):
+            return await render_admin_template(f"admin/{page}.html", request, admin_prefix=prefix, site=self, **context)
 
         async def index(request: Request):
             if not admitted(request):
@@ -934,85 +890,14 @@ class AdminSite:
         login_flow.register_routes(app, render=render_login, is_authenticated=admitted, name_prefix=f"{self.name}_")
         reset_flow.register_routes(app, render=render_password_reset, is_authenticated=admitted, name_prefix=f"{self.name}_")
         app.add_route(
-            cast(Any, user_session_page),
-            f"{prefix}/user-session",
-            methods=["GET"],
-            name=f"{self.name}_user_session",
-        )
-        app.add_route(
-            cast(Any, user_session_password_modal),
-            f"{prefix}/user-session/password-modal",
-            methods=["GET"],
-            name=f"{self.name}_user_session_password_modal",
-        )
-        app.add_route(
-            cast(Any, user_session_password_submit),
-            f"{prefix}/user-session/password",
-            methods=["POST"],
-            name=f"{self.name}_user_session_password_submit",
-        )
-        app.add_route(
             cast(Any, language_catalog),
             f"{prefix}/i18n/<language:ext=json>",
             methods=["GET"],
             name=f"{self.name}_language_catalog",
         )
-        app.add_route(
-            cast(Any, language_preference),
-            f"{prefix}/preferences/language",
-            methods=["POST"],
-            name=f"{self.name}_language_preference",
-        )
-        app.add_route(
-            cast(Any, language_preference),
-            f"{prefix}/user-session/language",
-            methods=["POST"],
-            name=f"{self.name}_user_session_language",
-        )
 
-        if notifications_enabled:
-
-            @permission_required(login_url=login_path, user_keyword="user_id")
-            async def user_notifications(request: Request, *, user_id: int):
-                content = await render_center_content(request, user_id=user_id)
-                return await render_admin_template(
-                    "admin/user_notifications.html",
-                    request,
-                    admin_prefix=prefix,
-                    site=self,
-                    menu_items=await self.menu_items(request),
-                    notification_center_content=content,
-                )
-
-            app.add_route(
-                cast(Any, user_notifications),
-                f"{prefix}/user-notifications",
-                methods=["GET"],
-                name=f"{self.name}_user_notifications",
-            )
-
-        if not sse_enabled:
-            return None
-
-        @permission_required(login_url=login_path, user_keyword="user_id")
-        @sse.streaming(session_guard=True, login_url=login_path)
-        async def user_events(
-            request: Request,
-            stream: SSEStream,
-            *,
-            user_id: int,
-        ) -> None:
-            del request
-            await stream.subscribe_user(user_id)
-
-        user_events_url = f"{prefix}/user-events"
-        app.add_route(
-            cast(Any, user_events),
-            user_events_url,
-            methods=["GET"],
-            name=f"{self.name}_user_events",
-        )
-        return user_events_url
+        # The Admin's own pages for the signed-in user; admitted is its floor (staff) for them too.
+        return account_flow.register_routes(app, render=render_account_page, allow=admitted, name_prefix=f"{self.name}_")
 
 
 async def render_admin_template(template_name: str, request: Request, **context: Any):

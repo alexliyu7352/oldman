@@ -43,7 +43,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.utils`](oldman.utils.md) | 14 | @author:alex |
 | [`oldman.web`](oldman.web.md) | 45 | Lightweight public Web primitives for Oldman applications. |
 | [`oldman.web.api`](oldman.web.api.md) | 24 | Public browser response protocol. |
-| [`oldman.web.auth`](oldman.web.auth.md) | 63 | Public Web authentication adapters. |
+| [`oldman.web.auth`](oldman.web.auth.md) | 67 | Public Web authentication adapters. |
 | [`oldman.web.authentication`](oldman.web.authentication.md) | 39 | Request authentication: who is calling, and how they proved it. |
 | [`oldman.web.components`](oldman.web.components.md) | 5 | @author:alex |
 | [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | 后端 Chart 组件封装入口。 |
@@ -52,7 +52,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.web.components.tables`](oldman.web.components.tables.md) | 26 | Oldman 后端 Table 组件入口。 |
 | [`oldman.web.i18n`](oldman.web.i18n.md) | 22 | Web internationalization service. |
 | [`oldman.web.messages`](oldman.web.messages.md) | 16 | Public browser user-message APIs. |
-| [`oldman.web.messages.notifications`](oldman.web.messages.notifications.md) | 19 | Public strong types for persistent and realtime user notifications. |
+| [`oldman.web.messages.notifications`](oldman.web.messages.notifications.md) | 20 | Public strong types for persistent and realtime user notifications. |
 | [`oldman.web.middlewares`](oldman.web.middlewares.md) | 6 | Web middleware entry points. |
 | [`oldman.web.security`](oldman.web.security.md) | 13 | Web-facing fingerprint security helpers. |
 | [`oldman.web.security.csrf`](oldman.web.security.csrf.md) | 7 | @author:alex |

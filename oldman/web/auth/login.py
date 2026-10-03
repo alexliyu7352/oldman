@@ -17,8 +17,8 @@ from oldman.auth.settings import AuthSettings, LoginSettings
 from oldman.db import DatabaseManager
 from oldman.i18n import gettext
 from oldman.providers.redis import redis_key
+from oldman.web.auth.flows import PageRenderer, resolve_page_renderer, session_is_authenticated
 from oldman.web.auth.forms import LoginForm
-from oldman.web.auth.password_reset import PageRenderer, session_is_authenticated
 from oldman.web.auth.permissions import role_ids_for_login
 from oldman.web.auth.redirects import safe_next_url
 from oldman.web.auth.session import session_data_for_user
@@ -29,7 +29,6 @@ from oldman.web.routing import Router, router
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
 from oldman.web.security.rate_limiter import WindowCounter, redis_rate_limiter, window_retry_after
 from oldman.web.session import Session, SessionData
-from oldman.web.template import render_template
 
 INVALID_CREDENTIALS = "invalid_credentials"
 RATE_LIMITED = "rate_limited"
@@ -238,16 +237,7 @@ class LoginFlow:
         Route names are `<name_prefix>login`, `..._login_submit` and `..._logout`; `app` omitted,
         the routes register through `oldman.web.router`.
         """
-        if (render is None) == (template_prefix is None):
-            raise ValueError("register_routes takes exactly one of render= or template_prefix=")
-        if render is None:
-            page_prefix = cast(str, template_prefix).rstrip("/")
-
-            async def render_page(request: Any, page: str, /, **context: Any) -> HTTPResponse:
-                return await render_template(f"{page_prefix}/{page}.html", context={"request": request, **context})
-
-            render = render_page
-        render_view = render
+        render_view = resolve_page_renderer(render, template_prefix)
 
         async def login_page(request: Any, *, error: object, next_url: str) -> HTTPResponse:
             return await render_view(
