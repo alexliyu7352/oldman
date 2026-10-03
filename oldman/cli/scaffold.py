@@ -116,22 +116,18 @@ ADMIN_APP = "oldman.apps.admin"
 # The dashboard skeleton: notifications, then the project's own accounts (User model, sign-in pages) and home page.
 DASHBOARD_APPS = ("oldman.web.messages.notifications",)
 DASHBOARD_PROJECT_APPS = ("apps.accounts", "apps.home")
+# The web skeleton: the project's welcome page.
+WEB_PROJECT_APPS = ("apps.home",)
 
 ADMIN_IMPORT = "from oldman.apps.admin import install_admin\n"
 
-# The web service has no init() without the Admin; with it, init() installs the Admin.
-WEB_ADMIN_INIT = '''
-    def init(self) -> None:
-        """Install the built-in Admin under app_settings.admin.prefix; it shares this site's sign-in."""
-        super().init()
-        app = self.runtime_app
-        if app is None:
-            raise RuntimeError("Web runtime was not initialized")
+# The last step of the web and dashboard services' init().
+ADMIN_INSTALL = """        # The built-in Admin, under app_settings.admin.prefix.
         install_admin(app)
-'''
+"""
 
-DASHBOARD_ADMIN_INSTALL = """        # The built-in Admin under app_settings.admin.prefix, sharing this site's sign-in.
-        install_admin(app)
+# The web welcome page's link to the Admin, by route name so it follows the prefix setting.
+WEB_HOME_ADMIN = """    <p><a href="{{ url_for("oldman_admin_index") }}">{{ _("Sign in to the Admin") }}</a></p>
 """
 
 # The dashboard's menu entry for the Admin, for staff (the Admin's own floor): a whole-page link, by route
@@ -297,7 +293,10 @@ def project_apps(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
     admin_apps = (ADMIN_APP,) if admin else ()
     if project_type == ProjectType.DASHBOARD:
         return (*USER_APPS, *DASHBOARD_APPS, *admin_apps, *DASHBOARD_PROJECT_APPS)
-    return (*USER_APPS, *admin_apps) if admin else ()
+    if project_type == ProjectType.WEB:
+        user_apps = (*USER_APPS, *admin_apps) if admin else ()
+        return (*user_apps, *WEB_PROJECT_APPS)
+    return ()
 
 
 def project_context(project_name: str, *, project_type: ProjectType, db: DatabaseChoice, admin: bool = False) -> dict[str, str]:
@@ -327,8 +326,8 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         # Signing in to the Admin needs sessions; the dashboard skeleton turns them on for its own sign-in.
         "settings_session": SESSION_SETTINGS if admin else "",
         "admin_import": ADMIN_IMPORT if admin else "",
-        "web_admin_init": WEB_ADMIN_INIT if admin else "",
-        "dashboard_admin_install": DASHBOARD_ADMIN_INSTALL if admin else "",
+        "admin_install": ADMIN_INSTALL if admin else "",
+        "web_home_admin": WEB_HOME_ADMIN if admin else "",
         "dashboard_sidebar_admin": DASHBOARD_SIDEBAR_ADMIN if admin else "",
         "readme_admin_wiring": "、内置 Admin（`app_settings.admin.prefix`，默认 `/admin`，与站点共用登录）" if admin else "",
         # A double-quoted YAML string, whatever the directory is called.

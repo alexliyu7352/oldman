@@ -7,6 +7,7 @@ from typing import Any
 
 from config.settings import settings
 {{ admin_import }}from oldman.runtime import WebApplication
+from oldman.web.template import install_template_loaders
 
 
 class {{ service_class }}(WebApplication):
@@ -21,4 +22,13 @@ class {{ service_class }}(WebApplication):
             "templating_enable_async": True,
             "logging": False,
         }
-{{ web_admin_init }}
+
+    def init(self) -> None:
+        """Install the template lookup the pages use: the project's templates, then the framework's, with its globals."""
+        super().init()
+        app = self.runtime_app
+        if app is None:
+            raise RuntimeError("Web runtime was not initialized")
+        # base.html reads current_language(request) and every page may call _(); this registers them.
+        install_template_loaders(app.ext.environment, settings.web.template.dir)
+{{ admin_install }}

@@ -1503,12 +1503,11 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
             raise RuntimeError(f"{project.name} generated invalid service settings")
         apps = settings_data.get("apps")
         # The matrix answers no to the built-in Admin: a dashboard has its users and roles, notifications, and
-        # the project's own accounts and home page.
-        expected_apps = (
-            ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"]
-            if project_type == "dashboard"
-            else []
-        )
+        # the project's own accounts and home page; a web project its welcome page.
+        expected_apps = {
+            "dashboard": ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"],
+            "web": ["apps.home"],
+        }.get(project_type, [])
         if apps != expected_apps:
             raise RuntimeError(f"{project.name} generated unexpected settings.apps: {apps!r}")
         database_config = settings_data.get("database")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -12,20 +13,26 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import UUID
 
 from babel.messages.pofile import read_po
+from jinja2 import Environment
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+import oldman.conf as conf
 from oldman.cli import tui
 from oldman.cli._main import create_app
 from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
 from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, start_app, start_project
+from oldman.conf import DefaultSettings
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
 from oldman.version import __VERSION__
+from oldman.web.template import install_template_loaders
+from oldman.web.template_globals import template_globals
 from tests.tui_support import without_preset_answers
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -393,6 +400,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                             sessions = True
                         else:
                             expected = ["oldman.auth", "oldman.apps.roles", "oldman.apps.admin"] if admin else []
+                            expected += ["apps.home"]
                             sessions = admin
                         self.assertEqual(expected, seed["apps"])
                         self.assertEqual(sessions, seed.get("web") == {"session": {"enabled": True}})
@@ -494,6 +502,38 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     readme = (target / "README.md").read_text(encoding="utf-8")
                     for step in ("./run.sh db migrate", "./run.sh dashboard createsuperuser", "./run.sh dashboard static collect", "Redis"):
                         self.assertIn(step, readme)
+
+    def test_the_web_skeleton_welcomes_at_the_root(self) -> None:
+        """`/` is the project's welcome page, open to everyone; base.html takes the request's language."""
+        with tempfile.TemporaryDirectory() as temporary_directory, patch.dict(conf.__dict__, {"settings": DefaultSettings()}):
+            parent = Path(temporary_directory)
+            for admin in (False, True):
+                with self.subTest(admin=admin), working_directory(parent):
+                    target = start_project(f"site_{admin}", project_type=ProjectType.WEB, db=DatabaseChoice.SQLITE, admin=admin)
+
+                    for module in ("apps/home/apps.py", "apps/home/views.py", "services/web.py"):
+                        compile((target / module).read_text(encoding="utf-8"), module, "exec")
+                    home = (target / "apps" / "home" / "views.py").read_text(encoding="utf-8")
+                    self.assertIn('@router.get("/", name="home")\nasync def home(', home)
+                    # The pages need the framework's template lookup and globals, Admin or not.
+                    service = (target / "services" / "web.py").read_text(encoding="utf-8")
+                    self.assertIn("install_template_loaders(app.ext.environment, settings.web.template.dir)", service)
+                    self.assertEqual(admin, "install_admin(app)" in service)
+
+                    # Rendered the way the service's init() sets the environment up.
+                    environment = install_template_loaders(Environment(enable_async=True), target / "templates")
+                    template_globals(environment)["url_for"] = {"oldman_admin_index": "/control/"}.__getitem__
+                    request = SimpleNamespace(ctx=SimpleNamespace(locale="zh-Hans"), cookies={})
+                    page = asyncio.run(environment.get_template("home/index.html").render_async(request=request))
+                    self.assertIn('<html lang="zh-Hans">', page)
+                    self.assertIn(f"<h1>site_{admin}</h1>", page)
+                    self.assertIn("data/web_settings.yaml", page)
+                    # The Admin link only with the Admin, by route name so it follows the prefix setting.
+                    self.assertEqual(admin, '<a href="/control/">' in page)
+
+                    readme = (target / "README.md").read_text(encoding="utf-8")
+                    self.assertIn("http://127.0.0.1:17998/` 是欢迎页", readme)
+                    self.assertNotIn("没有自动生成页面", readme)
 
     def test_a_dashboard_app_page_needs_a_signed_in_user_and_the_shared_page_class(self) -> None:
         """startapp's dashboard pages require sign-in; their menu entry belongs in the one sidebar, not in each view."""

@@ -101,7 +101,7 @@ class {{ service_class }}(WebApplication):
         notification_routes = install_notifications(app)
         install_dashboard_templates(app)
         install_account_pages(app, notification_routes=notification_routes)
-{{ dashboard_admin_install }}
+{{ admin_install }}
     def prepare_server(self, app: WebApp) -> None:
         """Fail fast on a missing frontend build, then take the framework's listener options."""
         registry = app_bundle_registry(app)
