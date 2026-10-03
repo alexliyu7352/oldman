@@ -63,6 +63,10 @@ HTTP_PROBE_PATHS = {"api": "/matrix_probe", "web": "/matrix_probe", "dashboard":
 MATRIX_SIDEBAR_LINK = '{{ sidebar_menu_link("/matrix_probe", "MatrixProbe", "ri-flask-line", active=request.path == "/matrix_probe") }}\n'
 # Resource-timing initiators of a page's own calls to its server; see page_asset_urls.
 DATA_REQUEST_INITIATORS = frozenset({"fetch", "xmlhttprequest"})
+# What a generated service's output must not contain, from start to stop.
+SERVER_ERROR_PATTERN = re.compile(r"(?im)(?:\[ERROR\]|\bERROR\b|Traceback \(most recent call last\)|Unhandled exception)")
+# The generated background service's example loop logs this on its first round (services/service.py).
+SERVICE_LOOP_MARKER = "Example loop, round 1"
 
 MATRIX_CASES = (
     ("cli", "none"),
@@ -1090,8 +1094,7 @@ def http_probe_outcome_errors(
     if returncode != 0:
         errors.append(f"server exited with non-zero return code {returncode!r}")
     combined = f"{stdout}\n{stderr}"
-    error_pattern = re.compile(r"(?im)(?:\[ERROR\]|\bERROR\b|Traceback \(most recent call last\)|Unhandled exception)")
-    if error_pattern.search(combined):
+    if SERVER_ERROR_PATTERN.search(combined):
         errors.append("server output contains an ERROR, traceback, or unhandled exception")
     return errors
 
@@ -1405,6 +1408,80 @@ def run_http_probe(
     return result
 
 
+def wait_for_service_loop(process: subprocess.Popen[str], process_tree: ProcessTreeTracker, log_path: Path, *, timeout: float) -> str:
+    """Wait until the service's output shows its example loop running; return why not, or "" once it does."""
+    deadline = time.monotonic() + timeout
+    while SERVICE_LOOP_MARKER not in log_path.read_text(encoding="utf-8"):
+        process_tree.remember()
+        if process.poll() is not None:
+            return f"service exited before its example loop ran, with code {process.returncode}"
+        if time.monotonic() >= deadline:
+            return f"service did not log {SERVICE_LOOP_MARKER!r} within {timeout:g} seconds"
+        time.sleep(0.1)
+    return ""
+
+
+def run_service_probe(
+    project: Path,
+    *,
+    service_name: str,
+    launcher: Path,
+    environment: Mapping[str, str],
+    log_path: Path,
+) -> dict[str, object]:
+    """Start the generated background service, wait for its example loop, stop it the way its README says, require a clean exit."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    errors: list[str] = []
+    stop_output = ""
+    with (
+        log_path.open("w", encoding="utf-8") as output,
+        tracked_popen(
+            (str(launcher), service_name, "start"),
+            cwd=project,
+            env=dict(environment),
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        ) as (process, process_tree),
+    ):
+        try:
+            not_running = wait_for_service_loop(process, process_tree, log_path, timeout=30)
+            if not_running:
+                errors.append(not_running)
+            else:
+                stop = subprocess.run(
+                    (str(launcher), service_name, "stop"),
+                    cwd=project,
+                    env=dict(environment),
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                stop_output = stop.stdout + stop.stderr
+                if stop.returncode != 0:
+                    errors.append(f"`{service_name} stop` exited with code {stop.returncode}")
+                survivors = process_tree.wait_for_exit(process, 30)
+                if survivors:
+                    errors.append(f"service processes outlived `{service_name} stop`: {survivors}")
+                elif process.returncode != 0:
+                    errors.append(f"service exited with code {process.returncode} after `{service_name} stop`")
+        finally:
+            if process.poll() is None or process_tree.live():
+                try:
+                    process_tree.terminate(process, require_live_leader=False, term_timeout=15, kill_timeout=5)
+                except ProcessTreeError as exc:
+                    errors.append(str(exc))
+    service_output = log_path.read_text(encoding="utf-8")
+    if SERVER_ERROR_PATTERN.search(f"{service_output}\n{stop_output}"):
+        errors.append("service output contains an ERROR, traceback, or unhandled exception")
+    with log_path.open("a", encoding="utf-8") as output:
+        output.write(f"\n--- {service_name} stop ---\n{stop_output}")
+    if errors:
+        raise RuntimeError(f"Generated service failed its start/stop gate: {'; '.join(errors)}\n{service_output[-4000:]}")
+    return {"returncode": process.returncode, "stoppedBy": f"{service_name} stop"}
+
+
 def wheel_identity(path: Path) -> dict[str, str]:
     try:
         with zipfile.ZipFile(path) as archive:
@@ -1503,10 +1580,11 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
             raise RuntimeError(f"{project.name} generated invalid service settings")
         apps = settings_data.get("apps")
         # The matrix answers no to the built-in Admin: a dashboard has its users and roles, notifications, and
-        # the project's own accounts and home page; a web project its welcome page.
+        # the project's own accounts and home page; a web project its welcome page, an API its three endpoints.
         expected_apps = {
             "dashboard": ["oldman.auth", "oldman.apps.roles", "oldman.web.messages.notifications", "apps.accounts", "apps.home"],
             "web": ["apps.home"],
+            "api": ["apps.home"],
         }.get(project_type, [])
         if apps != expected_apps:
             raise RuntimeError(f"{project.name} generated unexpected settings.apps: {apps!r}")
@@ -1811,9 +1889,10 @@ def generate_case(
     )
 
     if project_type == "service":
-        run(
-            (str(project / "run.sh"), service_name, "start"),
-            cwd=project,
+        metadata["service"] = run_service_probe(
+            project,
+            service_name=service_name,
+            launcher=project / "run.sh",
             environment=environment,
             log_path=case_evidence / "service-start.log",
         )

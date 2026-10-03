@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 import shutil
 from dataclasses import dataclass
 from enum import StrEnum
@@ -118,6 +119,8 @@ DASHBOARD_APPS = ("oldman.web.messages.notifications",)
 DASHBOARD_PROJECT_APPS = ("apps.accounts", "apps.home")
 # The web skeleton: the project's welcome page.
 WEB_PROJECT_APPS = ("apps.home",)
+# The API skeleton: a health check and an endpoint for each way a program signs in.
+API_PROJECT_APPS = ("apps.home",)
 
 ADMIN_IMPORT = "from oldman.apps.admin import install_admin\n"
 
@@ -296,6 +299,8 @@ def project_apps(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
     if project_type == ProjectType.WEB:
         user_apps = (*USER_APPS, *admin_apps) if admin else ()
         return (*user_apps, *WEB_PROJECT_APPS)
+    if project_type == ProjectType.API:
+        return API_PROJECT_APPS
     return ()
 
 
@@ -328,6 +333,9 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         "admin_import": ADMIN_IMPORT if admin else "",
         "admin_install": ADMIN_INSTALL if admin else "",
         "web_home_admin": WEB_HOME_ADMIN if admin else "",
+        # The API skeleton's caller credentials (web.auth): new for every project, kept only in its settings file.
+        "api_example_key": secrets.token_urlsafe(32) if project_type == ProjectType.API else "",
+        "api_ops_password": secrets.token_urlsafe(32) if project_type == ProjectType.API else "",
         "dashboard_sidebar_admin": DASHBOARD_SIDEBAR_ADMIN if admin else "",
         "readme_admin_wiring": "、内置 Admin（`app_settings.admin.prefix`，默认 `/admin`，与站点共用登录）" if admin else "",
         # A double-quoted YAML string, whatever the directory is called.

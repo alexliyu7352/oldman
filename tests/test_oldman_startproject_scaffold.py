@@ -354,7 +354,8 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 seed = read_yaml(seed_path)
                 metadata = tomllib.loads((target / "pyproject.toml").read_text(encoding="utf-8"))
                 dependencies = metadata["project"]["dependencies"]
-                self.assertEqual(seed, {"apps": [], "database": {"url": url}})
+                self.assertEqual(["apps.home"], seed["apps"])
+                self.assertEqual({"url": url}, seed["database"])
                 self.assertEqual(stat.S_IMODE(seed_path.stat().st_mode), 0o600)
                 driver = expected_drivers[database]
                 self.assertEqual(
@@ -502,6 +503,46 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     readme = (target / "README.md").read_text(encoding="utf-8")
                     for step in ("./run.sh db migrate", "./run.sh dashboard createsuperuser", "./run.sh dashboard static collect", "Redis"):
                         self.assertIn(step, readme)
+
+    def test_the_api_skeleton_signs_programs_in_with_credentials_of_its_own(self) -> None:
+        """`/` is open; /api/caller takes an API key, /api/ops HTTP Basic; each project gets new secrets, only in its settings."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            secrets: list[str] = []
+            for name in ("first_api", "second_api"):
+                with working_directory(parent):
+                    target = start_project(name, project_type=ProjectType.API, db=DatabaseChoice.NONE)
+
+                web = read_yaml(target / "data" / "api_settings.yaml")["web"]
+                assert isinstance(web, dict)
+                auth = web["auth"]
+                self.assertEqual(["api_key", "http_basic"], auth["authenticators"])
+                project_secrets = [auth["api_keys"]["example"]["secret"], auth["http_basic"]["accounts"]["ops"]]
+                for secret in project_secrets:
+                    self.assertGreaterEqual(len(secret), 40)
+                    # The README, which a project commits, says where the secrets are, never what they are.
+                    self.assertNotIn(secret, (target / "README.md").read_text(encoding="utf-8"))
+                secrets += project_secrets
+
+                views = (target / "apps" / "home" / "views.py").read_text(encoding="utf-8")
+                compile(views, "views.py", "exec")
+                self.assertIn('@router.get("/", name="home")\nasync def home(', views)
+                self.assertIn('@router.get("/api/caller", name="api_caller")\n@authenticated_by("api_key")', views)
+                self.assertIn('@router.get("/api/ops", name="api_ops")\n@authenticated_by("http_basic")', views)
+            self.assertEqual(4, len(set(secrets)))
+
+    def test_the_service_skeleton_runs_an_example_loop_until_stopped(self) -> None:
+        """main() keeps the service running, a log line a round, until `stop` cancels it."""
+        with tempfile.TemporaryDirectory() as temporary_directory, working_directory(Path(temporary_directory)):
+            target = start_project("worker", project_type=ProjectType.SERVICE, db=DatabaseChoice.NONE)
+            service = (target / "services" / "service.py").read_text(encoding="utf-8")
+            readme = (target / "README.md").read_text(encoding="utf-8")
+
+        compile(service, "service.py", "exec")
+        self.assertIn("        while True:\n", service)
+        self.assertIn("await asyncio.sleep(INTERVAL_SECONDS)", service)
+        self.assertIn("./run.sh service stop", readme)
+        self.assertNotIn("会立即返回并退出", readme)
 
     def test_the_web_skeleton_welcomes_at_the_root(self) -> None:
         """`/` is the project's welcome page, open to everyone; base.html takes the request's language."""

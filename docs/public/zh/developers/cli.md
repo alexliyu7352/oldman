@@ -29,8 +29,8 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | 类型 | 生成内容 |
 | --- | --- |
 | `cli` | 普通 Python 脚本和依赖定义，没有服务或自动配置流程 |
-| `service` | `services/service.py`，基于 SimpleApplication |
-| `api` | `services/api.py`，不预装前端的 WebApplication |
+| `service` | `services/service.py`，基于 SimpleApplication；`main()` 是示例循环，每 10 秒记一行日志，运行到 `stop` 为止 |
+| `api` | `services/api.py`，不预装前端的 WebApplication；项目 App `apps.home` 有三个接口：`/` 健康检查，`/api/caller` 只认 API key，`/api/ops` 只认 HTTP Basic。两份凭据在生成时随机产生，只写进服务配置（`web.auth`），不需要数据库和 Session |
 | `web` | `services/web.py`，启用异步模板环境的 WebApplication；`/` 是欢迎页（项目 App `apps.home`，可改可删），`templates/base.html` 的 `<html lang>` 跟随请求语言 |
 | `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
 

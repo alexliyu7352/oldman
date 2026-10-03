@@ -835,6 +835,51 @@ while True:
                     label="JavaScript",
                 )
 
+    def test_the_service_probe_waits_for_the_example_loop_and_stops_it_with_the_stop_command(self) -> None:
+        """A service that runs its loop and stops on `stop` passes; one that never loops, or logs an error, fails."""
+        launcher_source = """#!/bin/sh
+case "$2" in
+  start)
+    echo $$ > service.pid
+    trap 'echo stopped; exit 0' TERM
+    printf '%s' "$PRE_LOOP_OUTPUT"
+    [ -n "$EXIT_BEFORE_LOOP" ] && exit "$EXIT_BEFORE_LOOP"
+    echo "[INFO] Example loop, round 1: this service's work goes here"
+    while true; do sleep 0.05; done
+    ;;
+  stop)
+    kill -TERM "$(cat service.pid)"
+    ;;
+esac
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            launcher = project / "run.sh"
+            launcher.write_text(launcher_source, encoding="utf-8")
+            launcher.chmod(0o755)
+
+            def probe(**environment: str) -> dict[str, object]:
+                return self.gate.run_service_probe(
+                    project,
+                    service_name="service",
+                    launcher=launcher,
+                    environment={**os.environ, **environment},
+                    log_path=project / "evidence" / "service-start.log",
+                )
+
+            self.assertEqual({"returncode": 0, "stoppedBy": "service stop"}, probe())
+            self.assertIn("--- service stop ---", (project / "evidence" / "service-start.log").read_text(encoding="utf-8"))
+            with self.assertRaisesRegex(RuntimeError, "exited before its example loop ran, with code 3"):
+                probe(EXIT_BEFORE_LOOP="3")
+            with self.assertRaisesRegex(RuntimeError, "contains an ERROR"):
+                probe(PRE_LOOP_OUTPUT="Traceback (most recent call last):\n")
+
+    def test_the_service_probe_waits_for_what_the_generated_service_logs(self) -> None:
+        """The marker is the generated loop's first round, so a change to the template's message breaks this, not only the gate."""
+        template = ROOT / "oldman" / "scaffolds" / "project" / "app_service" / "services" / "{{ service_name }}.py.tpl"
+        loop_message = self.gate.SERVICE_LOOP_MARKER.replace("round 1", "round %d")
+        self.assertIn(f'log.info("{loop_message}', template.read_text(encoding="utf-8"))
+
     def test_only_the_pages_own_data_requests_are_not_build_output(self) -> None:
         """The topbar's notification list is a fetch to the server; scripts, catalogs and other origins stay checked."""
         base = "http://127.0.0.1:43210/matrix_probe"

@@ -18,6 +18,23 @@ uv sync
 
 脚手架已经生成最小 YAML，因此先用 `sync` 补字段及密钥。只有文件不存在时才用 `settings init`。真实配置包含秘密，不提交到公开仓库。
 
+## 启动和试用
+
+```sh
+./run.sh {{ service_name }} start
+```
+
+默认端口 17998。测试前在 YAML 将 `web.listen_host` 设为 `127.0.0.1`，不把服务开放到网络。另开终端试三个接口，凭据在 `data/{{ service_name }}_settings.yaml` 的 `web.auth` 里，是生成项目时随机产生的：
+
+```sh
+curl http://127.0.0.1:17998/
+curl -H "X-API-Key: <web.auth.api_keys.example.secret>" http://127.0.0.1:17998/api/caller
+curl -u "ops:<web.auth.http_basic.accounts.ops>" http://127.0.0.1:17998/api/ops
+curl -i http://127.0.0.1:17998/api/caller    # 不带凭据：401
+```
+
+三个接口在 `apps/home/views.py`，都不需要数据库和 Session：`/` 是健康检查，不要求认证；`/api/caller` 只认 API key（请求头 `X-API-Key`），返回 key 在配置里的名字；`/api/ops` 只认 HTTP Basic，返回账号名。加调用方、换 key 改 YAML 的 `web.auth`；用不到的接口直接删，三个都不要就从 `apps` 列表里去掉 `apps.home`。按来源网段放行（IP 白名单）要按部署网络配置，见[调用方认证](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/web.md#服务与内部工具调用方认证)。
+
 ## 添加 API
 
 ```sh
@@ -31,7 +48,7 @@ uv sync
 ./run.sh {{ service_name }} start
 ```
 
-脚手架提供 `/tasks` 示例路由，默认服务端口为 17998。根路径 `/` 没有默认路由。测试前在 YAML 将 `web.listen_host` 设为 `127.0.0.1`，避免将未认证示例开放到网络。
+脚手架提供 `/tasks` 示例路由。
 
 `run.sh` 只执行本项目虚拟环境里的 `oldman`，不代为迁移或选择服务。Ctrl+C 停止前台服务，或另开终端运行 `./run.sh {{ service_name }} stop`。
 
