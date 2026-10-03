@@ -63,6 +63,12 @@ class OldmanI18nCommandsTest(unittest.TestCase):
         self.assertTrue(any(message.id == "Service commands" for message in messages))
         authentication = next(message for message in messages if message.id == "Authentication")
         self.assertIn("oldman/auth/apps.py", [path for path, _line in authentication.locations])
+        # User-management refusals travel as exception messages; a project's catalog only has them if they are marked.
+        for refusal in ("cannot disable current user", "cannot delete current user", "cannot delete superuser"):
+            located = next((message for message in messages if message.id == refusal), None)
+            self.assertIsNotNone(located, refusal)
+            assert located is not None
+            self.assertIn("oldman/auth/services.py", [path for path, _line in located.locations])
         self.assertFalse(any(".test." in path or ".spec." in path for path in frontend_locations))
         self.assertFalse(any(path.startswith("oldman/oldman/") for path in admin_locations))
 

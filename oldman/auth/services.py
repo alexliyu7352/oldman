@@ -14,6 +14,7 @@ from oldman.auth.security import run_dummy_verification
 from oldman.auth.settings import AuthSettings
 from oldman.db.session import DatabaseManager
 from oldman.db.session import db_manager as default_db_manager
+from oldman.i18n import gettext_noop
 from oldman.security import require_user_id
 from oldman.utils.date import naive_utcnow
 
@@ -176,7 +177,11 @@ def has_staff_access(user: Any | None, *, require_superuser: bool = False) -> bo
 
 
 class UserManagementError(ValueError):
-    """A rejected user-management operation (self-disable, deleting a superuser, ...)."""
+    """A rejected user-management operation (self-disable, deleting a superuser, ...).
+
+    The message is the untranslated msgid, marked so `i18n extract` collects it; the views that
+    show it pass it through `gettext` with the request.
+    """
 
 
 def user_identity_matches(user: Any, user_id: int | None) -> bool:
@@ -198,7 +203,7 @@ def is_ordinary_user(user: Any) -> bool:
 def set_user_active(user: Any, is_active: bool, *, current_user_id: int | None) -> None:
     """Change the active state without letting the current User disable itself."""
     if not is_active and user_identity_matches(user, current_user_id):
-        raise UserManagementError("cannot disable current user")
+        raise UserManagementError(gettext_noop("cannot disable current user"))
     user.is_active = bool(is_active)
 
 
@@ -217,9 +222,9 @@ def user_access_flags(user: Any) -> tuple[bool, ...]:
 def validate_user_delete(user: Any, *, current_user_id: int | None) -> None:
     """Reject deleting the current User or any superuser."""
     if user_identity_matches(user, current_user_id):
-        raise UserManagementError("cannot delete current user")
+        raise UserManagementError(gettext_noop("cannot delete current user"))
     if bool(user.is_superuser):
-        raise UserManagementError("cannot delete superuser")
+        raise UserManagementError(gettext_noop("cannot delete superuser"))
 
 
 def normalize_email(value: str | None) -> str | None:
