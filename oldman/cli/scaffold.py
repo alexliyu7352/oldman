@@ -106,6 +106,35 @@ PROJECT_SERVICE_CLASSES = {
     ProjectType.DASHBOARD: "DashboardService",
 }
 
+# The project types that can include the built-in Admin: it has pages and signs users in.
+ADMIN_PROJECT_TYPES = frozenset({ProjectType.WEB, ProjectType.DASHBOARD})
+
+# A project with users has the roles beside them (who may do what), whether or not it has the Admin.
+USER_APPS = ("oldman.auth", "oldman.apps.roles")
+ADMIN_APP = "oldman.apps.admin"
+
+ADMIN_IMPORT = "from oldman.apps.admin import install_admin\n"
+
+# The web service has no init() without the Admin; with it, init() installs the Admin.
+WEB_ADMIN_INIT = '''
+    def init(self) -> None:
+        """Install the built-in Admin under app_settings.admin.prefix; it shares this site's sign-in."""
+        super().init()
+        app = self.runtime_app
+        if app is None:
+            raise RuntimeError("Web runtime was not initialized")
+        install_admin(app)
+'''
+
+DASHBOARD_ADMIN_INSTALL = """        # The built-in Admin under app_settings.admin.prefix, sharing this site's sign-in.
+        install_admin(app)
+"""
+
+SESSION_SETTINGS = """web:
+  session:
+    enabled: true
+"""
+
 DB_DEPENDENCIES = {
     DatabaseChoice.NONE: "",
     DatabaseChoice.SQLITE: "",
@@ -126,13 +155,17 @@ def start_project(
     *,
     project_type: ProjectType,
     db: DatabaseChoice = DatabaseChoice.NONE,
+    admin: bool = False,
 ) -> Path:
-    """Create one project after all template choices have been collected."""
+    """Create one project after all template choices have been collected.
+
+    `admin` adds the built-in Admin (web and dashboard projects, which need a database for it).
+    """
     project_name = name.strip()
     if not project_name:
         raise ValueError("Project name cannot be empty")
     target = Path(project_name).resolve()
-    context = project_context(target.name, project_type=project_type, db=db)
+    context = project_context(target.name, project_type=project_type, db=db, admin=admin)
     ensure_writable_directory(target)
     copy_template_tree(
         scaffold_root("project", PROJECT_TEMPLATE_DIRS[project_type]),
@@ -248,15 +281,26 @@ def iter_template_resources(root: Traversable, relative: Path = Path()):
             yield from iter_template_resources(child, child_relative)
 
 
-def project_context(project_name: str, *, project_type: ProjectType, db: DatabaseChoice) -> dict[str, str]:
+def project_apps(project_type: ProjectType, *, admin: bool) -> tuple[str, ...]:
+    """The App packages a new project's service installs."""
+    apps: tuple[str, ...] = USER_APPS if project_type == ProjectType.DASHBOARD or admin else ()
+    return (*apps, ADMIN_APP) if admin else apps
+
+
+def project_context(project_name: str, *, project_type: ProjectType, db: DatabaseChoice, admin: bool = False) -> dict[str, str]:
     """Return template context for a generated project."""
     if project_type == ProjectType.CLI and db != DatabaseChoice.NONE:
         raise ValueError("CLI projects do not create a service database configuration")
     if project_type == ProjectType.DASHBOARD and db == DatabaseChoice.NONE:
         raise ValueError("Dashboard projects require SQLite, MySQL, or PostgreSQL")
+    if admin and project_type not in ADMIN_PROJECT_TYPES:
+        raise ValueError("Only web and dashboard projects can include the built-in Admin")
+    if admin and db == DatabaseChoice.NONE:
+        raise ValueError("The built-in Admin keeps its users in a database; choose SQLite, MySQL, or PostgreSQL")
     project_slug = slugify_name(project_name)
     service_name = PROJECT_SERVICE_NAMES.get(project_type, "")
-    settings_apps = "\n  - oldman.auth\n  - oldman.apps.admin" if project_type == ProjectType.DASHBOARD else " []"
+    apps = project_apps(project_type, admin=admin)
+    settings_apps = "".join(f"\n  - {package}" for package in apps) if apps else " []"
     database_url = DB_URLS[db]
     return {
         "project_name": project_name,
@@ -267,6 +311,11 @@ def project_context(project_name: str, *, project_type: ProjectType, db: Databas
         "service_name": service_name,
         "service_class": PROJECT_SERVICE_CLASSES.get(project_type, ""),
         "settings_apps": settings_apps,
+        # Signing in to the Admin needs sessions; the dashboard skeleton turns them on for its own sign-in.
+        "settings_session": SESSION_SETTINGS if admin else "",
+        "admin_import": ADMIN_IMPORT if admin else "",
+        "web_admin_init": WEB_ADMIN_INIT if admin else "",
+        "dashboard_admin_install": DASHBOARD_ADMIN_INSTALL if admin else "",
         "database_url": f'"{database_url}"' if database_url else "null",
         "database_migrate_step": ("./run.sh db migrate\n" if db != DatabaseChoice.NONE else ""),
         "db_dependency_line": DB_DEPENDENCIES[db],

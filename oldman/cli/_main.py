@@ -30,6 +30,7 @@ from oldman.cli.localization import (
     use_cli_language,
 )
 from oldman.cli.scaffold import (
+    ADMIN_PROJECT_TYPES,
     AppType,
     DatabaseChoice,
     ProjectType,
@@ -271,11 +272,18 @@ def _startproject_command(
                 key="startproject.database",
                 validate=_database_for(project_type),
             )
+        # The Admin keeps its users in the database, so a project without one is not asked.
+        admin = (
+            project_type in ADMIN_PROJECT_TYPES
+            and database != DatabaseChoice.NONE
+            and tui.confirm(gettext("Include the built-in Admin?"), default=False, key="startproject.admin")
+        )
     try:
         target = start_project(
             name,
             project_type=project_type,
             db=database,
+            admin=admin,
         )
     except (FileExistsError, ValueError) as exc:
         _exit_with_error(str(exc))

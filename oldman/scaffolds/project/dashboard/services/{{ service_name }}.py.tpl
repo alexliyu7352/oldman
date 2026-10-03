@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from config.settings import settings
-from oldman.i18n import gettext
+{{ admin_import }}from oldman.i18n import gettext
 from oldman.runtime import WebApplication
 from oldman.web.i18n import ensure_frontend_catalogs
 from oldman.web.staticfiles import (
@@ -87,7 +87,7 @@ class {{ service_class }}(WebApplication):
         if app is None:
             raise RuntimeError("Web runtime was not initialized")
         install_dashboard_templates(app)
-
+{{ dashboard_admin_install }}
     def prepare_server(self, app: WebApp) -> None:
         """Fail fast on a missing frontend build, then take the framework's listener options."""
         registry = app_bundle_registry(app)

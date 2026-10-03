@@ -27,6 +27,10 @@ uv sync
 
 `run.sh` 只执行本项目 `.venv/bin/oldman`，不自动生成数据或启动其他服务。Ctrl+C 停止，或另开终端执行 `./run.sh {{ service_name }} stop`。
 
+## 内置 Admin
+
+生成时选了集成内置 Admin 的项目，服务在 `init()` 里装上它（`app_settings.admin.prefix`，默认 `/admin`），配置里装了 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin` 并打开了 Session。它要 Redis（Session 存在 `redis.SESSION`）和数据库：先 `./run.sh db migrate`，再 `./run.sh {{ service_name }} createsuperuser` 建第一个账号（两条都要在终端里回答问题），然后打开 `/admin` 登录。
+
 ## 配置和模板
 
 脚手架已创建 YAML，`settings sync` 补齐默认字段和密钥；配置不存在时才使用 `settings init`。不要把真实密码和密钥提交到公开仓库。

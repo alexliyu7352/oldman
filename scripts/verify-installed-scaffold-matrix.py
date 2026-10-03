@@ -1423,7 +1423,8 @@ def validate_generated_project(project: Path, project_type: str, database: str, 
         if not isinstance(settings_data, Mapping):
             raise RuntimeError(f"{project.name} generated invalid service settings")
         apps = settings_data.get("apps")
-        expected_apps = ["oldman.auth", "oldman.apps.admin"] if project_type == "dashboard" else []
+        # The matrix answers no to the built-in Admin: a dashboard has its users and roles, nothing more.
+        expected_apps = ["oldman.auth", "oldman.apps.roles"] if project_type == "dashboard" else []
         if apps != expected_apps:
             raise RuntimeError(f"{project.name} generated unexpected settings.apps: {apps!r}")
         database_config = settings_data.get("database")

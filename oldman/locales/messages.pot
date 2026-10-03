@@ -504,6 +504,10 @@ msgid "Database"
 msgstr ""
 
 #: oldman/cli/_main.py
+msgid "Include the built-in Admin?"
+msgstr ""
+
+#: oldman/cli/_main.py
 #, python-format
 msgid "Created project at %(path)s"
 msgstr ""

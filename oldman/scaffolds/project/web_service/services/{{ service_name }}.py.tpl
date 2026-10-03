@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from config.settings import settings
-from oldman.runtime import WebApplication
+{{ admin_import }}from oldman.runtime import WebApplication
 
 
 class {{ service_class }}(WebApplication):
@@ -21,3 +21,4 @@ class {{ service_class }}(WebApplication):
             "templating_enable_async": True,
             "logging": False,
         }
+{{ web_admin_init }}

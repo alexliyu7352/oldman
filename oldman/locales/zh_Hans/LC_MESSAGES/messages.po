@@ -522,6 +522,10 @@ msgid "Database"
 msgstr "数据库"
 
 #: oldman/cli/_main.py
+msgid "Include the built-in Admin?"
+msgstr "是否集成内置后台管理（Admin）？"
+
+#: oldman/cli/_main.py
 #, python-format
 msgid "Created project at %(path)s"
 msgstr "已在 %(path)s 创建项目"

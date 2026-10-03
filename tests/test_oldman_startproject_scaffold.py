@@ -172,7 +172,7 @@ class StartProjectInteractionTests(unittest.TestCase):
         """Asked again at the terminal; a preset answer without one is an error before any write."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
-            with working_directory(parent), tui.simulate_input(["dashboard", "none", "sqlite"]):
+            with working_directory(parent), tui.simulate_input(["dashboard", "none", "sqlite", "n"]):
                 result = CliRunner().invoke(scaffold_cli(), ["startproject", "asked"])
             self.assertEqual(result.exit_code, 0, result.output)
             self.assertIn("Dashboard projects require a database.", result.output)
@@ -363,10 +363,56 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 db=DatabaseChoice.SQLITE,
             )
             dashboard_seed = read_yaml(dashboard / "data" / "dashboard_settings.yaml")
+            # Users, and the roles beside them; the built-in Admin only when asked for.
             self.assertEqual(
                 dashboard_seed["apps"],
-                ["oldman.auth", "oldman.apps.admin"],
+                ["oldman.auth", "oldman.apps.roles"],
             )
+
+    def test_the_admin_choice_installs_the_admin_with_its_users_and_sessions(self) -> None:
+        """Web and dashboard projects may include the built-in Admin; it needs users, roles, sessions and a database."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            for project_type, service_name in ((ProjectType.WEB, "web"), (ProjectType.DASHBOARD, "dashboard")):
+                for admin in (True, False):
+                    with self.subTest(project_type=project_type, admin=admin), working_directory(parent):
+                        target = start_project(f"{service_name}_{admin}", project_type=project_type, db=DatabaseChoice.SQLITE, admin=admin)
+                        seed = read_yaml(target / "data" / f"{service_name}_settings.yaml")
+                        service = (target / "services" / f"{service_name}.py").read_text(encoding="utf-8")
+                        compile(service, f"{service_name}.py", "exec")
+
+                        users = ["oldman.auth", "oldman.apps.roles"] if project_type == ProjectType.DASHBOARD or admin else []
+                        self.assertEqual(users + (["oldman.apps.admin"] if admin else []), seed["apps"])
+                        self.assertEqual(admin, seed.get("web") == {"session": {"enabled": True}})
+                        self.assertEqual(admin, "from oldman.apps.admin import install_admin\n" in service)
+                        self.assertEqual(1 if admin else 0, service.count("install_admin(app)"))
+
+            with working_directory(parent):
+                with self.assertRaisesRegex(ValueError, "Only web and dashboard"):
+                    start_project("api_admin", project_type=ProjectType.API, db=DatabaseChoice.SQLITE, admin=True)
+                with self.assertRaisesRegex(ValueError, "database"):
+                    start_project("web_admin_no_db", project_type=ProjectType.WEB, db=DatabaseChoice.NONE, admin=True)
+            self.assertFalse((parent / "api_admin").exists())
+
+    def test_the_admin_question_is_asked_only_where_it_can_be_answered_yes(self) -> None:
+        """A web project without a database is not asked; API projects never are."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            cases = (("web", "sqlite", True), ("web", "none", False), ("dashboard", "sqlite", True), ("api", "sqlite", False))
+            for project_type, database, asked in cases:
+                with self.subTest(project_type=project_type, database=database), working_directory(parent):
+                    env = {
+                        "OLDMAN_ANSWER_STARTPROJECT_TYPE": project_type,
+                        "OLDMAN_ANSWER_STARTPROJECT_DATABASE": database,
+                        "OLDMAN_ANSWER_STARTPROJECT_ADMIN": "yes",
+                    }
+                    result = CliRunner().invoke(scaffold_cli(), ["startproject", f"{project_type}_{database}"], env=env)
+                self.assertEqual(0, result.exit_code, result.output)
+                self.assertEqual(asked, "OLDMAN_ANSWER_STARTPROJECT_ADMIN" in result.output, result.output)
+                apps = read_yaml(parent / f"{project_type}_{database}" / "data" / f"{SERVICE_NAMES[ProjectType(project_type)]}_settings.yaml")["apps"]
+                self.assertIsInstance(apps, list)
+                assert isinstance(apps, list)
+                self.assertEqual(asked, "oldman.apps.admin" in apps)
 
     def test_gitignore_excludes_service_settings(self) -> None:
         """Generated projects do not commit service-specific settings, secrets, logs or pid files."""

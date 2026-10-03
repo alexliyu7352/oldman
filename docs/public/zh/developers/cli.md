@@ -9,7 +9,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | 命令 | 用途 |
 | --- | --- |
 | `oldman --version` | 显示已安装的 oldman 版本；不需要在项目目录里 |
-| `oldman startproject <directory>` | 创建新项目，通过交互选择类型及数据库 |
+| `oldman startproject <directory>` | 创建新项目，通过交互选择类型、数据库，以及是否集成内置 Admin |
 | `./run.sh startapp <name>` | 创建业务 App，通过交互选择模板及显示名称 |
 | `./run.sh startservice <name>` | 在现有项目增加服务，通过交互选择 simple、web、taskiq_worker 或 taskiq_scheduler |
 | `./run.sh language list/show/set <language>` | 分别列出、查看或设置 CLI 显示语言；只有 set 带语言参数 |
@@ -36,6 +36,8 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 
+`web` 选了数据库、以及 `dashboard`，接着问是否集成内置 Admin（默认否）。选了的项目装 `oldman.auth`、`oldman.apps.roles`、`oldman.apps.admin`，打开 Session，服务在 `init()` 里调用 `install_admin(app)`，挂在 `app_settings.admin.prefix`（默认 `/admin`），与站点共用登录。没有数据库的 `web` 不问，因为 Admin 的用户存在数据库里。不选也能以后加：把这三个 App 加进服务配置、打开 Session、在服务里调用 `install_admin`。`dashboard` 不论选不选都装用户与角色两个 App。
+
 这些选择由提问完成，不提供 `startproject --type` 或 `--db` 这类参数。无人值守（CI、脚本、agent）时用环境变量[预置答案](tui.md#预置答案无人值守)，设了变量的问题不再提问：
 
 ```sh
@@ -48,6 +50,7 @@ OLDMAN_ANSWER_STARTSERVICE_TYPE=taskiq_worker ./run.sh startservice worker
 | --- | --- | --- | --- |
 | `startproject` | 项目类型 | `OLDMAN_ANSWER_STARTPROJECT_TYPE` | `cli`、`service`、`api`、`web`、`dashboard` |
 | `startproject` | 数据库（`cli` 不问） | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`、`sqlite`、`mysql`、`postgres`；`dashboard` 不能是 `none` |
+| `startproject` | 是否集成内置 Admin（`web` 有数据库时与 `dashboard` 才问） | `OLDMAN_ANSWER_STARTPROJECT_ADMIN` | `yes`、`no`（或 true/false、1/0）；不设、又不在终端里时为 `no` |
 | `startapp` | App 模板 | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`、`api`、`web`、`dashboard` |
 | `startapp` | 显示名称 | `OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME` | 任意文字；不设时用由名字生成的默认值 |
 | `startservice` | 服务类型 | `OLDMAN_ANSWER_STARTSERVICE_TYPE` | `simple`、`web`、`taskiq_worker`、`taskiq_scheduler` |
