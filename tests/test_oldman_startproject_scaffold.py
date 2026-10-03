@@ -28,7 +28,7 @@ from oldman.cli._main import create_app
 from oldman.cli.agent_instructions import GUIDES
 from oldman.cli.i18n_commands import build_frontend_catalogs
 from oldman.cli.localization import CliLanguageState
-from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, copy_template_tree, start_app, start_project
+from oldman.cli.scaffold import AppType, DatabaseChoice, ProjectType, ServiceType, copy_template_tree, start_app, start_project, start_service
 from oldman.conf import DefaultSettings
 from oldman.i18n.commands import KEYWORDS, _extract_catalog
 from oldman.version import __VERSION__
@@ -495,6 +495,31 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     self.assertEqual(admin, "zh/agents/admin.md" in agents)
                     self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser" in agents)
 
+    def test_each_project_type_has_only_its_own_parts(self) -> None:
+        """A script project has no services, an API no templates; every README says how to install and start it."""
+        with tempfile.TemporaryDirectory() as temporary_directory, working_directory(Path(temporary_directory)):
+            projects = {
+                ProjectType.CLI: start_project("tool", project_type=ProjectType.CLI),
+                ProjectType.SERVICE: start_project("worker", project_type=ProjectType.SERVICE),
+                ProjectType.API: start_project("api", project_type=ProjectType.API, db=DatabaseChoice.POSTGRES),
+                ProjectType.WEB: start_project("site", project_type=ProjectType.WEB, db=DatabaseChoice.SQLITE),
+                ProjectType.DASHBOARD: start_project("desk", project_type=ProjectType.DASHBOARD, db=DatabaseChoice.SQLITE),
+            }
+            self.assertFalse((projects[ProjectType.CLI] / "services").exists())
+            self.assertFalse((projects[ProjectType.API] / "templates").exists())
+            for project_type, project in projects.items():
+                with self.subTest(project_type=project_type):
+                    readme = (project / "README.md").read_text(encoding="utf-8")
+                    self.assertIn("uv sync", readme)
+                    self.assertIn("uv run python main.py" if project_type == ProjectType.CLI else "./run.sh", readme)
+
+            # startservice adds a service module beside an App the project already has.
+            with working_directory(projects[ProjectType.API]):
+                start_app("Report API", app_type=AppType.API, display_name="Report API")
+                start_service("report_api", service_type=ServiceType.WEB)
+            self.assertTrue((projects[ProjectType.API] / "apps" / "report_api" / "apps.py").is_file())
+            self.assertTrue((projects[ProjectType.API] / "services" / "report_api.py").is_file())
+
     def test_every_guide_agents_are_sent_to_is_in_the_docs(self) -> None:
         """A generated AGENTS.md names guides by their path in the docs of the same version."""
         for _applies, row in GUIDES:
@@ -567,7 +592,16 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     self.assertNotIn('"/admin"', sidebar)
 
                     page = (target / "frontend" / "src" / "pages" / "base-page.ts").read_text(encoding="utf-8")
+                    self.assertIn("extends DashboardPage", page)
                     self.assertIn("createDashboardComponentLoaders()", page)
+                    # The frontend entry: the Tailwind entry, the public runtime, the generated page entries.
+                    main = (target / "frontend" / "src" / "main.ts").read_text(encoding="utf-8")
+                    for fragment in ('"./app.css"', 'from "oldman-web/core"', "import.meta.glob"):
+                        self.assertIn(fragment, main)
+                    # Tailwind takes the shared styles and icons, the project's generated icons, and scans the Apps' Python.
+                    css = (target / "frontend" / "src" / "app.css").read_text(encoding="utf-8")
+                    for fragment in ("oldman-web/styles/tailwind.css", "oldman-web/styles/icons.css", "./generated/icons.css", "../../apps/**/*.py"):
+                        self.assertIn(fragment, css)
                     readme = (target / "README.md").read_text(encoding="utf-8")
                     for step in ("./run.sh db migrate", "./run.sh dashboard createsuperuser", "./run.sh dashboard static collect", "Redis"):
                         self.assertIn(step, readme)
@@ -657,6 +691,8 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             compile(view, "views.py", "exec")
             self.assertIn('@router.get("/reports", name="reports_index")\n@login_required()', view)
             self.assertNotIn("dashboard_menu_items", view)
+            # A dashboard App is a page of the one dashboard service, not a service of its own.
+            self.assertFalse((target / "services" / "reports.py").exists())
             page = (target / "frontend" / "src" / "pages" / "reports.ts").read_text(encoding="utf-8")
             self.assertIn('import { BasePage } from "./base-page";', page)
             self.assertIn('setupPage("reports", ReportsPage);', page)
