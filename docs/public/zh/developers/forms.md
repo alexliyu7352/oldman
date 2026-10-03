@@ -252,7 +252,7 @@ router.add_route(
 )
 ```
 
-SelectProviderView 默认要求登录和 staff；`router` 来自 `oldman.web`，WebSecurityPurpose 和 configured_web_security_key 来自 `oldman.web.security`。这段初始化发生在服务配置已准备好的视图加载阶段，不在未初始化的裸 Python 进程中执行。
+SelectProviderView 默认只要求登录（`require_staff = False`），要 staff 或某个权限时由端点自己设置；`router` 来自 `oldman.web`，WebSecurityPurpose 和 configured_web_security_key 来自 `oldman.web.security`。这段初始化发生在服务配置已准备好的视图加载阶段，不在未初始化的裸 Python 进程中执行。
 
 ### 声明字段和加载初值
 

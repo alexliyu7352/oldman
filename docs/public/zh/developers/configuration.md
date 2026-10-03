@@ -117,7 +117,7 @@ app_settings:
 
 配置模型必须继承 `pydantic.BaseModel`。推荐写上 `ConfigDict(extra="forbid")`，并为可配置范围使用 `Field` 的类型和约束。没有专用的 `AppSettings` 基类要求。
 
-Demo 已安装的 Admin App 提供下面这个配置类。以下取自框架 [oldman/apps/admin/settings.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/settings.py)，包含导入和完整类，不是要在 Demo 创建同名文件：
+Demo 已安装的 Admin App 提供下面这个配置类。以下是框架 [oldman/apps/admin/settings.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/settings.py) 里这个类的字段部分，不是要在 Demo 创建同名文件：
 
 ```python
 """Strongly typed settings owned by the Admin application."""
@@ -134,7 +134,13 @@ class AdminSettings(BaseModel):
         default=False,
         description="Require superuser access to Admin",
     )
+    prefix: str = Field(
+        default="/admin",
+        description="URL path the Admin is mounted under; its own pages (login, sign-out, session) sit beneath it",
+    )
 ```
+
+完整文件另有 `prefix` 的校验器：去掉末尾的斜杠；根路径 `/` 和不是站内路径的值（带域名、查询串、`#` 片段，或以 `//` 开头）在加载配置时报错。
 
 注册使用框架 [oldman/apps/admin/apps.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/apps.py)，下面同样保留导入、类和实例：
 
@@ -225,7 +231,7 @@ EPG 第一次初始化时使用同目录的 `web_settings.example.yaml`，所以
 | `mail` | `MailConfig` | 外发邮件后端、默认发件人、管理员收件人和 SMTP 参数 |
 | `proxy` | `ProxyConfig` | 代理连接和读取超时等设置 |
 
-Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时、`ip_limit`/`ip_window` 5 次每 15 分钟、`email_limit`/`email_window` 3 封每小时）从 `oldman.auth.apps.app.settings` 读取；Admin 的 `require_superuser` 从 `oldman.apps.admin.apps.app.settings` 读取。它们保存为 `app_settings.auth`、`app_settings.admin`，不属于根设置。
+Auth 的 `user_model` 和找回密码的 `password_reset`（`expiry` 24 小时、`ip_limit`/`ip_window` 5 次每 15 分钟、`email_limit`/`email_window` 3 封每小时）从 `oldman.auth.apps.app.settings` 读取；Admin 的 `require_superuser` 与挂载路径 `prefix`（默认 `/admin`）从 `oldman.apps.admin.apps.app.settings` 读取。它们保存为 `app_settings.auth`、`app_settings.admin`，不属于根设置。
 
 ### 常用非 Web 默认值
 
@@ -343,6 +349,23 @@ Web 配置校验会检查开启 Session 或分布式 SSE 时引用的 Redis 别�
 Web 服务安装 Admin，且原始配置没有 `web.messages.enabled` 时，`init/sync` 将它补为 true；用户显式 false 不被覆盖。运行时单纯读取缺省 YAML 不会执行这一写入默认的操作，也不会连带打开其他模块。
 
 SimpleApplication 不自动补全或生成 `web` 节点，不执行上述 Web 专用密钥和 Redis 别名关系检查。显式提供的 Web 配置仍按字段类型解析；这不等于安装浏览器中间件。其他根配置和已安装 App 配置仍正常生成。
+
+### 账户页面地址
+
+站点自己的账户页面在哪里，只在这里配置一次。值必须是站内路径：以 `/` 开头，不带域名、查询串或 `#` 片段，不以 `//` 开头；加载配置时拒绝其他写法。
+
+| 配置 | 默认与含义 |
+| --- | --- |
+| `web.account.login_url` | `/login`；登录页与登录提交。需要登录的请求在未登录时被送到这里 |
+| `web.account.logout_url` | `/logout`；退出并回到登录页 |
+| `web.account.login_redirect_url` | `/`；登录后没有安全的 `next` 时去的地方，已登录的人打开登录页也去这里 |
+| `web.account.password_reset_url` | 未设置；设置后登录页显示"忘记密码"链接指向这里，找回密码流程要装在这个地址 |
+| `web.account.profile_url` | `/user-session`；当前用户自己的页面，改自己密码的地址在它下面 |
+| `web.account.user_events_url` | `/user-events`；当前用户的服务端事件流（会话结束、通知），只在 `web.sse.enabled` 时安装 |
+| `web.account.users_url` | `/users`；用户管理列表，每个账户的页面在它下面 |
+| `i18n.preference_url` | `/preferences/language`；切换语言后浏览器把选择 POST 到这里，登录与否都可以 |
+
+读取它们的地方：`login_required` 等装饰器、表格/图表/下拉的数据接口、SSE 与通知接口在没有显式传 `login_url` 时，于请求时读 `web.account.login_url`；模板全局 `account_urls(request)` 把这些地址交给项目模板；`i18n compile-frontend` 把 `i18n.preference_url` 写进生成的 `generated.ts`（`languagePreferencePath`）。登录、个人页、用户管理三个流程不自己读设置，由服务把这些值传进去，见[账户页面的现成流程](web.md#账户页面的现成流程)。内置 Admin 的页面都在 `app_settings.admin.prefix` 下，不读这一组。
 
 ## 配置变更的操作边界
 

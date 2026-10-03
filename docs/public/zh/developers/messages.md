@@ -144,7 +144,7 @@ create 在数据库成功后发布 `oldman.notifications.created`。Redis 不可
 
 Admin 已接好：安装通知 App 后提供 `/admin/user-notifications` 及共享操作接口；开启 SSE 后提供 `/admin/user-events`，使用 Admin 登录权限。
 
-业务 Dashboard 使用 `oldman.web.messages.notifications.init_app(app, url_prefix="") -> NotificationRoutes` 安装**通知 HTTP 操作**，不是安装通用 SSE 路由。返回 topbar_url/read_url/delete_url/center_url：
+业务 Dashboard 使用 `oldman.web.messages.notifications.init_app(app, *, url_prefix="", login_url=None) -> NotificationRoutes` 安装**通知 HTTP 操作**，不是安装通用 SSE 路由。未登录的浏览器被送到 `login_url`，省略时是站点设置 `web.account.login_url`；同一前缀装第二次返回第一次的结果，`installed_routes(app, url_prefix="")` 取回已装的地址（没装时 None）。返回 topbar_url/read_url/delete_url/center_url：
 
 - GET `/user-notifications/topbar` 返回共享预览 HTML。
 - POST `/user-notifications/read` 接收 `{"ids":[1,2]}` 或 `{"all":true}`。
@@ -153,7 +153,7 @@ Admin 已接好：安装通知 App 后提供 `/admin/user-notifications` 及共�
 
 这些接口要求 Session、CSRF 和模板环境，写请求走 CSRF。非法请求当前为 HTTP 400，认证/权限走公共安全路径，不能伪造成功。
 
-**中心外壳路由由应用定义**：在它的登录保护视图中调用 `await render_center_content(request, user_id=user_id)`，将结果传入继承自己 Dashboard base 的模板；`init_app()` 不会替业务选择页面布局。共享主体 `oldman/messages/notifications/center_content.html` 已包含筛选、分页、选中标读、全部标读和删除协议，不复制两套控制器。
+**中心外壳页面**：把 `init_app()` 的返回值传给 `AccountFlow(notification_routes=...)`，它在 `center_url` 装好中心页（页面 `user_notifications`，上下文 `notification_center_content`），见[账户页面的现成流程](web.md#账户页面的现成流程)。不用 `AccountFlow` 时由应用自己定义：在登录保护视图中调用 `await render_center_content(request, user_id=user_id)`，将结果传入继承自己 Dashboard base 的模板；`init_app()` 不会替业务选择页面布局。共享主体 `oldman/messages/notifications/center_content.html` 已包含筛选、分页、选中标读、全部标读和删除协议，不复制两套控制器。
 
 顶栏使用共享 `dashboard_topbar` macro 的 `user_notification_urls={"topbar": routes.topbar_url, "center": routes.center_url}`。DashboardPage 初始化时请求最新预览，SSE created/sync 及重连 open 再刷新；预览最多五条、只供点击，不含批量选择框。toast 显示不等于已读，打开或显式标读才更改状态。
 

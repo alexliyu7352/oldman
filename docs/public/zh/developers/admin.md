@@ -36,6 +36,8 @@ install_admin(
     extension_bundle_name=None,
     auth_settings=None,
     admin_settings=None,
+    password_reset_rate_limiter=None,
+    login_rate_limit=None,
 )
 ```
 

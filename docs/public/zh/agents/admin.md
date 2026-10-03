@@ -19,7 +19,7 @@
 
 - `oldman.auth`、`oldman.apps.admin` 都须在这个服务显式安装。App 注册不会自动安装 `/admin`。
 - Session 显式开启，使用当前服务的 Redis alias；不创建生产 Memory Session。
-- `install_admin` 默认取得配置选定的 User、全局数据库管理器和 App Settings。通常只传 app、admin_site 和必要 prefix。
+- `install_admin` 默认取得配置选定的 User、全局数据库管理器和 App Settings。通常只传 app 和 admin_site；挂载路径用 `app_settings.admin.prefix` 配置，不是安装参数。
 - 业务模型通过 `site.register(Model, ModelAdminSubclass)` 注册；User 的定制继承 AdminUserModelAdmin，不能用普通管理器暴露 password_hash。
 - 配置只从根单例或对应 App 的 app.settings 读取，不设置 app.ctx.settings。
 - 所有表通过 db migrate 准备，所有内置静态文件通过本服务 static collect 准备；不在启动时创建表或写默认密码。

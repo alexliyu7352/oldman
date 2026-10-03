@@ -4,7 +4,7 @@
 
 ## 先确定本次业务
 
-查看应用 Git 状态、服务入口、本服务 YAML、现有模型和前端入口。确认记录访问范围：所有 staff 共用、按用户，还是按租户。教程明确为 staff 共用，不把 select(Model) 自动当成所有业务正确的查询。
+查看应用 Git 状态、服务入口、本服务 YAML、现有模型和前端入口。确认谁能进和记录访问范围：dashboard 的底线是已登录的启用用户，页面要 staff 或某个权限时自己加；记录是大家共用、按用户，还是按租户。教程（EPG Demo）只让 staff 登录、数据由 staff 共用，不把 select(Model) 自动当成所有业务正确的查询。
 
 先复用已有 App、模板基类、DashboardPage、数据库 Session 与资源 bundle。添加一个业务页面通常不需要改 settings 结构、安装框架源码或重写 Page/Modal。
 
@@ -33,7 +33,7 @@
 ## 权限和数据库
 
 1. 需要 Session 时启用 settings.web.session，并提供 redis.SESSION。启用 Admin App 不代表已经安装管理站点路由。
-2. 页面用 staff_required 等已有装饰器；Table 用 as_view 保留 dispatch。直接调 Table.get 不等价于受保护路由。
+2. 页面用 login_required 等已有装饰器（要 staff 用 staff_required，要某个权限用 require_perm）；Table 用 as_view 保留 dispatch。直接调 Table.get 不等价于受保护路由。
 3. 每个数据、编辑、保存、删除 endpoint 都单独验证权限。隐藏按钮、不可选字段和签名候选都不替代后端授权。
 4. 在 get_queryset 放固定范围；保存前查询属于该范围的模型实例。不能依赖 request.form 主键就直接更新任意行。
 5. 写操作用 db_manager.get_session；Form.save(commit=True) 只 add/flush，退出上下文提交成功后才返回成功 actions。只读用 get_read_session。
