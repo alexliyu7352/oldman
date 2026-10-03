@@ -175,12 +175,15 @@ class AccountFlowRoutesTest(unittest.TestCase):
 class AccountUrlsTest(unittest.TestCase):
     def test_the_addresses_come_from_the_settings(self) -> None:
         settings = settings_with_sse(False)
-        settings.web.account = AccountConfig(login_url="/signin", profile_url="/me", password_reset_url="/signin/reset")
+        settings.web.account = AccountConfig(
+            login_url="/signin", profile_url="/me", password_reset_url="/signin/reset", login_redirect_url="/console"
+        )
         with patch.dict(conf.__dict__, {"settings": settings}):
             urls = account_urls(make_request(cast(Any, FakeApp()), path="/"))
 
         self.assertEqual(
             {
+                "home": "/console",
                 "login": "/signin",
                 "logout": "/logout",
                 "profile": "/me",

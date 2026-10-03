@@ -175,9 +175,10 @@ class AccountFlow:
 
 
 def account_urls(request: Any = None) -> dict[str, Any]:
-    """The site's account addresses for templates (a dashboard's topbar and base), from the settings.
+    """The site's account addresses for templates (a dashboard's topbar, base and error pages), from the settings.
 
-    `user_events` is set only while `web.sse.enabled`; `notifications` holds the `center` and
+    `home` is where a sign-in lands (`web.account.login_redirect_url`), the dashboard's own front
+    page. `user_events` is set only while `web.sse.enabled`; `notifications` holds the `center` and
     `topbar` URLs once the site installed notifications (`init_app` without a prefix).
     """
     account = conf.settings.web.account
@@ -190,6 +191,7 @@ def account_urls(request: Any = None) -> dict[str, Any]:
         if routes is not None:
             notifications = {"center": routes.center_url, "topbar": routes.topbar_url}
     return {
+        "home": account.login_redirect_url,
         "login": account.login_url,
         "logout": account.logout_url,
         "profile": account.profile_url,

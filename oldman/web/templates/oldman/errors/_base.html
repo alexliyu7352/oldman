@@ -1,3 +1,5 @@
+{#- The site root, the one place this page family names it; the brand and every "Return home" link use it. -#}
+{% set home_url = "/" -%}
 <!doctype html>
 <html lang="{{ request.ctx.locale | default('en') }}">
   <head>
@@ -45,7 +47,7 @@
   </head>
   <body>
     <main>
-      <a class="brand" href="/" aria-label="{{ site_name() }}">
+      <a class="brand" href="{{ home_url }}" aria-label="{{ site_name() }}">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>{{ site_name() }}</span>
       </a>

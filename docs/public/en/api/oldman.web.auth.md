@@ -14,7 +14,7 @@ function · defined in `oldman.web.auth.account`
 def account_urls(request: Any=None) -> dict[str, Any]
 ```
 
-The site's account addresses for templates (a dashboard's topbar and base), from the settings.
+The site's account addresses for templates (a dashboard's topbar, base and error pages), from the settings.
 
 ## `AccountFlow`
 

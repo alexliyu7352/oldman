@@ -204,7 +204,7 @@ dashboard 的路径来自[账户页面地址](configuration.md#账户页面地�
 
 流程在服务 `init()` 里 `super().init()` 之后安装，与 `install_admin` 同一处；`app` 是 `self.runtime_app`。`template_prefix="oldman/dashboard/account"` 用框架自带的 dashboard 账户页：登录页和找回密码页（`PasswordResetFlow` 用 `oldman/dashboard/account/password_reset`）继承 `oldman/dashboard/account/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏和顶栏，`data-om-page="login"`，加载项目的 `app_main_bundle`）；个人页、通知中心和用户管理页继承项目自己的 `base.html`。改外观就在项目模板目录放同名文件覆盖，或用 `framework:` 继承原版只改一块（见[启用模板](#启用模板)）。浏览器端由 `startDashboard` 的 `AuthPage` 挂载认证页，见[前端](frontend.md#框架的启动入口)。
 
-项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `login`、`logout`、`profile`、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节 Demo 的登录入口是手写的；用 `LoginFlow` 时，`next` 校验、错误回显、限流和"记住我"都在流程里。
+项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `home`（`web.account.login_redirect_url`，登录后的落地页）、`login`、`logout`、`profile`、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节 Demo 的登录入口是手写的；用 `LoginFlow` 时，`next` 校验、错误回显、限流和"记住我"都在流程里。
 
 ## 请求认证：request.ctx.user
 
@@ -439,7 +439,7 @@ WebApplication 已安装 `ErrorPageHandler`，默认 `settings.web.fallback_erro
 3. `errors/default.html`。
 4. `oldman/errors/default.html`。
 
-框架自带的错误页只有一段内联 CSS，不加载任何前端产物，纯 API 服务和网站项目同样可用；取色和字体回退与共享设计 token 一致，并跟随系统明暗。要让错误页带 Dashboard 外壳，按上面的顺序放项目自己的模板。模板上下文只有必要的 `request`、`status_code` 和 `description`，不把异常堆栈或敏感详情交给生产页面：`description` 只在异常自己带了 `page_description`（目前只有 `CSRFFailure`，内容是已翻译的处理建议）时有值，其他异常的消息不会出现在页面上。框架的 403 模板有 `description` 时显示它，否则显示"没有权限"；项目自己的 403 模板要用同样的写法才会显示这句建议。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
+框架自带的错误页只有一段内联 CSS，不加载任何前端产物，纯 API 服务和网站项目同样可用；品牌与标题用站点名 `site_name()`，“返回”链接：站点级错误页（`oldman/errors/*`）指站点根 `/`，dashboard 错误页（`oldman/dashboard/errors/*`）指 `account_urls(request).home`，即登录后的落地页；取色和字体回退与共享设计 token 一致，并跟随系统明暗。要让错误页带 Dashboard 外壳，按上面的顺序放项目自己的模板。模板上下文只有必要的 `request`、`status_code` 和 `description`，不把异常堆栈或敏感详情交给生产页面：`description` 只在异常自己带了 `page_description`（目前只有 `CSRFFailure`，内容是已翻译的处理建议）时有值，其他异常的消息不会出现在页面上。框架的 403 模板有 `description` 时显示它，否则显示"没有权限"；项目自己的 403 模板要用同样的写法才会显示这句建议。项目可自行加 `templates/errors/401.html`。Dashboard 脚手架提供 `errors/403.html`、`404.html`、`500.html`、`default.html`，它们独立继承框架 Dashboard 错误模板，修改一个不会要求复制整套处理器。
 
 项目 `errors/default.html` 不会覆盖已经匹配到的框架专用 403/404/500；要定制它们需各放一个专用模板。若要统一覆盖所有框架默认样式，也可覆盖对应的 `oldman/errors/...` 路径。
 

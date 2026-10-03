@@ -68,6 +68,27 @@ class OldmanErrorPagesTest(unittest.IsolatedAsyncioTestCase):
                 footer = await environment.get_template("oldman/dashboard/partials/footer.html").render_async(request=request)
                 self.assertIn(expected, footer)
 
+    async def test_the_way_back_is_the_dashboard_home_or_the_site_root(self) -> None:
+        """Dashboard error pages lead to where a sign-in lands; the site's own lead to its root."""
+        from jinja2 import Environment
+
+        from oldman.conf.schemas import AccountConfig
+
+        environment = Environment(enable_async=True)
+        install_template_loaders(environment)
+        request = SimpleNamespace(ctx=SimpleNamespace(locale="en"))
+        settings = DefaultSettings()
+        settings.web.account = AccountConfig(login_redirect_url="/console")
+        with patch.dict(conf.__dict__, {"settings": settings}):
+            dashboard = await environment.get_template("oldman/dashboard/errors/404.html").render_async(request=request, status_code=404)
+            site = await environment.get_template("oldman/errors/404.html").render_async(request=request, status_code=404)
+
+        self.assertIn('<a class="error-action" href="/console">', dashboard)
+        self.assertIn('<a class="brand" href="/console"', dashboard)
+        self.assertNotIn('href="/"', dashboard)
+        self.assertIn('<a class="action" href="/">', site)
+        self.assertTrue(dashboard.startswith("<!doctype html>") and site.startswith("<!doctype html>"), "nothing before the doctype")
+
     async def test_csrf_failure_page_says_how_to_recover(self) -> None:
         """A rejected form is not a permission problem; only the opted-in sentence reaches the page."""
         from jinja2 import Environment

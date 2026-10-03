@@ -1,3 +1,5 @@
+{#- Where a sign-in lands (web.account.login_redirect_url): the brand and every "Return to dashboard" link use it. -#}
+{% set home_url = account_urls(request).home -%}
 <!doctype html>
 <html lang="{{ request.ctx.locale | default('en') }}" data-layout="vertical" data-theme="light" data-sidenav-color="light" data-sidenav-size="default" data-topbar="light">
   <head>
@@ -27,7 +29,7 @@
   </head>
   <body>
     <main>
-      <a class="brand" href="/" aria-label="{{ site_name() }}">
+      <a class="brand" href="{{ home_url }}" aria-label="{{ site_name() }}">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>{{ site_name() }}</span>
       </a>

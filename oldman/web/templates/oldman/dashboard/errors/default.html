@@ -6,5 +6,5 @@
   <div class="error-status error-status--primary" aria-hidden="true">{{ status_code }}</div>
   <h1 class="error-title">{{ _("Request error") }}</h1>
   <p class="error-description">{{ _("The request could not be completed.") }}</p>
-  <a class="error-action" href="/">{{ _("Return to dashboard") }}</a>
+  <a class="error-action" href="{{ home_url }}">{{ _("Return to dashboard") }}</a>
 {% endblock %}
