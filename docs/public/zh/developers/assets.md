@@ -194,6 +194,20 @@ Demo 已将生成命令接入上述生命周期，并提交生成结果。生成
 
 项目 Python、Jinja、App CLI 和前端源词合并到 `messages.po`。后端运行时用 MO，浏览器用 JSON；它们是同一份翻译的不同产物，不单独维护一套 frontend/js domain。
 
+### 框架自带的翻译
+
+框架带一份自己的翻译 `oldman/locales`（简体 `zh_Hans`、繁体 `zh_Hant`），框架的全部文案都在里面：内置 Admin、账户页面（登录、个人页、用户管理、找回密码）、表格与表单、通知、角色、错误页、CLI 与迁移命令，以及 `oldman-web` 的前端文案。查翻译的顺序是：
+
+1. 项目自己的 `locales/`；
+2. 服务装了的每个 App 自带的 `locales/`（第三方 App 可以自带翻译）；
+3. 框架的 `oldman/locales`，最后兜底。
+
+Web 服务与 CLI 用同一个顺序（`oldman.i18n.catalogs.translation_roots`）。所以开启 i18n、只配 `zh-Hans` 的项目，框架的页面和提示直接是中文，与装不装 Admin 无关，项目只需翻译自己的文案。框架没带的语言（例如阿拉伯语）由项目翻译：`i18n extract` 会把框架文案一并收进项目的 POT，翻译一次即可。要改框架某条文案的译法，就在项目 PO 里给它填上译文，项目的优先；项目 PO 里留空的条目编译时不进 MO，仍落到框架的译文。
+
+浏览器语言包同样兜底：`i18n compile-frontend` 编译时，项目 PO 没有翻译的框架前端文案取框架目录的译文；项目没有这种语言的 PO 时，整份框架前端文案与复数规则都来自框架。语言包照旧只含前端文案，后端文案不会进去。
+
+框架这份翻译怎么维护见[源码开发](maintenance.md#浏览器包和-admin-构建)。
+
 Demo 根目录 babel.cfg 的实际 Jinja 段如下：
 
 ```ini
@@ -227,7 +241,7 @@ pnpm --dir frontend generate:i18n
 
 语言清单是前端 import 的 TypeScript 模块，所以语言集合随 bundle 一起到达，启动不需要再取一次清单；代价是**新增语言后必须重新构建前端**，只跑 i18n 编译不够。需要不同路径的项目直接调用 `oldman.web.i18n.frontend_build.build_frontend_i18n()` 并显式给出四个位置。
 
-PO 不存在时会生成对应语言的空 messages 字典；这不等于该语言翻译完整。不要用“JSON 文件存在”代替翻译检查。
+PO 不存在时，这种语言的词典里只有框架带了译文的框架前端文案（见上文「框架自带的翻译」），项目自己的前端文案仍是原文；这不等于该语言翻译完整。不要用“JSON 文件存在”代替翻译检查。
 
 ### 三份语言列表
 
@@ -236,14 +250,14 @@ PO 不存在时会生成对应语言的空 messages 字典；这不等于该语�
 | 列表 | 来源 | 什么时候更新 |
 | --- | --- | --- |
 | 切换器菜单（用户点的那个） | `settings.i18n.languages`（`language_menu_items()`） | 改配置 + 重启 |
-| 后端文案 | `locales/` 编译出的 `.mo` | `i18n compile` |
+| 后端文案 | 项目 `locales/` 编译出的 `.mo`，没有的落到框架 `oldman/locales` | `i18n compile`；框架的随框架版本更新 |
 | 浏览器文案与前端清单 | `frontend/public/i18n/` 与 `generated.ts` | `i18n compile-frontend` + 重新构建前端 |
 
 只改配置就会出现“菜单里有、点下去是 msgid”的语言。`ensure_frontend_catalogs(registry, bundle_name, source_dir=...)` 把它变成启动期的硬失败：配置里的每种语言都必须在收集后的静态根里有一份词典，脚手架的 `prepare_server` 已经接好；开发模式改为对源目录告警，因为那时词典由 Vite 直接提供。
 
-框架自带的 Admin 不走这条链路：它的语言包是挂在自己前缀下的一条路由，内容在请求时按 locales 根合并（项目可以覆盖框架文案），前缀又是安装时才定的，两者都没法预生成成构建产物。扩展 Admin 的项目补翻译加一个 locales 根即可，不需要前端 i18n 构建。
+框架自带的 Admin 不走这条链路：它的语言包是挂在自己前缀下的一条路由，内容在请求时按 locales 根合并（项目可以覆盖框架文案），前缀又是安装时才定的，两者都没法预生成成构建产物。扩展 Admin 的项目在自己的 `locales/` 里补翻译即可，不需要前端 i18n 构建；框架没带的语言，Admin 文案也由项目翻译。
 
-提取时有三个明确来源：项目根按 babel.cfg 扫描当前项目的 Python/Jinja；安装的 oldman 按包内 framework-babel.cfg 扫描框架 Python/Jinja（包括 CLI）；项目 frontend/src 的 TypeScript AST 和框架自带前端词清单再并入同一个 POT。App 的 commands.py 只要位于项目 Babel 规则覆盖范围，其 lazy help 与其他 Python 文本同样提取。它不是遍历所有已安装第三方包的提取器：第三方 App 应自行发布翻译目录，运行时再按配置接入其翻译来源。
+提取时有三个明确来源：项目根按 babel.cfg 扫描当前项目的 Python/Jinja；安装的 oldman 按包内 framework-babel.cfg 扫描框架 Python/Jinja（包括 CLI、迁移命令和角色 App；框架自己的翻译用的也是这同一份配置）；项目 frontend/src 的 TypeScript AST 和框架自带前端词清单再并入同一个 POT。App 的 commands.py 只要位于项目 Babel 规则覆盖范围，其 lazy help 与其他 Python 文本同样提取。它不是遍历所有已安装第三方包的提取器：第三方 App 应自行发布翻译目录，运行时再按配置接入其翻译来源。
 
 编译时用框架自带前端消息清单和项目 frontend/src 的 AST 提取结果过滤目录，避免把全部后端词发给浏览器。清单只是编译输入，不是额外翻译源，也不需要用户手工维护。TypeScript 提取使用 `i18n.t/tc/tn/tnc` 的静态字面量；动态拼接消息 ID 应改写为稳定字面量，而不是漏掉后继续声称提取完整。
 

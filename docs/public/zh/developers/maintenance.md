@@ -59,7 +59,18 @@ pnpm --filter oldman-admin build
 
 这些命令会更新生成文件，并清理相应构建目标。运行前保存用户修改，之后核对 diff，不手工修改压缩 JS/CSS。自定义应用样式和图标应在应用自身构建，不把业务依赖塞进框架。
 
-翻译修改的真实流程是提取 POT → 更新 PO → 翻译 → 编译 MO/前端 JSON，不是直接改某个已生成字典。应用侧参考[资源文档](assets.md)，框架自己的翻译（`oldman/locales`，Admin、CLI、账户页面与前端文案都在这一份）用 [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py) 维护，步骤写在脚本开头。
+翻译修改的真实流程是提取 POT → 更新 PO → 翻译 → 编译 MO/前端 JSON，不是直接改某个已生成字典。应用侧参考[资源文档](assets.md#框架自带的翻译)。
+
+框架自己的翻译只有一份 `oldman/locales`（Admin、账户页面、表格与表单、通知、角色、CLI 与迁移命令、`oldman-web` 前端文案都在里面），用 [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py) 维护。新增、修改或删除了框架文案（包括 `oldman-web` 的前端文案，先跑 `generate:i18n-messages`）之后，在框架根目录：
+
+```sh
+.venv/bin/python scripts/framework_i18n.py update    # 重建 messages.pot，并入 zh_Hans、zh_Hant 的 PO
+# 逐条翻译新增条目，确认 fuzzy 条目后去掉 fuzzy 标记
+.venv/bin/python scripts/framework_i18n.py compile   # 写出 wheel 发布的 .mo
+.venv/bin/python scripts/framework_i18n.py check     # 列出仍然过时的地方，没有输出即可
+```
+
+抽取用的是 `oldman/i18n/framework-babel.cfg` 加前端文案清单，与项目 `i18n extract` 收框架文案的那一半是同一个函数，所以两边覆盖的文案不会不同。框架新加一个带文案的目录时，在这份配置里加上它。模板和 PO 不写行号，只挪动代码不会让目录过时。`tests/test_oldman_framework_translations.py` 在常规测试里跑同样的检查：模板与源码不一致、有未翻译或 fuzzy 条目、MO 与 PO 不一致都会失败。`.mo` 与 `.pot` 在 `.gitignore` 里，提交时按路径 `git add -f`。
 
 ## 版本与发布
 
