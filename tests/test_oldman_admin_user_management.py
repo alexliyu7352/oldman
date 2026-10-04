@@ -232,6 +232,8 @@ class OldmanAdminUserManagementTest(unittest.TestCase):
         self.assertIn('name="is_superuser"', filter_html)
         self.assertIn('name="last_login_from"', filter_html)
         self.assertIn('name="last_login_to"', filter_html)
+        # Both last-login bounds are picked with the date-time picker.
+        self.assertEqual(2, filter_html.count('data-om-component="date-time-picker"'))
 
         columns = {column.name for column in table.get_columns()}
         labels = {column.name: column.label for column in table.get_columns()}

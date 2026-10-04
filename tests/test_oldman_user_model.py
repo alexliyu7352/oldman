@@ -277,6 +277,19 @@ class OldmanUserModelTest(unittest.TestCase):
         finally:
             engine.dispose()
 
+    def test_a_superuser_saved_through_a_session_is_made_staff(self) -> None:
+        """The before_flush listener, not only the function it calls: a superuser is always staff once saved."""
+        engine = create_engine("sqlite:///:memory:")
+        cast(Table, User.__table__).create(engine)
+        try:
+            with Session(engine) as session:
+                user = User(username="root", password_hash="", is_staff=False, is_superuser=True)
+                session.add(user)
+                session.flush()
+                self.assertTrue(user.is_staff)
+        finally:
+            engine.dispose()
+
     def test_auth_app_settings_select_one_project_user_model(self) -> None:
         """The Auth App settings remain the sole configured model source."""
         result = run_contract_script(
