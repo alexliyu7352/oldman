@@ -198,6 +198,18 @@ class AuthPageTemplatesTest(unittest.TestCase):
         self.assertNotIn("Forgot password?", html)
         self.assertTrue(html.startswith("<!doctype html>"), "nothing may precede the doctype")
 
+    def test_the_preloader_covers_the_page_until_the_bundle_takes_over(self) -> None:
+        """Its style and the asset base come before the bundle's script; the page has no dashboard main to swap."""
+        with patch.dict(conf.__dict__, {"settings": runtime_settings()}):
+            html = self.render(password_reset_url=None)
+
+        script = html.index('<script type="module" src="/static/app:main/main.js">')
+        self.assertIn('data-preloader="enable"', html[: html.index("<head>")])
+        self.assertLess(html.index('data-om-critical="preloader"'), script)
+        self.assertLess(html.index('name="oldman-asset-base"'), script)
+        self.assertIn('data-om-component="preloader"', html[html.index("<body") :])
+        self.assertNotIn('id="oldman-main"', html)
+
     def test_the_reset_link_appears_when_the_site_installs_the_reset_flow(self) -> None:
         with patch.dict(conf.__dict__, {"settings": runtime_settings()}):
             html = self.render(password_reset_url="/signin/reset")
