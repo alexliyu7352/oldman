@@ -126,7 +126,7 @@ app_main_bundle 就是注册的 `app:main`。方法根据模式读取 manifest �
 
 Demo 可以在两个终端分别运行 `pnpm --dir frontend dev` 和 `./run.sh web dev`；或者在项目根执行 `python3 scripts/dev.py`，由这个独立辅助脚本同时启动 Vite 与后端。Web 默认 17997，Vite 5173；不要同时启动两套占用相同端口的服务。run.sh 仍只把参数转发给 Demo 环境的 oldman，既不选择服务，也不暗中启动 Vite。预览模板用的 Nunjucks 与测试数据不是后端 HTTP/数据库/权限验收，完整功能仍访问 Sanic 页面。
 
-`./run.sh web static collect` 收集框架静态资源，不编译应用 TypeScript。Demo 的生产顺序是 build → static collect → web start，完整初始化见入门说明。Admin 内置 bundle 随 Python 包提供；业务 bundle 仍需要自己的 build。Admin Demo 的独立 CSS bundle 和 extension_bundle_name 用法见[Admin 教程](../users/admin.md)，不启动第二套 Admin runtime。
+`./run.sh web static collect` 收集框架静态资源，不编译应用 TypeScript。Demo 的生产顺序是 build → static collect → web start，完整初始化见入门说明。Admin 内置 bundle 随 Python 包提供；业务 bundle 仍需要自己的 build。收集的目标是 `web.static.root`，默认就是项目自己的 `static/`：项目放在那里的文件留在原处，框架和 Admin 的文件复制到 `static/oldman/`，自带 `static/` 目录的 App 按那个目录里的名字复制进来，清单写在它旁边的 `.static.oldman-static.json`。这些副本和清单都是生成物，不提交：web 与 dashboard 骨架的 `.gitignore` 已忽略 `static/oldman/` 和清单，自己 App 的那一份要自己加上。Admin Demo 的独立 CSS bundle 和 extension_bundle_name 用法见[Admin 教程](../users/admin.md)，不启动第二套 Admin runtime。
 
 ## 图标
 

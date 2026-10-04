@@ -459,6 +459,27 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 self.assertIn("/logs/", gitignore)
                 self.assertIn("/pids/", gitignore)
 
+    def test_collected_static_files_stay_out_of_git(self) -> None:
+        """The README's `static collect` leaves nothing untracked: the copies and the manifest are ignored."""
+        from oldman.web.staticfiles import collect_project_static
+
+        for project_type in (ProjectType.WEB, ProjectType.DASHBOARD):
+            with self.subTest(project_type=project_type), tempfile.TemporaryDirectory() as temporary_directory:
+                with working_directory(Path(temporary_directory)):
+                    target = start_project("portal", project_type=project_type, db=DatabaseChoice.SQLITE)
+                subprocess.run(["git", "init", "-q"], cwd=target, check=True)
+
+                def untracked(project: Path) -> set[str]:
+                    status = ["git", "status", "--porcelain", "--untracked-files=all"]
+                    return set(subprocess.run(status, cwd=project, check=True, capture_output=True, text=True).stdout.splitlines())
+
+                generated = untracked(target)  # the project's own files, static/.oldman_keep among them
+                # The settings' default layout: the project's static folder is also where collect publishes.
+                result = collect_project_static(project_directory=target / "static", destination=target / "static")
+
+                self.assertGreater(result.copied, 0)
+                self.assertEqual(set(), untracked(target) - generated)
+
     def test_every_project_tells_agents_how_to_work_on_it(self) -> None:
         """AGENTS.md (CLAUDE.md points at it) has the lines for what was generated, and none for what was not."""
         cases = (
