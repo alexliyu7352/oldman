@@ -101,7 +101,7 @@ class WebService(WebApplication):
 
 查找次序是显式传入的项目目录、已有环境 loader、框架共享模板。用户可以在项目目录放同相对路径的文件覆盖共享模板，例如 `templates/oldman/forms/default/message.html`。组件渲染也复用请求关联的模板环境，不另维护一套主题。
 
-覆盖某个页面又只想改其中一块时，继承框架原版：名字前加 `framework:` 就只在框架自带的模板目录里查找（共享模板，以及框架 App 登记的目录，例如已安装的 Admin）。例如项目里的 `templates/oldman/dashboard/account/login.html` 写 `{% extends "framework:oldman/dashboard/account/login.html" %}`，再重写 `auth_description` 块。原版里按普通名字继承的模板（例如 `base.html`）仍先找项目目录。Jinja 按名字缓存模板，新增覆盖文件后要重启服务才生效。框架 App 用 `oldman.web.template.add_framework_template_dir(environment, directory)` 登记自己的目录，`framework_template_dirs(environment)` 返回登记的清单。
+覆盖某个页面又只想改其中一块时，继承框架原版：名字前加 `framework:` 就只在框架自带的模板目录里查找（共享模板，以及框架 App 登记的目录，例如已安装的 Admin）。例如项目里的 `templates/oldman/dashboard/account/login.html` 写 `{% extends "framework:oldman/dashboard/account/login.html" %}`，再重写 `auth_description` 块。原版里按普通名字继承的模板（例如 `base.html`）仍先找项目目录。Jinja 按名字缓存模板，新增覆盖文件后要重启服务才生效。要一次拿到全部框架模板来改，用 `./run.sh <服务> templates copy`（见 [CLI](cli.md)）。框架 App 用 `oldman.web.template.add_framework_template_dir(environment, directory)` 登记自己的目录，`framework_template_dirs(environment)` 返回登记的清单。
 
 完整 HTTP 响应与 HTML 内容不要混淆。下面是 Demo [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py) 的完整页面入口；app、Request、CSRF/权限装饰器、UserCreateForm 和 render_template 均由原模块导入或初始化：
 

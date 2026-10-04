@@ -582,6 +582,22 @@ msgid ""
 msgstr ""
 
 #: oldman/cli/_main.py
+#, python-format
+msgid "These templates in %(destination)s differ from the framework's:"
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Overwrite all of them?"
+msgstr ""
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Copied templates to %(destination)s: %(new)s new, %(overwritten)s "
+"overwritten, %(kept)s kept, %(unchanged)s already the same."
+msgstr ""
+
+#: oldman/cli/_main.py
 msgid "Extracting messages..."
 msgstr ""
 
@@ -698,6 +714,16 @@ msgstr ""
 
 #: oldman/cli/_main.py
 msgid "Collect static files into settings.web.static.root."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid "Copy the framework's templates into the project."
+msgstr ""
+
+#: oldman/cli/_main.py
+msgid ""
+"Copy the framework's templates into settings.web.template.dir; asks "
+"before overwriting files that differ."
 msgstr ""
 
 #: oldman/cli/_main.py

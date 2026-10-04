@@ -107,7 +107,8 @@ RULES: tuple[tuple[Applies, str], ...] = (
     (
         types("dashboard"),
         "- The sign-in, account and user pages come from the framework. To change how one looks, put a\n"
-        "  template of the same name under `templates/`; do not copy the framework's code into the project.",
+        "  template of the same name under `templates/`, or copy them all with `./run.sh {service_name} templates copy`\n"
+        "  (it asks before overwriting files that differ); do not copy the framework's code into the project.",
     ),
     (
         types("dashboard"),

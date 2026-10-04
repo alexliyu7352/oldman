@@ -51,7 +51,7 @@ pnpm build
 - `frontend/src/main.ts`：前端入口；`frontend/src/pages/base-page.ts` 是所有页面共用的页面类。
 - `data/{{ service_name }}_settings.yaml`：本服务配置，含密钥，不进 Git。
 
-登录、个人页、用户管理等页面的模板在框架里（`oldman/dashboard/account/*`）。要改哪一页，就在 `templates/` 下放同路径的文件，项目的优先；删掉就回到框架的版本。地址（`/login`、`/users` 等）在配置 `web.account` 里改。
+登录、个人页、用户管理等页面的模板在框架里（`oldman/dashboard/account/*`）。要改哪一页，就在 `templates/` 下放同路径的文件，项目的优先；删掉就回到框架的版本。要一次把框架模板全部复制过来再改，用 `./run.sh {{ service_name }} templates copy`：已存在且内容不同的文件会先列出、再问是否全部覆盖。地址（`/login`、`/users` 等）在配置 `web.account` 里改。
 
 ## 新增页面
 

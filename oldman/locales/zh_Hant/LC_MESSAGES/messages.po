@@ -602,6 +602,24 @@ msgstr ""
 "%(removed)s 個。"
 
 #: oldman/cli/_main.py
+#, python-format
+msgid "These templates in %(destination)s differ from the framework's:"
+msgstr "%(destination)s 中下列範本與框架的不同："
+
+#: oldman/cli/_main.py
+msgid "Overwrite all of them?"
+msgstr "全部覆蓋嗎？"
+
+#: oldman/cli/_main.py
+#, python-format
+msgid ""
+"Copied templates to %(destination)s: %(new)s new, %(overwritten)s "
+"overwritten, %(kept)s kept, %(unchanged)s already the same."
+msgstr ""
+"已複製範本到 %(destination)s：新增 %(new)s 個，覆蓋 %(overwritten)s 個，保留 %(kept)s "
+"個，%(unchanged)s 個已相同。"
+
+#: oldman/cli/_main.py
 msgid "Extracting messages..."
 msgstr "正在擷取翻譯訊息……"
 
@@ -719,6 +737,16 @@ msgstr "先刪除上次收集的輸出。"
 #: oldman/cli/_main.py
 msgid "Collect static files into settings.web.static.root."
 msgstr "將靜態檔案收集到 settings.web.static.root。"
+
+#: oldman/cli/_main.py
+msgid "Copy the framework's templates into the project."
+msgstr "把框架的範本複製到專案。"
+
+#: oldman/cli/_main.py
+msgid ""
+"Copy the framework's templates into settings.web.template.dir; asks "
+"before overwriting files that differ."
+msgstr "把框架的範本複製到 settings.web.template.dir；覆蓋內容不同的檔案前會先詢問。"
 
 #: oldman/cli/_main.py
 msgid "Check outgoing mail settings."

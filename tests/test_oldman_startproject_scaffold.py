@@ -500,6 +500,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     self.assertEqual(project_type == ProjectType.API, "`/api/caller`" in agents)
                     self.assertEqual(project_type == ProjectType.DASHBOARD, "`templates/partials/sidebar.html`" in agents)
                     self.assertEqual(project_type == ProjectType.DASHBOARD, "zh/agents/dashboard-crud.md" in agents)
+                    self.assertEqual(project_type == ProjectType.DASHBOARD, "./run.sh dashboard templates copy" in agents)
                     # The Admin's guide and first account only when it was included; a dashboard always signs users in.
                     self.assertEqual(admin, "zh/agents/admin.md" in agents)
                     self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser" in agents)

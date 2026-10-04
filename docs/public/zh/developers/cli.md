@@ -87,6 +87,12 @@ Web 服务还提供：
 
 静态收集默认增量复制。`--clear` 会清理收集器跟踪的输出，应先核对输出目录与帮助，不对业务上传目录执行它。启动不自动构建或收集静态资源。
 
+```sh
+./run.sh web templates copy
+```
+
+把框架的模板复制进项目的模板目录（`web.template.dir`，默认 `templates/`），保持原来的相对路径，之后改项目里的副本就行：来源是框架共享的 `oldman/web/templates`，加上该服务已安装的框架 App 自带的 `templates` 目录（装了内置 Admin 才有 Admin 的模板）。项目里没有的文件直接复制；内容相同的跳过；已存在且内容不同的先列出来，再问一次"是否全部覆盖"（默认否；无人值守用 `OLDMAN_ANSWER_TEMPLATES_COPY_OVERWRITE`）。复制后再升级框架，项目里的副本不会跟着变；只想改一两个页面时，放同名文件覆盖或用 `framework:` 继承原版更省事（见[启用模板](web.md#启用模板)）。
+
 Demo 的 `WebService.get_default_commands()` 保留父类命令并增加 `dev`；`dev()` 选择 Vite 资源入口后调用 `start()`。它不负责启动 Vite，Demo 的 [scripts/dev.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/scripts/dev.py) 才是同时管理前后端开发进程的便捷脚本，接线见[资源开发流程](assets.md)。带前端的 Dashboard 脚手架也提供 dev；普通 API/Web 或 Simple 服务并不因此自动拥有它。
 
 `--config` 的适用命令和路径语义见[配置文件选择](configuration.md#配置文件选择)，不要假定它是所有命令共享的全局选项。

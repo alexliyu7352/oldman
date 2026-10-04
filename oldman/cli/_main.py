@@ -53,6 +53,10 @@ if TYPE_CHECKING:
     from oldman.apps import AppRegistry
     from oldman.runtime.base import BaseApplication
 
+# Service commands that run without starting the service (they load its settings themselves); an
+# App's own commands cannot take these names. The last two exist only on Web services.
+_WEB_SERVICE_COMMANDS = frozenset({"static", "templates"})
+_COLD_SERVICE_COMMANDS = frozenset({"mail", "settings", "shell"}) | _WEB_SERVICE_COMMANDS
 _ROOT_COMMANDS = {
     "db",
     "i18n",
@@ -444,6 +448,47 @@ def _static_collect(
     )
 
 
+def _templates_copy(
+    definition: ServiceDefinition,
+    config_file: Path | None,
+) -> None:
+    """Copy the framework's templates, and those of the framework Apps the service installs, into the project."""
+    from oldman.cli.templates import apply_template_copy, framework_template_sources, plan_template_copy
+
+    manager = _settings_manager(definition, config_file)
+    try:
+        settings = manager.load()
+    except SettingsFileMissingError:
+        _exit_with_error(
+            gettext(
+                "Settings file does not exist: %(path)s. Run `oldman %(service)s settings init` first.",
+                path=manager.config_file,
+                service=definition.module_name,
+            )
+        )
+    except (RuntimeError, TypeError, ValueError) as exc:
+        _exit_with_error(str(exc))
+    destination = Path(settings.web.template.dir)
+    plan = plan_template_copy(framework_template_sources(manager.registry.packages), destination)
+    overwrite = False
+    if plan.changed:
+        typer.echo(gettext("These templates in %(destination)s differ from the framework's:", destination=destination))
+        for _source, target in plan.changed:
+            typer.echo(f"  {target.relative_to(destination)}")
+        overwrite = tui.confirm(gettext("Overwrite all of them?"), default=False, key="templates.copy.overwrite")
+    apply_template_copy(plan, overwrite=overwrite)
+    typer.echo(
+        gettext(
+            "Copied templates to %(destination)s: %(new)s new, %(overwritten)s overwritten, %(kept)s kept, %(unchanged)s already the same.",
+            destination=destination,
+            new=len(plan.new),
+            overwritten=len(plan.changed) if overwrite else 0,
+            kept=0 if overwrite else len(plan.changed),
+            unchanged=plan.unchanged,
+        )
+    )
+
+
 def _i18n_extract() -> None:
     """Extract project and framework translation messages."""
     typer.echo(gettext("Extracting messages..."))
@@ -676,6 +721,35 @@ def _register_static_commands(
     app.add_typer(static_app, name="static")
 
 
+def _register_template_commands(
+    app: typer.Typer,
+    definition: ServiceDefinition,
+) -> None:
+    """Register copying the framework's templates for one statically identified Web service."""
+    templates_app = typer.Typer(
+        help=gettext("Copy the framework's templates into the project."),
+        cls=LocalizedTyperGroup,
+        rich_markup_mode=None,
+        add_completion=False,
+    )
+
+    def copy_templates(
+        config_file: Annotated[
+            Path | None,
+            typer.Option("--config", help=gettext("Settings YAML path.")),
+        ] = None,
+    ) -> None:
+        """Copy the framework's templates for the selected Web service."""
+        _templates_copy(definition, config_file)
+
+    templates_app.command(
+        "copy",
+        help=gettext("Copy the framework's templates into settings.web.template.dir; asks before overwriting files that differ."),
+        cls=LocalizedTyperCommand,
+    )(copy_templates)
+    app.add_typer(templates_app, name="templates")
+
+
 def _register_mail_commands(
     app: typer.Typer,
     definition: ServiceDefinition,
@@ -890,6 +964,7 @@ def create_app(
         _register_settings_commands(service_app, definition)
         if definition.application_base == "web":
             _register_static_commands(service_app, definition)
+            _register_template_commands(service_app, definition)
         _register_shell_command(service_app, definition)
         _register_mail_commands(service_app, definition)
         if name == selected_service and service_class is not None:
@@ -903,12 +978,7 @@ def create_app(
                 app_registry,
                 service_name=name,
                 command_class=LocalizedTyperCommand,
-                reserved_names={
-                    "mail",
-                    "settings",
-                    "shell",
-                    *({"static"} if definition.application_base == "web" else set()),
-                },
+                reserved_names=_COLD_SERVICE_COMMANDS - (set() if definition.application_base == "web" else _WEB_SERVICE_COMMANDS),
             )
         app.add_typer(service_app, name=name)
     return app
@@ -925,7 +995,7 @@ def _selected_runtime_service(
     if definition is None:
         return None
     action = args[1] if len(args) > 1 else ""
-    if action in {"mail", "settings", "shell", "static"}:
+    if action in _COLD_SERVICE_COMMANDS:
         return None
     return definition
 
