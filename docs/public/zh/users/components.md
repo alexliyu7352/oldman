@@ -6,7 +6,7 @@
 
 ## 示例为什么能直接工作
 
-Demo 的 [views/ui.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/ui.py) 处理 `/examples/ui/<page>`，校验页面名并提供 `page_entry="examples"` 等模板上下文；入口受 Demo 的 staff 权限保护，先登录再操作。
+Demo 的 [views/ui.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/ui.py) 处理 `/examples/ui/<page>`，校验页面名并提供 `page_entry="examples"` 等模板上下文；入口只要求登录。
 
 模板和浏览器接线是：
 
@@ -416,7 +416,7 @@ SSE 示例在 `/examples/charts/realtime`：先读取数据库样本，再接收
 
 ```python
 @router.get("/examples/messages/feedback/default", name="example_feedback_default")
-@admin_required()
+@login_required()
 async def example_feedback_default(request: Request):
     """Resolve one Feedback Action through the Page's default Feedback."""
     del request
@@ -427,7 +427,7 @@ async def example_feedback_default(request: Request):
     )
 ```
 
-`router` 来自 oldman.web，Request 来自 oldman.web.request，admin_required 来自 Demo；api_response 来自 oldman.web.response，DefaultApiResponse/FeedbackAction 来自 oldman.web.api，_ 为 gettext_lazy。按钮经公共 data-om-action 请求接口，响应动作由当前 Page 的 Runner 执行；不填写 target 时使用已有 Dashboard Page Feedback。
+`router` 来自 oldman.web，Request 来自 oldman.web.request，login_required 来自 oldman.web.auth；api_response 来自 oldman.web.response，DefaultApiResponse/FeedbackAction 来自 oldman.web.api，_ 为 gettext_lazy。按钮经公共 data-om-action 请求接口，响应动作由当前 Page 的 Runner 执行；不填写 target 时使用已有 Dashboard Page Feedback。
 
 同页另一个按钮请求 `/examples/messages/feedback/target`。该后端动作显式指定 target="#example-target-feedback"、mode=FeedbackMode.ALERT，而模板同时声明了目标组件：
 
@@ -441,7 +441,7 @@ toast 使用 Toastify，可同时出现多条；alert/confirm/prompt 使用 Swee
 
 ### 确认和输入：实际修改项目
 
-先按[完整 Demo 的准备步骤](demo-examples.md)迁移、加载 fixture、启动 Web 并用 staff 账户登录。打开 `/examples/messages/feedback` 中的“确认修改真实项目”：
+先按[完整 Demo 的准备步骤](demo-examples.md)迁移、加载 fixture、启动 Web 并登录。打开 `/examples/messages/feedback` 中的“确认修改真实项目”：
 
 1. 选择一个项目，点击“提交审核”。取消对话框不发送 POST；确认才将这个项目的状态保存为 `review`。下方显示保存后的 ID、名称、状态，并显示成功提示。
 2. 再次提交同一个已在审核中的项目，服务器返回业务错误；没有新的修改，也没有成功动作。按钮和加载遮罩会恢复，可以继续操作。

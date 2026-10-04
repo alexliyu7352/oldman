@@ -92,7 +92,7 @@ async def clear_project_statistics() -> int:
 
 函数返回的 `source` 只描述本次读取，不存入 Redis。首次查询只有一次按状态分组的 SELECT；没有行时 counts={}、total=0，仍保存含时间的完整快照。命中不调用数据库，也不会 touch TTL；显式 refresh 绕过 get，计算后重新设置 30 秒。
 
-POST 成功后，视图渲染 `_result.html` 并调用 `replace_html_response(html)`；普通 ExamplesPage 执行动作，目标来自按钮的 `data-om-target="#cache-result"`。GET 页面不查询统计。三个 POST 有 staff 与 CSRF 保护；所有 staff 共用同一 key，不是按当前用户隔离的私有缓存。
+POST 成功后，视图渲染 `_result.html` 并调用 `replace_html_response(html)`；普通 ExamplesPage 执行动作，目标来自按钮的 `data-om-target="#cache-result"`。GET 页面不查询统计。三个 POST 有登录与 CSRF 保护；所有登录用户共用同一 key，不是按当前用户隔离的私有缓存。
 
 RedisCache 的 timeout=5 是缓存操作超时，与 TTL=30 无关。缓存/数据库异常向上传递，不变成 miss 或空统计，由既有 HTTP/Feedback 显示失败。清除只调用 delete；CRUD 不自动失效本例快照，手动刷新用于观察已有 Table/Modal 修改后的数据。详细操作步骤见[用户教程](../users/cache-and-http.md)。
 
@@ -162,9 +162,9 @@ get 先读内存，再读 Redis；默认用 Redis 剩余 TTL 回填内存，无�
 
 它不自动读取浏览器 Vary、语言、Cookie、权限或租户来隔离结果。只给明确可缓存的响应使用；带用户数据时必须设置完整 vary_by，而且认证/权限必须先于缓存命中执行。会在后续中间件添加 Cookie 或含 CSRF 的页面，不因 handler 此时没带 Set-Cookie 就适合缓存。
 
-实际网页消费者仍在 [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py)，不是另一份虚构视图：GET `/examples/cache/response` 的装饰顺序是 app.get → admin_required → cache_response。RESPONSE_PREFIX 为本例独立常量，expiration=5、use_pickle=False，vary_by 返回 request.ctx.locale。未命中时查询 SQL、异步渲染 `_response_result.html`，再 replace_html_response；命中时复用整个 JSON action 响应。它只含跨 staff 共享的项目数量/时间，不含身份、令牌或 Set-Cookie；权限不会因为缓存命中而跳过。
+实际网页消费者仍在 [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py)，不是另一份虚构视图：GET `/examples/cache/response` 的装饰顺序是 router.get → login_required → cache_response。RESPONSE_PREFIX 为本例独立常量，expiration=5、use_pickle=False，vary_by 返回 request.ctx.locale。未命中时查询 SQL、异步渲染 `_response_result.html`，再 replace_html_response；命中时复用整个 JSON action 响应。它只含所有登录用户共享的项目数量/时间，不含身份、令牌或 Set-Cookie；权限不会因为缓存命中而跳过。
 
-POST 同一路径的顺序是 app.post → csrf_protect → admin_required → cache_response，使用同一个 key_prefix/use_pickle。handler 返回“已失效”片段后，现有装饰器删除 GET 所有 query/locale 版本；无需重复手写删除规则。按钮目标为 #cache-response-result，不与原 #cache-result 混用；前端仍是 data-om-action 和既有替换生命周期。统计 HTML 正常转义，翻译发生在生成片段时，语言隔离保留到缓存 key。原30秒 RedisCache 页面与这份5秒 HTTP 缓存互不失效。
+POST 同一路径的顺序是 router.post → csrf_protect → login_required → cache_response，使用同一个 key_prefix/use_pickle。handler 返回“已失效”片段后，现有装饰器删除 GET 所有 query/locale 版本；无需重复手写删除规则。按钮目标为 #cache-response-result，不与原 #cache-result 混用；前端仍是 data-om-action 和既有替换生命周期。统计 HTML 正常转义，翻译发生在生成片段时，语言隔离保留到缓存 key。原30秒 RedisCache 页面与这份5秒 HTTP 缓存互不失效。
 
 两个装饰器都使用根 redis_cache，连接由 settings.cache.client 决定，键在 `<core.namespace>:cache` 之下；公开 Demo YAML 未覆盖 cache，默认 client 为 CACHE。use_pickle=False 控制 HTTP 响应封装的编码，不是切换 provider。Web 请求不关闭共享池，Application 收尾；CLI 示例才在 finally 关闭自己的连接。实际命中/到期、POST 失效、相同 URL 的语言隔离、匿名401和坏CSRF403已在隔离 Demo 验证，操作步骤见[用户教程](../users/cache-and-http.md#观察函数结果和整份-http-响应缓存)。
 

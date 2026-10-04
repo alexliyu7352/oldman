@@ -92,7 +92,7 @@ async def list_projects(limit: int = 12) -> list[ExampleProject]:
 ```python
 @router.post("/examples/charts/realtime/publish", name="example_realtime_chart_publish")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_realtime_chart_publish(request: Request):
     """Commit one metric, then publish it through the configured SSE Redis channel."""
     server_id = _server_id(request)
@@ -123,7 +123,7 @@ async def example_realtime_chart_publish(request: Request):
     )
 ```
 
-路由经 `oldman.web` 的 `router` 注册，Request、BadRequest、CSRF 和响应类型从框架导入，admin_required 来自 Demo；`_server_id()`、CHART_EVENT 在同文件，services 指向 apps.examples.services。SSE 使用配置里的 Redis，初始化与浏览器接线见[实时示例](../agents/realtime.md)。不要为了抄这个数据库例子而给不需要实时推送的业务强加 SSE。
+路由经 `oldman.web` 的 `router` 注册，Request、BadRequest、CSRF、`login_required`（`oldman.web.auth`）和响应类型从框架导入；`_server_id()`、CHART_EVENT 在同文件，services 指向 apps.examples.services。SSE 使用配置里的 Redis，初始化与浏览器接线见[实时示例](../agents/realtime.md)。不要为了抄这个数据库例子而给不需要实时推送的业务强加 SSE。
 
 `create_server_metric()` 在调用方 Session 中读取服务器和最近样本，构建 ExampleServerMetric，最后 `session.add(metric)`、`await session.flush()`，返回强类型 payload；它不自己 commit。值是用于展示的确定性下一条样本，不是实际服务器监控采集。只有显式点击发布才写一条记录。事务退出后才 publish，Redis 发布失败不撤销已经提交的样本，也不能据此自动重试数据库写入。
 
@@ -170,7 +170,7 @@ ModelForm.save 与 DatabaseModel.save 不是同一个接口。前者的 commit=T
 
 业务直接声明 `ForeignKey("oldman_user.id")`，按数据语义选择 ondelete；真实外键不需要动态猜 User 类的表名。自定义 User 可以增加列、索引、关系和方法，其 App 必须在服务 apps 中注册。所有启用 Auth 的服务必须选择相同的 User 类，见[迁移与 Auth](migrations.md#user-扩展的迁移)。
 
-Demo 配置实际选择 `apps.auth.models.OldmanUser`；[该类](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/models.py) 继承 AbstractUser，目前仅明确表名和展示 Meta，没有添加额外用户列。不要把它描述成已经展示了所有 User 扩展迁移场景。
+Demo 配置实际选择 `apps.accounts.models.User`；[该类](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/models.py) 就是 `startproject` 生成的 dashboard 骨架里的那份，继承 AbstractUser，只写了展示用的 Meta（verbose_name），没有添加额外用户列。不要把它描述成已经展示了所有 User 扩展迁移场景。
 
 ## 关闭与失败
 

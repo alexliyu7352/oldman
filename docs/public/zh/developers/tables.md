@@ -10,7 +10,7 @@
 
 JSON 模式不是把全部记录送到浏览器，也不要求项目直接依赖 TanStack。`oldman-web` 已声明依赖并封装在共享 Table 组件中。
 
-本章直接对照 EPG Demo：`/examples/tables/static`、`/examples/tables/html`、`/examples/tables/json`。先完成[Demo 初始化](../users/getting-started.md)，加载 fixture 并登录 staff 账号。动态两页使用同一个 ExampleProjectTable、数据接口、筛选表单和 CRUD Modal；区别只在 Table 的响应与渲染格式。
+本章直接对照 EPG Demo：`/examples/tables/static`、`/examples/tables/html`、`/examples/tables/json`。先完成[Demo 初始化](../users/getting-started.md)，加载 fixture 并登录。动态两页使用同一个 ExampleProjectTable、数据接口、筛选表单和 CRUD Modal；区别只在 Table 的响应与渲染格式。
 
 ## 后端定义
 
@@ -54,7 +54,7 @@ select 来自 SQLAlchemy，selectinload 来自 sqlalchemy.orm。在 [views/table
 router.add_route(ExampleProjectTable.as_view(), ExampleProjectTable.route_path, name=ExampleProjectTable.route_name)
 ```
 
-`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`：框架的底线是已登录。不查数据就能判断的（staff、角色权限）覆盖 `check_permission()`，要看请求参数或查库的覆盖 `check_auth(table_request)`，能看到哪些行写在 `apply_base_filters()`，分工见[数据组件的权限分层](permissions.md#数据组件的权限分层)。Demo 的登录只接受 staff，它的表格数据因此只有 staff 能取；Demo 是 staff 共用数据；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
+`router` 来自 `oldman.web`，在当前 App 的视图加载阶段使用。`as_view()` 保留基类 dispatch 的权限检查；Table 默认 `require_authenticated=True`：框架的底线是已登录。不查数据就能判断的（staff、角色权限）覆盖 `check_permission()`，要看请求参数或查库的覆盖 `check_auth(table_request)`，能看到哪些行写在 `apply_base_filters()`，分工见[数据组件的权限分层](permissions.md#数据组件的权限分层)。Demo 的业务表格只要求登录，所有登录用户看到同一份数据；示例项目表格另在 `check_permission` 里要求角色权限 `examples.view_projects`，演示这一层；需要租户/用户隔离的业务，固定查询范围放在 get_queryset/apply_base_filters，不能依赖用户可修改的 filter 参数。
 
 同一个 views/tables.py 用以下辅助函数创建请求级 Table，FILTER_NAMES 是该文件列出的 team_id、status、priority、is_active：
 

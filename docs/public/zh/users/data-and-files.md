@@ -53,9 +53,9 @@ storages:
 下面是 [views/storage.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/storage.py) 已有的完整函数。模块已经导入 db_manager、ExampleAssetForm、CSRF/权限装饰器和响应帮助函数；不是可放到任意文件顶层直接运行的脚本。
 
 ```python
-@app.post("/examples/storage/assets/create", name="example_asset_create")
+@router.post("/examples/storage/assets/create", name="example_asset_create")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_asset_create(request: Request):
     """Save both uploaded fields through the framework write session."""
     async with db_manager.get_session() as session:
@@ -64,7 +64,7 @@ async def example_asset_create(request: Request):
             return json_response(form.to_api_response().to_dict())
         asset = await form.save(commit=True, session=session)
         asset_id = int(asset.id)
-    return _redirect_response(_("Asset uploaded."), f"/examples/storage/lifecycle?asset={asset_id}")
+    return form_saved_response(_("Asset uploaded."), url=f"/examples/storage/lifecycle?asset={asset_id}")
 ```
 
 表单使用请求中的内存文件对象，ModelForm 按模型元数据调用 Storage，取得最终名称后写入模型。`commit=True` 不意味着 Form 自己结束外层事务；上下文正常退出时才提交。成功响应里的 Feedback/Redirect 由普通 Form 和 Page Runner 执行，跳转后查看这条真实记录的文件状态。

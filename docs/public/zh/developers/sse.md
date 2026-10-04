@@ -4,11 +4,11 @@ SSE 是浏览器接收服务器事件的单向连接，不是可靠消息队列�
 
 ## 当前请求直接输出
 
-实际例子是 EPG Demo 的 `/examples/tables/realtime`，路由在 [apps/examples/views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py)。WebApplication 已初始化公开实例 `sse`，不要为每个请求新建 extension。下面是该模块的完整路由方法；`router`、`asyncio`、`itertools.cycle`、`apps.examples.services`、`apps.auth.decorators.admin_required` 和 SSE 类型都由该文件提供：
+实际例子是 EPG Demo 的 `/examples/tables/realtime`，路由在 [apps/examples/views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py)。WebApplication 已初始化公开实例 `sse`，不要为每个请求新建 extension。下面是该模块的完整路由方法；`router`、`asyncio`、`itertools.cycle`、`apps.examples.services`、`login_required`（来自 `oldman.web.auth`）和 SSE 类型都由该文件导入：
 
 ```python
 @router.get("/examples/tables/realtime/events", name="example_realtime_table_events")
-@admin_required()
+@login_required()
 @sse.streaming(queue_mode=SSEQueueMode.LATEST, session_guard=True, login_url="/login")
 async def example_realtime_table_events(request: Request, stream: SSEStream) -> None:
     """Replay database-backed server samples through one page-owned SSE stream."""
@@ -61,7 +61,7 @@ Web 初始化只检查本地配置。服务器启动后，每个 Sanic worker �
 ```python
 @router.post("/examples/charts/realtime/publish", name="example_realtime_chart_publish")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_realtime_chart_publish(request: Request):
     """Commit one metric, then publish it through the configured SSE Redis channel."""
     server_id = _server_id(request)
@@ -106,21 +106,27 @@ publisher 先把强类型 payload 编为 MsgPack bytes，再放入版本化信�
 
 ## 接收用户事件与业务流
 
-用户路由复用 Session 中的身份，不接收浏览器随意填写的 user_id。以下为 Demo [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py) 的完整条件注册块。`settings` 是项目全局配置，`current_user_id(request)` 是该文件从 `dashboard_session(request).user_id` 读取的辅助方法；`admin_required` 是 Demo 自己的 staff 权限装饰器：
+用户路由复用登录身份，不接收浏览器随意填写的 user_id。Dashboard 的用户事件流由框架的 `AccountFlow` 安装在 `web.account.user_events_url`（默认 `/user-events`），只在 `web.sse.enabled` 打开时装。下面是 `oldman/web/auth/account.py` 里 `AccountFlow.register_routes()` 的这一段（去掉了方法体的缩进）；`allow` 默认是“已登录”，`refuse` 对未登录的请求走登录协议、对已登录但被拒的回 403，`request_user(request)` 是认证管线记下的用户：
 
 ```python
-if settings.web.sse.enabled:
+if self.user_events_path is None or not conf.settings.web.sse.enabled:
+    return None
+from oldman.web.sse import sse
 
-    @router.get("/user-events", name="user_events")
-    @admin_required()
-    @sse.streaming(session_guard=True, login_url="/login")
-    async def user_events(request: Request, stream: SSEStream) -> None:
-        """Deliver shared low-frequency user events to one authenticated browser."""
-        user_id = current_user_id(request)
-        if user_id is None:
-            raise RuntimeError("Authenticated Dashboard Session has no user id")
-        await stream.subscribe_user(user_id)
+@sse.streaming(session_guard=True, login_url=self.login_path)
+async def stream_user_events(request: Any, stream: SSEStream) -> None:
+    await stream.subscribe_user(cast(int, request_user(request).id))
+
+async def user_events(request: Any):
+    if not allow(request):
+        return await refuse(request)
+    return await stream_user_events(request)
+
+target.add_route(cast(Any, user_events), self.user_events_path, methods=["GET"], name=f"{name_prefix}user_events")
+return self.user_events_path
 ```
+
+先检查 `allow` 再进入 `sse.streaming`：被拒的请求拿到的是普通 403 或登录应答，不会先建立一条事件流。
 
 `subscribe_user()` 要求 session_guard=True，并校验 user_id 与该连接已认证用户一致。方法等待到连接关闭，不是登记后立即返回；不必另写永久 sleep。
 

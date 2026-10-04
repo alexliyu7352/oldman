@@ -70,7 +70,7 @@ async def run_storage_api_demo() -> dict[str, object]:
 
 保存返回的名称可能与请求名称不同；代码记录实际名称，并在 finally 中清理自己创建的文件。固定前缀和先删除 sample.txt 是这个演示的约定，不适合原样用于保存用户附件，也不应同时并发运行多个同名前缀演示。它没有写数据库或声明模型文件引用。
 
-HTTP 入口在 [views/storage.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/storage.py)：`example_storage_api_run()` 受 CSRF 和 staff 权限保护，调用服务函数，再渲染 `_api_result.html`，通过 ReplaceHtmlAction 更新结果面板。不能把返回的 Python dict 直接当作已经发送给浏览器的响应。
+HTTP 入口在 [views/storage.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/storage.py)：`example_storage_api_run()` 受 CSRF 和登录检查保护，调用服务函数，再渲染 `_api_result.html`，通过 ReplaceHtmlAction 更新结果面板。不能把返回的 Python dict 直接当作已经发送给浏览器的响应。
 
 | 接口 | 行为 |
 | --- | --- |
@@ -126,19 +126,19 @@ upload_to 可以是目录字符串，也可以是同步函数 `(instance, filena
 ```python
 @router.post("/examples/storage/assets/<asset_id:int>/update", name="example_asset_update")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_asset_update(request: Request, asset_id: int):
     """Replace only files submitted by the edit Form and keep missing uploads."""
     async with db_manager.get_session() as session:
-        asset = await _asset_or_404(session, asset_id)
+        asset = await get_object_or_404(session, ExampleAsset, asset_id, message="Example asset was not found")
         form = ExampleAssetForm.from_request(request, instance=asset, session=session)
         if not await form.validate():
             return json_response(form.to_api_response().to_dict())
         await form.save(commit=True, session=session)
-    return _redirect_response(_("Asset saved."), f"/examples/storage/lifecycle?asset={asset_id}")
+    return form_saved_response(_("Asset saved."), url=f"/examples/storage/lifecycle?asset={asset_id}")
 ```
 
-路由经 `oldman.web` 的 `router` 注册；db_manager 来自 oldman.db，CSRF 来自框架，admin_required 是 Demo 的 staff 保护。`_asset_or_404()` 在当前 Session 中读取 ExampleAsset，不存在则 404；`_redirect_response()` 输出 Feedback 和 Redirect 动作，并不直接返回浏览器 302。Demo 是 staff 共用测试数据，需要用户隔离的应用还要在对象查询中增加权限范围。
+路由经 `oldman.web` 的 `router` 注册；db_manager 来自 oldman.db，CSRF 和 `login_required`（`oldman.web.auth`）来自框架。`get_object_or_404()`（`oldman.web.shortcuts`）在当前 Session 中读取 ExampleAsset，不存在则 404；`form_saved_response()`（`oldman.web.api`）输出 Feedback 和 Redirect 动作，并不直接返回浏览器 302。Demo 是 staff 共用测试数据，需要用户隔离的应用还要在对象查询中增加权限范围。
 
 Form 先写新文件，再把实际名称写到实例；commit=True 只是 add/flush，外层上下文才提交。commit=False 同样会写文件，不等于“没有外部副作用”。即使后续由业务自己 add/flush，也应传入当前 Session，使新文件进入失败清理；不提供 Session 就没有这项自动清理保证。
 

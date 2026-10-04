@@ -16,7 +16,7 @@
 | `services/task_scheduler.py` | TaskiqSchedulerApplication 的直接子类，不承担任务执行 |
 | `data/task_worker_settings.example.yaml`、`task_scheduler_settings.example.yaml` | 同 namespace、两队列、真实数据库/User App、明确 NATS/Redis alias |
 | `apps/examples/tasks.py` | 数据库摘要、Storage 导出、显式重试、条件 UPDATE、进程缓存广播、project_rpc |
-| `apps/examples/views/tasks.py` | 已登录 staff/CSRF、固定操作集合、记录 ID 校验、用户归属、投递与查询分开 |
+| `apps/examples/views/tasks.py` | 已登录/CSRF、固定操作集合、记录 ID 校验、用户归属、投递与查询分开 |
 | `templates/pages/examples/tasks/` | 普通 Form 和有序 Response Actions，不增加 Taskiq 专属 TS/表单协议 |
 | `apps/examples/views/__init__.py`、侧栏模板 | 三个示例页面和正常动态页面生命周期 |
 | `tests/test_examples_tasks.py` | 隔离真实 SQLite/Storage 的函数结果与失败验证，不代替实际 Worker/Chrome |

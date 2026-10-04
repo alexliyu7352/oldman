@@ -40,7 +40,7 @@ taskiq:
 
 `TASKIQ` 是这里显式新增的连接别名，不是框架自动猜出来的连接。三者必须连接同一个 NATS、使用相同 namespace；需要互读结果和计划时，Redis 的地址、数据库编号也必须一致。框架默认 disabled、没有 namespace；启用时必须填写 namespace，只允许英文字母、数字、下划线和连字符。
 
-Worker/Scheduler 的实际 App 清单是 `oldman.auth`、`apps.auth`、`apps.examples`；Auth 选择 `apps.auth.models.OldmanUser`，数据库与 Web 相同。完整文件分别是 [task_worker_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/task_worker_settings.example.yaml)、[task_scheduler_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/task_scheduler_settings.example.yaml)。不要复制 Web 的所有 App 和 views 作为后台任务前置。导出任务使用 Worker 配置的 `storages.default`；不同机器需要按业务选择可共享的存储，不会自动同步本机 media。
+Worker/Scheduler 的实际 App 清单是 `oldman.auth`、`apps.accounts`、`apps.examples`；Auth 选择 `apps.accounts.models.User`，数据库与 Web 相同。完整文件分别是 [task_worker_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/task_worker_settings.example.yaml)、[task_scheduler_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/task_scheduler_settings.example.yaml)。不要复制 Web 的所有 App 和 views 作为后台任务前置。导出任务使用 Worker 配置的 `storages.default`；不同机器需要按业务选择可共享的存储，不会自动同步本机 media。
 
 检查后分别在三个终端启动：
 
@@ -68,7 +68,7 @@ NATS 必须开启 JetStream，并为其文件存储配置持久目录和容量�
 
 ## 2. 操作真实页面
 
-默认 Web 地址 `http://127.0.0.1:17997`，使用 active staff 账户登录。数据来自 Demo fixture，不是临时拼出来的固定返回值：
+默认 Web 地址 `http://127.0.0.1:17997`，用启用的账户登录。数据来自 Demo fixture，不是临时拼出来的固定返回值：
 
 | 页面 | 真实操作与观察 |
 | --- | --- |

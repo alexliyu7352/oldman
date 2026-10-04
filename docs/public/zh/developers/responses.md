@@ -10,21 +10,19 @@
 
 `DefaultApiResponse` 有 `error_code`、`message`、`data`、`actions`。默认业务码为 0，文本为空，字典和动作列表独立初始化。`DefaultApiFormResponse` 只增加 `errors: dict[str, str | LazyTranslation]`，每个真实字段输出第一条错误，不含 `__all__`。
 
-Action 是扁平、带 msgspec tag 的强类型对象。下面是 Demo [views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py) 中的完整辅助函数；创建、编辑、删除视图均在数据库事务成功退出后调用它：
+Action 是扁平、带 msgspec tag 的强类型对象。Demo [views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py) 的创建、编辑、删除视图在数据库事务成功退出后调用 `modal_success_response(message, table_target="#example-projects-table")`；它返回的载荷拆开写就是下面这样（`message` 是 `str` 或 `LazyTranslation`）：
 
 ```python
-def _project_saved_response(message: str | LazyTranslation):
-    """Close the Modal and refresh whichever render mode is mounted."""
-    payload = DefaultApiFormResponse(
-        error_code=ApiErrorCode.OK,
-        message=message,
-        actions=[
-            FeedbackAction(title=message, icon="success"),
-            CloseModalAction(),
-            ReloadTableAction(target="#example-projects-table"),
-        ],
-    )
-    return json_response(payload.to_dict())
+payload = DefaultApiFormResponse(
+    error_code=ApiErrorCode.OK,
+    message=message,
+    actions=[
+        FeedbackAction(title=message, icon="success"),
+        CloseModalAction(),
+        ReloadTableAction(target="#example-projects-table"),
+    ],
+)
+return json_response(payload.to_dict())
 ```
 
 LazyTranslation 来自 `oldman.i18n`，json_response 来自 `oldman.web.response`。这是请求内翻译并输出响应的时点；不是把 lazy 对象直接塞给任意 JSON 库。`api_response(payload)` 封装了同样的 `payload.to_dict()` 加 JSON 输出，下一节的 Demo 路由使用该简写。
@@ -61,11 +59,11 @@ Demo [templates/pages/examples/modals/actions.html](https://github.com/alexliyu7
       <p id="replace-action-result" class="mb-2 text-default-600">{{ _("Replace HTML target") }}</p>
 ```
 
-对应 [views/modals.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/modals.py) 的完整路由如下。`router` 来自 `oldman.web`，admin_required 来自 Demo，Request、响应类型及翻译函数按原文件导入：
+对应 [views/modals.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/modals.py) 的完整路由如下。`router` 来自 `oldman.web`，`login_required` 来自 `oldman.web.auth`，Request、响应类型及翻译函数按原文件导入：
 
 ```python
 @router.get("/examples/modals/actions/replace-html", name="example_action_replace_html")
-@admin_required()
+@login_required()
 async def example_action_replace_html(request: Request):
     """Let the trigger choose where a target-less Replace HTML Action renders."""
     del request
@@ -148,7 +146,7 @@ class _ExampleMarkAction(ResponseAction, tag="example_mark", kw_only=True):
 
 ```python
 @router.get("/examples/modals/actions/private", name="example_action_private")
-@admin_required()
+@login_required()
 async def example_action_private(request: Request):
     """Return one Demo-owned Action handled by ExamplesPage."""
     del request

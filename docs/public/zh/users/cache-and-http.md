@@ -30,14 +30,14 @@ redis:
 4. 打开 `/examples/tables/html` 或 `/examples/tables/json`，在现有编辑 Modal 中修改一个项目的状态并保存。回到缓存页点击“从数据库重新计算”，应看到对应两组数量变化及新的计算时间；本例不自动监听 CRUD，未过期的普通读取允许显示旧快照。
 5. 点击“清除本例缓存”，只删除这个统计 key。再次清除显示“没有需要清除的缓存快照”；下次读取重新查数据库。不要用清空 Redis 数据库来代替这个操作。
 
-空项目表会显示并缓存零结果，不回填固定演示数字。所有 staff 用户共享这份统计，清除也影响其他用户的下一次读取；它不适合直接照搬为个人私有数据、权限或计费缓存。页面本身不写项目表，只有第 4 步的 CRUD 操作修改数据。
+空项目表会显示并缓存零结果，不回填固定演示数字。所有登录用户共享这份统计，清除也影响其他用户的下一次读取；它不适合直接照搬为个人私有数据、权限或计费缓存。页面本身不写项目表，只有第 4 步的 CRUD 操作修改数据。
 
 ## 从实际代码看调用关系
 
 | 文件 | 负责什么 |
 | --- | --- |
 | [cache_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_example.py) | 持有 RedisCache；读快照、数据库分组查询、写入 TTL、删除单 key |
-| [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py) | GET 页面；三个统计 POST；独立的响应缓存 GET/失效 POST；staff 权限与写操作 CSRF |
+| [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py) | GET 页面；三个统计 POST；独立的响应缓存 GET/失效 POST；登录检查与写操作 CSRF |
 | [cache 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/cache) | 两个缓存分区的按钮、说明、独立结果区域及片段 |
 | [views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | 页面清单与具体路由模块导入；沿用现有 Examples App 注册 |
 
@@ -172,7 +172,7 @@ app_settings:
 | --- | --- |
 | [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py) | 持有客户端、四种请求、超时、诊断结果和流上下文 |
 | [settings.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/settings.py)、[apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) | Examples App 的强类型上游配置与注册 |
-| [views/http.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/http.py) | staff/CSRF、操作白名单、页面与结果片段的渲染 |
+| [views/http.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/http.py) | 登录/CSRF、操作白名单、页面与结果片段的渲染 |
 | [HTTP 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/http) | 四个按钮、目标区域、诊断文本；JSON 中的 HTML 不会被执行 |
 | [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) | HTTP Client 的启动初始化与停止关闭，保留原框架收尾 |
 

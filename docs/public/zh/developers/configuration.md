@@ -92,14 +92,14 @@ apps:
   - oldman.auth
   - oldman.apps.admin
   - oldman.web.messages.notifications
-  - apps.auth
+  - oldman.apps.roles
+  - apps.accounts
   - apps.dashboard
   - apps.epg_admin
   - apps.examples
-  - apps.web
 app_settings:
   auth:
-    user_model: apps.auth.models.OldmanUser
+    user_model: apps.accounts.models.User
   admin:
     require_superuser: false
   examples:
@@ -108,7 +108,7 @@ app_settings:
 
 - `apps`、`database`、`web` 等进入根 Settings。
 - `app_settings.auth` 使用 AuthSettings 校验，`app_settings.admin` 使用 AdminSettings 校验，`app_settings.examples` 使用Demo的ExamplesSettings校验，各自绑定到对应 App。
-- `apps.auth` 是 Demo 的 Python 包，label 为 `epg_auth`；`app_settings.auth` 属于框架包 `oldman.auth`。前者提供具体 User，后者选择它。
+- `apps.accounts` 是 Demo 的 Python 包（与 `startproject` 生成的骨架相同），label 为 `accounts`；`app_settings.auth` 属于框架包 `oldman.auth`。前者提供具体 User，后者选择它。
 - 根 Settings 没有 `app_settings` 字段，也不提供按 App 查询的代理方法。
 
 根未知字段报错。内置子配置不认识的字段不报错、也不生效，`settings check` 和服务启动时逐层把它们列为提示（`unknown settings key 'web.sesion'`），拼错的键就是这样发现的。`redis` 下的连接别名由使用者命名，不在检查之列；App Settings 的未知字段按上文直接报错。`check` 只看键名和取值，不检查业务关系。
@@ -176,7 +176,7 @@ Demo 的登录服务实际读取 `admin_app.settings.require_superuser`，完整
 4. 未安装 App 的配置、没有配置模型却配置了该 App、未知的 App 配置字段均报错。
 5. 正常 bootstrap 完成校验后绑定实例；`settings check/sync` 不发布可供业务运行的 App Settings。
 
-不要在模块级缓存 `app.settings` 中的业务值后，又假定该模块可以在配置尚未初始化时导入。Demo 将策略读取放在 `authenticate_user()` 内；调用前通过服务入口完成初始化。
+不要在模块级缓存 `app.settings` 中的业务值后，又假定该模块可以在配置尚未初始化时导入。Demo 在 `apps/examples/http_example.py` 的 `run_http_example()` 里才读 `app.settings.http_base_url`，不在模块顶层读；调用前通过服务入口完成初始化。
 
 ## SettingsManager
 

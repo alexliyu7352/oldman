@@ -44,7 +44,7 @@ class _RealtimeTablePayload(MsgspecModel, kw_only=True):
 
 ```python
 @router.get("/examples/tables/realtime/events", name="example_realtime_table_events")
-@admin_required()
+@login_required()
 @sse.streaming(queue_mode=SSEQueueMode.LATEST, session_guard=True, login_url="/login")
 async def example_realtime_table_events(request: Request, stream: SSEStream) -> None:
     """Replay database-backed server samples through one page-owned SSE stream."""
@@ -109,7 +109,7 @@ Pub/Sub 不提供离线可靠重放。周期快照、重连后重新读取当前
 
 ## 四：用户通知仍用现有共享链路
 
-EPG 的 `/user-events` 位于 apps/auth/views.py，校验登录后 subscribe_user 当前 Session 的用户 ID。服务的通知初始化与顶栏 meta 位于 services/web.py 和 templates/base.html。
+EPG 的 `/user-events` 由框架的 `AccountFlow` 安装（apps/accounts/routes.py，地址来自 `web.account.user_events_url`），校验登录后 subscribe_user 当前用户的 ID。服务的通知初始化在 services/web.py，顶栏 meta 在 templates/base.html，地址取自模板全局 `account_urls(request)`。
 
 使用 [用户通知指南](../users/messages-and-live-updates.md)中的公开入口；不要把高频监控指标持久化成未读通知，也不增加 notification subscriber。接线见 [Demo 示例索引](../users/demo-examples.md#消息通知身份与语言)。
 

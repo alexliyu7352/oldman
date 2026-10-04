@@ -55,7 +55,7 @@ Demo 默认启用了 `nats_bus` 和 `taskiq`，现有异步命令入口会先连
 
 `/examples/cache/redis` 使用已有 ExampleProject 数据：上方三个按钮分别读取统计、重新计算和清除单 key。首次未命中查数据库，之后共享 30 秒 JSON 快照；读取命中不延长 TTL，也不查询项目表。空表显示零项目，GET 页面不提前加载统计，不写入项目数据。
 
-同页下方另有HTTP响应缓存：GET `/examples/cache/response` 将整份JSON动作响应缓存5秒，POST同路径主动失效后重新读取会产生新计算时间。它与上方统计值缓存独立；先验证staff，再按当前语言缓存，POST保留CSRF，不能把缓存当成绕过权限的入口。
+同页下方另有HTTP响应缓存：GET `/examples/cache/response` 将整份JSON动作响应缓存5秒，POST同路径主动失效后重新读取会产生新计算时间。它与上方统计值缓存独立；先验证登录，再按当前语言缓存，POST保留CSRF，不能把缓存当成绕过权限的入口。
 
 完整操作顺序、共享数据边界和失败提示见[缓存教程](cache-and-http.md)。源码为 [cache_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_example.py)、[views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py) 和 [cache 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/cache)。它复用普通 ExamplesPage，不是新增的前端缓存组件。
 
@@ -65,7 +65,7 @@ Demo 默认启用了 `nats_bus` 和 `taskiq`，现有异步命令入口会先连
 
 `/examples/config/redis` 演示 `RedisStore` 与 `RedisSet`。`SiteFlags` 整体存在 `<core.namespace>:store:example_site_flags`，每次读取都访问 Redis：“从另一个实例写入横幅”之后，这一次读取就能看到。“尝试把文字存进数字字段”被 `update()` 拒绝，什么也不写，页面显示校验错误。下方设备名单是一个 Redis 集合，加入、移除、判断和随机取各是一条集合命令，判断时不读出整个名单。示例放在 CACHE 别名下，因为 Demo 没有 DEFAULT 别名；生产环境应把运行期配置放在不会淘汰键的 Redis。
 
-两页都要求 staff，提交带 CSRF。源码为 [dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py)、[views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) 和 [config 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/config)；接口说明见[开发者参考](../developers/configuration.md#运行期可变配置)。
+两页都要求登录，提交带 CSRF。源码为 [dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py)、[views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) 和 [config 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/config)；接口说明见[开发者参考](../developers/configuration.md#运行期可变配置)。
 
 ## 后端 HTTP
 
@@ -77,7 +77,7 @@ Demo 默认启用了 `nats_bus` 和 `taskiq`，现有异步命令入口会先连
 
 先按[通信教程](service-communication.md)准备配置、数据库并分别启动 nats_a、nats_b 和 Web。`/examples/communication/rpc` 查询指定节点的真实项目数据/PID，并可发布报告；`/examples/communication/events` 手动发送竞争/广播事件及查询两节点计数；`/examples/communication/failures` 实际展示无响应者、超时和接收异常。事件计数只在接收进程内，重启归零，不制造数据库记录。
 
-源码为 apps/examples/nats_messages.py、nats_example.py、views/communication.py、apps/communication/events.py、services/nats_a.py/nats_b.py 和 templates/pages/examples/communication/。页面共用普通 Form/Actions、staff/CSRF；只操作固定目标和业务记录。任务页 `/examples/tasks/results` 的 project_rpc 另外展示 Taskiq 执行进程内调用同一共享 RPC 函数，保留原结果归属检查；不是在浏览器中直接连接 NATS。
+源码为 apps/examples/nats_messages.py、nats_example.py、views/communication.py、apps/communication/events.py、services/nats_a.py/nats_b.py 和 templates/pages/examples/communication/。页面共用普通 Form/Actions、登录/CSRF；只操作固定目标和业务记录。任务页 `/examples/tasks/results` 的 project_rpc 另外展示 Taskiq 执行进程内调用同一共享 RPC 函数，保留原结果归属检查；不是在浏览器中直接连接 NATS。
 
 ## 分布式任务
 
@@ -145,7 +145,7 @@ Rich Text 示例接收的是 HTML 内容；是否允许发布、如何处理不�
 | `/examples/session/lifecycle`、`/examples/session/revoke`、`/examples/session/expiry` | 同一视图模块；撤销和过期按钮会改变真实 Session，操作后可能需要重新登录 |
 | `/examples/i18n/server`、`/examples/i18n/browser`、`/examples/i18n/coverage` | 服务端与浏览器翻译、当前语言覆盖情况；不能只改 html 的 lang 属性 |
 
-壳上的用户 SSE 路由在 [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py)，初始化在 services/web.py；不要为通知再创建第二个专用订阅系统。
+壳上的用户 SSE 路由由框架的 `AccountFlow` 安装（[apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py)），通知初始化在 services/web.py；不要为通知再创建第二个专用订阅系统。
 
 ## 文件、图表与拖拽
 

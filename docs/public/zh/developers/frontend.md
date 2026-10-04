@@ -4,35 +4,44 @@
 
 ## Demo 的 Dashboard 页面入口
 
-实际入口是 [EPG frontend/src/main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)，不是每页各自调用一次 startOldman。该文件先创建公共 HTTP Client 和 i18n，建立 OldmanContext，等待语言初始化，然后调用 `startOldman({ context, pageLoader: loadPageEntry })`。
-
-页面模块列表原文：
+实际入口是 [EPG frontend/src/main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)，不是每页各自调用一次 startOldman。它和 `startproject` 生成的 dashboard 骨架一样调用框架的 `startDashboard()`（见下文[框架的启动入口](#框架的启动入口)），自己只提供样式入口、语言契约、兜底页面和按需加载的页面清单。完整文件：
 
 ```typescript
+import "@app/css/app.css";
+import { BasePage } from "@app/pages/base-page";
+import { startDashboard } from "oldman-web/dashboard";
+import { defaultLanguage, languageAliases, languageDefinitions, languagePreferencePath } from "./i18n/generated";
+
+// The sign-in and password reset pages are the framework's: startDashboard mounts its AuthPage on them.
 const pageEntries = import.meta.glob([
   "./pages/backend.ts",
   "./pages/examples.ts",
-  "./pages/login.ts",
   "!./pages/**/*.test.ts"
 ]);
+
+void startDashboard({
+  i18n: {
+    aliases: languageAliases,
+    defaultLanguage,
+    languagePreferencePath,
+    languages: languageDefinitions
+  },
+  // Unknown entry names (a typo, a page without its own pages/<name>.ts) still get the dashboard base page.
+  fallbackPage: BasePage,
+  pageLoader: async (pageName) => {
+    const loader = pageEntries[`./pages/${pageName}.ts`];
+    if (loader) await loader();
+  }
+}).catch((error: unknown) => {
+  console.error("Dashboard startup failed", error);
+});
 ```
 
-同一文件中实际的 loader：
-
-```typescript
-async function loadPageEntry(pageName: string): Promise<void> {
-  const loader = pageEntries[`./pages/${pageName}.ts`];
-  if (!loader) return;
-
-  await loader();
-}
-```
-
-这些是 main.ts 的节选，完整文件还包含 CSS 导入、context 和语言资源地址初始化，以及启动异常处理。直接使用 Demo 的完整入口，不把两个节选拼成缺少依赖的“最小 main.ts”。
+登录与找回密码页不在页面清单里：它们是框架的页面，`startDashboard` 把框架的 `AuthPage` 登记在 `login` 下。
 
 普通业务页在 [backend.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/backend.ts) 中继承项目 BasePage，并执行 `setupPage("backend", BackendPage)`。示例页则在 [examples.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/examples.ts) 注册 `setupPage("examples", ExamplesPage)`，提供自己的 loader 和动作。
 
-服务端通过 `page_entry="examples"` 指定示例入口。共享模板在 body 和 `dashboard_main_frame()` 输出的主 Frame 上标记同一页面名；不能只标记不会随 Frame 导航改变的 body。setupPage 注册构造器，PageRegistry 才创建页面实例。名字没有注册、`pageLoader` 也找不到对应模块时，注册表用 `startOldman({ fallbackPage })` 指定的类兜底（Demo 传项目 BasePage，Admin 传 AdminPage），并在控制台打一条 `No page registered for …` 警告；没有配置兜底时仍然报错。兜底只是让写错名字的页面还能挂上外壳组件，页面自己的 loader 和动作仍要注册正确的名字。
+服务端通过 `page_entry="examples"` 指定示例入口。共享模板在 body 和 `dashboard_main_frame()` 输出的主 Frame 上标记同一页面名；不能只标记不会随 Frame 导航改变的 body。setupPage 注册构造器，PageRegistry 才创建页面实例。名字没有注册、`pageLoader` 也找不到对应模块时，注册表用 `startOldman({ fallbackPage })` 指定的类兜底（`startDashboard` 原样转给它；Demo 传项目 BasePage，Admin 传 AdminPage），并在控制台打一条 `No page registered for …` 警告；没有配置兜底时仍然报错。兜底只是让写错名字的页面还能挂上外壳组件，页面自己的 loader 和动作仍要注册正确的名字。
 
 项目 [base-page.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/base-page.ts) 中的 BasePage **是应用自己的类**，继承框架 DashboardPage；不要与 `oldman-web/app` 导出的框架 BasePage 混为一谈。它合并共享 Dashboard loaders 和应用覆盖项。纯 HTML 业务页仍需要这个公共运行时来挂载组件，不需要另写一份私有 Page 逻辑。
 
@@ -45,9 +54,9 @@ Jinja 的 gettext 直接出译文。
 
 ## 框架的启动入口
 
-`oldman-web/dashboard` 另导出 `startDashboard(options)`，替 dashboard 或内置 Admin 一次做完上面 main.ts 手写的几步：建 HTTP Client（请求回 401 时按服务端给的 `login_url` 跳登录页）、i18n 和 OldmanContext，等语言初始化，把认证页类登记在 `AUTH_PAGE_NAME`（`"login"`，即框架认证页的 `data-om-page`）下，再调用 `startOldman`。重复调用返回同一个应用，启动失败后可以再调；`stopDashboard()` 用于测试和整页拆除。
+`oldman-web/dashboard` 导出 `startDashboard(options)`，替 dashboard 或内置 Admin 一次做完启动的几步：建 HTTP Client（请求回 401 时按服务端给的 `login_url` 跳登录页）、i18n 和 OldmanContext，等语言初始化，把认证页类登记在 `AUTH_PAGE_NAME`（`"login"`，即框架认证页的 `data-om-page`）下，再调用 `startOldman`。重复调用返回同一个应用，启动失败后可以再调；`stopDashboard()` 用于测试和整页拆除。
 
-`options.i18n` 是语言契约：`languages`、`defaultLanguage`、可选 `aliases`、`languagePreferencePath`（项目由 `i18n compile-frontend` 生成，来自 `i18n.preference_url`，这个地址是语言 cookie 唯一的写入方；为 null 表示页面没有这个地址，只用于单语言页面，多语言页面在非路径模式下传 null 时切换后的跳转会回到原语言，见[请求用哪种语言](assets.md#请求用哪种语言)）和可选的 `initialCatalog`。其余选项是 `assetBaseFallback`、`fallbackPage`、`pageLoader` 和 `authPage`；`authPage` 默认是框架的 `AuthPage`，只挂表单、语言切换和预加载，没有 dashboard 外壳。内置 Admin 的入口用它启动；EPG Demo 的 main.ts 仍是上面手写的版本。
+`options.i18n` 是语言契约：`languages`、`defaultLanguage`、可选 `aliases`、`languagePreferencePath`（项目由 `i18n compile-frontend` 生成，来自 `i18n.preference_url`，这个地址是语言 cookie 唯一的写入方；为 null 表示页面没有这个地址，只用于单语言页面，多语言页面在非路径模式下传 null 时切换后的跳转会回到原语言，见[请求用哪种语言](assets.md#请求用哪种语言)）和可选的 `initialCatalog`。其余选项是 `assetBaseFallback`、`fallbackPage`、`pageLoader` 和 `authPage`；`authPage` 默认是框架的 `AuthPage`，只挂表单、语言切换和预加载，没有 dashboard 外壳。内置 Admin、dashboard 骨架和 EPG Demo 的入口都用它启动。
 
 ## 三层对象的职责
 
@@ -139,7 +148,7 @@ Demo 的 `templates/pages/examples/tables/dynamic.html` 通过 `table.render_she
 
 `runAction` 使用已有公共 HTTP、CSRF 和 Page Runner；本例没有手写 fetch、复制响应解析或添加内置动作。`withLoading` 只在确认后的请求期间显示局部遮罩。组件从打开对话框到操作结束禁用两个按钮，在 finally 恢复。普通网络/HTTP/业务错误由公共链路显示；组件 catch 只处理对话框等调用异常，取消时直接结束，不能再次弹“请求失败”。监听由 Component 生命周期释放。
 
-后端 [example_feedback_project](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/messages.py) 使用 csrf_protect 和 Demo admin_required，检查 operation、project_id、名称及记录存在性。review 状态重复提交返回非零业务码而不是成功；成功先退出 db_manager.get_session 的事务，再渲染 `_project_result.html`，返回 `data={id,name,status}`、ReplaceHtmlAction、FeedbackAction。模板正常转义名称，slug 不受改名影响。前端收到成功 data 后更新对应 option 的文字，避免再次输入仍显示旧名称。
+后端 [example_feedback_project](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/messages.py) 使用 csrf_protect 和框架的 login_required，检查 operation、project_id、名称及记录存在性。review 状态重复提交返回非零业务码而不是成功；成功先退出 db_manager.get_session 的事务，再渲染 `_project_result.html`，返回 `data={id,name,status}`、ReplaceHtmlAction、FeedbackAction。模板正常转义名称，slug 不受改名影响。前端收到成功 data 后更新对应 option 的文字，避免再次输入仍显示旧名称。
 
 验证要包含取消无 POST、真实库更新、业务拒绝、403/断网后的恢复、窄屏/键盘以及 Turbo 离开。浏览器暂扣已返回响应、切页后释放时，旧组件请求取消，结果和 toast 不得污染新 Page。服务器可能已提交，重新进入会读到新值；本例不承诺取消数据库事务，不增加导航锁或持久补偿机制。
 

@@ -126,7 +126,7 @@ python3 scripts/dev.py
 | --- | --- |
 | 服务、CSRF、模板和 bundle 初始化 | [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) |
 | 根配置类型、全局配置入口 | [config/schemas.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/schemas.py)、[config/settings.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/settings.py) |
-| 登录、退出、当前用户会话 | [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py) |
+| 登录、退出、个人页、用户管理（框架的账户流程） | [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) |
 | 示例 App 的显示名称、图标和注册对象 | [apps/examples/apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) |
 | 示例分类与具体路由模块加载 | [apps/examples/views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) |
 | 浏览器唯一启动入口 | [frontend/src/main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts) |

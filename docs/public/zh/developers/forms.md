@@ -130,25 +130,26 @@ ExampleProjectForm 继承 TailwindModelForm，类内 Meta 节选如下；上文�
 
 自动映射包括字符串/Text、整数、布尔、日期/日期时间、普通外键和带文件元数据的列。其他类型需要显式字段，例如 DecimalField；不是偷偷把所有未知类型当字符串。字符串列的长度会进入 maxlength，但业务需要的服务端 Length 等约束仍应显式声明。
 
-实际创建入口在 [views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py)。该模块的 `router` 来自 `oldman.web`，db_manager 来自 `oldman.db`，权限装饰器来自 Demo `apps.auth.decorators`，CSRF 装饰器来自框架：
+实际创建入口在 [views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py)。该模块的 `router` 来自 `oldman.web`，db_manager 来自 `oldman.db`，`login_required`、`require_perm` 来自 `oldman.web.auth`，CSRF 装饰器和 `modal_success_response`（`oldman.web.api`）来自框架，`ExamplePermissions` 是 Demo 声明的权限：
 
 ```python
 @router.post("/examples/tables/projects/create", name="example_project_create")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_project_create(request: Request):
     """Create one Project and reload the mounted HTML or JSON Table."""
+    await require_perm(request, ExamplePermissions.change_projects)
     async with db_manager.get_session() as session:
         form = ExampleProjectForm.from_request(request, session=session)
         if not await form.validate():
             return json_response(form.to_api_response().to_dict())
         await form.save(commit=True, session=session)
-    return _project_saved_response(_("Project created."))
+    return modal_success_response(_("Project created."), table_target="#example-projects-table")
 ```
 
-GET `example_project_create_modal()` 先用 `@add_csrf_token()` 取得 token，在只读 Session 内渲染数据库选项，最后把完整 Form HTML 交给普通 Modal。`_project_saved_response()` 位于同一文件，在事务成功退出后才返回反馈、关闭 Modal、刷新 Table 的动作。成功响应的完整代码见[响应协议](responses.md#后端类型)。
+GET `example_project_create_modal()` 先用 `@add_csrf_token()` 取得 token，在只读 Session 内渲染数据库选项，最后把完整 Form HTML 交给普通 Modal。`modal_success_response()` 在事务成功退出后才被调用，返回反馈、关闭 Modal、刷新 Table 的动作；它的载荷见[响应协议](responses.md#后端类型)。
 
-`save()` 默认 commit=False，只准备模型实例；commit=True 使用提供的 Session 做 add/flush，**不自行 commit**。事务由外层管理。没通过校验就 save 会抛 ValueError。Demo 编辑入口先以 `_project_or_404()` 查询项目，再传 `instance=project`。当前 Demo 是 staff 共用数据；需要用户/租户隔离的业务还须在查询中限定范围，不能把 request 中的主键当可信的保存对象。
+`save()` 默认 commit=False，只准备模型实例；commit=True 使用提供的 Session 做 add/flush，**不自行 commit**。事务由外层管理。没通过校验就 save 会抛 ValueError。Demo 编辑入口先以 `get_object_or_404(session, ExampleProject, project_id, ...)`（`oldman.web.shortcuts`）查询项目，再传 `instance=project`。当前 Demo 是所有登录用户共用的数据；需要用户/租户隔离的业务还须在查询中限定范围，不能把 request 中的主键当可信的保存对象。
 
 模型自己的派生列（创建/更新时间、小写查找列、拼出来的 key）写在 `before_save(instance)` 里，不要重写 `save()`：这个钩子在表单值和上传文件名都装进实例之后、写库之前调用，session、add、flush 仍由框架处理。
 
@@ -231,7 +232,7 @@ Demo 的 StreamProfileForm 字段节选如下。StringField、DataRequired、URL
 
 远程链路是：Form Widget 签名绑定 → 浏览器请求 provider endpoint → 验证绑定和权限 → 搜索或初值回显 → JSON 候选。AjaxSelectField、AjaxSelectMultipleField、AjaxAutocompleteWidget 来自 `oldman.web.components.forms`；ModelSelectProvider、DataSelectProvider、SelectChoice、SelectResult、SelectProviderView、select_registry 来自 `oldman.web.components.selects`。
 
-Demo 的 [providers.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/providers.py) 定义 ExampleLogoProvider、ExampleTagProvider 和 ExampleCountryProvider。`@select_registry.register("example_logos")` 注册类，provider 每次请求创建实例。ModelSelectProvider 提供 `model`、`search_fields`、`label_field`、`value_field` 等配置；业务查询覆盖 `get_queryset(request, context)`。ExampleLogoProvider 的查询只选可用 Logo，并按 name、id 排序；check_auth 要求已登录的 staff。`filter_queryset()` 再按签名允许的 country_code 过滤。ExampleCountryProvider 则继承 DataSelectProvider，用 `get_choices()` 返回有限的国家列表。
+Demo 的 [providers.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/providers.py) 定义 ExampleLogoProvider、ExampleTagProvider 和 ExampleCountryProvider。`@select_registry.register("example_logos")` 注册类，provider 每次请求创建实例。ModelSelectProvider 提供 `model`、`search_fields`、`label_field`、`value_field` 等配置；业务查询覆盖 `get_queryset(request, context)`。ExampleLogoProvider 的查询只选可用 Logo，并按 name、id 排序；它没有重写 `check_auth`，中心接口只要求已登录。`filter_queryset()` 再按签名允许的 country_code 过滤。ExampleCountryProvider 则继承 DataSelectProvider，用 `get_choices()` 返回有限的国家列表。
 
 字段提供 `provider` 及 `endpoint` 或 `route_name`，可设 `page_size`、`dependent_fields`、`enhance_choices`、`label_mode`。endpoint 使用 `SelectProviderView.as_view(secret_key=key)` 注册，并让 Form 的 `select_secret_key` 使用同一个密钥。密钥应从统一 Web security 根密钥派生，不在字段、views 和 YAML 各放一份新随机值。
 
@@ -319,7 +320,7 @@ logo_id = AjaxSelectField("Logo", provider="example_logos", route_name="...", al
 
 ### 提交仍需校验对象
 
-POST `/examples/forms/selects/<profile_id>/edit` 由 `@csrf_protect()` 和 Demo 的 `@admin_required()` 保护，进入 `_update_logo()`：
+POST `/examples/forms/selects/<profile_id>/edit` 由 `@csrf_protect()` 和框架的 `@login_required()` 保护，进入 `_update_logo()`：
 
 1. 在框架写 Session 中查询 ExampleStreamProfile，不存在则 404。
 2. 调用 LogoSelectForm.from_request，传入 instance、同一个 Session 和 SELECT_BINDING_SECRET。

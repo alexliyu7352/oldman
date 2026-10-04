@@ -155,12 +155,15 @@ Demo 的服务类是 `WebService(WebApplication)`；文件名为 `web.py`，所�
 
 ```python
 def prepare_server(self, app: WebApp) -> None:
-    """先确认前端产物可用，再交给框架准备监听参数。"""
-    app_bundle_registry(app).ensure_build_available(APP_MAIN_BUNDLE)
+    """先确认前端产物可用，再交给框架按配置准备监听参数。"""
+    registry = app_bundle_registry(app)
+    registry.ensure_build_available(APP_MAIN_BUNDLE)
+    # 切换器里的语言来自配置，词典来自前端构建：少一份就会点出一个没有翻译的语言。
+    ensure_frontend_catalogs(registry, APP_MAIN_BUNDLE, source_dir=PROJECT_ROOT / "frontend" / "public" / "i18n")
     super().prepare_server(app)
 ```
 
-`ensure_build_available()` 根据产品/开发模式检查资源：产品模式需要已构建、收集的 manifest；开发模式使用 Vite 地址。资源准备流程见[Assets](assets.md)，不是让 `prepare_server()` 隐式运行构建。
+`ensure_build_available()` 根据产品/开发模式检查资源：产品模式需要已构建、收集的 manifest；开发模式使用 Vite 地址。`ensure_frontend_catalogs()`（`oldman.web.i18n`）确认配置里的每种语言都有编译好的前端词典。资源准备流程见[Assets](assets.md)，不是让 `prepare_server()` 隐式运行构建。
 
 ### 模板和基础能力接线
 
@@ -181,31 +184,31 @@ def get_ext_config(self) -> dict[str, Any]:
 
 模板目录来自同一个全局 Settings，异步模板显式启用，日志仍交给 Oldman，不让 Sanic-Ext 再安装一套日志系统。
 
-接着，Demo 的 `init()` 在基类初始化之后补充自己的 CSRF、通知路由和模板助手：
+接着，Demo 的 `init()` 在基类初始化之后按 `startproject` 生成的 dashboard 骨架的顺序装 CSRF、通知、模板与前端包、账户页面，再装本项目多出来的令牌接口和内置 Admin：
 
 ```python
 def init(self) -> None:
-    """初始化 Sanic、Session、CSRF 与模板辅助函数。"""
+    """骨架的顺序:CSRF、通知、模板与前端包、账户页面;再装本项目的令牌接口与内置 Admin。"""
     super().init()
     app = self.runtime_app
     if app is None:
         raise RuntimeError("Sanic app was not initialized")
-
     StatelessCSRFManager(app)
     notification_routes = install_notifications(app)
-    install_template_helpers(
-        app,
-        notification_routes=notification_routes,
-        user_events_url="/user-events" if settings.web.sse.enabled else None,
-    )
+    install_dashboard_templates(app)
+    install_account_pages(app, notification_routes=notification_routes)
+    install_token_routes(app)
+    # 内置管理后台挂在 app_settings.admin.prefix(默认 /admin),与这里共用登录状态,导航里的入口整页打开。
+    install_admin(app)
 ```
 
 这里的名称来自同一服务文件：
 
 - `StatelessCSRFManager` 从 `oldman.web.security.csrf` 导入。
-- `install_notifications` 是 `oldman.web.messages.notifications.init_app` 的导入名称，不是另一个 subscriber。
-- `install_template_helpers()` 是 Demo 自己的函数：安装共享/项目模板 loader，用 `register_project_bundle()` 和 `registry.install_template_globals()` 接入静态 bundle（见 [Assets](assets.md)），再注册通知链接等 Demo 自己的模板 globals；语言菜单和 CSRF token 已是框架全局，不再由它提供。
-- `/user-events` 是 Demo 已声明的 SSE 视图地址；这里只将地址交给模板，不创建这条路由。SSE 关闭时传 None。
+- `install_notifications` 是 `oldman.web.messages.notifications.init_app` 的导入名称，不是另一个 subscriber；它返回的通知路由交给账户页面装通知中心。
+- `install_dashboard_templates()` 与骨架同名同形：安装共享/项目模板 loader，用 `register_project_bundle()` 和 `registry.install_template_globals()` 接入静态 bundle（见 [Assets](assets.md)），再登记 `app_main_bundle`、菜单用的 `can_manage_users` 和 Demo 的顶栏业务通知；语言菜单、CSRF token 和账户地址 `account_urls` 是框架全局，不由它提供。
+- `install_account_pages()`（apps/accounts/routes.py）装框架的登录、个人页、通知中心、用户管理和找回密码流程，地址来自 `web.account`；`/user-events` 也由它装，SSE 关闭时不装。
+- `install_token_routes()`（apps/accounts/tokens.py）装令牌接口，骨架没有这一项；`install_admin()` 装内置 Admin。
 
 父类 `init()` 创建 Sanic 和扩展环境，按开关安装 messages、Session，初始化 Storage 与 SSE 输出扩展，再让 Registry 加载 models/views。模型阶段在 bootstrap 已完成，再调用不会重复加载。Demo 的上述覆盖随后才安装自己的附加能力；最终开始处理请求时，这些接线都已完成。不能在 `apps.py`、models 或 views 的导入阶段就假定项目的模板 globals/CSRF 助手已经可用。项目注册自己的模板全局时写 `template_globals(environment)["name"] = value`（`from oldman.web.template import template_globals`）：Jinja 没给 `environment.globals` 标类型，类型检查器按它的默认值推断出一个很窄的字典，直接写 `environment.globals[...]` 会被 Pyrefly 报错，运行结果两者相同。
 

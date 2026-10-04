@@ -50,21 +50,21 @@ apps:
   - oldman.auth
   - oldman.apps.admin
   - oldman.web.messages.notifications
-  - apps.auth
+  - oldman.apps.roles
+  - apps.accounts
   - apps.dashboard
   - apps.epg_admin
   - apps.examples
-  - apps.web
 app_settings:
   auth:
-    user_model: apps.auth.models.OldmanUser
+    user_model: apps.accounts.models.User
   admin:
     require_superuser: false
   examples:
     http_base_url: https://httpbin.org
 ```
 
-其中 `oldman.auth` 的 label 是 `auth`，提供认证基础能力和 User 选择配置；Demo 的 `apps.auth` 的 label 是 `epg_auth`，提供具体 `OldmanUser` 与登录视图。这是两个不同的 App，`app_settings.auth.user_model` 指向后者定义的类。不要把 Python 包路径、label 和模型类名混为一谈。
+其中 `oldman.auth` 的 label 是 `auth`，提供认证基础能力和 User 选择配置；Demo 的 `apps.accounts` 的 label 是 `accounts`，提供具体的 `User` 模型（和 `startproject` 生成的骨架一样，登录等账户页面是框架的流程，由它的 routes.py 安装）。这是两个不同的 App，`app_settings.auth.user_model` 指向后者定义的类。不要把 Python 包路径、label 和模型类名混为一谈。
 
 `oldman.apps.admin` 提供共享设置与用户管理命令。将它加入清单不等于挂载 `/admin`；EPG Demo 使用自己的 Dashboard，独立 Admin 站点见[Admin 教程](admin.md)。
 
@@ -109,7 +109,7 @@ __all__ = ["ExamplesAppConfig", "app"]
 
 实际消费者是 [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py) 的 run_http_example：从该 App 导入 app，在函数运行时读取 app.settings.http_base_url，不在元数据导入时提前读取。完整配置和操作见[HTTP 示例](cache-and-http.md#运行后端-http-示例)。只有确实需要设置的 App 才声明模型，不要求所有 App 创建空配置类。
 
-Demo 也使用内置 Auth 和 Admin 的强类型配置，下面以登录策略说明另一条实际读取路径。
+Demo 也安装了内置 Auth 和 Admin，它们的强类型配置由框架自己读取，下面以 Admin 的登录策略说明这条路径。
 
 Admin 的配置声明在框架 [AdminSettings](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/settings.py)，注册在框架 [AdminAppConfig](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/apps.py)。这两份代码属于 Demo 安装的框架包，不需要复制到 Demo：
 
@@ -118,24 +118,20 @@ Admin 的配置声明在框架 [AdminSettings](https://github.com/alexliyu7352/o
 - YAML 的 `app_settings.admin.require_superuser` 绑定到该 App 的 `app.settings.require_superuser`。
 - 业务通过 `from oldman.apps.admin.apps import app as admin_app` 读取，IDE 能推断配置类型。
 
-Demo 的 [apps/auth/services.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/services.py) 有实际消费者。下面是完整的 `authenticate_user()` 函数节选；同文件已导入 `OldmanUser` 和 `admin_app`，并定义了用只读数据库 Session 查询的 `get_user_by_username()`。不要只复制函数而漏掉这些依赖：
+实际消费者是内置 Admin 的站点：`AdminSite.register_routes()`（[oldman/apps/admin/site.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/site.py)）在装路由时读取它，没有显式传入配置时用已安装 App 的设置：
 
 ```python
-async def authenticate_user(username: str, password: str) -> OldmanUser | None:
-    """校验用户名密码并返回可登录的后台用户。"""
-    user = await get_user_by_username(username)
-    if not user or not user.is_active:
-        return None
-    if not user.is_staff:
-        return None
-    if admin_app.settings.require_superuser and not user.is_superuser:
-        return None
-    if not user.check_password(password):
-        return None
-    return user
+if admin_settings is None:
+    from oldman.apps.admin.apps import app as admin_app
+
+    admin_settings = admin_app.settings
+prefix = admin_settings.prefix
+self.prefix = prefix
+login_path = admin_login_path(prefix)
+self.require_superuser = admin_settings.require_superuser
 ```
 
-该 Demo 将 Admin 的这项策略用于自己的 Dashboard 登录：false 表示允许正常的 active staff 用户；true 则还要求 superuser。无论此开关如何，停用用户、非 staff 和密码错误都会被拒绝。它不是“关闭全部权限校验”的开关。
+它只管内置 Admin：false 表示启用的 staff 用户可以进 Admin；true 则还要求 superuser。停用用户、非 staff 和密码错误无论如何都进不去。它不是“关闭全部权限校验”的开关，也不影响 Demo 自己的 Dashboard——Dashboard 的登录底线是“账户启用”，需要 staff 的页面自己用 `staff_required` 声明。
 
 两个不同服务安装同一个带设置的 App 时，可以在各自 YAML 中填写不同值；共享业务代码保持同一导入入口，不需要判断自己在哪个服务中。只有在配置已初始化且 App 已安装时才能读取；正常 CLI 会完成初始化，IDE 见 [Shell 与 bootstrap](../developers/applications.md#python-shell-与-ide)。
 

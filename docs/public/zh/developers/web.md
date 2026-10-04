@@ -1,6 +1,6 @@
 # Web 请求、模板与权限
 
-本章面向使用 `WebApplication` 的服务。配置和 App 加载先读[应用生命周期](applications.md)；完整接线见[Demo 项目管理教程](../users/tutorial-dashboard.md)。下文业务节选来自 EPG Demo 的 services/web.py、apps/auth/views.py 和 session.py，不另外建立 tasks App。
+本章面向使用 `WebApplication` 的服务。配置和 App 加载先读[应用生命周期](applications.md)；完整接线见[Demo 项目管理教程](../users/tutorial-dashboard.md)。下文业务节选来自 EPG Demo 的 services/web.py、apps/dashboard/views.py 和 apps/examples/session.py，账户页面引用框架的 `oldman/web/auth`，不另外建立 tasks App。
 
 ## 路由和请求对象
 
@@ -95,7 +95,7 @@ class WebService(WebApplication):
         }
 ```
 
-服务 `init()` 中先 `super().init()`，再取得 `self.runtime_app`，检查实例存在，然后安装 CSRF、通知和 install_template_helpers。后者用 `install_template_loaders(app.ext.environment, settings.web.template.dir)` 接入共享模板，并绑定翻译、bundle 和页面帮助函数。完整服务文件在教程中，不需要自己实例化 Jinja Environment 或重新包装 Sanic-Ext。上面的 cors 是 Demo 自己启用的扩展项，不是使用模板必须打开跨域。
+服务 `init()` 中先 `super().init()`，再取得 `self.runtime_app`，检查实例存在，然后安装 CSRF、通知、`install_dashboard_templates` 和账户页面。`install_dashboard_templates` 用 `install_template_loaders(app.ext.environment, settings.web.template.dir)` 接入共享模板，并登记翻译、bundle 和菜单用的模板全局。完整服务文件在教程中，不需要自己实例化 Jinja Environment 或重新包装 Sanic-Ext。上面的 cors 是 Demo 自己启用的扩展项，不是使用模板必须打开跨域。
 
 模板路径由 `settings.web.template.dir` 配置。普通项目使用一个项目模板目录；不是自动搜索每个已安装 App 的 `templates/`。Demo 在 templates/pages 和 templates/partials 下按业务分类。
 
@@ -103,16 +103,15 @@ class WebService(WebApplication):
 
 覆盖某个页面又只想改其中一块时，继承框架原版：名字前加 `framework:` 就只在框架自带的模板目录里查找（共享模板，以及框架 App 登记的目录，例如已安装的 Admin）。例如项目里的 `templates/oldman/dashboard/account/login.html` 写 `{% extends "framework:oldman/dashboard/account/login.html" %}`，再重写 `auth_description` 块。原版里按普通名字继承的模板（例如 `base.html`）仍先找项目目录。Jinja 按名字缓存模板，新增覆盖文件后要重启服务才生效。要一次拿到全部框架模板来改，用 `./run.sh <服务> templates copy`（见 [CLI](cli.md)）。框架 App 用 `oldman.web.template.add_framework_template_dir(environment, directory)` 登记自己的目录，`framework_template_dirs(environment)` 返回登记的清单。
 
-完整 HTTP 响应与 HTML 内容不要混淆。下面是 Demo [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py) 的完整页面入口；app、Request、CSRF/权限装饰器、UserCreateForm 和 render_template 均由原模块导入或初始化：
+完整 HTTP 响应与 HTML 内容不要混淆。下面是 Demo [apps/dashboard/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/dashboard/views.py) 的首页入口；router、Request、`login_required` 和 render_template 由原模块导入，`dashboard_page_context()` 在同一文件：
 
 ```python
-@router.get("/users/new", name="users_new")
-@add_csrf_token()
-@admin_required()
-async def users_new(request: Request):
-    """渲染后台用户创建页。"""
-    form = UserCreateForm(request=request, csrf_token=request.ctx.csrf_token)
-    return await render_template("pages/users/form.html", context={"active_section": "system", "active_page": "users", "form": form, "user": None})
+@router.get("/", name="dashboard")
+@router.get("/dashboard", name="dashboard_alias")
+@login_required()
+async def dashboard(request: Request):
+    """渲染真实业务统计首页:和骨架首页一样,所有登录的账户都能看(统计不含个人数据)。"""
+    return await render_template("pages/dashboard.html", context=await dashboard_page_context(request, "dashboard_overview"))
 ```
 
 与此不同，`oldman.web.template.render_component_template(owner, template_name, context)` 是返回 `Markup` 内容的公开接口；`owner.request` 用于取得当前环境。Form/Table renderer 使用它，业务也可用于自己的组件模板；不是一个自行发送 HTTP 的函数。在视图函数里渲染一个片段用 `await render_fragment(request, template_name, **context)`：它通过应用已安装的模板环境渲染并返回 `Markup`，`request` 自动进入上下文；Demo 的 Modal 初次加载就是用它渲染后组成 title/html JSON，具体代码见[Modal 教程](../users/tutorial-dashboard.md#4-modal-只负责装入内容)。视图不要直接使用 `request.app.ext.environment`。所有模板环境都带三个壳层全局：`current_language(request)`、`language_menu_items(request)`（`oldman.web.i18n`，语言菜单和 `<html lang>` 用）和 `csrf_token_for(request)`（`oldman.web.security.csrf`，`csrf-token` meta 用）；`oldman/dashboard/partials/language_switcher.html` 不传参数时就用它们，只有一种语言时不渲染。另有 `site_name()` 返回给人看的站点名（`core.site_name`，未设置时 `core.app_name`），错误页、认证页和 dashboard 侧栏（`dashboard_sidebar` 不传 `brand_name` 时）的品牌都用它。传入的上下文仍需明确提供模板需要的变量。异步 Jinja 模板中调用异步方法可写 `{{ form.render() }}`；Python 中则必须 `await form.render()`。
@@ -130,7 +129,7 @@ Session 启用后，WebApplication 自动安装读写中间件。Redis 连接从
 
 会话中间件还替别的子系统按会话 cookie 的同一套策略写 cookie：`Session.get_session_manager(request).send_cookie(request, name, value, max_age=...)` 登记一个 cookie，响应阶段在保存会话之后写出（会话没有变化、跳过保存时照样写），Domain、Secure、SameSite 与会话 cookie 相同，并且是 HttpOnly。`opened_session_id(request)` 返回会话中间件为这个请求记下的 SID，没经过会话中间件（手搭的请求）时是 None；`send_cookie` 只能用在经过会话中间件的请求上。CSRF 给匿名访客的 cookie 就是这样写出的，见下文 CSRF 一节。
 
-Demo 的 [apps/auth/session.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/session.py) 在模块中从 oldman.web.session 导入 SessionData、get_session_data，从 oldman.web.request 导入 Request；其类与读取函数原文如下。WebService.SESSION_MODEL 指向这个子类：
+Demo 的 [apps/examples/session.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/session.py) 在模块中从 oldman.web.session 导入 SessionData、get_session_data，从 oldman.web.request 导入 Request；其类与读取函数原文如下。WebService.SESSION_MODEL 指向这个子类：
 
 ```python
 class DashboardSessionData(SessionData, kw_only=True):
@@ -146,23 +145,47 @@ def dashboard_session(request: Request) -> DashboardSessionData:
 
 登录时核对凭据用 `oldman.web.auth.authenticate_credentials(request, username=..., password=...)`：它按 `web.auth.login_backends` 的顺序询问登录后端，第一个认出凭据的说了算。默认只有内置的 `users`，即 `oldman.auth.authenticate_user`，检查用户存在、active 和密码，不附加 staff 权限。不论哪个后端认出凭据，`authenticate_credentials` 都拒绝停用的账户：所有登录的底线是启用，`request.ctx.user` 因此只会是启用的用户；站点在这之上加自己的条件（内置 Admin 要求 staff）。项目自己的登录后端写类的导入路径：无参构造，提供 `name` 和 `async authenticate(request, **credentials)`，只取自己认得的关键字参数（例如设备令牌登录取 `token=`），认不出返回 `None`，认出时返回要登录的 User。
 
-Demo 的 `authenticate_user(request, username, password)` 来自 apps.auth.services，在 `authenticate_credentials` 之上只加了 staff 检查；不要把它和框架的同名函数混淆。普通业务网站不必沿用 Admin 的 staff 限制。
+Demo 不另写登录：账户页面用框架的 `LoginFlow`（下节），和 dashboard 骨架一样不传 `accept_user`，所有启用的账户都能登录，登录后能用全部页面；只有演示权限的示例另加 `staff_required` 或角色权限。普通业务网站不必沿用 Admin 的 staff 限制。
 
-登录表单、用户筛选表单和用户创建/编辑 ModelForm 都来自 `oldman.web.auth`（`LoginForm`、`UserFilterForm`、`user_create_form_class(User)`、`user_edit_form_class(User)`），用户列表表格来自 `oldman.web.auth.UserTable`（它列出全部账户的邮箱和标志，自己在 `check_permission` 里要求 `auth.users.view`，超级用户持有；子类只提供 `model`、路由名和 `object_url(row, action)`；单元格与行菜单也可单独用 `user_cell_value`、`user_row_actions`），用户管理的自保护规则（`set_user_active`、`validate_user_delete`、`UserManagementError`）来自 `oldman.auth`；staff 和超级用户账号只归超级用户管理，这条规则是 `oldman.web.auth.can_manage_user(request, target=None, *, makes_privileged=False)`：用户表单按它绑定的请求判断操作者，非超级用户新建、编辑这类账号或勾选这两个标志时报「没有权限」；不经过表单的删除、启停、改密由视图在取到用户后调用 `can_manage_user(request, user)`（内置 Admin 与 `UserManagementFlow` 都这样做）。改了密码、停用、删除，或改了标志、角色之后，视图调用 `await finish_user_change(request, user_id, login_url=...)` 结束该账户的登录：改的是操作者自己时它返回一个说明"请重新登录"并跳到 `login_url` 的应答，视图直接返回它，否则返回 None；成功提示用 `user_change_text(change, username=..., request=request)`，各处说同一句话；行菜单里的启停和删除弹窗来自 `oldman.web.auth.user_status_modal_response(request, user, action=...)` 和 `user_delete_modal_response(...)`，视图只负责按 id 取用户（取不到就传 `None`，助手会回 404 的 modal 文案）和给出表单要 POST 的地址；项目和内置 Admin 共用同一份，不各自定义。同一个 views.py 的完整登录入口如下。authenticate_user 来自 apps.auth.services（框架凭据检查加本站的 staff 策略）；form_value、remember_me_requested、login_error_url、login_user、logout_user 和 safe_next_url 都来自 `oldman.web.auth`（safe_next_url 只放行站内路径，拒绝外站、`//host`、反斜杠和控制字符）；redirect_response、CSRF 和 Request 来自框架。它是原生登录提交，不是 JSON Form：
+登录表单、用户筛选表单和用户创建/编辑 ModelForm 都来自 `oldman.web.auth`（`LoginForm`、`UserFilterForm`、`user_create_form_class(User)`、`user_edit_form_class(User)`），用户列表表格来自 `oldman.web.auth.UserTable`（它列出全部账户的邮箱和标志，自己在 `check_permission` 里要求 `auth.users.view`，超级用户持有；子类只提供 `model`、路由名和 `object_url(row, action)`；单元格与行菜单也可单独用 `user_cell_value`、`user_row_actions`），用户管理的自保护规则（`set_user_active`、`validate_user_delete`、`UserManagementError`）来自 `oldman.auth`；staff 和超级用户账号只归超级用户管理，这条规则是 `oldman.web.auth.can_manage_user(request, target=None, *, makes_privileged=False)`：用户表单按它绑定的请求判断操作者，非超级用户新建、编辑这类账号或勾选这两个标志时报「没有权限」；不经过表单的删除、启停、改密由视图在取到用户后调用 `can_manage_user(request, user)`（内置 Admin 与 `UserManagementFlow` 都这样做）。改了密码、停用、删除，或改了标志、角色之后，视图调用 `await finish_user_change(request, user_id, login_url=...)` 结束该账户的登录：改的是操作者自己时它返回一个说明"请重新登录"并跳到 `login_url` 的应答，视图直接返回它，否则返回 None；成功提示用 `user_change_text(change, username=..., request=request)`，各处说同一句话；行菜单里的启停和删除弹窗来自 `oldman.web.auth.user_status_modal_response(request, user, action=...)` 和 `user_delete_modal_response(...)`，视图只负责按 id 取用户（取不到就传 `None`，助手会回 404 的 modal 文案）和给出表单要 POST 的地址；项目和内置 Admin 共用同一份，不各自定义。dashboard 与内置 Admin 的登录提交都是 `LoginFlow`（下节）装的同一个处理函数，原文如下（`oldman/web/auth/login.py` 的 `register_routes()` 内，去掉了方法体缩进）。form_value、remember_me_requested、login_error_url、login_user 和 safe_next_url 都来自 `oldman.web.auth`（safe_next_url 只放行站内路径，拒绝外站、`//host`、反斜杠和控制字符）；`authenticate_credentials` 见上文；`self.limiter()` 按 Auth 设置 `login` 的限额给失败的登录计数；redirect_response 和 CSRF 装饰器来自框架。它是原生登录提交，不是 JSON Form：
 
 ```python
-@router.post("/login", name="login_submit")
 @csrf_protect()
-async def login_submit(request: Request):
-    """处理后台用户名密码登录。"""
-    next_url = safe_next_url(form_value(request, "next") or request.args.get("next"))
-    user = await authenticate_user(request, form_value(request, "username").strip(), form_value(request, "password"))
-    if user is None:
-        return redirect_response(login_error_url("/login", next_url, "invalid_credentials"), status=303)
-    return await login_user(request, user, response=redirect_response(next_url), remember=remember_me_requested(request))
+@add_csrf_token()
+async def login_submit(request: Any):
+    next_url = safe_next_url(form_value(request, "next", str(request.args.get("next", "") or "")), self.home_path)
+    username = form_value(request, "username").strip()
+    limiter = self.limiter()
+    # Before the password is checked, so a spent budget costs no PBKDF2 round.
+    retry_after = await limiter.retry_after(request, username)
+    if retry_after is not None:
+        response = await login_page(request, error=RATE_LIMITED, next_url=next_url)
+        response.status = 429
+        response.headers["Retry-After"] = str(retry_after)
+        return response
+    user = await authenticate_credentials(
+        request,
+        username=username,
+        password=form_value(request, "password"),
+        auth_settings=self.auth_settings,
+        db_manager=self.db_manager,
+    )
+    # Refused by the site's own rule, an account gets the wrong-password answer: telling
+    # them apart would confirm the password was right.
+    if user is None or (self.accept_user is not None and not self.accept_user(user)):
+        await limiter.record_failure(request, username)
+        return redirect_response(login_error_url(self.login_path, next_url, INVALID_CREDENTIALS), status=303)
+    return await login_user(
+        request,
+        user,
+        response=redirect_response(next_url),
+        remember=remember_me_requested(request),
+        auth_settings=self.auth_settings,
+        db_manager=self.db_manager,
+    )
 ```
 
-`user` 是刚通过认证的真实 User。`login_user()` 用 `session_data_for_user()` 按请求上挂的 Session 类型（这里是 DashboardSessionData）创建会话数据，传入“记住我”决定的有效期和代理感知的登录 IP，用 exclusive_login 创建排他登录并写 Cookie；需要同用户多个会话时自己调用公开方法 login()。当前请求退出用 `await logout_user(request, "/login")`（内部是 `Session.logout_session`，同时安排清除 Cookie）；强制退出某用户用 `await session_manager.force_logout_user(user_id)`。这些是服务端操作，不是在浏览器中删除一个标志就算注销。错误密码回到带错误说明的 GET 登录页，重新生成 CSRF；过期 CSRF 是下面的 403 错误页流程，不能当作密码错误绕过。
+`user` 是刚通过认证的真实 User。`login_user()` 用 `session_data_for_user()` 按请求上挂的 Session 类型（Demo 里是 DashboardSessionData）创建会话数据，传入“记住我”决定的有效期和代理感知的登录 IP，用 exclusive_login 创建排他登录并写 Cookie；需要同用户多个会话时自己调用公开方法 login()。当前请求退出用 `await logout_user(request, "/login")`（内部是 `Session.logout_session`，同时安排清除 Cookie）；强制退出某用户用 `await session_manager.force_logout_user(user_id)`。这些是服务端操作，不是在浏览器中删除一个标志就算注销。错误密码回到带错误说明的 GET 登录页，重新生成 CSRF；过期 CSRF 是下面的 403 错误页流程，不能当作密码错误绕过。
 
 ## 账户页面的现成流程
 
@@ -176,7 +199,7 @@ async def login_submit(request: Request):
 
 谁能登录：所有登录的底线是启用的账户。内置 Admin 在此之上要求 staff（`accept_user` 传 staff 规则）；dashboard 默认让所有启用的用户登录，某个页面要 staff 就用 `staff_required`，要某个权限就用 `require_perm`（见[权限入口](#权限入口)）。
 
-内置 Admin 是现在的使用者（[oldman/apps/admin/site.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/site.py)），它的路径都在自己的前缀下，并用 `render=` 带上 Admin 的菜单上下文。登录流程原文：
+内置 Admin、dashboard 骨架和 EPG Demo 都用这几个流程。内置 Admin（[oldman/apps/admin/site.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/site.py)）的路径都在自己的前缀下，并用 `render=` 带上 Admin 的菜单上下文。登录流程原文：
 
 ```python
         login_flow = LoginFlow(
@@ -202,11 +225,11 @@ dashboard 的路径来自[账户页面地址](configuration.md#账户页面地�
 | `UserManagementFlow` 的 `base_path`、`login_path` | `web.account.users_url`、`login_url` |
 | `PasswordResetFlow` 的 `base_path`、`login_path`、`home_path`（见[找回密码](security.md#找回密码的-token)） | `web.account.password_reset_url`（未设置就不装）、`login_url`、`login_redirect_url` |
 
-`startproject` 选 dashboard 生成的 `apps/accounts/routes.py` 就是按这张表装好的三个流程（登录、个人页与通知、用户管理），服务在 `init()` 里调用它；只让部分账户登录就给 `LoginFlow` 传 `accept_user`，要找回密码就在旁边装 `PasswordResetFlow`。骨架的其余部分见[Dashboard 脚手架的范围](assets.md#dashboard-脚手架的范围)。
+`startproject` 选 dashboard 生成的 `apps/accounts/routes.py` 就是按这张表装好的三个流程（登录、个人页与通知、用户管理），服务在 `init()` 里调用它；只让部分账户登录就给 `LoginFlow` 传 `accept_user`，要找回密码就在旁边装 `PasswordResetFlow`。EPG Demo 的 [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) 就是这份原文，只在末尾多装了 `PasswordResetFlow`。骨架的其余部分见[Dashboard 脚手架的范围](assets.md#dashboard-脚手架的范围)。
 
 流程在服务 `init()` 里 `super().init()` 之后安装，与 `install_admin` 同一处；`app` 是 `self.runtime_app`。`template_prefix="oldman/dashboard/account"` 用框架自带的 dashboard 账户页：登录页和找回密码页（`PasswordResetFlow` 用 `oldman/dashboard/account/password_reset`）继承 `oldman/dashboard/account/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏和顶栏，`data-om-page="login"`，加载项目的 `app_main_bundle`）；个人页、通知中心和用户管理页继承项目自己的 `base.html`。改外观就在项目模板目录放同名文件覆盖，或用 `framework:` 继承原版只改一块（见[启用模板](#启用模板)）。浏览器端由 `startDashboard` 的 `AuthPage` 挂载认证页，见[前端](frontend.md#框架的启动入口)。
 
-项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `home`（`web.account.login_redirect_url`，登录后的落地页）、`login`、`logout`、`profile`、`users`（`web.account.users_url`，用户管理）、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节 Demo 的登录入口是手写的；用 `LoginFlow` 时，`next` 校验、错误回显、限流和"记住我"都在流程里。
+项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `home`（`web.account.login_redirect_url`，登录后的落地页）、`login`、`logout`、`profile`、`users`（`web.account.users_url`，用户管理）、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节的登录提交就是 `LoginFlow` 装的：`next` 校验、错误回显、限流和"记住我"都在流程里，站点不再手写。
 
 ## 请求认证：request.ctx.user
 
@@ -393,7 +416,7 @@ async def internal_metrics(request: Request):
 
 未登录的浏览器 HTML 导航会 302 跳到登录页。JSON 或携带 `X-Requested-With: XMLHttpRequest` 的请求返回 HTTP 401，`data.login_url` 供公共 HTTP Client 处理。已登录但无权限返回 403。这些不是 HTTP 200 的业务校验错误。
 
-对象级权限仍由业务查询保证。不能因为用户已登录，就信任 URL 中任何记录 ID。ExampleProject 教程采用所有 staff 共用项目数据，不暗示已实现个人或租户隔离；添加私有业务时，应在列表和保存/删除对象查询中同时限定访问范围，而不是只隐藏操作按钮。
+对象级权限仍由业务查询保证。不能因为用户已登录，就信任 URL 中任何记录 ID。ExampleProject 教程采用所有登录用户共用的项目数据，不暗示已实现个人或租户隔离；添加私有业务时，应在列表和保存/删除对象查询中同时限定访问范围，而不是只隐藏操作按钮。
 
 `HTTPMethodView` 从 `oldman.web` 导入，是 Sanic 同名类的子类，加了登录协议与权限钩子：`require_authenticated` 为真时未登录走登录协议（401 或跳登录页），之后异步 `check_permission(request, *, method_name, route_kwargs)` 返回 `(allowed, message)`，拒绝时 403；`require_authenticated` 默认关闭、`check_permission` 默认允许，此时行为与 Sanic 原类相同。可使用 `as_view()` 注册。`check_permission` 在解析参数、打开数据库会话之前执行，放不查数据就能判断的规则：要 staff 就看 `request_user(request).is_staff`，要权限就 `await has_perm(...)`。Table、Chart 与 Select 的基类默认只要求登录，staff 或权限由端点自己加，组件里还有哪几层见[数据组件的权限分层](permissions.md#数据组件的权限分层)；内置 Admin 的表格把它的准入与模型权限写在 `check_permission`。直接调用实例 `get()` 不经过 `dispatch_request()` 的登录与 `check_permission` 检查，因此应用应使用 `as_view()`，或像内置 Admin 那样调用 `dispatch_request()`。
 

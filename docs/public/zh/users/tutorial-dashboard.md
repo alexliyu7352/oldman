@@ -16,7 +16,7 @@
 | 职责 | 实际源码 |
 | --- | --- |
 | Session、CSRF、模板、通知和静态 bundle 初始化 | [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) |
-| 登录、会话和页面访问限制 | [apps/auth/views.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/views.py)、[decorators.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/auth/decorators.py) |
+| 登录、个人页和用户管理（框架的账户流程） | [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) |
 | 数据模型 | [apps/examples/models.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py) |
 | 筛选表单和编辑表单 | [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) |
 | 两种格式共用的 Table | [apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py) |
@@ -27,15 +27,15 @@
 
 ## 2. 登录和初始化不是表格自动提供的
 
-配置模板已安装 `oldman.auth`、`oldman.apps.admin`、通知 App 和 Demo 业务 Apps，并启用 Session。Auth 的具体 User 是 `apps.auth.models.OldmanUser`。首次运行通过 `./run.sh web createsuperuser` 创建自己的账户。
+配置模板已安装 `oldman.auth`、`oldman.apps.admin`、通知 App 和 Demo 业务 Apps，并启用 Session。Auth 的具体 User 是 `apps.accounts.models.User`。首次运行通过 `./run.sh web createsuperuser` 创建自己的账户。
 
-账户命令（`createsuperuser`、`changepassword`）来自 Auth App。**EPG 的管理界面不是通过 install_admin() 自动生成的站点**。`/users`、`/login` 等是 Demo 的业务视图；内置 Admin 站点另见[Admin 指南](admin.md)。
+账户命令（`createsuperuser`、`changepassword`）来自 Auth App。**EPG 的管理界面不是通过 install_admin() 自动生成的站点**。`/login`、`/users`、`/user-session` 等账户页面是框架的账户流程（`LoginFlow`、`AccountFlow`、`UserManagementFlow`，另加 `PasswordResetFlow`），由 apps/accounts/routes.py 装在 `web.account` 配置的地址上，和 `startproject` 生成的 dashboard 骨架一样；内置 Admin 站点另见[Admin 指南](admin.md)。
 
-WebService 先执行框架初始化，再安装 StatelessCSRFManager、通知路由和模板帮助函数。Jinja 的 `_`、`gettext` 直接使用 `oldman.i18n.gettext`，不是只接受一个字符串的自制包装，因此表格摘要带参数、关闭翻译时也能正常渲染。
+WebService 先执行框架初始化，再安装 StatelessCSRFManager、通知路由、模板与前端包（`install_dashboard_templates`）和账户页面，最后是令牌接口与内置 Admin。Jinja 的 `_`、`gettext` 直接使用 `oldman.i18n.gettext`，不是只接受一个字符串的自制包装，因此表格摘要带参数、关闭翻译时也能正常渲染。
 
-页面、Modal 和写接口使用 Demo 的 `@admin_required()`，检查已登录且为 staff；Table 数据通过 `ExampleProjectTable.as_view()` 进入框架的认证和权限分派。不能只保护展示页面而把数据接口裸露出去。
+所有启用的账户都能登录；示例页面、Modal 和写接口用框架的 `@login_required()`（`oldman.web.auth`），读写项目还要 `require_perm(request, ExamplePermissions.view_projects)` 或 `change_projects` 这类角色权限（这是 Demo 演示角色权限的地方）；Table 数据通过 `ExampleProjectTable.as_view()` 进入框架的认证和权限分派。不能只保护展示页面而把数据接口裸露出去。
 
-项目列表是 Demo 中 staff 共用的数据，不按当前用户或租户筛选。将代码用于私有业务数据时，必须同时限定列表查询及编辑/删除对象范围。
+项目列表是 Demo 中所有登录用户共用的数据，不按当前用户或租户筛选。将代码用于私有业务数据时，必须同时限定列表查询及编辑/删除对象范围。
 
 ## 3. 一份 Table，两个渲染格式
 
@@ -102,9 +102,10 @@ Team 列声明原文：
 ```python
 @router.get("/examples/tables/projects/new-modal", name="example_project_create_modal")
 @add_csrf_token()
-@admin_required()
+@login_required()
 async def example_project_create_modal(request: Request):
     """Load a create Form into the shared remote Modal."""
+    await require_perm(request, ExamplePermissions.change_projects)
     async with db_manager.get_read_session() as session:
         form = ExampleProjectForm(request=request, session=session)
         html = await form.render(
@@ -113,7 +114,7 @@ async def example_project_create_modal(request: Request):
             submit_label=_("Create project"),
             validate=True,
         )
-    return json_response({"title": str(_("Create example project")), "html": str(html)})
+    return modal_response(_("Create example project"), html=html)
 ```
 
 这里有三个关键边界：
@@ -122,7 +123,7 @@ async def example_project_create_modal(request: Request):
 2. 首次 Modal 请求返回 `title/html` JSON，由共享 Dashboard Modal 装入；这不是表单提交的 actions 响应。
 3. 装入的表单仍是普通 Form 组件。Modal 不自己解析字段错误或实现第二套提交；新内容通过共享组件生命周期挂载。
 
-编辑入口先用 `_project_or_404()` 读取真实记录，再通过 `instance=project` 构建相同的 Form。不存在的记录应返回 404，不偷偷变成新建表单。
+编辑入口先用 `get_object_or_404(session, ExampleProject, project_id, ...)`（`oldman.web.shortcuts`）读取真实记录，再通过 `instance=project` 构建相同的 Form。不存在的记录应返回 404，不偷偷变成新建表单。
 
 ## 5. 校验后再保存
 
@@ -131,15 +132,16 @@ async def example_project_create_modal(request: Request):
 ```python
 @router.post("/examples/tables/projects/create", name="example_project_create")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_project_create(request: Request):
     """Create one Project and reload the mounted HTML or JSON Table."""
+    await require_perm(request, ExamplePermissions.change_projects)
     async with db_manager.get_session() as session:
         form = ExampleProjectForm.from_request(request, session=session)
         if not await form.validate():
             return json_response(form.to_api_response().to_dict())
         await form.save(commit=True, session=session)
-    return _project_saved_response(_("Project created."))
+    return modal_success_response(_("Project created."), table_target="#example-projects-table")
 ```
 
 `ExampleProjectForm.Meta.fields` 是允许修改的字段白名单；请求不能借此任意更新模型字段。Form 沿用 WTForms 的字段和同步验证，并增加实际业务清理：
@@ -155,30 +157,28 @@ JSON 校验失败是 HTTP 200 加业务错误码，不执行 save；字段错误
 
 ## 6. 成功后按顺序执行界面动作
 
-实际的 `_project_saved_response()`：
+成功应答是 `modal_success_response(_("Project created."), table_target="#example-projects-table")`，来自 `oldman.web.api`。它返回的载荷拆开写就是：
 
 ```python
-def _project_saved_response(message: str | LazyTranslation):
-    """Close the Modal and refresh whichever render mode is mounted."""
-    payload = DefaultApiFormResponse(
-        error_code=ApiErrorCode.OK,
-        message=message,
-        actions=[
-            FeedbackAction(title=message, icon="success"),
-            CloseModalAction(),
-            ReloadTableAction(target="#example-projects-table"),
-        ],
-    )
-    return json_response(payload.to_dict())
+payload = DefaultApiFormResponse(
+    error_code=ApiErrorCode.OK,
+    message=message,
+    actions=[
+        FeedbackAction(title=message, icon="success"),
+        CloseModalAction(),
+        ReloadTableAction(target="#example-projects-table"),
+    ],
+)
+return json_response(payload.to_dict())
 ```
 
-这段代码在 views/tables.py 中从 `oldman.web.api` 导入这些动作和响应模型，从 `oldman.i18n` 导入 LazyTranslation。调用方传入当前请求的翻译文案，不是通知中心消息。
+调用方传入当前请求的翻译文案（`str` 或 `LazyTranslation`），不是通知中心消息。
 
 执行顺序就是列表顺序：提示成功、关闭发起请求的 Modal、刷新指定 Table。Form 先处理 message/errors，再交给当前 Page 的 Runner 执行动作；不要再监听提交成功事件做第二次刷新。
 
 其中某个动作失败，后续动作停止；已经提交的数据库事务不会因为 UI 动作失败而撤销。用户离开页面，旧 Page 的请求和剩余 UI 工作放弃，不把它们搬到新页面继续执行。
 
-编辑和删除成功也调用此函数，所以 HTML/JSON 两页采用相同的 UI 行为。删除前的普通确认 Form 位于 [delete_project.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/partials/examples/tables/delete_project.html)，包含 CSRF、message 和 status 区域。取消 Modal 不发出删除请求；确认后才通过 POST 删除数据库记录。
+编辑和删除成功也用同一个助手、同一个 `table_target`，所以 HTML/JSON 两页采用相同的 UI 行为。删除前的普通确认 Form 位于 [delete_project.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/partials/examples/tables/delete_project.html)，包含 CSRF、message 和 status 区域。取消 Modal 不发出删除请求；确认后才通过 POST 删除数据库记录。
 
 ## 7. 不要混淆 HTML Table 与 HTML Form
 

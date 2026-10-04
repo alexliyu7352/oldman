@@ -19,7 +19,7 @@ EPG [apps/examples/views/messages.py](https://github.com/alexliyu7352/oldman-epg
 ```python
 @router.post("/examples/messages/page/multiple", name="example_message_multiple")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_message_multiple(request: Request):
     """Store all four levels in insertion order, then redirect."""
     success(request, str(_("The database changes were saved.")))
@@ -29,7 +29,7 @@ async def example_message_multiple(request: Request):
     return redirect_response("/examples/messages/page", status=303)
 ```
 
-这是现有视图中的完整函数，不是独立模块。`router` 来自 `oldman.web`，success/info/warning/error 来自 `oldman.web.messages`，`_` 是 gettext_lazy，`str()` 在当前请求中取得最终译文；Request、redirect_response、CSRF 及 Demo staff 装饰器也在原文件导入。页面 [messages/page.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/messages/page.html) 使用带 CSRF 的原生 POST，再跟随303。这里的四段文字用于展示等级和顺序，并没有真的执行导入或写库，不能把文案当作业务结果。
+这是现有视图中的完整函数，不是独立模块。`router` 来自 `oldman.web`，success/info/warning/error 来自 `oldman.web.messages`，`_` 是 gettext_lazy，`str()` 在当前请求中取得最终译文；Request、redirect_response、CSRF 及 `login_required`（`oldman.web.auth`）也在原文件导入。页面 [messages/page.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/messages/page.html) 使用带 CSRF 的原生 POST，再跟随303。这里的四段文字用于展示等级和顺序，并没有真的执行导入或写库，不能把文案当作业务结果。
 
 四个快捷函数 `success/info/warning/error(request, content)` 都接收**最终字符串**；需要翻译时先在当前请求中调用 gettext。强类型等级 `MessageLevel` 为 success/info/warning/error。
 
@@ -38,7 +38,7 @@ async def example_message_multiple(request: Request):
 ```python
 @router.post("/examples/messages/page/trusted-html", name="example_message_trusted_html")
 @csrf_protect()
-@admin_required()
+@login_required()
 async def example_message_trusted_html(request: Request):
     """Store one fixed server-authored HTML message, never browser input."""
     content = "<strong>{}</strong> {}".format(

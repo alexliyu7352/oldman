@@ -64,7 +64,7 @@ run.sh 只是便捷命令入口，不会自动拉起其他服务。普通 Core �
 | 同一事件页 | 发送 10 条广播，再手动查询 | 两个在线节点各增加 10 |
 | `/examples/communication/failures` | 无接收者、慢回复、接收函数异常 | 可读失败说明；慢回复/异常需要 nats_a 在线，调用者等待 0.5 秒 |
 
-打开页面只读选项与配置，不发送消息。发送完成后接收者可能还在处理，再点一次“查询计数”即可；这里没有自动轮询。计数是接收进程内固定三项数据，所有 staff 用户共享，重启归零，不写入数据库。多人同时操作时不要把总数当作自己独占的实验。
+打开页面只读选项与配置，不发送消息。发送完成后接收者可能还在处理，再点一次“查询计数”即可；这里没有自动轮询。计数是接收进程内固定三项数据，所有登录用户共享，重启归零，不写入数据库。多人同时操作时不要把总数当作自己独占的实验。
 
 停止 nats_b 后再观察，monitor_a 的有效结果仍保留，monitor_b 显示无响应者。慢回复 handler 实际等待两秒，前端 0.5 秒就超时；不是超时后取消了对端。故意异常写入 nats_a 日志，调用者可能只知道没有及时回复，框架不传输远程 Python 异常对象。
 
@@ -132,7 +132,7 @@ nats_bus:
 - nats_alias=TASKIQ 只是选取已有地址，**不使用 Taskiq 的连接或队列**。
 - nats_b 配置 peer_id=monitor_b，其他通信配置一致。
 - Web 的 peer_id=web、consume=false；后台任务配置也只发送，不安装接收 App。
-- 接收服务的 settings.apps 包含 oldman.auth、apps.auth、apps.examples、apps.communication，前几个提供真实 User/数据模型，最后一个提供 events。Registry 只加载已安装 App，不扫描其他项目。
+- 接收服务的 settings.apps 包含 oldman.auth、apps.accounts、apps.examples、apps.communication，前几个提供真实 User/数据模型，最后一个提供 events。Registry 只加载已安装 App，不扫描其他项目。
 - 默认 codec 是 msgpack；选择 msgspec_json 时通信双方一起改并重启。两种都直接发送 bytes，不先生成 JSON 字符串。
 - namespace 隔离不同项目/环境的名字，不能替代服务器 ACL。来源 peer_id 也不是身份凭据。
 
