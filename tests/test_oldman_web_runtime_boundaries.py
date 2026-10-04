@@ -580,13 +580,15 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         self.assertIsNotNone(failure.exc_info)
         self.assertIn("broken_listener", logging.Formatter().format(failure))
 
-    def test_the_primary_process_installs_the_ack_wait_fix_before_serving(self) -> None:
+    def test_the_primary_process_installs_the_worker_manager_fixes_before_serving(self) -> None:
         from sanic.worker.manager import WorkerManager
 
         import oldman.runtime.web as web
 
         self.addCleanup(setattr, WorkerManager, "wait_for_ack", web._SANIC_WAIT_FOR_ACK)
+        self.addCleanup(setattr, WorkerManager, "_handle_message", web._SANIC_HANDLE_MESSAGE)
         WorkerManager.wait_for_ack = web._SANIC_WAIT_FOR_ACK  # type: ignore[method-assign]
+        WorkerManager._handle_message = web._SANIC_HANDLE_MESSAGE  # type: ignore[method-assign]
         application = ConcreteWebApplication("primary")
         primary = Mock(serve_location="http://127.0.0.1:9000")
         application.create_app = Mock(return_value=primary)  # type: ignore[method-assign]
@@ -595,6 +597,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
         with patch("oldman.runtime.web.AppLoader"), patch("oldman.runtime.web.Sanic.serve"):
             application.run()
         self.assertIs(web._wait_for_ack, WorkerManager.wait_for_ack)
+        self.assertIs(web._handle_message, WorkerManager._handle_message)
 
     def test_sanic_still_has_the_wait_for_ack_the_fix_replaces(self) -> None:
         """The fix copies Sanic 25.12.1's method; a Sanic that changes it needs the fix looked at again."""
@@ -611,6 +614,84 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
             "signal's None, and drop or update oldman.runtime.web._wait_for_ack.",
         )
 
+    def test_sanic_still_has_the_monitor_loop_the_late_startup_fix_relies_on(self) -> None:
+        """The fix wraps Sanic 25.12.1's `_handle_message` and relies on `_poll_monitor` handing it the message."""
+        import hashlib
+        import inspect
+
+        import oldman.runtime.web as web
+
+        for method, digest in (
+            (web._SANIC_HANDLE_MESSAGE, "1bdac696315809f7f160c9e3bb3eac86dba7e1533f51c3f763cc356c0826e2ee"),
+            (web._SANIC_POLL_MONITOR, "3dca8fc4593ff7277b1e71cfe484ccf77bb6dc90157e9f33855f155550b3b0c5"),
+        ):
+            with self.subTest(method=method.__name__):
+                self.assertEqual(
+                    digest,
+                    hashlib.sha256(inspect.getsource(method).encode()).hexdigest(),
+                    f"Sanic's WorkerManager.{method.__name__} changed: check whether the monitor loop now ends on "
+                    "__TERMINATE_EARLY__, and drop or update oldman.runtime.web._handle_message.",
+                )
+
+    def test_a_worker_failing_after_it_acknowledged_ends_the_primary_process(self) -> None:
+        """Sanic 25.12.1 kept the primary running with no worker: its monitor read __TERMINATE_EARLY__ as a restart."""
+        script = textwrap.dedent(
+            """
+            import asyncio
+            import sys
+
+            from sanic import Sanic
+            from sanic.response import text
+
+            from oldman.runtime.web import _fix_sanic_worker_manager
+
+            app = Sanic("LateFailure")
+
+
+            @app.get("/")
+            async def index(request):
+                return text("ok")
+
+
+            @app.after_server_start
+            async def fail_late(app):
+                # Long enough after the acknowledgement for the primary to have left its startup wait.
+                await asyncio.sleep(0.5)
+                raise RuntimeError("expected late startup failure")
+
+
+            if __name__ == "__main__":
+                _fix_sanic_worker_manager()
+                app.run(host="127.0.0.1", port=int(sys.argv[1]), workers=1, access_log=False, motd=False)
+            """
+        )
+        with tempfile.TemporaryDirectory() as directory, socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+            probe.close()
+            path = Path(directory) / "late_failure.py"
+            path.write_text(script)
+            process = subprocess.Popen(
+                [sys.executable, str(path), str(port)],
+                cwd=directory,
+                env={**os.environ, "PYTHONPATH": str(ROOT)},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            try:
+                output, _ = process.communicate(timeout=15)
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+                    assert process.stdout is not None
+                    process.stdout.close()
+            text = output.decode(errors="replace")
+            self.assertIn("expected late startup failure", text)
+            self.assertIn("failed while starting, after it had acknowledged", text)
+            self.assertNotIn("Failed to restart processes", text)
+
     def test_a_shutdown_signal_while_workers_start_ends_the_primary_process(self) -> None:
         """Sanic 25.12.1 spun forever: its startup wait put the shutdown signal's None back and waited again."""
         script = textwrap.dedent(
@@ -621,7 +702,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
             from sanic import Sanic
             from sanic.response import text
 
-            from oldman.runtime.web import _leave_ack_wait_on_shutdown
+            from oldman.runtime.web import _fix_sanic_worker_manager
 
             app = Sanic("SlowStart")
 
@@ -638,7 +719,7 @@ class OldmanWebRuntimeBoundariesTest(unittest.TestCase):
 
 
             if __name__ == "__main__":
-                _leave_ack_wait_on_shutdown()
+                _fix_sanic_worker_manager()
                 app.run(host="127.0.0.1", port=int(sys.argv[1]), workers=1, access_log=False, motd=False)
             """
         )

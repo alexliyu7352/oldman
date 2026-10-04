@@ -14,7 +14,7 @@ from sanic import Sanic
 from sanic.log import error_logger
 from sanic.mixins.listeners import ListenerEvent
 from sanic.worker.loader import AppLoader
-from sanic.worker.manager import WorkerManager
+from sanic.worker.manager import MonitorCycle, WorkerManager
 from sanic_ext import Config, Extend
 from sanic_ext.extensions.base import Extension
 from sanic_ext.extensions.health.extension import HealthExtension
@@ -110,15 +110,42 @@ def _wait_for_ack(self: WorkerManager) -> None:
             self.kill()
 
 
-def _leave_ack_wait_on_shutdown() -> None:
-    """Make Sanic's worker manager stop when a shutdown signal arrives while workers start.
+#: Sanic's own `WorkerManager._handle_message`, kept for the test that notices when Sanic changes it.
+_SANIC_HANDLE_MESSAGE = WorkerManager._handle_message
+#: Sanic's `_poll_monitor`, which hands every text message it does not know to `_handle_message`; the fix relies on that.
+_SANIC_POLL_MONITOR = WorkerManager._poll_monitor
 
-    The framework pins `sanic==25.12.1`; Sanic's main branch has the same `wait_for_ack` (checked 2026-09-29),
-    reported upstream as https://github.com/sanic-org/sanic/issues/3196.
-    When a Sanic release fixes it, drop this; `tests/test_oldman_web_runtime_boundaries.py` fails
-    as soon as Sanic's own `wait_for_ack` changes, so a Sanic upgrade cannot keep it unnoticed.
+
+def _handle_message(self: WorkerManager, message: str) -> MonitorCycle | None:
+    """Sanic 25.12.1's `_handle_message`, which also ends the service when a worker fails after acknowledging.
+
+    A worker acknowledges once `before_server_start` is done and runs `after_server_start` afterwards; when
+    that fails it sends `__TERMINATE_EARLY__`. Only `wait_for_ack` knows the message. Once every worker has
+    acknowledged, `monitor()` hands it here, where Sanic reads it as the name of a process to restart, logs
+    "Failed to restart processes" and keeps the primary process running with no worker serving. Here it ends
+    the service as `wait_for_ack` does; every other message goes to Sanic's code unchanged.
+    """
+    if message == "__TERMINATE_EARLY__":
+        error_logger.error(
+            "A worker process failed while starting, after it had acknowledged (in after_server_start). "
+            "Shutting down. Please solve any errors experienced during startup."
+        )
+        self.kill()
+    return _SANIC_HANDLE_MESSAGE(self, message)
+
+
+def _fix_sanic_worker_manager() -> None:
+    """Make Sanic's worker manager stop the service on two startup events it otherwise waits through forever.
+
+    `_wait_for_ack`: a shutdown signal while the workers start. `_handle_message`: a worker whose
+    `after_server_start` fails after it acknowledged. The framework pins `sanic==25.12.1`; Sanic's main branch
+    has the same code (`wait_for_ack` checked 2026-09-29, reported as https://github.com/sanic-org/sanic/issues/3196;
+    the monitor loop checked 2026-10-04). When a Sanic release fixes them, drop these;
+    `tests/test_oldman_web_runtime_boundaries.py` fails as soon as Sanic changes any method they replace or rely
+    on, so a Sanic upgrade cannot keep them unnoticed.
     """
     WorkerManager.wait_for_ack = _wait_for_ack  # type: ignore[method-assign]
+    WorkerManager._handle_message = _handle_message  # type: ignore[method-assign]
 
 
 def _translation_catalog_roots(application: WebApplication) -> tuple[Path, ...]:
@@ -439,7 +466,7 @@ class WebApplication(BaseApplication):
             logger.warning("Listening on %s", primary.serve_location)
             logger.warning("Data directory: %s", settings.core.data_dir)
             logger.warning("Logs directory: %s", settings.logging.dir)
-            _leave_ack_wait_on_shutdown()
+            _fix_sanic_worker_manager()
             Sanic.serve(primary=primary, app_loader=loader)
         except Exception:
             # With the traceback: the CLI only prints the message, and a startup error's repr says

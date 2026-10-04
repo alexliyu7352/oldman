@@ -229,6 +229,8 @@ def init(self) -> None:
 
 监听方法只接收 `app`，不增加 `loop` 参数。覆盖已有生命周期时保留需要的 `super()` 调用。需要事件循环的资源放在异步生命周期里，不放到 import 或构造函数中。
 
+启动出错时服务退出（非 0），进程管理器能据此重启它。Sanic 的 worker 在 before_server_start 完成后就向主进程报告已启动，after_server_start 在那之后才运行；Sanic 25.12.1 的主进程这时再收到"启动失败"会把它当成重启请求、一直空转不退出，框架为此修补了 Sanic 的 `WorkerManager`（Sanic 修好后去掉）。连接、配置检查这类能在 before_server_start 做完的事放在那里，失败得最早。
+
 启用 nats_bus 后，框架在**实际 Sanic worker** 中先打开 Core，再打开启用的 Taskiq 发布连接，随后执行用户 before_server_start；用户 after_server_start 完成后才开始 Core 接收。停止先结束接收、等待 handler 的 finally，再调用用户 before_server_stop/after_server_stop，然后关闭 Taskiq 与 Core，最后关闭缓存、Redis 和数据库引擎。业务钩子失败也会做完这些清理；before_server_stop 失败时 Sanic 不再调用 after_server_stop，清理在那一步完成。主进程只加载声明，不提前创建跨进程共享 Client；不要在子类钩子里重复 start/stop bus。完整预算、异常与独立资源责任见 [NATS 生命周期](providers.md#app-与运行生命周期)。
 
 `runtime_app` 在初始化前是 `None`，初始化后是 Sanic 实例。不创建 Web 服务器的服务（SimpleApplication、Taskiq 服务）上它始终是 `None`。仅有 AppConfig 注册不意味着某个内置应用已经完成全部路由安装；例如 `install_admin(...)` 是额外的 Admin 接线步骤，不要把包列表当作其替代。
