@@ -354,6 +354,18 @@ class BaseApplication(ABC):
             self._nats_error = error
             raise
 
+    def _check_nats_consuming(self) -> None:
+        """A receiving service checks, before it connects or runs a hook, that its handlers can be attached.
+
+        Same condition as `_start_nats_consuming`; a command or a sending-only service never receives, so it is not checked.
+        """
+        config = self.bootstrap_context.settings.nats_bus
+        if not (config.enabled and config.consume):
+            return
+        from oldman.providers.nats import bus
+
+        bus._check_consuming()
+
     async def _start_nats_consuming(self) -> None:
         """Only a fully initialized long-running service starts its declared handlers."""
         if not self._nats_started or not self.bootstrap_context.settings.nats_bus.consume:

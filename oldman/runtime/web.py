@@ -363,6 +363,7 @@ class WebApplication(BaseApplication):
     async def _services_before_server_start(self, app: WebApp) -> None:
         """Prepare sending in the actual worker; failed startup has no stop hook guarantee."""
         try:
+            self._check_nats_consuming()
             await self._start_nats()
             await self._start_taskiq()
             await self.before_server_start(app)

@@ -9,22 +9,31 @@ class _ConfiguredNATSConnection(NATSConnection):
 
     _configured = False
 
-    async def _connect(self) -> None:
-        """Only this managed instance reads Settings; declarations remain offline."""
-        if not self._configured:
-            from oldman.conf import settings
+    def _configure(self) -> None:
+        """Only this managed instance reads Settings, once and without I/O; declarations remain offline."""
+        if self._configured:
+            return
+        from oldman.conf import settings
 
-            config = settings.nats_bus
-            if not config.enabled:
-                raise RuntimeError("NATS bus is disabled; enable settings.nats_bus before using it")
-            options = nats_connection_options(settings.nats[config.nats_alias])
-            self.servers = options.pop("servers")
-            self.namespace = config.namespace
-            self._peer_id = config.peer_id
-            self.serializer_mode = config.serializer_mode
-            self.startup_timeout = config.startup_timeout
-            self._configure_broker(graceful_timeout=config.graceful_timeout, **options)
-            self._configured = True
+        config = settings.nats_bus
+        if not config.enabled:
+            raise RuntimeError("NATS bus is disabled; enable settings.nats_bus before using it")
+        options = nats_connection_options(settings.nats[config.nats_alias])
+        self.servers = options.pop("servers")
+        self.namespace = config.namespace
+        self._peer_id = config.peer_id
+        self.serializer_mode = config.serializer_mode
+        self.startup_timeout = config.startup_timeout
+        self._configure_broker(graceful_timeout=config.graceful_timeout, **options)
+        self._configured = True
+
+    def _check_consuming(self) -> None:
+        """The receiving check reads the configured peer_id, which a service checks before it connects."""
+        self._configure()
+        super()._check_consuming()
+
+    async def _connect(self) -> None:
+        self._configure()
         await super()._connect()
 
 

@@ -646,6 +646,8 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("after-stop", lines)
                 self.assertEqual("main" in lines, mode in ("disabled", "shutdown"))
                 self.assertEqual("events-import" in lines, enabled)
+                # A peer subscriber without a peer_id fails before connecting and before any hook.
+                self.assertEqual("before-start" in lines, mode != "peer-fail")
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             process = self.launch("connect-fail", url=f"nats://127.0.0.1:{sock.getsockname()[1]}")
@@ -701,6 +703,8 @@ class NatsRuntimeTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(lines.count("nats-closed"), 1)
                 self.assertEqual("events-import" in lines, enabled)
                 self.assertEqual("after-stop" in lines, mode in ("after-stop-fail", "web-disabled"))
+                # Checked before the worker acknowledges, so Sanic's startup wait ends the service.
+                self.assertEqual("before-start" in lines, mode != "peer-fail")
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             process = self.launch("connect-fail", web=True, url=f"nats://127.0.0.1:{sock.getsockname()[1]}")

@@ -91,6 +91,7 @@ class SimpleApplication(BaseApplication):
         """异步运行入口"""
         failure: BaseException | None = None
         try:
+            self._check_nats_consuming()
             await self._start_nats()
             await self._start_taskiq()
             # 启动前钩子

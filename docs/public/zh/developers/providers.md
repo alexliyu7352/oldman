@@ -186,7 +186,7 @@ publish 原生 headers 会复制；框架独占 x-nats-peer-id 来源键，调�
 | request(..., "project.status", ..., peer_id="monitor_a") | oldman.bus.epg_demo.peer.monitor_a.project.status |
 | monitor_a 的 subscriber("project.status", peer=True) | oldman.bus.epg_demo.peer.monitor_a.project.status |
 
-peer=True 使用接收方配置的 peer_id，未配置会启动失败；发送的 peer_id 参数是**目标**。handler 的顶层参数 peer_id 是**来源**，由本方发送配置写入，不取目标或 name。消息正文里的同名字段保持原数据，不被注入覆盖。
+peer=True 使用接收方配置的 peer_id，未配置会启动失败：接收服务（`nats_bus.consume` 打开的 Web 与 Simple 服务）在连接 NATS、运行任何钩子之前就检查；命令和只发送的服务不接收，不检查；发送的 peer_id 参数是**目标**。handler 的顶层参数 peer_id 是**来源**，由本方发送配置写入，不取目标或 name。消息正文里的同名字段保持原数据，不被注入覆盖。
 
 普通 subject 由非空点分 token 构成；不能有空白/控制字符，发布不能含通配符。订阅允许原生完整 token 的 *、末尾 > 以及 FastStream 路径参数。不要手工重复拼 oldman.bus 前缀。
 

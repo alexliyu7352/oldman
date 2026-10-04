@@ -296,16 +296,25 @@ class NATSConnection:
             raise
         self._state = "open"
 
+    def _check_consuming(self) -> None:
+        """What attaching the declared handlers needs from configuration: a peer_id for peer=True subscribers.
+
+        A receiving service calls this before it connects, so the mistake ends its startup before it serves
+        anything (`BaseApplication._check_nats_consuming`); `_start_consuming` checks again for a subscriber
+        declared after that.
+        """
+        if self._peer_router.subscribers and self._peer_id is None:
+            raise ValueError("peer=True subscriber requires this connection's peer_id")
+
     async def _start_consuming(self) -> None:
         """Attach native routers once, after configuration and before receiving."""
         if self._state != "open" or self.broker.running:
             raise RuntimeError("NATS must be connected and not already consuming")
         self._state = "starting"
         try:
+            self._check_consuming()
             self.broker.include_router(self.router, prefix=self._prefix())
             if self._peer_router.subscribers:
-                if self._peer_id is None:
-                    raise ValueError("peer=True subscriber requires this connection's peer_id")
                 self.broker.include_router(self._peer_router, prefix=self._prefix(self._peer_id))
             await self.broker.start()
             connection = self.broker._connection

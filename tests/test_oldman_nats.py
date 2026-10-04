@@ -57,6 +57,38 @@ class OldmanNatsTest(unittest.TestCase):
         self.assertEqual(1, signature.parameters["default"].default)
         self.assertIs(Ping, signature.return_annotation)
 
+    def test_a_peer_subscriber_needs_a_peer_id_and_a_receiving_service_checks_before_connecting(self) -> None:
+        """Only a service that will receive is checked: commands and sending-only services never attach handlers."""
+        from types import SimpleNamespace
+        from unittest import mock
+
+        from oldman.providers import nats
+        from oldman.providers.nats import NATSConnection
+        from oldman.runtime.base import BaseApplication
+
+        for peer_id in (None, "worker-1"):
+            connection = NATSConnection(namespace="app", peer_id=peer_id)
+            connection._check_consuming()
+
+            @connection.subscriber("status", peer=True)
+            async def status(message: Ping) -> Ping:
+                return message
+
+            with self.subTest(peer_id=peer_id):
+                if peer_id is None:
+                    with self.assertRaisesRegex(ValueError, "peer=True subscriber requires this connection's peer_id"):
+                        connection._check_consuming()
+                else:
+                    connection._check_consuming()
+
+        for enabled, consume in ((True, True), (True, False), (False, True)):
+            service = SimpleNamespace(
+                bootstrap_context=SimpleNamespace(settings=SimpleNamespace(nats_bus=SimpleNamespace(enabled=enabled, consume=consume)))
+            )
+            with self.subTest(enabled=enabled, consume=consume), mock.patch.object(nats.bus, "_check_consuming") as check:
+                BaseApplication._check_nats_consuming(cast(Any, service))
+                self.assertEqual(enabled and consume, check.called)
+
     def test_close_fix_is_instance_scoped_and_does_not_stack(self) -> None:
         """Repeated installation leaves other clients and normal send methods intact."""
         from nats.aio.client import Client
