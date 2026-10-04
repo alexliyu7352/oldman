@@ -52,9 +52,9 @@ Demo `frontend/src/main.ts` 导入 `@app/css/app.css`；Vite 的 `@app` alias �
 @import "./generated/icons.css";
 ```
 
-相对路径按 CSS 文件所在位置解析，不按终端工作目录。该文件的业务扫描项是 `../../../templates`、`../**/*.ts`、`../../../apps/**/*.py`，分别对应项目模板、frontend/src 的 TypeScript 和业务 Python；Python 回调也可能输出 utility class，不能漏掉。
+相对路径按 CSS 文件所在位置解析，不按终端工作目录。该文件的业务扫描项是 `../../../templates`、`../**/*.ts`、`../../../apps/**/*.py`，分别对应项目模板、frontend/src 的 TypeScript 和业务 Python；Python 回调也可能输出 utility class，不能漏掉。第四项 `../../../.local/oldman/oldman/web/templates` 只为开发框架本身，见下一段。
 
-框架共享 CSS 自带从框架 Python/Jinja 生成的 inline 类清单，并扫描包内前端类，因此消费者不需要另找 Python 模板目录。Demo只扫描自己项目的templates、前端TS和apps中的Python类名；框架类由导入的共享清单提供，不依赖源码仓库的相邻目录或机器上的固定路径。
+框架共享 CSS 自带从框架 Python/Jinja 生成的 inline 类清单，并扫描包内前端类，因此消费者不需要另找 Python 模板目录。构建时 Demo 只靠自己项目的 templates、前端 TS 和 apps 中的 Python 类名；框架类由导入的共享清单提供，不依赖源码仓库的相邻目录或机器上的固定路径。Demo 另扫描 `.local/oldman` 里的框架模板，只为边改框架边看效果：关联了同级框架源码时，改框架模板会自动刷新页面，模板里新用到的类当场生成；用发布包时这个目录不存在，Tailwind 跳过它。
 
 CSS 只改变视觉，不能替代 JS loader；只有 data 属性而没有启动 Page，也不会凭空产生组件行为。反过来，没有样式的运行时也不会自动变成完整 Dashboard。
 
@@ -69,6 +69,9 @@ Demo Vite 配置的 build 对象原样如下，是 defineConfig 内的节选，�
     emptyOutDir: true,
     manifest: true,
     outDir: resolve(rootDir, "../static/dist"),
+    // ApexCharts alone is about 580 kB; oldman-web loads it only on pages that have a chart.
+    // Any other chunk past 600 kB still gets Vite's warning.
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       input: {
         main: resolve(rootDir, "src/main.ts")
@@ -124,7 +127,7 @@ app_main_bundle 就是注册的 `app:main`。方法根据模式读取 manifest �
 
 开发模式通过 StaticBundle 的 dev_mode/dev_server_url 使用 Vite；上面的 bundle_client 独立输出开发客户端。通用 entry_tags 也支持 include_dev_client 参数，但 Demo 没有同时调用两套组合标签。
 
-Demo 可以在两个终端分别运行 `pnpm --dir frontend dev` 和 `./run.sh web dev`；或者在项目根执行 `python3 scripts/dev.py`，由这个独立辅助脚本同时启动 Vite 与后端。Web 默认 17997，Vite 5173；不要同时启动两套占用相同端口的服务。run.sh 仍只把参数转发给 Demo 环境的 oldman，既不选择服务，也不暗中启动 Vite。预览模板用的 Nunjucks 与测试数据不是后端 HTTP/数据库/权限验收，完整功能仍访问 Sanic 页面。
+Demo 可以在两个终端分别运行 `pnpm --dir frontend dev` 和 `./run.sh web dev`；或者在项目根执行 `python3 scripts/dev.py`，由这个独立辅助脚本同时启动 Vite 与后端。Web 默认 17997，Vite 5173；不要同时启动两套占用相同端口的服务。run.sh 仍只把参数转发给 Demo 环境的 oldman，既不选择服务，也不暗中启动 Vite。调整样式和组件时直接看 Demo 的示例页（覆盖全部前端组件）：CSS 不刷新页面就更新，TypeScript 和模板的修改会自动刷新页面，Python 修改要重启后端。
 
 `./run.sh web static collect` 收集框架静态资源，不编译应用 TypeScript。Demo 的生产顺序是 build → static collect → web start，完整初始化见入门说明。Admin 内置 bundle 随 Python 包提供；业务 bundle 仍需要自己的 build。收集的目标是 `web.static.root`，默认就是项目自己的 `static/`：项目放在那里的文件留在原处，框架和 Admin 的文件复制到 `static/oldman/`，自带 `static/` 目录的 App 按那个目录里的名字复制进来，清单写在它旁边的 `.static.oldman-static.json`。这些副本和清单都是生成物，不提交：web 与 dashboard 骨架的 `.gitignore` 已忽略 `static/oldman/` 和清单，自己 App 的那一份要自己加上。Admin Demo 的独立 CSS bundle 和 extension_bundle_name 用法见[Admin 教程](../users/admin.md)，不启动第二套 Admin runtime。
 

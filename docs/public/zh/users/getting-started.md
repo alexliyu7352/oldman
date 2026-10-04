@@ -116,7 +116,7 @@ pnpm --dir frontend build
 python3 scripts/dev.py
 ```
 
-这个 Demo 脚本管理 Vite 和 Web 服务；浏览器仍访问后端 17997，而不是把前端模板预览当成真实业务页面。使用同级框架源码时，修改 Python/TypeScript 可以直接调试，不要求先重新打 wheel。
+这个 Demo 脚本管理 Vite 和 Web 服务；浏览器访问后端 17997，样式、TypeScript 和模板的修改会自动出现在页面上，Python 的修改要停止后重新运行。使用同级框架源码时，修改 Python/TypeScript 可以直接调试，不要求先重新打 wheel。
 
 `run.sh` 的职责不同。它只切换到项目根目录，把参数原样交给 `.venv/bin/oldman`。例如 `./run.sh web start` 与使用这个环境执行 `oldman web start` 等价；运行 `./run.sh` 不会自动迁移、导入数据或启动多个服务。
 
