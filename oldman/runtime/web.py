@@ -140,7 +140,8 @@ def _fix_sanic_worker_manager() -> None:
     `_wait_for_ack`: a shutdown signal while the workers start. `_handle_message`: a worker whose
     `after_server_start` fails after it acknowledged. The framework pins `sanic==25.12.1`; Sanic's main branch
     has the same code (`wait_for_ack` checked 2026-09-29, reported as https://github.com/sanic-org/sanic/issues/3196;
-    the monitor loop checked 2026-10-04). When a Sanic release fixes them, drop these;
+    the monitor loop checked 2026-10-04, reported as https://github.com/sanic-org/sanic/issues/3200). When a Sanic
+    release fixes them, drop these;
     `tests/test_oldman_web_runtime_boundaries.py` fails as soon as Sanic changes any method they replace or rely
     on, so a Sanic upgrade cannot keep them unnoticed.
     """
