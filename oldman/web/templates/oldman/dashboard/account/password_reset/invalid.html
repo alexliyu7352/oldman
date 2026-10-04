@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/account/password_reset/base.html" %}
 
-{% block title %}{{ _("This link is no longer valid") }}{% endblock %}
+{% block title %}{{ _("This link is no longer valid") }} · {{ site_name() }}{% endblock %}
 
 {% block auth_card %}
   {% include "oldman/auth/password_reset/invalid.html" %}

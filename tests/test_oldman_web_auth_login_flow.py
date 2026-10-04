@@ -210,6 +210,28 @@ class AuthPageTemplatesTest(unittest.TestCase):
         self.assertIn('data-om-component="preloader"', html[html.index("<body") :])
         self.assertNotIn('id="oldman-main"', html)
 
+    def test_every_dashboard_account_page_title_names_the_site(self) -> None:
+        """Like the Admin's pages and the error pages: "<page> · <site name>", so a tab or bookmark says which site."""
+        pages = (
+            "login.html",
+            "password_reset/request.html",
+            "password_reset/sent.html",
+            "password_reset/confirm.html",
+            "password_reset/done.html",
+            "password_reset/invalid.html",
+            "user_session.html",
+            "user_notifications.html",
+            "users/index.html",
+            "users/form.html",
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            environment = install_template_loaders(Environment(), tmp_dir)
+            template_globals(environment).update(_=lambda text: text, site_name=lambda: "Portal")
+            for page in pages:
+                template = environment.get_template(f"oldman/dashboard/account/{page}")
+                title = "".join(template.blocks["title"](template.new_context({"user": None})))
+                self.assertTrue(title.endswith(" · Portal"), f"{page}: {title!r}")
+
     def test_the_reset_link_appears_when_the_site_installs_the_reset_flow(self) -> None:
         with patch.dict(conf.__dict__, {"settings": runtime_settings()}):
             html = self.render(password_reset_url="/signin/reset")

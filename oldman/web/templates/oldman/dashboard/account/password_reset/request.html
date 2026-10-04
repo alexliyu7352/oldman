@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/account/password_reset/base.html" %}
 
-{% block title %}{{ _("Reset your password") }}{% endblock %}
+{% block title %}{{ _("Reset your password") }} · {{ site_name() }}{% endblock %}
 
 {% block auth_card %}
   {% include "oldman/auth/password_reset/request.html" %}

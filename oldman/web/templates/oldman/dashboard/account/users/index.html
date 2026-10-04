@@ -5,7 +5,7 @@
 {% extends "base.html" %}
 {% from "oldman/dashboard/components/page_head.html" import page_head with context %}
 
-{% block title %}{{ _("Users") }}{% endblock %}
+{% block title %}{{ _("Users") }} · {{ site_name() }}{% endblock %}
 
 {% block content %}
   <div class="om-page-section">

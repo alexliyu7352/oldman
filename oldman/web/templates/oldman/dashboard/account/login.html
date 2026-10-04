@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/account/auth_base.html" %}
 
-{% block title %}{{ _("Sign In") }}{% endblock %}
+{% block title %}{{ _("Sign In") }} · {{ site_name() }}{% endblock %}
 
 {% block auth_card %}
   <h1 class="oldman-auth-title">{% block auth_heading %}{{ _("Sign in") }}{% endblock %}</h1>

@@ -1,6 +1,6 @@
 {% extends "oldman/dashboard/account/password_reset/base.html" %}
 
-{% block title %}{{ _("Check your email") }}{% endblock %}
+{% block title %}{{ _("Check your email") }} · {{ site_name() }}{% endblock %}
 
 {% block auth_card %}
   {% include "oldman/auth/password_reset/sent.html" %}
