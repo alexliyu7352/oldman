@@ -190,6 +190,22 @@ Demo 已将生成命令接入上述生命周期，并提交生成结果。生成
 
 变量定义在共享 CSS；例如 `--om-color-primary`、`--om-color-border`、`--om-shadow-card`。应用主题可以集中覆盖这些变量，再在组件中消费。不要只改某个页面的边框或成功颜色而称作更新主题。暗色使用框架的 data-theme 约定。
 
+框架把这些变量定义在 `@layer base` 里：亮色在 `:root`，暗色在 `html[data-theme="dark"]`。覆盖时写在项目 CSS 入口的同一层、同样的两个位置：
+
+```css
+@layer base {
+  :root {
+    --om-color-primary: var(--color-indigo-600);
+  }
+
+  html[data-theme="dark"] {
+    --om-color-primary: var(--color-indigo-400);
+  }
+}
+```
+
+不要写在层外：层外的规则压过所有层里的规则，与选择器无关，层外的 `:root` 会连框架的暗色值一起盖掉，暗色页面用到的是亮色的值。dashboard 骨架的 `frontend/src/app.css` 末尾带着这段示例（已注释）。
+
 ## 翻译不是第二套前端 domain
 
 项目 Python、Jinja、App CLI 和前端源词合并到 `messages.po`。后端运行时用 MO，浏览器用 JSON；它们是同一份翻译的不同产物，不单独维护一套 frontend/js domain。

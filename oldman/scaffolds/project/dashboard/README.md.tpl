@@ -65,6 +65,8 @@ pnpm build
 
 pnpm 的 prebuild/predev/pretypecheck 自动生成项目图标；前两个还生成浏览器语言包。样式扫描 templates、业务 TypeScript 和 apps 中的 Python。完整图标名使用 ri-*、mdi-* 或 bx-*，不要用未进入扫描源的动态拼接名。
 
+改主题（主色等共享变量）从 `frontend/src/app.css` 末尾注释里的示例改起：变量写在 `@layer base` 里，暗色在 `html[data-theme="dark"]` 里另给一份；写在层外会连暗色一起盖掉。可改的变量见框架文档的[共享视觉变量](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#共享视觉变量)。
+
 语言按配置 `i18n` 走：`use_i18n` 打开多语言，`default_language` 是默认语言，`languages` 列出可选的语言；多于一种时顶栏出现语言切换。框架自带简体、繁体中文的翻译，开启后框架的页面直接是中文，项目只需翻译自己的文案：
 
 ```sh
