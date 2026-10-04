@@ -192,6 +192,14 @@ class ChartViewLifecycleTest(unittest.TestCase):
                 self.assertEqual(response.status, 400)
                 self.assertIn(b"Invalid chart parameter", body)
 
+    def test_without_a_whitelist_only_the_default_value_is_accepted(self) -> None:
+        response = asyncio.run(DemoChartView().get(make_chart_request(args={"group_by": ["month"]})))
+        body = response.body
+        assert body is not None
+
+        self.assertEqual(response.status, 400)
+        self.assertIn(b"Invalid chart parameter: group_by", body)
+
     def test_range_key_translates_to_days_and_an_inclusive_window_start(self) -> None:
         """range_days/range_start 是图表共用的时间窗口计算，业务不再各写一份。"""
         end = dt.datetime(2026, 9, 17, 12, 30)

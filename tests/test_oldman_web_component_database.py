@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Any, cast
 
+from sqlalchemy import ForeignKey, Integer, String, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+
+from oldman.conf.schemas import DatabaseConfig
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
 from oldman.web.components.charts import SQLAlchemyChartView
 from oldman.web.components.selects import ModelSelectProvider
-from oldman.web.components.tables import SQLAlchemyTableView
+from oldman.web.components.tables import Column, SQLAlchemyTableView
 
 
 class FakeReadSessionContext:
@@ -99,6 +105,131 @@ class ComponentDatabaseManagerContractTest(unittest.TestCase):
         self.assertEqual(manager.context.enter_count, 1)
         self.assertEqual(manager.context.exit_count, 1)
         self.assertIsNone(table.db_session)
+
+
+class TableSessionLifecycleTest(unittest.TestCase):
+    def test_one_read_session_spans_every_hook_of_a_request_in_order(self) -> None:
+        manager = FakeDatabaseManager()
+        seen: list[tuple[str, object | None]] = []
+
+        class RecordingTable(SQLAlchemyTableView):
+            database_manager = cast(DatabaseManager, manager)
+
+            def record(self, hook: str) -> None:
+                seen.append((hook, self.db_session))
+
+            async def check_auth(self, table_request: Any) -> bool:
+                self.record("check_auth")
+                return True
+
+            async def get_queryset(self) -> Any:
+                self.record("get_queryset")
+                return "query"
+
+            async def apply_base_filters(self, query: Any, table_request: Any) -> Any:
+                self.record("apply_base_filters")
+                return query
+
+            async def get_total_count(self, query: Any) -> int:
+                self.record("get_total_count")
+                return 1
+
+            async def apply_filters(self, query: Any, table_request: Any) -> Any:
+                self.record("apply_filters")
+                return query
+
+            async def apply_search(self, query: Any, table_request: Any) -> Any:
+                self.record("apply_search")
+                return query
+
+            async def apply_ordering(self, query: Any, table_request: Any) -> Any:
+                self.record("apply_ordering")
+                return query
+
+            async def paginate(self, query: Any, table_request: Any) -> list[object]:
+                self.record("paginate")
+                return [{"id": 1}]
+
+            async def preload_record_data(self, row: object) -> dict[str, object]:
+                self.record("preload_record_data")
+                return {}
+
+            def render_json_payload(self, table_request: Any, result: Any) -> Any:
+                self.record("render_json_payload")
+                return {"rows": []}
+
+        table = RecordingTable()
+        response = asyncio.run(table.get(make_request()))
+
+        self.assertEqual(200, response.status)
+        self.assertEqual((1, 1, 1), (manager.read_session_calls, manager.context.enter_count, manager.context.exit_count))
+        self.assertIsNone(table.db_session)
+        self.assertEqual(
+            [
+                "check_auth",
+                "get_queryset",
+                "apply_base_filters",
+                "get_total_count",
+                "apply_filters",
+                "apply_search",
+                "get_total_count",
+                "apply_ordering",
+                "paginate",
+                "preload_record_data",
+                "render_json_payload",
+            ],
+            [hook for hook, _ in seen],
+        )
+        self.assertTrue(all(session is manager.context.session for _, session in seen))
+
+    def test_loader_options_are_applied_by_the_lifecycle_not_by_get_queryset(self) -> None:
+        """On an async session a relation must be loaded with the page: lazy loading it while rendering fails."""
+
+        class LocalBase(DeclarativeBase):
+            pass
+
+        class Channel(LocalBase):
+            __tablename__ = "table_loader_channel"
+
+            id: Mapped[int] = mapped_column(Integer, primary_key=True)
+            name: Mapped[str] = mapped_column(String)
+
+        class Programme(LocalBase):
+            __tablename__ = "table_loader_programme"
+
+            id: Mapped[int] = mapped_column(Integer, primary_key=True)
+            channel_id: Mapped[int] = mapped_column(ForeignKey("table_loader_channel.id"))
+            channel: Mapped[Channel] = relationship()
+
+        async def scenario(database_path: Path) -> Any:
+            manager = DatabaseManager(DatabaseConfig(url=f"sqlite+aiosqlite:///{database_path.as_posix()}", echo=False))
+
+            class ProgrammeTable(SQLAlchemyTableView):
+                database_manager = manager
+                model = Programme
+                loader_options = (selectinload(Programme.channel),)
+                columns = (Column("channel", "Channel", field_path="channel.name"),)
+
+                async def get_queryset(self) -> Any:
+                    return select(Programme)
+
+            try:
+                await manager.initialize()
+                async with manager.engine.begin() as connection:
+                    await connection.run_sync(LocalBase.metadata.create_all)
+                async with manager.get_session() as session:
+                    session.add_all([Channel(id=1, name="BBC One"), Channel(id=2, name="CNN")])
+                    session.add_all([Programme(id=1, channel_id=1), Programme(id=2, channel_id=2)])
+                return await ProgrammeTable().get(make_request())
+            finally:
+                await manager.close()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            response = asyncio.run(scenario(Path(temp_dir) / "table.sqlite3"))
+
+        self.assertEqual(200, response.status)
+        self.assertIn(b"BBC One", response.body)
+        self.assertIn(b"CNN", response.body)
 
 
 if __name__ == "__main__":

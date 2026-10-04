@@ -187,6 +187,20 @@ class TableStructuredDataTest(unittest.TestCase):
         self.assertNotIn("data-om-table-empty-filtered", fragment)
         self.assertNotIn("data-om-table-empty-reset", fragment)
 
+    def test_a_filter_narrows_within_the_base_filters_and_never_widens_them(self) -> None:
+        """A visible filter on the field the base filters fix cannot reach rows they leave out."""
+
+        class BbcOnlyTable(DictProgramTable):
+            async def apply_base_filters(self, rows, table_request):
+                return [row for row in rows if cast(Any, row)["channel"]["name"] == "BBC"]
+
+        table = BbcOnlyTable()
+        request = table.build_table_request(make_request(args={"filter.channel": "CNN"}), route_kwargs={})
+
+        result = asyncio.run(table.query_result(request))
+
+        self.assertEqual((2, 0, []), (result.total, result.filtered_total, list(result.rows)))
+
     def test_dict_data_reuses_the_same_lifecycle(self) -> None:
         table = DictProgramTable()
         request = table.build_table_request(
@@ -267,9 +281,85 @@ class TableStructuredDataTest(unittest.TestCase):
         self.assertNotIn("data-om-table-summary", shell)
         self.assertIn("data-om-table-row", fragment)
         self.assertIn('data-om-table-row-id="1"', fragment)
+        self.assertIn('data-om-column-label="Title"', fragment)
+        self.assertIn('data-om-column-label="Channel"', fragment)
         self.assertIn("data-om-table-page-size-control", fragment)
+        self.assertIn('<option value="1" selected>1</option>', fragment)
+        self.assertIn('<option value="2">2</option>', fragment)
         self.assertIn("data-om-table-summary", fragment)
+        self.assertIn("Showing 1", fragment)
+        self.assertIn("of 3 entries", fragment)
+        self.assertLess(fragment.index("data-om-table-page-size-control"), fragment.index("data-om-table-summary"))
         self.assertIn('data-om-table-page="2"', fragment)
+
+    def test_render_shell_starts_from_the_initial_filters_and_query(self) -> None:
+        table = DemoProgramTable(initial_filters={"channel_id": 12, "date_from": "2026-06-01"}, initial_query="BBC News")
+
+        html = str(asyncio.run(table.render_shell()))
+
+        self.assertIn('data-om-filter-channel-id="12"', html)
+        self.assertIn('data-om-filter-date-from="2026-06-01"', html)
+        self.assertRegex(html, r'<input [^>]*data-om-table-param="q"[^>]*value="BBC News"')
+
+    def test_render_shell_restores_sort_and_page_size_from_the_list_url(self) -> None:
+        """Coming back to the list (from an edit page, say) shows the sort and page size its URL kept."""
+        html = str(asyncio.run(DemoProgramTable(request=make_request(args={"sort": "hits", "page_size": "5"})).render_shell()))
+
+        self.assertIn('data-om-table-initial-sort="hits"', html)
+        self.assertIn('data-om-table-page-size="5"', html)
+        self.assertIn('data-om-table-page-size-options="1,2,5"', html)
+
+    def test_render_shell_draws_the_head_and_a_loading_row_before_the_first_fetch(self) -> None:
+        html = str(asyncio.run(DemoProgramTable().render_shell()))
+
+        self.assertIn("data-om-table-partial data-om-initial-table-partial", html)
+        self.assertIn('class="om-table-shell"', html)
+        self.assertIn('data-om-table-sort="title"', html[html.index("<thead>") : html.index("</thead>")])
+        self.assertIn("data-om-table-initial-loading", html[html.index("data-om-table-body") :])
+        self.assertIn("Loading...", html)
+
+    def test_page_size_options_accept_what_int_accepts(self) -> None:
+        class Seven:
+            def __int__(self) -> int:
+                return 7
+
+        table = DemoProgramTable()
+        table.page_size_options = cast(Any, [Seven()])
+        table.max_page_size = 10
+
+        self.assertIn("7", TableRenderer(table).resolve_page_size_options())
+
+    def test_a_fragment_falls_back_to_the_class_page_size_options(self) -> None:
+        """A request instance that shadows the options with an empty list still offers the class's choices."""
+        table = DemoProgramTable()
+        table.page_size_options = []
+        request = table.build_table_request(make_request(args={"page_size": "1"}), route_kwargs={})
+        result = TableResult(rows=[], row_contexts=[], total=3, filtered_total=3, page=1, page_size=1)
+
+        html = str(asyncio.run(table.render_html_fragment(request, result)))
+
+        self.assertIn('<option value="1" selected>1</option>', html)
+        self.assertIn('<option value="2">2</option>', html)
+        self.assertIn('<option value="5">5</option>', html)
+
+    def test_head_offers_sort_controls_with_column_metadata(self) -> None:
+        html = str(DemoProgramTable().render_html_head())
+
+        self.assertIn('class="sort sorting"', html)
+        self.assertIn('data-om-table-sort="title"', html)
+        self.assertIn("data-om-table-sort-icon", html)
+        self.assertIn("ri-arrow-up-down-line", html)
+        self.assertIn('data-om-column-type="string"', html)
+
+    def test_pagination_lists_only_a_window_of_pages_for_a_large_result(self) -> None:
+        result = TableResult(rows=[], row_contexts=[], total=700, filtered_total=700, page=350, page_size=1)
+
+        html = DemoProgramTable().render_html_pagination(result)
+
+        self.assertIn('data-om-table-page="1"', html)
+        self.assertIn('data-om-table-page="350"', html)
+        self.assertIn('data-om-table-page="700"', html)
+        self.assertLess(html.count("data-om-table-page="), 20)
 
     def test_table_rendering_delegates_to_renderer_class(self) -> None:
         class MinimalRenderer(TableRenderer):
@@ -509,6 +599,57 @@ class TableStructuredDataTest(unittest.TestCase):
         self.assertIn('data-om-table-row-id="Alpha Show"', html)
         self.assertEqual("Alpha Show", payload["rows"][0]["data"]["id"])
 
+    def test_json_payload_escapes_cells_and_keeps_raw_values_for_sorting(self) -> None:
+        table = DemoProgramTable()
+        request = table.build_table_request(make_request(headers={"accept": "application/json"}), route_kwargs={})
+
+        payload = table.render_json_payload(request, asyncio.run(table.query_result(request)))
+
+        self.assertEqual("&lt;a href=&#34;/programmes/2&#34;&gt;Alpha Show&lt;/a&gt;", payload["rows"][0]["cells"]["title"])
+        self.assertEqual("Alpha Show", payload["rows"][0]["raw_values"]["title"])
+        self.assertIn("pagination", payload)
+
+    def test_json_raw_values_are_scalars_even_when_a_column_returns_a_structure(self) -> None:
+        class StructuredRawTable(BaseTableView):
+            columns = [("Meta", "title", "get_column_meta_data")]
+
+            async def get_object_list(self):
+                return [{"id": 1, "title": "Alpha Show"}]
+
+            def get_column_meta_data(self, row, **kwargs):
+                return "<strong>Alpha Show</strong>", {"sort": 1}
+
+        table = StructuredRawTable()
+        request = table.build_table_request(make_request(headers={"accept": "application/json"}), route_kwargs={})
+
+        payload = table.render_json_payload(request, asyncio.run(table.query_result(request)))
+
+        self.assertIsInstance(payload["rows"][0]["raw_values"]["title"], str)
+
+    def test_a_column_callback_gets_the_row_context_and_falls_back_to_its_index(self) -> None:
+        seen: list[dict[str, Any]] = []
+
+        class VirtualColumnTable(BaseTableView):
+            columns = [("Virtual", None)]
+
+            def get_column_0_data(self, row, **kwargs):
+                seen.append(kwargs)
+                return "virtual", "raw-virtual"
+
+        table = VirtualColumnTable(request=make_request())
+        request = table.build_table_request(make_request(), route_kwargs={})
+        result = TableResult(rows=[{"id": 1}], row_contexts=[{"shared": "ok"}], total=1, filtered_total=1)
+
+        html = str(asyncio.run(table.render_html_fragment(request, result)))
+
+        self.assertIn("virtual", html)
+        self.assertEqual(
+            (None, {"shared": "ok"}, 0, 0),
+            (seen[0]["field_path"], seen[0]["row_context"], seen[0]["row_index"], seen[0]["column_index"]),
+        )
+        self.assertIs(table, seen[0]["table"])
+        self.assertIs(request.request, seen[0]["request"])
+
     def test_sqlalchemy_table_uses_primary_key_or_explicit_stable_field(self) -> None:
         class Base(DeclarativeBase):
             pass
@@ -655,6 +796,27 @@ class TableStructuredDataTest(unittest.TestCase):
 
         self.assertEqual(response.status, 403)
         self.assertEqual(payload["error_code"], ApiErrorCode.PERMISSION_DENIED)
+        self.assertEqual("Permission denied", payload["data"]["errors"]["table"])
+        self.assertNotIn("errors", payload)
+
+    def test_a_bad_request_answers_400_with_the_table_error_fragment(self) -> None:
+        for args, message in (
+            ({"filter.unknown": "1"}, b"Unknown table filter"),
+            ({"page_size": "999"}, b"Invalid table pagination parameter"),
+        ):
+            with self.subTest(args=args):
+                response = asyncio.run(DemoProgramTable().get(make_request(args=args)))
+                body = response.body
+                assert body is not None
+
+                self.assertEqual(400, response.status)
+                self.assertIn(b"data-om-table-error", body)
+                self.assertIn(message, body)
+
+    def test_check_auth_lets_every_request_through_by_default(self) -> None:
+        table = DemoProgramTable()
+
+        self.assertTrue(asyncio.run(table.check_auth(table.build_table_request(make_request(), route_kwargs={}))))
 
     def test_check_auth_receives_the_parsed_request(self) -> None:
         """The data-aware hook sees the parsed search and route parameters, not just the raw request."""
