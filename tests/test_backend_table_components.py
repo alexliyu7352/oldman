@@ -623,6 +623,30 @@ class TableStructuredDataTest(unittest.TestCase):
         self.assertIn("JOIN table_search_feed", inner_sql)
         self.assertNotIn("LEFT OUTER JOIN", inner_sql)
 
+    def test_a_sqlalchemy_table_scopes_its_query_in_apply_base_filters(self) -> None:
+        """The first argument is positional-only, so a SQLAlchemy table names it after what it gets: a query."""
+
+        class Base(DeclarativeBase):
+            pass
+
+        class Item(Base):
+            __tablename__ = "table_scope_item"
+
+            id: Mapped[int] = mapped_column(Integer, primary_key=True)
+            owner_id: Mapped[int] = mapped_column(Integer)
+
+        class OwnItemTable(SQLAlchemyTableView):
+            model = Item
+            columns = (Column("id", "ID"),)
+
+            async def apply_base_filters(self, query, table_request):
+                return query.where(Item.owner_id == 7)
+
+        table = OwnItemTable()
+        request = table.build_table_request(make_request(), route_kwargs={})
+
+        self.assertIn("table_scope_item.owner_id = ", str(asyncio.run(table.apply_base_filters(select(Item), request))))
+
     def test_permission_denied_uses_json_error_contract(self) -> None:
         response = asyncio.run(DeniedProgramTable().get(make_request(headers={"accept": "application/json"})))
         body = response.body

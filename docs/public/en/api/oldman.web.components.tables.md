@@ -61,7 +61,7 @@ Members:
 - `async def get_object_list() -> Sequence[object]` — 返回结构化数据源。
 - `async def query_result(table_request: TableRequest) -> TableResult` — 执行结构化数据源查询生命周期。
 - `async def query_export(table_request: TableRequest) -> TableResult` — Run the filter, search and sort lifecycle without paging; the row count stops at max_export_rows.
-- `async def apply_base_filters(rows: Sequence[object], table_request: TableRequest) -> Sequence[object]` — 应用服务端固定限制。
+- `async def apply_base_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 应用服务端固定限制;第一个参数只按位置传,SQLAlchemy 表格的子类可以把它叫 ``query``。
 - `async def apply_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按 filter_xxx 方法应用请求筛选。
 - `async def apply_search(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按 search_fields 对结构化数据做大小写不敏感搜索。
 - `def resolve_sort_field(table_request: TableRequest) -> tuple[str, bool] | None` — Resolve the ordering to apply, refusing a sort the client may not ask for.

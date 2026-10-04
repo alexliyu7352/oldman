@@ -253,8 +253,8 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         row_contexts = await self.build_row_contexts(rows)
         return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=1, page_size=max(1, len(rows)))
 
-    async def apply_base_filters(self, rows: Sequence[object], table_request: TableRequest) -> Sequence[object]:
-        """应用服务端固定限制。"""
+    async def apply_base_filters(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
+        """应用服务端固定限制;第一个参数只按位置传,SQLAlchemy 表格的子类可以把它叫 ``query``。"""
         return rows
 
     async def apply_filters(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
