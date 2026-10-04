@@ -113,37 +113,51 @@ class ReportTable(SQLAlchemyTableView):
 | `check_auth(table_request)` / `check_auth(chart_request)` | 参数解析(图表还要校验)之后,SQLAlchemy 组件的只读会话已打开 | 解析后的请求:用户(`.request`)、路径参数、筛选、搜索;可以查库 | 要看参数或查库才能判断的整体拒绝 | 403 |
 | 数据范围:表格 `apply_base_filters(query, table_request)`、下拉 `get_queryset(request, context)`、图表 `get_result(chart_request)` | 构造查询时 | 用户、路径参数、查询参数,以及查询本身 | 能看到哪些行 | 不拒绝,只缩小结果 |
 
+下面是完整 Demo 的 Access Guards 页(`/examples/auth/guards`)上能运行的例子:[apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py)
+的 `TeamProjectTable` 继承示例项目表格,三个钩子各答一个问题。页面列出四种请求(匿名、非 staff、staff 选停用团队、staff 选启用团队)
+各由哪个钩子回答,并显示这个类的源码。
+
 ```python
-from sqlalchemy import select
+class TeamProjectTable(ExampleProjectTable):
+    """One team's projects, read-only: how a data endpoint decides who gets what, one hook per question.
 
-from oldman.web.authentication import request_user
+    The Access Guards example page mounts it. Each hook answers at its own moment:
 
+    - ``check_permission`` — before the parameters are parsed or a session is opened: staff only. It
+      replaces the parent's role check; a subclass states its own rule.
+    - ``check_auth`` — after the parameters, with the read session open: the team in the path must
+      exist and be active, which only the database knows. It can refuse the whole request, nothing less.
+    - ``apply_base_filters`` — which rows: this team's projects. It refuses nothing; totals, pages and
+      search all count within it.
+    """
 
-class TeamProjectTable(SQLAlchemyTableView):
-    route_path = "/teams/<team_id:int>/projects/table"
+    route_name = "example_team_projects_table"
+    route_path = "/examples/auth/teams/<team_id:int>/projects/table"
+    selectable = False
+    export_formats = ()
+    empty_message = _("This team has no projects.")
+    # Read-only: no team column (it is the one in the path) and no edit or delete buttons.
+    columns = tuple(
+        column for column in ExampleProjectTable.columns if isinstance(column, Column) and column.name not in {"team", "action"}
+    )
 
-    async def check_permission(self, request, *, method_name, route_kwargs):
-        # 纯权限:不碰数据库就挡掉。
-        return await has_perm(request, ReportPermissions.view), None
+    async def check_permission(self, request, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
+        """Staff only, decided from the signed-in user alone."""
+        del method_name, route_kwargs
+        return request_user(request).is_staff, None
 
-    async def check_auth(self, table_request):
-        # 要查库:当前用户必须是这个团队的成员。
-        user_id = request_user(table_request.request).id
-        member = await self.db_session.scalar(
-            select(TeamMember).where(TeamMember.team_id == table_request.route_kwargs["team_id"], TeamMember.user_id == user_id)
-        )
-        return member is not None
+    async def check_auth(self, table_request) -> bool:
+        """The team in the path must exist and be active."""
+        team = await self.require_db_session().get(ExampleTeam, table_request.route_kwargs["team_id"])
+        return team is not None and team.is_active
 
     async def apply_base_filters(self, query, table_request):
-        # 行范围:普通成员只看自己负责的项目;它决定的行也是总数、分页和导出的范围。
-        user = request_user(table_request.request)
-        return query if user.is_superuser else query.where(Project.owner_id == user.id)
+        """Only this team's projects."""
+        return query.where(ExampleProject.team_id == table_request.route_kwargs["team_id"])
 ```
 
-`TeamMember`、`Project` 是业务自己的模型。"只能看自己的行"不要放在 `check_auth`:它只能拒绝整个请求,改不了参与计数、分页、导出的那条查询。
-能运行的对照在完整 Demo 的 Access Guards 页(`/examples/auth/guards`):[apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py)
-的 `TeamProjectTable` 继承示例项目表格,`check_permission` 只放 staff,`check_auth` 查库要求路径里的团队存在且启用,`apply_base_filters`
-只返回这个团队的项目;页面列出四种请求各由哪个钩子回答,并显示这个类的源码。
+要按用户限定行(例如普通成员只看自己负责的项目)也写在 `apply_base_filters`:它决定的行同时是总数、分页和导出的范围。
+不要放进 `check_auth`,它只能拒绝整个请求,改不了参与计数、分页、导出的那条查询。
 下拉只有一个中心接口服务所有 provider,分派阶段还不知道是哪个 provider,单个 provider 的规则写在它自己的 `check_auth(request, context)`。
 框架的 `UserTable` 自己在 `check_permission` 里要求 `auth.users.view`;内置 Admin 的表格把"staff(要求超级用户时是超级用户)+ 模型权限"写在
 `check_permission`,经同一套分派调用。

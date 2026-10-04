@@ -15,6 +15,8 @@ Chart 组件由两半组成：一个返回 ApexCharts 配置的 **data endpoint*
 
 ```python
 class DashboardProgrammeTrendChart(SQLAlchemyChartView):
+    """首页节目数量趋势图表 data endpoint。"""
+
     renderer_class = TailwindChartRenderer
     route_name = "dashboard_programme_trend_chart"
     route_path = "/dashboard/charts/programme-trend"
@@ -26,15 +28,32 @@ class DashboardProgrammeTrendChart(SQLAlchemyChartView):
     allowed_chart_types = ("line",)
 
     async def get_result(self, chart_request):
+        """按日期聚合节目数量，并返回 ApexCharts 配置。"""
         start_at = chart_request.range_start()
-        ...
-        return ChartResult(series=[ChartSeries(name="Programmes", data=data)], labels=labels)
+        date_expr = func.date(EpgList.start_date)
+        result = await self.require_db_session().execute(
+            select(date_expr.label("day"), func.count(EpgList.id).label("total"))
+            .where(EpgList.start_date >= start_at)
+            .group_by(date_expr)
+            .order_by(date_expr.asc())
+        )
+        rows = result.all()
+        labels = [str(row.day) for row in rows]
+        data = [int(row.total or 0) for row in rows]
+        total = sum(data)
+        return ChartResult(
+            series=[ChartSeries(name=_("Programmes"), data=data)] if data else [],
+            labels=labels,
+            summary=[ChartSummary(label=_("Total Programmes"), value=total, tone="primary")],
+            meta=chart_caption(chart_request, _("Programmes")),
+            chart={"type": "line", "height": 320, "toolbar": {"show": False}},
+        )
 ```
 
-路由自己注册，框架不扫描：
+路由自己注册，框架不扫描（`router` 来自 `oldman.web`）：
 
 ```python
-app.add_route(DashboardProgrammeTrendChart.as_view(), DashboardProgrammeTrendChart.route_path, name=DashboardProgrammeTrendChart.route_name)
+router.add_route(DashboardProgrammeTrendChart.as_view(), DashboardProgrammeTrendChart.route_path, name=DashboardProgrammeTrendChart.route_name)
 ```
 
 页面上把实例放进模板上下文，再在模板里 `await chart.render_shell()`；`build_data_url()` 用 `route_name` 走

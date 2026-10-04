@@ -12,7 +12,7 @@ Oldman 使用 SQLAlchemy 映射和异步数据库驱动，不另造查询语言�
 class ExampleTeam(DatabaseModel):
     """Team used to group projects in table and form examples."""
 
-    __tablename__ = "example_team"  # pyright: ignore[reportAssignmentType] -- SQLAlchemy declared_attr override
+    __tablename__ = "example_team"
     __table_args__ = (
         UniqueConstraint("slug", name="uq_example_team_slug"),
         Index("ix_example_team_region", "region"),

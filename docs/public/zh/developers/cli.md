@@ -166,7 +166,8 @@ class ProjectStats(Command):
                     if await session.get(ExampleTeam, team_id) is None:
                         raise ValueError(gettext("Team %(team_id)s does not exist.", team_id=team_id))
                     statement = statement.where(ExampleProject.team_id == team_id)
-                counts = {status: count for status, count in await session.execute(statement)}
+                # The result has keys() — its column names — so dict() would read it as a mapping; take the rows.
+                counts = dict((await session.execute(statement)).all())
             # Plain output keeps database values from being interpreted as Rich markup.
             typer.echo(gettext("Total projects: %(count)s", count=sum(counts.values())))
             for status, count in counts.items():

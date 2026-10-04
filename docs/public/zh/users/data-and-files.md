@@ -86,7 +86,7 @@ async def asset_file_states(asset: ExampleAsset) -> dict[str, dict[str, object]]
             "exists": exists,
             "info": info,
             "path": path,
-            "url": f"/media/{quote(path, safe='/')}" if exists else None,
+            "url": media_url(path) if exists else None,
         }
     return states
 ```

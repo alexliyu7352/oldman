@@ -388,11 +388,11 @@ SimpleApplication 不自动补全或生成 `web` 节点，不执行上述 Web �
 | 值的形状 | schema 声明的结构 | schema 声明的结构 | `str` 或 `int` 成员 |
 | 适合 | 运维会手工编辑、改动允许几秒后生效的结构化配置 | 要立即对所有进程生效的开关和小值 | 请求路径上判断成员的名单、随机取一个的代理池 |
 
-下面的代码是 **API 参考**。EPG Demo 侧栏“动态配置”下的两个页面实际演示了它们，操作说明见 [Demo 页面与源码对照](../users/demo-examples.md#动态配置)。
+下面的代码取自 EPG Demo 的 [apps/examples/dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py)（只列出用到的 import），侧栏“动态配置”下的两个页面就用它们，操作说明见 [Demo 页面与源码对照](../users/demo-examples.md#动态配置)。
 
 ### schema、读取与保存
 
-`YamlStore` 和 `RedisStore` 的值由一个 `MsgspecModel` 子类声明：字段、类型和默认值。文件或键不存在时取默认值，所以**每个字段都要有默认值**，否则构造时抛 `TypeError`。依赖 Settings 的默认值用 `default_factory`，在取默认值时才读取。
+`YamlStore` 和 `RedisStore` 的值由一个 `MsgspecModel` 子类声明：字段、类型和默认值。文件或键不存在时取默认值，所以**每个字段都要有默认值**，否则构造时抛 `TypeError`。依赖 Settings 的默认值、非空的 dict 或 list 默认值用 `default_factory`（上面的 `_sample_channels`），在取默认值时才生成。
 
 ```python
 import msgspec
@@ -401,13 +401,21 @@ from oldman.serializers import MsgspecModel
 
 
 class ChannelOverride(MsgspecModel):
-    limit: int = 1
+    display_name: str = ""
+    epg_offset_minutes: int = 0
     enabled: bool = True
 
 
+def _sample_channels() -> dict[str, ChannelOverride]:
+    return {
+        "cctv1": ChannelOverride(display_name="CCTV-1"),
+        "tvb-jade": ChannelOverride(display_name="TVB Jade", epg_offset_minutes=-60),
+    }
+
+
 class ChannelOverrides(MsgspecModel):
-    channels: dict[str, ChannelOverride] = {}
-    proxies: list[str] = msgspec.field(default_factory=list)
+    announcement: str = ""
+    channels: dict[str, ChannelOverride] = msgspec.field(default_factory=_sample_channels)
 ```
 
 | 方法 | 行为 |
@@ -417,11 +425,19 @@ class ChannelOverrides(MsgspecModel):
 | `update(**changes)` | 读出当前值，改几个顶层字段，再交给 `save()`，返回保存的值 |
 
 ```python
-value = await overrides.get()
-value.channels["sports"] = ChannelOverride(limit=5)
-await overrides.save(value)
+async def set_channel_offset(channel_id: str, minutes: int) -> None:
+    """The usual way to change one entry: get(), assign, save()."""
+    store = channel_overrides()
+    value = await store.get()
+    override = value.channels.get(channel_id) or ChannelOverride(display_name=channel_id)
+    override.epg_offset_minutes = minutes
+    value.channels[channel_id] = override
+    await store.save(value)
 
-await flags.update(maintenance=True, banner="维护中")
+
+async def set_announcement(text: str) -> None:
+    """A top-level field in one line: update() reads, changes and saves."""
+    await channel_overrides().update(announcement=text)
 ```
 
 - msgspec 的 Struct 在构造和赋值时不检查类型；赋错类型由 pyright、Pyrefly 在静态检查时报出。运行时，读取按 schema 解码，`save`、`update` 写入前再校验一次：类型不对抛 `msgspec.ValidationError`，`update` 的字段名写错抛 `TypeError`，两种情况都什么也不写。`update` 返回校验后、真正保存的值（传了日期字符串的字段，返回值里已经是 `datetime`），与之后 `get()` 读到的一样。
@@ -437,32 +453,27 @@ from pathlib import Path
 import oldman.conf as conf
 from oldman.conf.containers import YamlStore
 
+CHECK_INTERVAL = 2.0
+FILE_NAME = "example_channel_overrides.yaml"
+
 
 class ChannelOverridesStore(YamlStore[ChannelOverrides]):
+    """Counts the outside edits it picked up: resetting what was derived from the old value is what the hook is for."""
+
     def __init__(self, path: Path) -> None:
-        super().__init__(ChannelOverrides, path, check_interval=5.0)
-        self.proxy_index = 0
+        super().__init__(ChannelOverrides, path, check_interval=CHECK_INTERVAL)
+        self.outside_changes = 0
 
     def on_file_changed(self, old: ChannelOverrides, new: ChannelOverrides) -> None:
-        # 文件被外部修改后调用：在这里重置由配置派生的状态
-        self.proxy_index = 0
-
-    async def next_proxy(self) -> str | None:
-        proxies = (await self.get()).proxies
-        if not proxies:
-            return None
-        proxy = proxies[self.proxy_index % len(proxies)]
-        self.proxy_index += 1
-        return proxy
+        self.outside_changes += 1
 
 
 @cache
 def channel_overrides() -> ChannelOverridesStore:
-    """每个文件、每个进程一个实例。路径取自 settings，所以第一次调用要在 bootstrap 之后。"""
-    return ChannelOverridesStore(conf.settings.core.data_dir / "channel_overrides.yaml")
+    return ChannelOverridesStore(conf.settings.core.data_dir / FILE_NAME)
 ```
 
-不需要钩子时不必写子类，直接 `YamlStore(ChannelOverrides, path)`。
+Demo 的钩子只数外部修改的次数，页面上显示出来；实际项目在这里重置由旧值派生的状态，例如按配置算好的轮换下标。不需要钩子时不必写子类，直接 `YamlStore(ChannelOverrides, path)`。
 
 - 进程内保存解码好的值：`check_interval` 秒内不碰磁盘；到期 stat 一次，文件变了才重新解析。
 - `get()` 返回的是**共享对象**：改了就 `save`；只想临时换个值用，先 `msgspec.structs.replace()` 出一份副本再改，否则下一次保存会把临时改动写进文件。
@@ -483,29 +494,32 @@ from functools import cache
 from oldman.conf.containers import RedisStore
 from oldman.providers.redis import redis_client
 
+REDIS_ALIAS = "CACHE"
+
 
 class SiteFlags(MsgspecModel):
     maintenance: bool = False
     banner: str = ""
+    max_streams_per_user: int = 3
 
 
-# 不传 client：第一次调用时才取全局 redis_client（DEFAULT 别名），所以可以放在模块级。
-site_flags = RedisStore(SiteFlags, "site_flags")
+SITE_FLAGS_NAME = "example_site_flags"
 
 
 @cache
-def channel_limits() -> RedisStore[ChannelOverrides]:
-    # using() 当场读取 Redis 配置并校验别名是否存在，必须在服务 bootstrap 之后调用，
-    # 不能放在模块级。@cache 让每个进程只有一个实例，update 才能排队。
-    return RedisStore(ChannelOverrides, "channel_limits", client=redis_client.using("CACHE"))
+def site_flags() -> RedisStore[SiteFlags]:
+    return RedisStore(SiteFlags, SITE_FLAGS_NAME, client=redis_client.using(REDIS_ALIAS))
 
 
-async def in_maintenance() -> bool:
-    return (await site_flags.get()).maintenance
+async def write_banner_from_another_instance(banner: str) -> None:
+    """Another process holds its own store; a second instance stands in for it. Nothing is cached locally, so the next read sees it."""
+    other = RedisStore(SiteFlags, SITE_FLAGS_NAME, client=redis_client.using(REDIS_ALIAS))
+    await other.update(banner=banner)
 ```
 
+- 不传 `client` 时，第一次读写才取全局 `redis_client`（DEFAULT 别名），所以 `RedisStore(SiteFlags, "site_flags")` 可以放在模块级。`redis_client.using(alias)` 当场读取 Redis 配置并校验别名是否存在，必须在服务 bootstrap 之后调用；Demo 没有 DEFAULT 别名，所以像上面那样由 `@cache` 的函数在第一次用到时取 CACHE 别名，每个进程也只有一个实例，`update` 才能排队。
 - 键是 `<core.namespace>:store:<name>`，值是整个 schema 的 msgpack。名字必须是非空字符串，否则 `ValueError`。
-- 不做本地缓存：每次 `get()` 读一次 Redis，别的进程写入后下一次读取即可见。每次返回的都是新解码的对象，改了直接 `save`。
+- 不做本地缓存：每次 `get()` 读一次 Redis，别的进程写入后下一次读取即可见。上面的 `write_banner_from_another_instance` 用第二个实例代替另一个进程演示这一点。每次返回的都是新解码的对象，改了直接 `save`。
 - 键不存在时取默认值，不写入。存的值与 schema 对不上（例如改过字段类型）抛 `msgspec.ValidationError`，不回落默认值；schema 删掉的字段忽略，新加的字段取默认值。
 - 没有过期时间。需要定时失效的值，存一个到期时间字段（如 `banner_until: datetime | None`），由读取方判断。
 - Redis 不可用时，底层客户端的异常直接抛给调用方。连接由 Redis Provider 持有，容器不打开也不关闭连接；默认客户端要求服务已完成 bootstrap、Redis 别名已配置。
@@ -515,17 +529,12 @@ async def in_maintenance() -> bool:
 ```python
 from oldman.conf.containers import RedisSet
 
-allowed_devices = RedisSet(str, "allowed_devices")
-stream_proxies = RedisSet(str, "stream_proxies")
+DEVICES_NAME = "example_allowed_devices"
 
 
-def channel_devices(tag: str) -> RedisSet[str]:
-    # 按 tag 区分的一组集合：用到时再构造
-    return RedisSet(str, f"channel_devices:{tag}")
-
-
-async def may_watch(device_id: str) -> bool:
-    return await allowed_devices.contains(device_id)
+@cache
+def allowed_devices() -> RedisSet[str]:
+    return RedisSet(str, DEVICES_NAME, client=redis_client.using(REDIS_ALIAS))
 ```
 
 | 方法 | 行为 |
@@ -536,6 +545,7 @@ async def may_watch(device_id: str) -> bool:
 | `members()` | 全部成员，读出整个集合 |
 | `random()` | 随机一个成员；集合为空时返回 `None` |
 
+- Demo 的 [views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) 用 `add`、`remove`、`contains`、`random` 操作这个集合。
 - 每个操作直接落到 Redis 集合（`SADD`、`SISMEMBER`、`SRANDMEMBER`……），不把整个集合读出来。判断成员用 `contains`，不要 `members()` 之后再判断。
 - 成员限 `str` 或 `int`，按精确类型检查：`int` 集合不收 `True` 或 `"7"`，抛 `TypeError`。
 - 键是 `<core.namespace>:store:<name>`，与 `RedisStore` 共用：名字不能重复，否则 Redis 报 `WRONGTYPE`。

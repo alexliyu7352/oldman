@@ -77,7 +77,8 @@ async def calculate_project_statistics() -> ProjectStatistics:
             .group_by(ExampleProject.status)
             .order_by(ExampleProject.status)
         )
-        counts = {status: count for status, count in rows}
+        # The result has keys() — its column names — so dict() would read it as a mapping; take the rows.
+        counts = dict(rows.all())
     return ProjectStatistics(
         counts=counts,
         total=sum(counts.values()),

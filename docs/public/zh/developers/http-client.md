@@ -19,8 +19,6 @@ from time import perf_counter
 from typing import Literal
 
 import httpx
-
-from apps.examples.apps import app
 from oldman.contrib.http import (
     ClientType,
     HttpContentDecodingError,
@@ -28,6 +26,8 @@ from oldman.contrib.http import (
     HttpStatusError,
     MultiHttpClient,
 )
+
+from apps.examples.apps import app
 
 REQUEST_TIMEOUT = 5
 STREAM_LIMIT = 1024 * 1024
