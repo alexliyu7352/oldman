@@ -141,6 +141,9 @@ class TeamProjectTable(SQLAlchemyTableView):
 ```
 
 `TeamMember`、`Project` 是业务自己的模型。"只能看自己的行"不要放在 `check_auth`:它只能拒绝整个请求,改不了参与计数、分页、导出的那条查询。
+能运行的对照在完整 Demo 的 Access Guards 页(`/examples/auth/guards`):[apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py)
+的 `TeamProjectTable` 继承示例项目表格,`check_permission` 只放 staff,`check_auth` 查库要求路径里的团队存在且启用,`apply_base_filters`
+只返回这个团队的项目;页面列出四种请求各由哪个钩子回答,并显示这个类的源码。
 下拉只有一个中心接口服务所有 provider,分派阶段还不知道是哪个 provider,单个 provider 的规则写在它自己的 `check_auth(request, context)`。
 框架的 `UserTable` 自己在 `check_permission` 里要求 `auth.users.view`;内置 Admin 的表格把"staff(要求超级用户时是超级用户)+ 模型权限"写在
 `check_permission`,经同一套分派调用。
