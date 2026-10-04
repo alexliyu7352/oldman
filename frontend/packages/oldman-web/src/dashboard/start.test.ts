@@ -57,6 +57,24 @@ describe("startDashboard", () => {
     expect(document.documentElement.dataset.omReady).toBe("true");
   });
 
+  it("loads the language catalog from under the page's asset base, a relative one resolved against the page", async () => {
+    document.body.innerHTML = `<main data-om-page="${AUTH_PAGE_NAME}"></main>`;
+    const assetBase = document.createElement("meta");
+    assetBase.name = "oldman-asset-base";
+    assetBase.content = "/static/dist/";
+    document.head.append(assetBase);
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ locale: "en", messages: {} }), { headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetch);
+    try {
+      await startDashboard({ i18n: { ...i18n, languages: [{ ...i18n.languages[0]!, catalogPath: "i18n/en.json" }] } });
+
+      expect(fetch).toHaveBeenCalledWith(new URL("/static/dist/i18n/en.json", window.location.href).toString(), expect.any(Object));
+    } finally {
+      assetBase.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("posts language choices to the endpoint the language contract names", async () => {
     document.body.innerHTML = `<main data-om-page="${AUTH_PAGE_NAME}"></main>`;
     await startDashboard({ i18n });
