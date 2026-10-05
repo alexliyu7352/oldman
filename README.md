@@ -46,7 +46,7 @@ uv sync
 ./run.sh api start
 ```
 
-生成的项目带 `.python-version`（3.13），`uv sync` 按它选择解释器，本机没有时 uv 会自动下载。此时启动的是尚未添加业务路由的服务；`/` 返回 404 是正常结果。添加 API 的接线见[服务创建指南](docs/public/en/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
+生成的项目带 `.python-version`（3.13），`uv sync` 按它选择解释器，本机没有时 uv 会自动下载。服务自带三个示例接口：`/` 是不需要认证的健康检查，`/api/caller`、`/api/ops` 分别演示 API key 和 HTTP Basic 认证，凭据位置和试用命令见生成项目的 README。添加 API 的接线见[服务创建指南](docs/public/en/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
 
 `run.sh` 只把原样参数交给项目 `.venv` 中的 `oldman`，不替你选服务、迁移数据库或启动前端。`./run.sh api start` 与使用同一虚拟环境运行 `oldman api start` 的语义相同。上面是新建空项目的命令，不是 Demo 启动步骤；Demo 的独立安装与调试见[运行环境与安装](docs/public/zh/users/getting-started.md#运行环境与安装)。
 
