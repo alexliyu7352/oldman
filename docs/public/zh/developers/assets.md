@@ -209,6 +209,8 @@ Demo 已将生成命令接入上述生命周期，并提交生成结果。生成
 
 不要写在层外：层外的规则压过所有层里的规则，与选择器无关，层外的 `:root` 会连框架的暗色值一起盖掉，暗色页面用到的是亮色的值。dashboard 骨架的 `frontend/src/app.css` 末尾带着这段示例（已注释）。
 
+Tailwind 里带数字的 `primary-50`、`primary-100`、`primary-500`、`primary-600`、`primary-700` 不是另一套固定色阶，而是这些变量的别名：50 与 100 指向 `--om-color-primary-soft`，500 指向 `--om-color-focus-border`，600 指向 `--om-color-primary`，700 指向 `--om-color-primary-hover`。所以它们和 `bg-primary` 一样跟着暗色和项目的覆盖变；用在主色底上的文字写 `text-on-primary`，不要写 `text-white`（暗色下主色是浅色）。
+
 ## 翻译不是第二套前端 domain
 
 项目 Python、Jinja、App CLI 和前端源词合并到 `messages.po`。后端运行时用 MO，浏览器用 JSON；它们是同一份翻译的不同产物，不单独维护一套 frontend/js domain。

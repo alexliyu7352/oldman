@@ -37,7 +37,7 @@
 @source inline("grid-cols-1");
 @source inline("hidden");
 @source inline("hover:bg-primary-700");
-@source inline("hover:text-white");
+@source inline("hover:text-on-primary");
 @source inline("inline-block");
 @source inline("inline-flex");
 @source inline("items-center");
@@ -89,9 +89,9 @@
 @source inline("text-default-500");
 @source inline("text-default-900");
 @source inline("text-lg");
+@source inline("text-on-primary");
 @source inline("text-primary-soft-text");
 @source inline("text-sm");
-@source inline("text-white");
 @source inline("text-xs");
 @source inline("top-1/2");
 @source inline("truncate");
@@ -109,12 +109,14 @@
   --font-sans: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif, system-ui, sans-serif;
 
-  /* Single-colour primary: slate scale. Colour is reserved for semantics, links and charts. */
-  --color-primary-50: var(--color-slate-100);
-  --color-primary-100: var(--color-slate-200);
-  --color-primary-500: var(--color-slate-700);
-  --color-primary-600: var(--color-slate-900);
-  --color-primary-700: var(--color-slate-950);
+  /* Single-colour primary. Colour is reserved for semantics, links and charts. The numbered shades are names for the
+     theme variables below, so they take the dark values and a project's override like every other primary utility
+     (as fixed slate shades, primary-600 text was slate-900 on the slate-950 dark canvas). */
+  --color-primary-50: var(--om-color-primary-soft);
+  --color-primary-100: var(--om-color-primary-soft);
+  --color-primary-500: var(--om-color-focus-border);
+  --color-primary-600: var(--om-color-primary);
+  --color-primary-700: var(--om-color-primary-hover);
   --color-primary: var(--om-color-primary);
   --color-primary-hover: var(--om-color-primary-hover);
   --color-primary-active: var(--om-color-primary-active);

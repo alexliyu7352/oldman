@@ -445,6 +445,23 @@ class OldmanFrontendBoundaryTest(unittest.TestCase):
 
         self.assertIn('@source "../";', shared_css)
 
+    def test_every_theme_colour_has_a_dark_value(self) -> None:
+        """A colour in @theme names a theme variable (which has its dark value) or is redefined for the dark theme.
+
+        The numbered primary shades were fixed slate ones with neither, so primary-600 text was slate-900 on the
+        slate-950 dark canvas.
+        """
+        shared_css = (WEB_PACKAGE_ROOT / "src" / "styles" / "tailwind.css").read_text(encoding="utf-8")
+        theme = re.search(r"^@theme \{\n(.*?)^\}", shared_css, re.S | re.M)
+        dark = re.search(r'^  html\[data-theme="dark"\] \{\n(.*?)^  \}', shared_css, re.S | re.M)
+        assert theme is not None and dark is not None
+        colours = dict(re.findall(r"^\s*(--color-[\w-]+):\s*([^;]+);", theme.group(1), re.M))
+        redefined_for_dark = set(re.findall(r"^\s*(--color-[\w-]+):", dark.group(1), re.M))
+
+        self.assertGreater(len(colours), 30)
+        fixed = {name for name, value in colours.items() if "var(--om-" not in value}
+        self.assertEqual(set(), fixed - redefined_for_dark)
+
     def test_icon_generator_is_published_and_admin_owns_its_generated_icons(self) -> None:
         web_package = json.loads((WEB_PACKAGE_ROOT / "package.json").read_text(encoding="utf-8"))
         admin_package = json.loads((ROOT / "frontend" / "apps" / "admin" / "package.json").read_text(encoding="utf-8"))
