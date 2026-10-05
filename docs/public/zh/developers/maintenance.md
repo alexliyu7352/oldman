@@ -94,6 +94,7 @@ type(scope): summary
 
 - `type` 决定分组：`feat` 进 Added，`fix` 进 Fixed，`perf` 进 Performance，`refactor` 进 Changed，`docs` 进 Documentation，`revert` 进 Reverted；`test`、`build`、`ci`、`chore`、`release` 不进发行说明。
 - `scope` 可选，写受影响的子系统，例如 `fix(web): ...`。
+- `summary` 原样进入发行说明，不改大小写：用小写开头，以命令名或函数名开头时照原样写，例如 `fix(db): loaddata reads back the float columns dumpdata wrote`。
 - 破坏性变更在类型后加 `!`（`feat(db)!: ...`），或在正文末尾写 `BREAKING CHANGE: ...` 脚注；这类条目排在发行说明最前面。
 - 正文不进发行说明，用来写原因和实现细节。
 - 不符合格式的标题仍会出现在 Other 分组里，不会被丢掉，但应当避免。
