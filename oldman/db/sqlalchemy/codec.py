@@ -23,6 +23,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     Integer,
     Interval,
     LargeBinary,
@@ -105,8 +106,8 @@ def column_codec(column: Column[Any]) -> ColumnCodec:
         return "int", _same, _same
     if isinstance(column_type, String):
         return "str", _same, _same
-    if isinstance(column_type, Numeric):
-        # Float is a Numeric: with asdecimal=True it returns Decimal values too.
+    if isinstance(column_type, (Float, Numeric)):
+        # Float is a Numeric in SQLAlchemy 2.0 but not from 2.1 on; with asdecimal=True it returns Decimal values too.
         return ("decimal", str, Decimal) if column_type.asdecimal else ("float", _float_encode, _float_decode)
     if isinstance(column_type, DateTime):
         return "datetime", _isoformat, datetime.fromisoformat

@@ -280,9 +280,16 @@ def _column_value(column: Column[Any], value: Any, *, location: str) -> Any:
         if isinstance(column_type, Time):
             _expect_type(value, str, location=location)
             return time.fromisoformat(value)
-        if isinstance(column_type, Numeric):
-            _expect_type(value, str, location=location)
-            return Decimal(value)
+        if isinstance(column_type, (Float, Numeric)):
+            # Float is a Numeric in SQLAlchemy 2.0 but not from 2.1 on; either way asdecimal says which Python
+            # type the ORM returns, and so whether dump_data wrote a string (Decimal) or a JSON number (float).
+            if column_type.asdecimal:
+                _expect_type(value, str, location=location)
+                return Decimal(value)
+            converted = float(_expect_type(value, float, location=location))
+            if not math.isfinite(converted):
+                raise ValueError(f"{location} must be finite.")
+            return converted
         if isinstance(column_type, Uuid):
             _expect_type(value, str, location=location)
             return uuid.UUID(value)
@@ -290,11 +297,6 @@ def _column_value(column: Column[Any], value: Any, *, location: str) -> Any:
             return _expect_type(value, bool, location=location)
         if isinstance(column_type, Integer):
             return _expect_type(value, int, location=location)
-        if isinstance(column_type, Float):
-            converted = float(_expect_type(value, float, location=location))
-            if not math.isfinite(converted):
-                raise ValueError(f"{location} must be finite.")
-            return converted
         if isinstance(column_type, (String, Text)):
             return _expect_type(value, str, location=location)
     except (ValueError, TypeError) as exc:

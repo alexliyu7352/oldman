@@ -19,12 +19,14 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
     String,
     Time,
     Uuid,
+    delete,
     func,
     select,
 )
@@ -91,6 +93,17 @@ class FixtureComposite(FixtureBase):
     right_id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
 
+class FixtureMeasurement(FixtureBase):
+    """Float and Numeric columns, each returning floats or Decimals."""
+
+    __tablename__ = "fixture_measurement"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ratio: Mapped[float] = mapped_column(Float)
+    exact: Mapped[Decimal] = mapped_column(Float(asdecimal=True))
+    rough: Mapped[float] = mapped_column(Numeric(10, 3, asdecimal=False))
+
+
 class FixtureUnmanaged(FixtureBase):
     __tablename__ = "fixture_unmanaged"
 
@@ -126,6 +139,13 @@ class FixtureRegistry:
             _metadata(FixtureComposite, app_label="invalid"),
             _metadata(FixtureUnmanaged, app_label="invalid", managed=False),
         )
+
+
+class MeasurementRegistry:
+    """Only the measurement model, so the other tests' dumps stay as they are."""
+
+    def __init__(self) -> None:
+        self.models = (_metadata(FixtureMeasurement),)
 
 
 class FixturePackageRegistry:
@@ -216,6 +236,23 @@ class FixtureDataTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(["demo.FixtureTeam"], [item["model"] for item in json.loads(payload)])
+
+    async def test_float_and_numeric_columns_survive_a_dump_and_load(self) -> None:
+        """dumpdata writes a float as a JSON number and a Decimal as a string; loaddata reads each back the same way."""
+        registry = MeasurementRegistry()
+        async with self.manager.get_session() as session:
+            session.add(FixtureMeasurement(id=1, ratio=0.25, exact=Decimal("1.5"), rough=2.125))
+        fixture_path = Path(self.temporary_directory.name) / "measurements.json"
+        fixture_path.write_text(await dump_data(registry, self.manager, "demo"), encoding="utf-8")
+        async with self.manager.get_session() as session:
+            await session.execute(delete(FixtureMeasurement))
+
+        self.assertEqual(1, await load_data(registry, self.manager, fixture_path))
+
+        async with self.manager.get_read_session() as session:
+            row = await session.get(FixtureMeasurement, 1)
+        assert row is not None
+        self.assertEqual((0.25, Decimal("1.5"), 2.125), (row.ratio, row.exact, row.rough))
 
     async def test_load_creates_updates_and_remains_idempotent(self) -> None:
         fixture_path = Path(self.temporary_directory.name) / "demo.json"
