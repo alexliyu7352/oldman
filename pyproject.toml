@@ -37,7 +37,9 @@ dependencies = [
     "ruamel.yaml>=0.18.14",
     "sanic==25.12.1",
     "sanic-ext==25.12.0",
-    "sqlalchemy[asyncio]>=2.0.44,<2.1",  # asyncio pulls greenlet; 2.1 is untested (SQLModel used to hold it below 2.1).
+    # asyncio pulls greenlet. Below 2.1: measured on 2.1.3 it brings no gain for our workload, and AsyncSession.exec()'s
+    # overloads are written for 2.0's Select[tuple[...]] (2.1 writes Select[...]). Move to 2.1.4+ when 2.0 nears its end.
+    "sqlalchemy[asyncio]>=2.0.44,<2.1",
     "sqids>=0.5.2",
     "taskiq==0.12.6",
     "taskiq-nats==0.6.0",
