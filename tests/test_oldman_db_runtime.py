@@ -13,13 +13,12 @@ from typing import Any, cast
 from unittest.mock import patch
 
 from pydantic import ValidationError
-from sqlalchemy import ForeignKey, Integer, String, delete, select, text
+from sqlalchemy import ForeignKey, Integer, String, delete, func, select, text
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import Base, DatabaseModel
-from oldman.db.session import DatabaseManager
+from oldman.db.session import AsyncSession, DatabaseManager
 from oldman.db.sqlalchemy.cache import model_primary_key_value
 from oldman.storage.lifecycle import WriteSession
 
@@ -184,10 +183,35 @@ class DatabaseSessionLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, enabled)
         self.assertIsNone(child)
 
-    async def test_public_sessions_retain_sqlmodel_and_transaction_apis(
+    async def test_exec_returns_the_values_of_a_one_model_or_one_column_select(self) -> None:
+        """exec() is execute(), except that a select of one model or one column comes back as those values."""
+        async with self.manager.get_session() as session:
+            session.add_all([LifecycleModel(id=1, name="first"), LifecycleModel(id=2, name="second")])
+
+        async with self.manager.get_read_session() as session:
+            models = (await session.exec(select(LifecycleModel).order_by(LifecycleModel.id))).all()
+            names = (await session.exec(select(LifecycleModel.name).order_by(LifecycleModel.id))).all()
+            total = (await session.exec(select(func.count()).select_from(LifecycleModel))).one()
+            pairs = (await session.exec(select(LifecycleModel.id, LifecycleModel.name).order_by(LifecycleModel.id))).all()
+            raw = (await session.exec(text("SELECT name FROM test_database_lifecycle WHERE id = :id"), params={"id": 2})).all()
+            # execute() keeps rows even for one column.
+            rows = (await session.execute(select(LifecycleModel.name).order_by(LifecycleModel.id))).all()
+
+        self.assertEqual([1, 2], [model.id for model in models])
+        self.assertEqual(["first", "second"], list(names))
+        self.assertEqual(2, total)
+        self.assertEqual([(1, "first"), (2, "second")], [tuple(pair) for pair in pairs])
+        self.assertEqual([("second",)], [tuple(row) for row in raw])
+        self.assertEqual([("first",), ("second",)], [tuple(row) for row in rows])
+
+        async with self.manager.get_session() as session:
+            deleted = await session.exec(delete(LifecycleModel).where(LifecycleModel.id == 1))
+            self.assertEqual(1, deleted.rowcount)
+
+    async def test_public_sessions_keep_exec_and_transaction_apis(
         self,
     ) -> None:
-        """The migration must retain SQLModel, transaction and scoped factories."""
+        """Every session the manager hands out has exec(); transaction and scoped factories stay."""
         async with self.manager.get_session("test:get-session") as session:
             self.assertIsInstance(session, AsyncSession)
             self.assertIsInstance(session.sync_session, WriteSession)
@@ -195,6 +219,7 @@ class DatabaseSessionLifecycleTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(session.in_transaction())
 
         async with self.manager.get_read_session() as session:
+            self.assertIsInstance(session, AsyncSession)
             self.assertNotIsInstance(session.sync_session, WriteSession)
 
         async with self.manager.transaction() as session:

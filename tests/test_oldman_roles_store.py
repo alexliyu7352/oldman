@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
 
+from sqlalchemy import select
 from sqlalchemy.schema import Table
-from sqlmodel import select
 
 import oldman.conf as conf
 from oldman.apps.roles.models import Role, UserRole

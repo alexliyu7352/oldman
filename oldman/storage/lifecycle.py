@@ -7,10 +7,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, event, inspect, select
-from sqlalchemy.orm import Mapper
+from sqlalchemy.orm import Mapper, Session
 from sqlalchemy.orm.state import InstanceState
 from sqlalchemy.sql.schema import Column
-from sqlmodel import Session
 
 from oldman.logging import logger
 from oldman.storage.models import (
@@ -220,7 +219,7 @@ async def finalize_model_files(manager: DatabaseManager, records: tuple[_Cleanup
                     assert identity is not None
                     conditions = [column == value for column, value in zip(record.mapper.primary_key, identity, strict=True)]
                     statement = select(*(item.column for item in record.fields)).where(and_(*conditions))
-                    result = await session.exec(cast(Any, statement))
+                    result = await session.execute(statement)
                     row = result.one_or_none()
                     final_values[id(record)] = {
                         item.name: None if row is None else cast(str | None, row._mapping[item.column]) for item in record.fields

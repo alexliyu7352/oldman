@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from markupsafe import escape
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import func, update
-from sqlmodel import select
+from sqlalchemy import func, select, update
 
 from oldman.apps.config import _validate_icon_class
 from oldman.db import db_manager

@@ -29,10 +29,10 @@ from sqlalchemy import (
     Time,
     Uuid,
     inspect,
+    select,
     text,
 )
 from sqlalchemy.sql.schema import Column
-from sqlmodel import select
 
 from oldman.db.models import ModelMetadata
 from oldman.db.session import DatabaseManager

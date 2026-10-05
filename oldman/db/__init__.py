@@ -11,6 +11,7 @@ from oldman.db.models import (
     resolve_model_display_names,
 )
 from oldman.db.session import (
+    AsyncSession,
     DatabaseConfigSource,
     DatabaseManager,
     DatabaseNotConfiguredError,
@@ -19,6 +20,7 @@ from oldman.db.session import (
 
 __all__ = [
     "APP_LABEL_INFO_KEY",
+    "AsyncSession",
     "Base",
     "DatabaseConfigSource",
     "DatabaseManager",

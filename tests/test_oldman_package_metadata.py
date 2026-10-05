@@ -33,7 +33,6 @@ REQUIRED_DEFAULT_DEPENDENCIES = {
     "sanic",
     "sanic-ext",
     "sqlalchemy",
-    "sqlmodel",
     "typer",
     "uuid6",
     "wtforms",

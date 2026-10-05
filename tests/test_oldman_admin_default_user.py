@@ -16,7 +16,6 @@ from sqlalchemy import Boolean, Column, Integer, MetaData, Numeric, String, Uuid
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.schema import Table
-from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
 
 from oldman.auth import (
     authenticate_user,
@@ -30,6 +29,7 @@ from oldman.auth.base import normalize_user_staff_flags
 from oldman.auth.models import User
 from oldman.auth.settings import AuthSettings
 from oldman.db.models import DatabaseModel
+from oldman.db.session import AsyncSession
 from oldman.web.auth import session_data_for_user
 from oldman.web.session import SessionData
 
@@ -278,7 +278,7 @@ async def exercise_default_admin_branches():
             await connection.run_sync(cast(Any, User.__table__).create)
         session_factory = async_sessionmaker(
             engine,
-            class_=SQLModelAsyncSession,
+            class_=AsyncSession,
             expire_on_commit=False,
         )
         manager = WriteSessionManager(session_factory)
@@ -333,7 +333,7 @@ async def exercise_touch_last_login(instant: dt.datetime) -> dt.datetime | None:
             await connection.run_sync(cast(Any, User.__table__).create)
         session_factory = async_sessionmaker(
             engine,
-            class_=SQLModelAsyncSession,
+            class_=AsyncSession,
             expire_on_commit=False,
         )
         manager = WriteSessionManager(session_factory)

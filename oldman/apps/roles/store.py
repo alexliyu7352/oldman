@@ -24,7 +24,7 @@ import json
 from collections.abc import Iterable
 from typing import Any
 
-from sqlmodel import delete, select
+from sqlalchemy import delete, select
 
 from oldman.apps.roles.models import Role, UserRole
 from oldman.auth.permissions import get_permission

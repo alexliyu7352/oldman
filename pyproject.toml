@@ -37,8 +37,7 @@ dependencies = [
     "ruamel.yaml>=0.18.14",
     "sanic==25.12.1",
     "sanic-ext==25.12.0",
-    "sqlalchemy>=2.0.44",
-    "sqlmodel>=0.0.27",
+    "sqlalchemy[asyncio]>=2.0.44,<2.1",  # asyncio pulls greenlet; 2.1 is untested (SQLModel used to hold it below 2.1).
     "sqids>=0.5.2",
     "taskiq==0.12.6",
     "taskiq-nats==0.6.0",

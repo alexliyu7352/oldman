@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, patch
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sanic.exceptions import ServiceUnavailable
+from sqlalchemy import select
 from sqlalchemy.schema import Table
-from sqlmodel import select
 
 import oldman.conf as conf
 from oldman.apps import AppNotInstalledError

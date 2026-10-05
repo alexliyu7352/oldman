@@ -12,11 +12,10 @@ from unittest.mock import patch
 from sqlalchemy import Integer, String, Table, event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import Mapped, defer, mapped_column
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import DatabaseModel, ModelMetadata
-from oldman.db.session import DatabaseManager
+from oldman.db.session import AsyncSession, DatabaseManager
 from oldman.storage import InMemoryStorage, file_column
 from oldman.storage.lifecycle import WriteSession, install_model_file_lifecycle
 from oldman.storage.models import register_created_file
@@ -31,6 +30,15 @@ class LifecycleFileModel(DatabaseModel):
     name: Mapped[str] = mapped_column(String(64))
     avatar: Mapped[str | None] = file_column(upload_to="avatars", storage="images", nullable=True)
     contract: Mapped[str | None] = file_column(upload_to="contracts", storage="documents", nullable=True)
+
+
+class SingleFileModel(DatabaseModel):
+    """只有一个文件列:最终状态查询只选一列。"""
+
+    __tablename__ = "task6_single_file_lifecycle"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    photo: Mapped[str | None] = file_column(upload_to="photos", storage="images", nullable=True)
 
 
 class LifecyclePlainModel(DatabaseModel):
@@ -48,6 +56,14 @@ FILE_MODEL_METADATA = ModelMetadata(
     app_label="tests",
     verbose_name="Lifecycle file",
     verbose_name_plural="Lifecycle files",
+    managed=True,
+)
+SINGLE_FILE_MODEL_METADATA = ModelMetadata(
+    model=SingleFileModel,
+    table=cast(Table, SingleFileModel.__table__),
+    app_label="tests",
+    verbose_name="Single file",
+    verbose_name_plural="Single files",
     managed=True,
 )
 PLAIN_MODEL_METADATA = ModelMetadata(
@@ -86,7 +102,7 @@ class ModelFileLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         database_path = Path(self.temp_dir.name) / "files.sqlite3"
         self.manager = DatabaseManager(DatabaseConfig(url=f"sqlite+aiosqlite:///{database_path.as_posix()}", echo=False))
-        install_model_file_lifecycle((FILE_MODEL_METADATA, PLAIN_MODEL_METADATA))
+        install_model_file_lifecycle((FILE_MODEL_METADATA, SINGLE_FILE_MODEL_METADATA, PLAIN_MODEL_METADATA))
         await self.manager.create_db_and_tables()
         self.storages = StorageSet()
 
@@ -139,6 +155,23 @@ class ModelFileLifecycleTest(unittest.IsolatedAsyncioTestCase):
         row = await self.load_row()
         assert row is not None
         self.assertEqual(created, row.avatar)
+        self.assertFalse(await self.storages.images.exists(original))
+        self.assertTrue(await self.storages.images.exists(created))
+
+    async def test_a_model_with_one_file_column_deletes_the_replaced_file(self) -> None:
+        """Its final-state query selects a single column, which must still be read as a row."""
+        original = await self.store("images", "photos/original.png")
+        with self.lifecycle_patch():
+            async with self.manager.get_session() as session:
+                session.add(SingleFileModel(id=1, photo=original))
+
+        with self.lifecycle_patch():
+            async with self.manager.get_session() as session:
+                instance = await session.get(SingleFileModel, 1)
+                assert instance is not None
+                created = await self.create_for_session(session, instance, "photo", "images", "photos/new.png")
+                instance.photo = created
+
         self.assertFalse(await self.storages.images.exists(original))
         self.assertTrue(await self.storages.images.exists(created))
 
@@ -281,8 +314,7 @@ class ModelFileLifecycleTest(unittest.IsolatedAsyncioTestCase):
         with self.lifecycle_patch():
             async with self.manager.get_session() as session:
                 statement = select(LifecycleFileModel).options(defer(LifecycleFileModel.avatar))
-                result = await session.exec(cast(Any, statement))
-                instance = result.scalar_one()
+                instance = (await session.exec(statement)).one()
                 created = await self.create_for_session(session, instance, "avatar", "images", "avatars/deferred.png")
                 instance.avatar = created
         self.assertFalse(await self.storages.images.exists(original))

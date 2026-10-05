@@ -103,7 +103,7 @@ class · defined in `oldman.apps.admin.model_admin`
 class ModelAdmin
 ```
 
-SQLAlchemy/SQLModel metadata-driven Admin CRUD controller.
+SQLAlchemy metadata-driven Admin CRUD controller.
 
 Constructor:
 

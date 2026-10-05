@@ -37,7 +37,7 @@ class ExampleTeam(DatabaseModel):
         verbose_name_plural = _("Example Teams")
 ```
 
-`oldman.db` 公开 `Base`、`DatabaseModel`、`ModelMetadata`、`DatabaseManager`、`DatabaseNotConfiguredError` 和进程级 `db_manager`。DatabaseModel 是共享 Base 的抽象子类，没有自动 id；业务自己声明主键。没有显式表名时 Base 使用类名的小写形式，建议真实项目显式命名。
+`oldman.db` 公开 `Base`、`DatabaseModel`、`ModelMetadata`、`DatabaseManager`、`DatabaseNotConfiguredError`、会话类型 `AsyncSession` 和进程级 `db_manager`。DatabaseModel 是共享 Base 的抽象子类，没有自动 id；业务自己声明主键。没有显式表名时 Base 使用类名的小写形式，建议真实项目显式命名。
 
 时间列存的是无时区 UTC。需要“现在”时用 `oldman.utils.date.naive_utcnow`（`default=naive_utcnow`、`onupdate=naive_utcnow`，代码里 `naive_utcnow()`），不要在每处写一遍 `datetime.now(UTC).replace(tzinfo=None)`，也不要让同一列出现带时区和不带时区两种值。
 
@@ -86,6 +86,8 @@ async def list_projects(limit: int = 12) -> list[ExampleProject]:
 ```
 
 返回的是已经读取字段和 team 关系的模型列表，不是仍待执行的查询。视图用于 `/examples/tables/static` 和 `/examples/tables/responsive`；关系预加载不能省掉后再让异步模板隐式查数据库。
+
+会话是 `oldman.db.AsyncSession`（写类型标注时从这里导入）：SQLAlchemy 的 AsyncSession 加一个 `exec()`。`exec()` 和 `execute()` 一样执行语句，只是 `select()` 只选一个模型或一列时直接返回这些值，上例可以写成 `return list((await session.exec(...)).all())`；`.one()`、`.first()` 同理。选多列、`text()`、`update()`/`delete()` 的结果与 `execute()` 相同。一列也要按行读（`row._mapping`）时用 `execute()`。语句用 SQLAlchemy 的 `select`，框架不依赖 SQLModel。
 
 写事务可以由视图持有，并传给服务函数。下面是 [views/charts.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/charts.py) 的完整发布入口，对应 `/examples/charts/realtime` 页面中的按钮：
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.exc import StatementError
-from sqlmodel import select
 
 from oldman.auth.base import AbstractUser
 from oldman.auth.contracts import UserModelContractError

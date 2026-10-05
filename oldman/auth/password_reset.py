@@ -15,8 +15,7 @@ import hmac
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import func
-from sqlmodel import select
+from sqlalchemy import func, select
 
 from oldman.auth.base import AbstractUser
 from oldman.auth.registry import get_user_model

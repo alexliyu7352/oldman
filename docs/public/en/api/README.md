@@ -21,7 +21,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.contrib.http`](oldman.contrib.http.md) | 16 | @author:alex |
 | [`oldman.contrib.http.backends`](oldman.contrib.http.backends.md) | 3 | HTTP客户端后端实现 |
 | [`oldman.contrib.proxy`](oldman.contrib.proxy.md) | 7 | @author:alex |
-| [`oldman.db`](oldman.db.md) | 22 | Public database models and lazy sessions; deployments use migrations. |
+| [`oldman.db`](oldman.db.md) | 23 | Public database models and lazy sessions; deployments use migrations. |
 | [`oldman.db.sqlalchemy`](oldman.db.sqlalchemy.md) | 6 | @author:alex |
 | [`oldman.i18n`](oldman.i18n.md) | 34 | Runtime-independent internationalization API. |
 | [`oldman.logging`](oldman.logging.md) | 19 | Stable public logging API for Oldman applications. |

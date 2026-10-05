@@ -24,6 +24,20 @@ def assign_model_table_app_labels(package_labels: Mapping[str, str], model_modul
 
 Assign every Table and return metadata for registered mapped classes.
 
+## `AsyncSession`
+
+class · defined in `oldman.db.session`
+
+```python
+class AsyncSession(SQLAlchemyAsyncSession)
+```
+
+The session DatabaseManager hands out: SQLAlchemy's AsyncSession plus ``exec()``.
+
+Members:
+
+- `async def exec(statement: Executable, *, params: Mapping[str, Any] | None=None, execution_options: Mapping[str, Any]=util.EMPTY_DICT, bind_arguments: dict[str, Any] | None=None) -> ScalarResult[Any] | Result[Any]`
+
 ## `Base`
 
 class · defined in `oldman.db.sqlalchemy.models`

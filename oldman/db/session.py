@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, TypeVar, overload
 
-from sqlalchemy import AsyncAdaptedQueuePool, event
-from sqlalchemy.engine import URL, make_url
+from sqlalchemy import AsyncAdaptedQueuePool, event, util
+from sqlalchemy.engine import URL, CursorResult, Result, ScalarResult, make_url
 from sqlalchemy.exc import NoSuchModuleError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -16,13 +16,70 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.ext.asyncio import AsyncSession as SQLAlchemyAsyncSession
 from sqlalchemy.pool import Pool
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.sql import Executable, Select
+from sqlalchemy.sql.dml import UpdateBase
 
 from oldman.conf.schemas import DatabaseConfig
 from oldman.db.models import MANAGED_INFO_KEY, Base
 from oldman.logging import logger
 from oldman.storage.lifecycle import WriteSession, finalize_model_files, take_file_cleanup_records
+
+_T = TypeVar("_T")
+
+
+class AsyncSession(SQLAlchemyAsyncSession):
+    """The session DatabaseManager hands out: SQLAlchemy's AsyncSession plus ``exec()``.
+
+    ``exec()`` runs the statement like ``execute()``; a ``select()`` of exactly one model or one column comes back as
+    those values (``.all()`` is a list of models or of the column's values, ``.one()`` one of them), anything else
+    as ``execute()`` returns it. Use ``execute()`` when you want rows even from a one-column select.
+    """
+
+    @overload
+    async def exec(
+        self,
+        statement: Select[tuple[_T]],
+        *,
+        params: Mapping[str, Any] | None = None,
+        execution_options: Mapping[str, Any] = util.EMPTY_DICT,
+        bind_arguments: dict[str, Any] | None = None,
+    ) -> ScalarResult[_T]: ...
+
+    @overload
+    async def exec(
+        self,
+        statement: UpdateBase,
+        *,
+        params: Mapping[str, Any] | None = None,
+        execution_options: Mapping[str, Any] = util.EMPTY_DICT,
+        bind_arguments: dict[str, Any] | None = None,
+    ) -> CursorResult[Any]: ...
+
+    @overload
+    async def exec(
+        self,
+        statement: Executable,
+        *,
+        params: Mapping[str, Any] | None = None,
+        execution_options: Mapping[str, Any] = util.EMPTY_DICT,
+        bind_arguments: dict[str, Any] | None = None,
+    ) -> Result[Any]: ...
+
+    async def exec(
+        self,
+        statement: Executable,
+        *,
+        params: Mapping[str, Any] | None = None,
+        execution_options: Mapping[str, Any] = util.EMPTY_DICT,
+        bind_arguments: dict[str, Any] | None = None,
+    ) -> ScalarResult[Any] | Result[Any]:
+        result = await self.execute(statement, params, execution_options=execution_options, bind_arguments=bind_arguments)
+        if isinstance(statement, Select) and len(statement.column_descriptions) == 1:
+            return result.scalars()
+        return result
+
 
 DatabaseConfigSource = DatabaseConfig | Callable[[], DatabaseConfig]
 DebugSource = bool | Callable[[], bool]
@@ -263,7 +320,7 @@ class DatabaseManager:
             self._tracker = None
 
     def _get_async_session(self, scoped: bool = False) -> AsyncSession:
-        """Create a regular or current-task-scoped SQLModel session."""
+        """Create a regular or current-task-scoped session."""
         if scoped:
             if self.async_scoped_session is None:
                 raise DatabaseNotConfiguredError("DatabaseManager is not initialized")
@@ -412,6 +469,7 @@ db_manager = DatabaseManager(_configured_database, debug=_configured_debug)
 __all__ = [
     "DATABASE_DRIVER_PACKAGES",
     "SERVER_POOL_DEFAULTS",
+    "AsyncSession",
     "DatabaseConfigSource",
     "DatabaseManager",
     "DatabaseNotConfiguredError",

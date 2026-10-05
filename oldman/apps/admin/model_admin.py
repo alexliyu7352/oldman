@@ -53,7 +53,7 @@ _PERMISSION_MODELS: dict[str, type[Any]] = {}
 
 
 class ModelAdmin:
-    """SQLAlchemy/SQLModel metadata-driven Admin CRUD controller."""
+    """SQLAlchemy metadata-driven Admin CRUD controller."""
 
     list_display: Sequence[str] = ()
     search_fields: Sequence[str] = ()
