@@ -394,7 +394,9 @@ def _user_model_form_class(
             validators=[Optional(), Length(max=150)],
             render_kw={"maxlength": 150},
         ),
-        "is_active": BooleanField(cast(str, gettext_lazy("Active")), description=cast(str, gettext_lazy("Can sign in"))),
+        # Checked on a new user, like the model's default: an account created without touching it can sign in.
+        # An edit shows the stored value, and a submitted form without the box still means inactive.
+        "is_active": BooleanField(cast(str, gettext_lazy("Active")), description=cast(str, gettext_lazy("Can sign in")), default=True),
         "is_staff": BooleanField(cast(str, gettext_lazy("Staff")), description=cast(str, gettext_lazy("Staff member; can sign in to the Admin"))),
         "is_superuser": BooleanField(cast(str, gettext_lazy("Superuser")), description=cast(str, gettext_lazy("Has every permission"))),
         # Dropped per form where the service has no roles App; choices come from the database.

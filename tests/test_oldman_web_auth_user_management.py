@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -248,6 +249,33 @@ class UserManagementFlowTest(unittest.IsolatedAsyncioTestCase):
         form = new.body.decode()
         self.assertIn('action="/people/new"', form)
         self.assertIn('id="users-form-feedback"', form)
+
+    async def test_a_new_user_starts_active_and_an_edit_shows_the_stored_state(self) -> None:
+        """Like the model's default: a user created without touching the box can sign in; an edit shows what is stored."""
+        root = operator(self.ids["root"], is_staff=True, is_superuser=True)
+        async with self.manager.get_session() as session:
+            member = await session.get(User, self.ids["member"])
+            assert member is not None
+            member.is_active = False
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            (Path(tmp_dir) / "base.html").write_text("{% block content %}{% endblock %}", encoding="utf-8")
+            app = RoutesApp()
+            app.ext.environment = install_template_loaders(Environment(enable_async=True), tmp_dir)
+            StatelessCSRFManager(cast(Any, app))
+            UserManagementFlow(
+                base_path="/people", login_path="/signin", user_model=User, auth_settings=AuthSettings(), db_manager=self.manager
+            ).register_routes(cast(Any, app), template_prefix="oldman/dashboard/account")
+            new = await cast(Any, app.route_handlers[("/people/new", ("GET",))])(make_request(cast(Any, app), path="/people/new", session=root))
+            edit = await cast(Any, app.route_handlers[("/people/<user_id:int>/edit", ("GET",))])(
+                make_request(cast(Any, app), path=f"/people/{self.ids['member']}/edit", session=root), user_id=self.ids["member"]
+            )
+
+        active_box = re.compile(r'<input[^>]*name="is_active"[^>]*>')
+        new_box = active_box.search(new.body.decode())
+        edit_box = active_box.search(edit.body.decode())
+        assert new_box is not None and edit_box is not None
+        self.assertIn("checked", new_box.group(0))
+        self.assertNotIn("checked", edit_box.group(0))
 
 
 class SharedUserTableTest(unittest.IsolatedAsyncioTestCase):
