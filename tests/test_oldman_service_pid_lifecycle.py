@@ -688,6 +688,81 @@ class StopWaitTest(unittest.TestCase):
         self.assertLessEqual(scans, 3)
 
 
+# exit(2), unlike exit_group(2), ends only the calling thread.
+SYS_EXIT = {"x86_64": 60, "aarch64": 93}.get(os.uname().machine)
+
+# The main thread leaves first, as it may when a multi-threaded service is killed: /proc then shows the
+# process as a zombie while another thread still runs and holds its files, the PID file lock among them.
+LEADER_LEAVES_FIRST = """
+import ctypes, fcntl, os, signal, sys, threading, time
+
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+fd = os.open(sys.argv[1], os.O_RDWR | os.O_CREAT)
+fcntl.flock(fd, fcntl.LOCK_EX)
+threading.Thread(target=time.sleep, args=(60,), daemon=True).start()
+print(flush=True)
+ctypes.CDLL(None).syscall(int(sys.argv[2]), 0)
+"""
+
+
+def lock_is_free(path: Path) -> bool:
+    fd = os.open(path, os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    finally:
+        os.close(fd)
+    return True
+
+
+@unittest.skipUnless(SYS_EXIT, "needs the exit(2) syscall number of this architecture")
+class ExitingThreadsTest(unittest.TestCase):
+    """A process has not finished exiting while any of its threads runs, though its main thread is a zombie."""
+
+    def leader_leaves_first(self) -> tuple[subprocess.Popen[str], Path]:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        lock = Path(directory.name) / "probe.pid"
+        process = subprocess.Popen(
+            [sys.executable, "-c", LEADER_LEAVES_FIRST, str(lock), str(SYS_EXIT)],
+            stdout=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        self.addCleanup(process.stdout.close)  # type: ignore[union-attr]
+        self.addCleanup(process.wait)
+        self.addCleanup(lambda: process.poll() is None and os.killpg(process.pid, signal.SIGKILL))
+        assert process.stdout is not None
+        process.stdout.readline()
+        wait_until(lambda: self.stat(process.pid)[0] == "Z", "the main thread did not exit on its own")
+        self.assertFalse(lock_is_free(lock))
+        return process, lock
+
+    def stat(self, pid: int) -> list[str]:
+        return Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
+
+    def test_a_zombie_main_thread_with_a_running_thread_is_still_live(self) -> None:
+        process, lock = self.leader_leaves_first()
+        self.assertEqual((process.pid,), _live_process_group_pids(process.pid))
+        self.assertIsNotNone(_process_identity(process.pid))
+
+        os.killpg(process.pid, signal.SIGKILL)
+        wait_until(lambda: lock_is_free(lock), "the killed process kept its lock")
+        wait_until(lambda: not _live_process_group_pids(process.pid), "a process with no thread left still counts as live")
+        self.assertIsNone(_process_identity(process.pid))
+
+    def test_stop_returns_once_the_last_thread_has_released_the_pid_file_lock(self) -> None:
+        # The CI failure: stop killed the service, saw only a zombie and returned while another thread still held
+        # the PID file lock, so the records stayed behind.
+        process, lock = self.leader_leaves_first()
+        fields = self.stat(process.pid)
+        identity = GroupIdentity(process.pid, int(fields[2]), int(fields[19]), boot_id())
+        self.assertTrue(stop_process_group(identity, 0.5))
+        self.assertTrue(lock_is_free(lock))
+        self.assertEqual(-signal.SIGKILL, process.wait(timeout=5))
+
+
 class GroupOneTest(unittest.TestCase):
     """killpg(1, sig) is kill(-1, sig): every process the caller may signal. Nothing may target group 1."""
 

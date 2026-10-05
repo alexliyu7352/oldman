@@ -157,17 +157,32 @@ def _group_is_gone(process_group: int) -> bool:
     return False
 
 
+def _finished_exiting(pid: int, state: str) -> bool:
+    """Whether `pid`, in procfs `state`, has finished exiting: a zombie whose threads are all gone.
+
+    /proc/<pid>/stat describes the main thread, which can turn zombie while the process's other
+    threads are still exiting; the process keeps its open files (and their locks) and sockets until
+    the last of them has gone, so until then it is not finished.
+    """
+    if state != "Z":
+        return False
+    try:
+        return len(os.listdir(f"/proc/{pid}/task")) <= 1
+    except OSError:
+        return True
+
+
 def _live_group_of(pid: int) -> int | None:
-    """The process group of `pid`, or None once it has exited or is a zombie."""
+    """The process group of `pid`, or None once it has finished exiting (see `_finished_exiting`)."""
     try:
         fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
-        return None if fields[0] == "Z" else int(fields[2])
+        return None if _finished_exiting(pid, fields[0]) else int(fields[2])
     except (IndexError, OSError, ValueError):
         return None
 
 
 def _live_process_group_pids(process_group: int) -> tuple[int, ...]:
-    """Return live non-zombie Linux members of one owned process group."""
+    """Return the Linux members of one owned process group that have not finished exiting."""
     if _group_is_gone(process_group):
         return ()
     return tuple(sorted(int(entry) for entry in os.listdir("/proc") if entry.isdigit() and _live_group_of(int(entry)) == process_group))
@@ -201,7 +216,7 @@ def _signal_process_group(process_group: int, selected_signal: signal.Signals) -
 
 
 async def _wait_for_group_exit(process_group: int, timeout: float) -> tuple[int, ...]:
-    """Wait asynchronously for a group to contain no live non-zombie process."""
+    """Wait asynchronously until every process in a group has finished exiting."""
     deadline = time.monotonic() + timeout
     known: set[int] = set()
     while _group_has_live_members(process_group, known):

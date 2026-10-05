@@ -14,14 +14,14 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from oldman.processes.subprocess import _group_has_live_members, _live_process_group_pids
+from oldman.processes.subprocess import _finished_exiting, _group_has_live_members, _live_process_group_pids
 
 
 def _process_identity(pid: int) -> tuple[int, int] | None:
-    """Read PGID and kernel start ticks; an unreaped zombie is not a live owner."""
+    """Read PGID and kernel start ticks; a process that has finished exiting is not a live owner."""
     try:
         fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
-        if fields[0] == "Z":
+        if _finished_exiting(pid, fields[0]):
             return None
         return int(fields[2]), int(fields[19])
     except (FileNotFoundError, ProcessLookupError):
@@ -182,7 +182,8 @@ def stop_process_group(identity: GroupIdentity, timeout: float, *, request_stop:
                 os.killpg(identity.pgid, signal.SIGKILL)
             except ProcessLookupError:
                 return True
-            # SIGKILL delivery is asynchronous; verify live members, not zombies.
+            # SIGKILL delivery is asynchronous; wait until every member, every thread of it included, has
+            # finished exiting, so the PID file lock and the port are free when stop returns.
             verify_deadline = time.monotonic() + 3
             while _group_has_live_members(identity.pgid, known):
                 if time.monotonic() >= verify_deadline:
