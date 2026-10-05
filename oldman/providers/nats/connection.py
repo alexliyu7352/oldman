@@ -427,7 +427,13 @@ class NATSConnection:
         self._logger.error("NATS error in %s: %s", self.name, type(error).__name__)
 
     async def _disconnected_callback(self) -> None:
-        """Report native disconnection; native reconnect policy remains in control."""
+        """Report native disconnection; native reconnect policy remains in control.
+
+        nats-py reports the close stop() asks for through this same callback: that one is not a fault.
+        """
+        if self._state == "stopping":
+            self._logger.info("NATS disconnected: %s", self.name)
+            return
         self._logger.warning("NATS disconnected: %s", self.name)
 
     async def _reconnected_callback(self) -> None:

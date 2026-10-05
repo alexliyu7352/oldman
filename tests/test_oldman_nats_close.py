@@ -399,6 +399,25 @@ class NatsCloseTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, info.state.messages)
         await observer.close()
 
+    async def test_a_stop_logs_the_disconnect_as_information_and_a_lost_server_as_a_warning(self) -> None:
+        """nats-py reports a close on purpose through the same callback as a lost server; only the latter is a fault."""
+        client = await self.connect()
+        with self.assertLogs("default.close-test.nats", level="INFO") as lost:
+            await self.stop_server()
+            async with asyncio.timeout(5):
+                while not client.is_reconnecting:
+                    await asyncio.sleep(0.01)
+        self.assertIn(("WARNING", "NATS disconnected: close-test"), [(r.levelname, r.getMessage()) for r in lost.records])
+
+        self.server = self.start_server()
+        async with asyncio.timeout(10):
+            while not client.is_connected:
+                await asyncio.sleep(0.05)
+        with self.assertLogs("default.close-test.nats", level="INFO") as stopped:
+            await self.provider.stop()
+        disconnects = [r.levelname for r in stopped.records if r.getMessage() == "NATS disconnected: close-test"]
+        self.assertEqual(["INFO"], disconnects)
+
     async def test_error_callback_exception_happens_after_cleanup(self) -> None:
         """Reporting the failed flush may raise without leaving a subscription behind."""
         client = await self.connect()
