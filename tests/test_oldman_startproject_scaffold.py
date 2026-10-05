@@ -728,6 +728,11 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             page = (target / "frontend" / "src" / "pages" / "reports.ts").read_text(encoding="utf-8")
             self.assertIn('import { BasePage } from "./base-page";', page)
             self.assertIn('setupPage("reports", ReportsPage);', page)
+            # Written like the skeleton's home page: "<page> · <site>" in the tab, the shared page head, translatable text.
+            template = (target / "templates" / "reports" / "index.html").read_text(encoding="utf-8")
+            Environment().parse(template)
+            self.assertIn("{% block title %}{{ _('Reports') }} · {{ site_name() }}{% endblock %}", template)
+            self.assertIn("{{ page_head(_('Reports')) }}", template)
 
     def test_dashboard_frontend_and_release_versions_are_preserved(self) -> None:
         """The settings refactor does not replace the established dashboard assets."""

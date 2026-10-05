@@ -1,12 +1,14 @@
 {% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% block title %}{{ _({{ display_name_literal }}) }} · {{ site_name() }}{% endblock %}
 
 {% block content %}
-  <main class="om-page-section">
-    <div class="om-page-header">
-      <div>
-        <h1 class="om-page-title">{{ app_class }}</h1>
-        <p class="mt-1 text-sm text-default-500">Dashboard application ready.</p>
-      </div>
+  <div class="om-page-section">
+    {{ page_head(_({{ display_name_literal }})) }}
+
+    <div class="om-card">
+      <div class="om-card-body text-sm">{{ _("Replace this with the page's content.") }}</div>
     </div>
-  </main>
+  </div>
 {% endblock %}
