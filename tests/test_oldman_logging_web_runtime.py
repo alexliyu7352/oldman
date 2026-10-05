@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import inspect
 import json
 import os
 import re
@@ -21,8 +22,12 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from oldman.logging.handlers import AtomicAppendFileHandler
+
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "logging_web_service.py"
+# How often a worker's file handler re-checks its path for a rotation; the runtime keeps the handler's default.
+REOPEN_CHECK_INTERVAL = float(inspect.signature(AtomicAppendFileHandler).parameters["reopen_check_interval"].default)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +155,18 @@ def _read_existing(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
         return "<missing>"
+
+
+def _wait_for_token(token: str, *paths: Path, timeout: float = 5.0) -> Path | None:
+    """Return the first of `paths` whose text contains `token`, allowing the write a moment to land."""
+    deadline = time.monotonic() + timeout
+    while True:
+        for path in paths:
+            if token in _read_existing(path):
+                return path
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(0.02)
 
 
 def _terminate_service(
@@ -419,27 +436,33 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
                     self.assertTrue(all(token in log_file.read_text(encoding="utf-8") for token in pre_tokens))
                     log_file.replace(archived_log_file)
                     log_file.touch()
+                    renamed_at = time.monotonic()
 
+                    # A worker re-checks its log path on a write once REOPEN_CHECK_INTERVAL has passed since its
+                    # last check, so a probe sent that long after the rename must land in the new file; an
+                    # earlier one may still reach the rotated file. Reaching the chosen worker is the kernel's
+                    # pick between the two and keeps its own timeout: sharing this budget made a run of misses
+                    # look like a worker that never reopened.
                     reopen_probes: list[str] = []
                     active_reopen_probes: dict[str, str] = {}
                     for worker_pid in worker_states:
-                        deadline = time.monotonic() + 2.5
-                        while time.monotonic() < deadline:
+                        while True:
                             reopen_probe = f"WEB_REOPEN_{run_id}_{worker_pid}_{uuid.uuid4().hex}"
-                            _run_on_worker(
-                                port,
-                                "/matrix/write",
-                                worker_pid,
-                                reopen_probe,
-                                timeout=max(0.01, deadline - time.monotonic()),
-                            )
+                            sent_at = time.monotonic()
+                            _run_on_worker(port, "/matrix/write", worker_pid, reopen_probe)
                             reopen_probes.append(reopen_probe)
-                            if reopen_probe in log_file.read_text(encoding="utf-8"):
+                            landed_in = _wait_for_token(reopen_probe, log_file, archived_log_file)
+                            if landed_in == log_file:
                                 active_reopen_probes[str(worker_pid)] = reopen_probe
                                 break
+                            if landed_in is None:
+                                self.fail(f"worker {worker_pid} wrote probe {reopen_probe} to neither log file")
+                            if sent_at - renamed_at >= REOPEN_CHECK_INTERVAL:
+                                self.fail(
+                                    f"worker {worker_pid} still wrote to the rotated file {sent_at - renamed_at:.2f}s "
+                                    f"after the rename; it must reopen within {REOPEN_CHECK_INTERVAL}s"
+                                )
                             time.sleep(0.02)
-                        else:
-                            self.fail(f"worker {worker_pid} did not reopen within 2.5 seconds")
 
                     post_tokens = [f"WEB_POST_{run_id}_{pid}" for pid in worker_states]
                     for worker_pid, token in zip(worker_states, post_tokens, strict=True):
