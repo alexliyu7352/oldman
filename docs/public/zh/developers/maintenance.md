@@ -96,6 +96,7 @@ type(scope): summary
 - `scope` 可选，写受影响的子系统，例如 `fix(web): ...`。
 - `summary` 原样进入发行说明，不改大小写：用小写开头，以命令名或函数名开头时照原样写，例如 `fix(db): loaddata reads back the float columns dumpdata wrote`。
 - 破坏性变更在类型后加 `!`（`feat(db)!: ...`），或在正文末尾写 `BREAKING CHANGE: ...` 脚注；这类条目排在发行说明最前面。
+- 依赖变化按使用者看到的效果选 `type`，不用 `build`：新增或去掉依赖、收紧或放宽版本范围、改动可选依赖组，都会改变使用者装到的东西，必须出现在发行说明里。按影响选 `feat`、`fix` 或 `refactor`；已有项目会因此装不上或要改代码时加 `!`，例如 `fix(db)!: require SQLAlchemy below 2.1`。`build` 只用于不改变安装结果的构建改动。
 - 正文不进发行说明，用来写原因和实现细节。
 - 不符合格式的标题仍会出现在 Other 分组里，不会被丢掉，但应当避免。
 
