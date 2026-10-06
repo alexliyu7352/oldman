@@ -150,6 +150,21 @@ class StartProjectInteractionTests(unittest.TestCase):
 
         self.assertEqual(generated, 16)
 
+    def test_startproject_and_startapp_point_coding_agents_to_agents_md(self) -> None:
+        """An agent that creates a project mid-session never loaded its AGENTS.md; both commands name it in their output."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            created = invoke_startproject(parent, "shop", ProjectType.API, DatabaseChoice.SQLITE)
+            self.assertEqual(0, created.exit_code, created.output)
+            self.assertIn(f"Coding agents: read {parent.resolve() / 'shop' / 'AGENTS.md'} before changing anything", created.output)
+
+            answers = {"OLDMAN_ANSWER_STARTAPP_TEMPLATE": "api", "OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME": "Orders"}
+            with working_directory(parent / "shop"):
+                app = CliRunner().invoke(scaffold_cli(), ["startapp", "orders"], env=answers)
+            self.assertEqual(0, app.exit_code, app.output)
+            self.assertIn("Coding agents: read", app.output)
+            self.assertIn("AGENTS.md before changing anything", app.output)
+
     def test_missing_database_answer_leaves_no_partial_project(self) -> None:
         """A Web project without a database answer stops before any file is copied."""
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -531,6 +531,11 @@ msgid "Created project at %(path)s"
 msgstr "已在 %(path)s 创建项目"
 
 #: oldman/cli/_main.py
+#, python-format
+msgid "Coding agents: read %(path)s before changing anything in this project."
+msgstr "编码 agent：修改本项目的任何内容之前，先阅读 %(path)s。"
+
+#: oldman/cli/_main.py
 msgid "Application name."
 msgstr "应用名称。"
 

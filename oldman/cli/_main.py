@@ -292,6 +292,14 @@ def _startproject_command(
     except (FileExistsError, ValueError) as exc:
         _exit_with_error(str(exc))
     typer.echo(gettext("Created project at %(path)s", path=target))
+    _point_agents_to_instructions(target)
+
+
+def _point_agents_to_instructions(project_root: Path) -> None:
+    """Tell a coding agent where this project's rules are: an agent that created the project mid-session has not loaded them."""
+    instructions = project_root / "AGENTS.md"
+    if instructions.is_file():
+        typer.echo(gettext("Coding agents: read %(path)s before changing anything in this project.", path=instructions))
 
 
 def _startapp_command(
@@ -315,6 +323,7 @@ def _startapp_command(
     typer.echo(
         gettext("Created app %(name)s", name=created.app_slug),
     )
+    _point_agents_to_instructions(created.project_root)
 
 
 def _startservice_command(
