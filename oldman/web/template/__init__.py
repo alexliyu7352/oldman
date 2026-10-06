@@ -20,7 +20,6 @@ from oldman.web.template.i18n_extension import I18nExtension
 from oldman.web.template_globals import template_globals
 
 _TEMPLATE_LOADERS_MARKER = "_oldman_template_loaders_installed"
-_SYNC_ENVIRONMENT_MARKER = "_oldman_sync_template_environment"
 _FRAMEWORK_LOADER_MARKER = "_oldman_framework_template_loader"
 
 #: Names starting with this and a colon (``framework:oldman/...``) are looked up only in the
@@ -131,18 +130,6 @@ def default_template_environment() -> Environment:
     return environment
 
 
-@lru_cache(maxsize=1)
-def sync_template_environment() -> Environment:
-    """Create sync component template environment."""
-    environment = Environment(
-        loader=build_template_loader(),
-        autoescape=select_autoescape(["html", "xml"]),
-        enable_async=False,
-    )
-    register_component_filters(environment)
-    return environment
-
-
 def site_name() -> str:
     """The site's name for templates (brand, error pages): `core.site_name`, or `core.app_name` when unset."""
     return conf.settings.core.resolved_site_name()
@@ -199,25 +186,6 @@ async def render_fragment(request: Any, template_name: str, **context: Any) -> M
     return Markup(template.render(**context))
 
 
-def render_component_template_sync(owner: Any, template_name: str, context: dict[str, Any]) -> Markup:
-    """Render component template synchronously."""
-    environment = get_template_environment(owner)
-    if getattr(environment, "is_async", False):
-        environment = sync_component_environment(environment)
-    template = environment.get_template(template_name)
-    return Markup(template.render(**context))
-
-
-def sync_component_environment(environment: Environment) -> Environment:
-    """Return a sync overlay retaining one configured app environment."""
-    cached = getattr(environment, _SYNC_ENVIRONMENT_MARKER, None)
-    if not isinstance(cached, Environment) or getattr(cached, "linked_to", None) is not environment:
-        cached = environment.overlay(bytecode_cache=None)
-        cached.is_async = False
-        setattr(environment, _SYNC_ENVIRONMENT_MARKER, cached)
-    return cached
-
-
 __all__ = [
     "FRAMEWORK_TEMPLATE_PREFIX",
     "I18nExtension",
@@ -230,9 +198,7 @@ __all__ = [
     "register_component_filters",
     "render_template",
     "render_component_template",
-    "render_component_template_sync",
     "render_fragment",
     "site_name",
-    "sync_template_environment",
     "template_globals",
 ]

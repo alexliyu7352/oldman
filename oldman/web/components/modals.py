@@ -7,7 +7,7 @@ from typing import Any
 from markupsafe import Markup
 
 from oldman.i18n import gettext_lazy as _
-from oldman.web.template import render_component_template_sync, render_fragment
+from oldman.web.template import render_fragment
 
 MODAL_FRAGMENT_TEMPLATE = "oldman/dashboard/components/modal_fragment.html"
 
@@ -43,13 +43,11 @@ def modal_fragment_context(
 
 
 async def render_modal(request: Any, **options: Any) -> Markup:
-    """Render one Modal through the request's environment; options are `modal_fragment_context`'s."""
+    """Render one Modal through the request's environment; options are `modal_fragment_context`'s.
+
+    A table cell that carries a Modal renders it from an `async def` column callback, which receives the request.
+    """
     return await render_fragment(request, MODAL_FRAGMENT_TEMPLATE, **modal_fragment_context(**options))
 
 
-def render_modal_sync(owner: Any, **options: Any) -> Markup:
-    """Render one Modal from a synchronous context (a table cell callback); same options."""
-    return render_component_template_sync(owner, MODAL_FRAGMENT_TEMPLATE, modal_fragment_context(**options))
-
-
-__all__ = ["MODAL_FRAGMENT_TEMPLATE", "modal_fragment_context", "render_modal", "render_modal_sync"]
+__all__ = ["MODAL_FRAGMENT_TEMPLATE", "modal_fragment_context", "render_modal"]

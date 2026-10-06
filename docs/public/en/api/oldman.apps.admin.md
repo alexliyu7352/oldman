@@ -307,7 +307,7 @@ Members:
 - `async def render_permission_denied_response(request: Any, message: str | None=None)` — Preserve the Admin site's authentication and permission response.
 - `async def get_queryset()` — Return the registered model query consumed by SQLAlchemyTableView.
 - `async def apply_filters(query: Any, /, table_request: Any)` — Reject filters outside this Table adapter's private allowlist.
-- `def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — Keep ModelAdmin display formatting while sharing the table renderer.
+- `async def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — Keep ModelAdmin display formatting while sharing the table renderer.
 - `def get_column_action_data(row: object, **_: object) -> Markup` — Render ModelAdmin row actions through the shared Table callback.
 - `def get_row_id(row: object) -> object` — Use the registered model primary key, including non-id user keys.
 

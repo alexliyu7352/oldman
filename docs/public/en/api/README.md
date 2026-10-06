@@ -45,7 +45,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.web.api`](oldman.web.api.md) | 24 | Public browser response protocol. |
 | [`oldman.web.auth`](oldman.web.auth.md) | 72 | Public Web authentication adapters. |
 | [`oldman.web.authentication`](oldman.web.authentication.md) | 39 | Request authentication: who is calling, and how they proved it. |
-| [`oldman.web.components`](oldman.web.components.md) | 5 | @author:alex |
+| [`oldman.web.components`](oldman.web.components.md) | 4 | @author:alex |
 | [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | 后端 Chart 组件封装入口。 |
 | [`oldman.web.components.forms`](oldman.web.components.forms.md) | 46 | 后端 Form 组件包入口。 |
 | [`oldman.web.components.selects`](oldman.web.components.selects.md) | 13 | Oldman 后端 Select/Autocomplete 组件入口。 |
@@ -60,5 +60,5 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.web.session`](oldman.web.session.md) | 5 | Public Web session extension and typed request accessor. |
 | [`oldman.web.sse`](oldman.web.sse.md) | 18 | Server-Sent Events support. |
 | [`oldman.web.staticfiles`](oldman.web.staticfiles.md) | 19 | Static asset bundle registry. |
-| [`oldman.web.template`](oldman.web.template.md) | 16 | Template integration. |
+| [`oldman.web.template`](oldman.web.template.md) | 14 | Template integration. |
 | [`oldman.web.websocket`](oldman.web.websocket.md) | 2 | WebSocket routing and connection protocol. |

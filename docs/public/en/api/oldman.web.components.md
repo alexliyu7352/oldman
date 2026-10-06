@@ -16,16 +16,6 @@ async def render_modal(request: Any, **options: Any) -> Markup
 
 Render one Modal through the request's environment; options are `modal_fragment_context`'s.
 
-## `render_modal_sync`
-
-function · defined in `oldman.web.components.modals`
-
-```python
-def render_modal_sync(owner: Any, **options: Any) -> Markup
-```
-
-Render one Modal from a synchronous context (a table cell callback); same options.
-
 ## Module `oldman.web.components.data_endpoint`
 
 The data endpoint URL a component's shell points its frontend at.

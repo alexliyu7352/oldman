@@ -119,11 +119,22 @@ SQLAlchemyTableView 在一个只读 Session 内查询和渲染，顺序为：
 
 - name 是稳定的前端列名；label 只负责展示，可翻译。
 - 未指定 field_path 时使用 name；指定 None 表示虚拟列，默认不排序/搜索。
-- callback 可指定同步方法；否则字段列查找 `get_column_<字段路径>_data`，点号变下划线。
+- callback 指定方法名，普通方法或 `async def` 都可以；否则字段列查找 `get_column_<字段路径>_data`，点号变下划线。
 - `unsortable_columns` 关闭列排序；`search_fields` 是明确的数据库字段搜索清单。
 - 回调会收到 row 以及 column、field_path、default_value、row_context、行列序号、table、request 等关键字参数；不需要的参数可用 `**kwargs` 接受。
 
 显示回调可以返回普通值，或 `(显示值, raw_value)`。普通字符串会 HTML 转义；可信 HTML 返回 Markup，用户输入先转义。回调只改显示，不自动改变 SQL 排序规则。
+
+回调要查数据库或渲染模板片段时写成 `async def`。SQLAlchemy 表格在同一个只读会话里完成查询和渲染，回调里用 `self.require_db_session()` 读；单元格按行、按列依次计算，不并发，所以共用这一个会话是安全的。下面的 `select`、`func` 来自 sqlalchemy，`badge` 来自 `oldman.web.components.tables`：
+
+```python
+    async def get_column_programmes_data(self, row: Channel, **kwargs: object):
+        count_query = select(func.count()).select_from(Programme).where(Programme.channel_id == row.id)
+        count = (await self.require_db_session().execute(count_query)).scalar_one()
+        return badge(str(count), tone="primary"), count
+```
+
+每个单元格各查一次，一页 50 行就是 50 次查询。每一行都要的数据放进 `build_row_contexts()` 一次查完，回调从 `row_context` 取；回调里查库适合按需、少量的情况。单元格里要带一个 Modal 时，同样在异步回调里 `await render_modal(request, ...)`，`request` 就在回调的关键字参数里（见[前端的 Modal 一节](frontend.md#modal-只是容器)）。
 
 ExampleProjectTable 中的名称列正好展示了这个边界。Markup、escape 均来自 markupsafe：
 

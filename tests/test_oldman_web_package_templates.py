@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +17,7 @@ from oldman.web.template import (
     build_template_loader,
     framework_template_dirs,
     install_template_loaders,
-    render_component_template_sync,
+    render_component_template,
     template_globals,
 )
 
@@ -186,8 +187,8 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
             self.assertEqual((package_template_dir(), admin_template_dir()), framework_template_dirs(environment))
             self.assertIsNotNone(environment.get_template("framework:admin/login.html"))
 
-    def test_sync_component_rendering_preserves_async_app_environment(self) -> None:
-        """Sync component fragments must retain an async app's loader and customizations."""
+    def test_component_rendering_uses_the_async_app_environment(self) -> None:
+        """Component fragments render in the app's own async environment, with its loader and customizations."""
 
         def suffix(value: object) -> str:
             return f"{value}-FILTER"
@@ -201,7 +202,7 @@ class OldmanWebPackageTemplatesTest(unittest.TestCase):
         environment.filters["app_filter"] = suffix
         owner = SimpleNamespace(request=SimpleNamespace(app=SimpleNamespace(ext=SimpleNamespace(environment=environment))))
 
-        rendered = render_component_template_sync(owner, "only-app.html", {})
+        rendered = asyncio.run(render_component_template(owner, "only-app.html", {}))
 
         self.assertEqual("CUSTOM-FILTER EXT", rendered)
 

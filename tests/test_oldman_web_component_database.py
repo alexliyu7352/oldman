@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, cast
 
-from sqlalchemy import ForeignKey, Integer, String, select
+from markupsafe import Markup
+from sqlalchemy import ForeignKey, Integer, String, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
 
 from oldman.conf.schemas import DatabaseConfig
@@ -47,14 +49,14 @@ class FakeDatabaseManager:
         return self.context
 
 
-def make_request() -> Any:
+def make_request(*, args: dict[str, str] | None = None, accept: str = "application/json") -> Any:
     """构造 Table 直接调用所需的最小请求对象。"""
     return type(
         "RequestStub",
         (),
         {
-            "args": {},
-            "headers": {"accept": "application/json"},
+            "args": dict(args or {}),
+            "headers": {"accept": accept},
         },
     )()
 
@@ -154,7 +156,7 @@ class TableSessionLifecycleTest(unittest.TestCase):
                 self.record("preload_record_data")
                 return {}
 
-            def render_json_payload(self, table_request: Any, result: Any) -> Any:
+            async def render_json_payload(self, table_request: Any, result: Any) -> Any:
                 self.record("render_json_payload")
                 return {"rows": []}
 
@@ -230,6 +232,76 @@ class TableSessionLifecycleTest(unittest.TestCase):
         self.assertEqual(200, response.status)
         self.assertIn(b"BBC One", response.body)
         self.assertIn(b"CNN", response.body)
+
+
+class AsyncColumnCallbackTest(unittest.TestCase):
+    """A column callback may be a coroutine; it runs while the request's read session is still open."""
+
+    def test_an_async_callback_reads_the_table_session_in_html_json_and_csv(self) -> None:
+        class LocalBase(DeclarativeBase):
+            pass
+
+        class Channel(LocalBase):
+            __tablename__ = "async_cell_channel"
+
+            id: Mapped[int] = mapped_column(Integer, primary_key=True)
+            name: Mapped[str] = mapped_column(String)
+
+        class Programme(LocalBase):
+            __tablename__ = "async_cell_programme"
+
+            id: Mapped[int] = mapped_column(Integer, primary_key=True)
+            channel_id: Mapped[int] = mapped_column(ForeignKey("async_cell_channel.id"))
+
+        async def scenario(database_path: Path) -> list[Any]:
+            manager = DatabaseManager(DatabaseConfig(url=f"sqlite+aiosqlite:///{database_path.as_posix()}", echo=False))
+
+            class ChannelTable(SQLAlchemyTableView):
+                database_manager = manager
+                model = Channel
+                ordering = ("name",)
+                export_formats = ("csv",)
+                columns = (
+                    Column("name", "Channel", field_path="name"),
+                    Column("programmes", "Programmes", callback="get_column_programmes_data", type="number"),
+                )
+
+                async def get_queryset(self) -> Any:
+                    return select(Channel)
+
+                async def get_column_programmes_data(self, row: Channel, **kwargs: object) -> tuple[Markup, int]:
+                    count_query = select(func.count()).select_from(Programme).where(Programme.channel_id == row.id)
+                    count = int((await self.require_db_session().execute(count_query)).scalar_one())
+                    return Markup("<b>{} programmes</b>").format(count), count
+
+            try:
+                await manager.initialize()
+                async with manager.engine.begin() as connection:
+                    await connection.run_sync(LocalBase.metadata.create_all)
+                async with manager.get_session() as session:
+                    session.add_all([Channel(id=1, name="BBC One"), Channel(id=2, name="CNN")])
+                    session.add_all([Programme(id=1, channel_id=1), Programme(id=2, channel_id=1), Programme(id=3, channel_id=2)])
+                return [
+                    await ChannelTable().get(make_request(accept="text/html")),
+                    await ChannelTable().get(make_request()),
+                    await ChannelTable().get(make_request(args={"export": "csv"})),
+                ]
+            finally:
+                await manager.close()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            html, data, csv = asyncio.run(scenario(Path(temp_dir) / "table.sqlite3"))
+
+        self.assertEqual((200, 200, 200), (html.status, data.status, csv.status))
+        self.assertIn(b"<b>2 programmes</b>", html.body)
+        self.assertIn(b"<b>1 programmes</b>", html.body)
+        payload = json.loads(data.body)
+        rows = (payload.get("data") or payload)["rows"]
+        self.assertEqual(
+            [("BBC One", "<b>2 programmes</b>", 2), ("CNN", "<b>1 programmes</b>", 1)],
+            [(row["cells"]["name"], row["cells"]["programmes"], row["raw_values"]["programmes"]) for row in rows],
+        )
+        self.assertEqual(["Channel,Programmes", "BBC One,2", "CNN,1"], csv.body.decode("utf-8-sig").splitlines())
 
 
 if __name__ == "__main__":

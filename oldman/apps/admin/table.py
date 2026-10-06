@@ -102,7 +102,7 @@ class AdminModelTable(SQLAlchemyTableView):
                 raise TableInvalidRequest(f"Unknown table filter: {name}")
         return await super().apply_filters(query, table_request)
 
-    def get_cell_values(
+    async def get_cell_values(
         self,
         row: object,
         column: Column,
@@ -113,7 +113,7 @@ class AdminModelTable(SQLAlchemyTableView):
         request: Any,
     ) -> tuple[CellDisplayValue, CellRawValue]:
         """Keep ModelAdmin display formatting while sharing the table renderer."""
-        display_value, raw_value = super().get_cell_values(
+        display_value, raw_value = await super().get_cell_values(
             row,
             column,
             context,

@@ -70,28 +70,28 @@ Members:
 - `async def preload_record_data(row: object) -> dict[str, object]` — 预加载当前行多个列共享的派生数据。
 - `async def build_row_contexts(rows: Sequence[object]) -> list[Mapping[str, object]]` — Render context for every row of a page or an export; override to load extra data for all rows in one query.
 - `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — 渲染 HTML Table 局部片段。
-- `def render_html_head() -> str` — 渲染带列 metadata 的表头。
+- `async def render_html_head() -> str` — 渲染带列 metadata 的表头。
 - `async def render_error_fragment(message: str) -> str` — 渲染表格错误局部片段。
 - `async def render_request_error_response(request: Any, message: str, *, status: int)` — 按请求头把表格请求错误转换为局部 HTML 或 JSON。
 - `async def render_permission_denied_response(request: Any, message: str | None=None)` — 按请求头把表格权限错误转换为局部 HTML 或 JSON;没给消息时用通用的「没有权限」。
 - `async def on_permission_denied(request: Any, response_mode: str, *, message: str, method_name: str)` — endpoint 级权限失败复用表格局部错误协议,并带上 check_permission 给的消息(与图表、HTTPMethodView 一致)。
-- `def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str` — 渲染 HTML Table 单行。
-- `def render_html_summary(result: TableResult) -> str` — 渲染表格总数摘要。
-- `def render_html_pagination(result: TableResult) -> str` — 渲染服务端分页按钮。
+- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str` — 渲染 HTML Table 单行。
+- `async def render_html_summary(result: TableResult) -> str` — 渲染表格总数摘要。
+- `async def render_html_pagination(result: TableResult) -> str` — 渲染服务端分页按钮。
 - `def pagination_window(current_page: int, page_count: int) -> list[int]` — 返回分页窗口页码，避免大结果集输出过多按钮撑开页面。
-- `def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — 渲染 HTML Table 单元格。
-- `def render_json_payload(table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload` — 渲染 JSON Table 协议 payload。
+- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — 渲染 HTML Table 单元格。
+- `async def render_json_payload(table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload` — 渲染 JSON Table 协议 payload。
 - `def resolve_export_format(request: Any) -> str` — Return the requested export format (`?export=csv`), lowercase, or an empty string.
 - `def supported_export_formats() -> set[str]` — Return the declared export formats as lowercase names.
 - `def export_filename(export_format: str) -> str` — Return the download name: route name (or `table`) plus today's date.
-- `def render_export_response(export_format: str, table_request: TableRequest, result: TableResult[Any])` — Dispatch a declared export format to its renderer.
-- `def render_csv_response(table_request: TableRequest, result: TableResult[Any])` — Write the exportable columns as UTF-8 CSV with a BOM so spreadsheets open it correctly.
-- `def export_cell_value(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — Numbers and booleans export their raw value; everything else exports the text the user sees.
+- `async def render_export_response(export_format: str, table_request: TableRequest, result: TableResult[Any])` — Dispatch a declared export format to its renderer.
+- `async def render_csv_response(table_request: TableRequest, result: TableResult[Any])` — Write the exportable columns as UTF-8 CSV with a BOM so spreadsheets open it correctly.
+- `async def export_cell_value(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — Numbers and booleans export their raw value; everything else exports the text the user sees.
 - `def get_row_data(row: object) -> dict[str, object]` — 返回安全的行级前端元数据。
 - `def get_row_id(row: object) -> object` — Return the configured stable identity for one structured row.
-- `def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — 读取单元格显示值和 raw 值。
-- `def resolve_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue, bool]` — Like get_cell_values, plus whether the callback supplied the raw value itself (a `(display, raw)` tuple).
-- `def call_column_callback(row: object, column: Column, context: Mapping[str, object], default_value: object, *, row_index: int, column_index: int, request: Any) -> CellReturnValue` — 调用列回调或返回默认字段值。
+- `async def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — 读取单元格显示值和 raw 值。
+- `async def resolve_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue, bool]` — Like get_cell_values, plus whether the callback supplied the raw value itself (a `(display, raw)` tuple).
+- `async def call_column_callback(row: object, column: Column, context: Mapping[str, object], default_value: object, *, row_index: int, column_index: int, request: Any) -> CellReturnValue` — Call the column's callback, or return the field value when it has none.
 - `def resolve_response_type(request: Any) -> str` — 根据 response_mode 参数优先、Accept 兜底判断响应类型。
 
 ## `CellDisplayValue`
@@ -316,22 +316,22 @@ Members:
 
 - `def template_name(name: str) -> str` — 返回当前 renderer 使用的模板路径。
 - `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None) -> Markup` — 渲染表格外壳。
-- `def render_empty_state(*, filtered: bool) -> Markup` — Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything.
-- `def render_empty_templates() -> Markup` — Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser.
-- `def render_toolbar(*, show_search: bool=True, bulk_actions_html: Markup | str | None=None) -> Markup` — Render the table toolbar; empty output when nothing would appear in it.
+- `async def render_empty_state(*, filtered: bool) -> Markup` — Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything.
+- `async def render_empty_templates() -> Markup` — Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser.
+- `async def render_toolbar(*, show_search: bool=True, bulk_actions_html: Markup | str | None=None) -> Markup` — Render the table toolbar; empty output when nothing would appear in it.
 - `def toolbar_tools() -> list[str]` — Return the enabled toolbar tools in declared order.
 - `def export_formats() -> list[str]` — Return the declared export formats as lowercase names.
 - `staticmethod def column_is_hideable(column: Column) -> bool` — The row-action column is never hideable; other columns follow their own flag.
 - `def shell_attrs(route_kwargs: dict[str, object], *, html_id: str | None, data_format: Literal['html', 'json']='html') -> dict[str, object]` — 生成表格外层容器属性。
-- `def render_initial_fragment(*, data_format: Literal['html', 'json']='html') -> Markup` — 渲染远程表格首屏占位片段，避免数据到达前出现空白区域。
+- `async def render_initial_fragment(*, data_format: Literal['html', 'json']='html') -> Markup` — 渲染远程表格首屏占位片段，避免数据到达前出现空白区域。
 - `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — 渲染 HTML Table 局部片段。
 - `def resolve_page_size_options(*, current_page_size: int | None=None) -> list[str]` — Return stable page-size choices even if the request view instance shadows defaults.
-- `def render_html_head() -> Markup` — 渲染带列 metadata 的表头。
-- `def render_error_fragment(message: str) -> Markup` — 渲染表格错误局部片段。
-- `def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup` — 渲染 HTML Table 单行。
-- `def render_html_summary(result: TableResult) -> Markup` — 渲染表格总数摘要。
-- `def render_html_pagination(result: TableResult) -> Markup` — 渲染服务端分页按钮。
-- `def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> Markup` — 渲染 HTML Table 单元格。
+- `async def render_html_head() -> Markup` — 渲染带列 metadata 的表头。
+- `async def render_error_fragment(message: str) -> Markup` — 渲染表格错误局部片段。
+- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup` — 渲染 HTML Table 单行。
+- `async def render_html_summary(result: TableResult) -> Markup` — 渲染表格总数摘要。
+- `async def render_html_pagination(result: TableResult) -> Markup` — 渲染服务端分页按钮。
+- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> Markup` — 渲染 HTML Table 单元格。
 
 ## `TableRequest`
 

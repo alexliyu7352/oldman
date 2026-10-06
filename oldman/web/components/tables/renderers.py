@@ -8,10 +8,7 @@ from typing import Any, Literal, cast
 from markupsafe import Markup, escape
 
 from oldman.i18n import gettext_lazy
-from oldman.web.template import (
-    render_component_template,
-    render_component_template_sync,
-)
+from oldman.web.template import render_component_template
 
 from .cells import render_display_value
 from .columns import Column
@@ -54,15 +51,15 @@ class TableRenderer:
             self.template_name("shell.html"),
             {
                 "attrs": attrs,
-                "empty_templates_html": self.render_empty_templates() if data_format == "json" else Markup(""),
-                "initial_fragment_html": self.render_initial_fragment(data_format=data_format),
-                "toolbar_html": self.render_toolbar(show_search=show_search, bulk_actions_html=bulk_actions_html),
+                "empty_templates_html": await self.render_empty_templates() if data_format == "json" else Markup(""),
+                "initial_fragment_html": await self.render_initial_fragment(data_format=data_format),
+                "toolbar_html": await self.render_toolbar(show_search=show_search, bulk_actions_html=bulk_actions_html),
             },
         )
 
-    def render_empty_state(self, *, filtered: bool) -> Markup:
+    async def render_empty_state(self, *, filtered: bool) -> Markup:
         """Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything."""
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("empty.html"),
             {
@@ -72,16 +69,17 @@ class TableRenderer:
             },
         )
 
-    def render_empty_templates(self) -> Markup:
+    async def render_empty_templates(self) -> Markup:
         """Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser."""
-        return Markup("").join(
+        templates = [
             Markup('<template data-om-table-empty-template="{name}">{body}</template>').format(
-                name=name, body=self.render_empty_state(filtered=filtered)
+                name=name, body=await self.render_empty_state(filtered=filtered)
             )
             for name, filtered in (("all", False), ("filtered", True))
-        )
+        ]
+        return Markup("").join(templates)
 
-    def render_toolbar(self, *, show_search: bool = True, bulk_actions_html: Markup | str | None = None) -> Markup:
+    async def render_toolbar(self, *, show_search: bool = True, bulk_actions_html: Markup | str | None = None) -> Markup:
         """Render the table toolbar; empty output when nothing would appear in it."""
         tools = self.toolbar_tools()
         bulk_actions = Markup(bulk_actions_html) if bulk_actions_html else Markup("")
@@ -89,7 +87,7 @@ class TableRenderer:
         if not (show_search or tools or selectable or bulk_actions):
             return Markup("")
         export_formats = [{"name": name, "label": _EXPORT_FORMAT_LABELS.get(name, name.upper())} for name in self.export_formats()]
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("toolbar.html"),
             {
@@ -160,7 +158,7 @@ class TableRenderer:
             attrs[f"data-om-filter-{to_kebab_case(str(name))}"] = value
         return attrs
 
-    def render_initial_fragment(self, *, data_format: Literal["html", "json"] = "html") -> Markup:
+    async def render_initial_fragment(self, *, data_format: Literal["html", "json"] = "html") -> Markup:
         """渲染远程表格首屏占位片段，避免数据到达前出现空白区域。"""
         page_size = self.table.initial_page_size or self.table.page_size
         initial_result = TableResult(
@@ -172,18 +170,18 @@ class TableRenderer:
             page_size=page_size,
         )
         show_footer = data_format == "json"
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("fragment.html"),
             {
                 "columns": self.table.get_columns(),
                 "current_page_size": str(page_size),
-                "empty_html": self.render_empty_state(filtered=False),
-                "head_html": self.render_html_head(),
+                "empty_html": await self.render_empty_state(filtered=False),
+                "head_html": await self.render_html_head(),
                 "loading": True,
                 "loading_message": _LOADING_MESSAGE,
                 "page_size_options": self.resolve_page_size_options(),
-                "pagination_html": self.render_html_pagination(initial_result) if show_footer else Markup(""),
+                "pagination_html": await self.render_html_pagination(initial_result) if show_footer else Markup(""),
                 "partial_attrs": {
                     "data-om-table-partial": True,
                     "data-om-initial-table-partial": True,
@@ -191,31 +189,33 @@ class TableRenderer:
                 "rows": [],
                 "selectable": self.table.selectable,
                 "show_footer": show_footer,
-                "summary_html": self.render_html_summary(initial_result) if show_footer else Markup(""),
+                "summary_html": await self.render_html_summary(initial_result) if show_footer else Markup(""),
             },
         )
 
     async def render_html_fragment(self, table_request: TableRequest, result: TableResult) -> Markup:
         """渲染 HTML Table 局部片段。"""
+        # One row after another: a column callback may query the table's database session, which runs one
+        # statement at a time.
         rows = [
-            self.render_html_row(row, context, row_index=index, request=table_request.request)
+            await self.render_html_row(row, context, row_index=index, request=table_request.request)
             for index, (row, context) in enumerate(zip(result.rows, result.row_contexts, strict=True))
         ]
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("fragment.html"),
             {
                 "columns": self.table.get_columns(),
-                "empty_html": self.render_empty_state(filtered=result.filtered_total < result.total),
-                "head_html": self.render_html_head(),
-                "pagination_html": self.render_html_pagination(result),
+                "empty_html": await self.render_empty_state(filtered=result.filtered_total < result.total),
+                "head_html": await self.render_html_head(),
+                "pagination_html": await self.render_html_pagination(result),
                 "current_page_size": str(result.page_size),
                 "page_size_options": self.resolve_page_size_options(current_page_size=result.page_size),
                 "partial_attrs": {"data-om-table-partial": True},
                 "rows": rows,
                 "selectable": self.table.selectable,
                 "show_footer": True,
-                "summary_html": self.render_html_summary(result),
+                "summary_html": await self.render_html_summary(result),
             },
         )
 
@@ -258,7 +258,7 @@ class TableRenderer:
 
         return [str(option) for option in options]
 
-    def render_html_head(self) -> Markup:
+    async def render_html_head(self) -> Markup:
         """渲染带列 metadata 的表头。"""
         header_cells = []
         for column in self.table.get_columns():
@@ -276,7 +276,7 @@ class TableRenderer:
                     "label": label,
                 }
             )
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("head.html"),
             {
@@ -285,18 +285,18 @@ class TableRenderer:
             },
         )
 
-    def render_error_fragment(self, message: str) -> Markup:
+    async def render_error_fragment(self, message: str) -> Markup:
         """渲染表格错误局部片段。"""
-        return render_component_template_sync(self.table, self.template_name("error.html"), {"message": message})
+        return await render_component_template(self.table, self.template_name("error.html"), {"message": message})
 
-    def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup:
+    async def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup:
         """渲染 HTML Table 单行。"""
         cells = [
-            self.render_html_cell(row, column, context, row_index=row_index, column_index=index, request=request)
+            await self.render_html_cell(row, column, context, row_index=row_index, column_index=index, request=request)
             for index, column in enumerate(self.table.get_columns())
         ]
         row_id = self.table.get_row_id(row)
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("row.html"),
             {
@@ -306,15 +306,15 @@ class TableRenderer:
             },
         )
 
-    def render_html_summary(self, result: TableResult) -> Markup:
+    async def render_html_summary(self, result: TableResult) -> Markup:
         """渲染表格总数摘要。"""
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("summary.html"),
             {"result": result},
         )
 
-    def render_html_pagination(self, result: TableResult) -> Markup:
+    async def render_html_pagination(self, result: TableResult) -> Markup:
         """渲染服务端分页按钮。"""
         page_count = max(1, (result.filtered_total + result.page_size - 1) // result.page_size)
         pages = []
@@ -325,7 +325,7 @@ class TableRenderer:
                     pages.append({"ellipsis": True})
                 pages.append({"ellipsis": False, "active": page == result.page, "page": page})
                 previous_page = page
-        return render_component_template_sync(
+        return await render_component_template(
             self.table,
             self.template_name("pagination.html"),
             {
@@ -337,12 +337,14 @@ class TableRenderer:
             },
         )
 
-    def render_html_cell(
+    async def render_html_cell(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> Markup:
         """渲染 HTML Table 单元格。"""
-        display_value, raw_value = self.table.get_cell_values(row, column, context, row_index=row_index, column_index=column_index, request=request)
-        return render_component_template_sync(
+        display_value, raw_value = await self.table.get_cell_values(
+            row, column, context, row_index=row_index, column_index=column_index, request=request
+        )
+        return await render_component_template(
             self.table,
             self.template_name("cell.html"),
             {

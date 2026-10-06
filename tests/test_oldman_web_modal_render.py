@@ -11,7 +11,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
 
-from oldman.web.components import render_modal, render_modal_sync
+from oldman.web.components import render_modal
 from oldman.web.template import template_globals
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "oldman" / "web" / "templates"
@@ -38,8 +38,8 @@ OPTIONS: dict[str, Any] = {
 
 
 class ModalRenderTest(unittest.TestCase):
-    def test_sync_render_embeds_an_unmanaged_visible_modal(self) -> None:
-        html = str(render_modal_sync(make_owner(is_async=True), **OPTIONS))
+    def test_render_embeds_an_unmanaged_visible_modal(self) -> None:
+        html = str(asyncio.run(render_modal(make_owner(is_async=True), **OPTIONS)))
 
         self.assertIn('id="evidence-7"', html)
         self.assertIn('data-om-component="modal"', html)
@@ -49,12 +49,6 @@ class ModalRenderTest(unittest.TestCase):
         # A fragment sitting in a table cell is opened by its trigger, not created by the manager.
         self.assertNotIn("data-om-modal-managed", html)
         self.assertNotIn("hidden>", html)
-
-    def test_async_render_matches_the_sync_one(self) -> None:
-        request = make_owner(is_async=True)
-        rendered = asyncio.run(render_modal(request, **OPTIONS))
-
-        self.assertEqual(str(render_modal_sync(request, **OPTIONS)), str(rendered))
 
     def test_the_default_close_label_is_translated(self) -> None:
         """默认值会进 aria-label，屏幕阅读器读到的不能永远是英文。"""
@@ -66,7 +60,7 @@ class ModalRenderTest(unittest.TestCase):
         self.assertEqual("Close", str(context["modal_close_label"]))
 
     def test_managed_and_hidden_are_opt_in(self) -> None:
-        html = str(render_modal_sync(make_owner(is_async=True), **OPTIONS, managed=True, hidden=True))
+        html = str(asyncio.run(render_modal(make_owner(is_async=True), **OPTIONS, managed=True, hidden=True)))
 
         self.assertIn('data-om-modal-managed="true"', html)
         # 精确匹配那个布尔属性：页面上恒定有 aria-hidden="true"，assertIn("hidden") 删掉模板里的

@@ -156,7 +156,7 @@ Demo 的 `templates/pages/examples/tables/dynamic.html` 通过 `table.render_she
 
 Demo 的 [tables/dynamic.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/tables/dynamic.html) 使用共享 `modal` 宏建立 `#example-project-modal`。按钮的 `data-om-modal-target` 指向它，`data-om-modal-url` 指向新建/编辑/删除视图。完整宏、GET 与提交源码见[教程](../users/tutorial-dashboard.md#4-modal-只负责装入内容)，不用另写一套 HTML 骨架。
 
-需要在 Python 里生成一个内嵌的 Modal（例如表格单元格里带出证据面板）时用 `oldman.web.components` 的 `await render_modal(request, modal_id=..., title=..., body=...)`，同步回调里用 `render_modal_sync(self, ...)`；参数就是宏的参数（`component`、`close_label`、`footer_close_label`、`dialog_class`、`managed`、`hidden`），不要手写 `modal_fragment.html` 的那一串 `modal_*` 变量名——拼错一个只会渲染出空壳。
+需要在 Python 里生成一个内嵌的 Modal（例如表格单元格里带出证据面板）时用 `oldman.web.components` 的 `await render_modal(request, modal_id=..., title=..., body=...)`；在表格单元格里用，就把列回调写成 `async def`，`request` 在回调的关键字参数里；参数就是宏的参数（`component`、`close_label`、`footer_close_label`、`dialog_class`、`managed`、`hidden`），不要手写 `modal_fragment.html` 的那一串 `modal_*` 变量名——拼错一个只会渲染出空壳。
 
 声明式远程加载使用 Modal parts JSON。通用 parts 有 title/body/footer；Demo 的 Dashboard Modal 实际接收 `{"title": "...", "html": "<form>..." }`，其中 html 装入内容区。它不是 ResponseAction JSON。后端不要自己拼这个 dict：`oldman.web.api.modal_response(title, html=...)` 或 `modal_response(title, body=..., footer=...)` 生成载荷，只读 modal 用 `close_label=_("Close")` 直接得到那一个关闭按钮，对象已经不存在时用 `modal_not_found_response(title, message)`（404 加一行灰字，浏览器手上的列表过期是正常情况，不是 500）。`loadParts(url)` 处理这种分部内容；需要真实 HTML HTTP 响应时使用 `loadContent(url)`，不要混淆两种方法。
 

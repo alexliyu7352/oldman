@@ -8,6 +8,7 @@ import io
 import re
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
+from inspect import isawaitable
 from typing import Any, Literal, TypedDict, cast
 
 from markupsafe import Markup, escape
@@ -203,9 +204,9 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         except TableValidationError as exc:
             return await self.render_request_error_response(request, str(exc), status=422)
         if export_format:
-            return self.render_export_response(export_format, table_request, result)
+            return await self.render_export_response(export_format, table_request, result)
         if self.resolve_response_type(request) == "json":
-            return json_response(self.render_json_payload(table_request, result))
+            return json_response(await self.render_json_payload(table_request, result))
         return html_response(await self.render_html_fragment(table_request, result))
 
     async def check_auth(self, table_request: TableRequest) -> bool:
@@ -350,13 +351,13 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         """渲染 HTML Table 局部片段。"""
         return await self.get_renderer().render_html_fragment(table_request, result)
 
-    def render_html_head(self) -> str:
+    async def render_html_head(self) -> str:
         """渲染带列 metadata 的表头。"""
-        return str(self.get_renderer().render_html_head())
+        return str(await self.get_renderer().render_html_head())
 
     async def render_error_fragment(self, message: str) -> str:
         """渲染表格错误局部片段。"""
-        return str(self.get_renderer().render_error_fragment(message))
+        return str(await self.get_renderer().render_error_fragment(message))
 
     async def render_request_error_response(self, request: Any, message: str, *, status: int):
         """按请求头把表格请求错误转换为局部 HTML 或 JSON。"""
@@ -386,17 +387,17 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         del response_mode, method_name
         return await self.render_permission_denied_response(request, message)
 
-    def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str:
+    async def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str:
         """渲染 HTML Table 单行。"""
-        return str(self.get_renderer().render_html_row(row, context, row_index=row_index, request=request))
+        return str(await self.get_renderer().render_html_row(row, context, row_index=row_index, request=request))
 
-    def render_html_summary(self, result: TableResult) -> str:
+    async def render_html_summary(self, result: TableResult) -> str:
         """渲染表格总数摘要。"""
-        return str(self.get_renderer().render_html_summary(result))
+        return str(await self.get_renderer().render_html_summary(result))
 
-    def render_html_pagination(self, result: TableResult) -> str:
+    async def render_html_pagination(self, result: TableResult) -> str:
         """渲染服务端分页按钮。"""
-        return str(self.get_renderer().render_html_pagination(result))
+        return str(await self.get_renderer().render_html_pagination(result))
 
     def pagination_window(self, current_page: int, page_count: int) -> list[int]:
         """返回分页窗口页码，避免大结果集输出过多按钮撑开页面。"""
@@ -413,11 +414,13 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             pages.update(range(max(1, page_count - 5), page_count + 1))
         return sorted(pages)
 
-    def render_html_cell(self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str:
+    async def render_html_cell(
+        self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
+    ) -> str:
         """渲染 HTML Table 单元格。"""
-        return str(self.get_renderer().render_html_cell(row, column, context, row_index=row_index, column_index=column_index, request=request))
+        return str(await self.get_renderer().render_html_cell(row, column, context, row_index=row_index, column_index=column_index, request=request))
 
-    def render_json_payload(self, table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload:
+    async def render_json_payload(self, table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload:
         """渲染 JSON Table 协议 payload。"""
         columns = self.get_columns()
         rows: list[TableRowPayload] = []
@@ -425,7 +428,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             cells: dict[str, object] = {}
             raw_values: dict[str, object] = {}
             for column_index, column in enumerate(columns):
-                display_value, raw_value = self.get_cell_values(
+                display_value, raw_value = await self.get_cell_values(
                     row, column, context, row_index=row_index, column_index=column_index, request=table_request.request
                 )
                 cells[column.name] = None if display_value is None else str(render_display_value(display_value))
@@ -465,13 +468,13 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         """Return the download name: route name (or `table`) plus today's date."""
         return f"{self.route_name or 'table'}-{dt.date.today().isoformat()}.{export_format}"
 
-    def render_export_response(self, export_format: str, table_request: TableRequest, result: TableResult[Any]):
+    async def render_export_response(self, export_format: str, table_request: TableRequest, result: TableResult[Any]):
         """Dispatch a declared export format to its renderer."""
         if export_format == "csv":
-            return self.render_csv_response(table_request, result)
+            return await self.render_csv_response(table_request, result)
         raise ValueError(f"No renderer for table export format {export_format!r}")
 
-    def render_csv_response(self, table_request: TableRequest, result: TableResult[Any]):
+    async def render_csv_response(self, table_request: TableRequest, result: TableResult[Any]):
         """Write the exportable columns as UTF-8 CSV with a BOM so spreadsheets open it correctly."""
         columns = [(index, column) for index, column in enumerate(self.get_columns()) if column_is_exportable(column)]
         buffer = io.StringIO()
@@ -481,7 +484,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             writer.writerow(
                 [
                     csv_safe_text(
-                        self.export_cell_value(row, column, context, row_index=row_index, column_index=index, request=table_request.request)
+                        await self.export_cell_value(row, column, context, row_index=row_index, column_index=index, request=table_request.request)
                     )
                     for index, column in columns
                 ]
@@ -493,7 +496,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             headers={"Content-Disposition": f'attachment; filename="{self.export_filename("csv")}"'},
         )
 
-    def export_cell_value(
+    async def export_cell_value(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> str:
         """Numbers and booleans export their raw value; everything else exports the text the user sees.
@@ -501,7 +504,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         A Markup cell whose callback also returned a raw text (`(markup, raw)`) exports that raw text: the
         markup is presentation (a link, a title plus description) and the raw value is the data behind it.
         """
-        display_value, raw_value, explicit_raw = self.resolve_cell_values(
+        display_value, raw_value, explicit_raw = await self.resolve_cell_values(
             row, column, context, row_index=row_index, column_index=column_index, request=request
         )
         if isinstance(raw_value, bool):
@@ -532,27 +535,27 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
             raise ValueError(f"Table row identity field {self.row_id_field!r} is missing")
         return normalize_raw_value(row_id)
 
-    def get_cell_values(
+    async def get_cell_values(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> tuple[CellDisplayValue, CellRawValue]:
         """读取单元格显示值和 raw 值。"""
-        display_value, raw_value, _explicit = self.resolve_cell_values(
+        display_value, raw_value, _explicit = await self.resolve_cell_values(
             row, column, context, row_index=row_index, column_index=column_index, request=request
         )
         return display_value, raw_value
 
-    def resolve_cell_values(
+    async def resolve_cell_values(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> tuple[CellDisplayValue, CellRawValue, bool]:
         """Like get_cell_values, plus whether the callback supplied the raw value itself (a `(display, raw)` tuple)."""
         default_value = resolve_field_path(row, str(column.field_path)) if column.field_path else None
-        value = self.call_column_callback(row, column, context, default_value, row_index=row_index, column_index=column_index, request=request)
+        value = await self.call_column_callback(row, column, context, default_value, row_index=row_index, column_index=column_index, request=request)
         if isinstance(value, tuple):
             display_value, raw_value = value
             return display_value, normalize_raw_value(raw_value), True
         return value, normalize_raw_value(default_value if column.field_path else None), False
 
-    def call_column_callback(
+    async def call_column_callback(
         self,
         row: object,
         column: Column,
@@ -563,11 +566,16 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         column_index: int,
         request: Any,
     ) -> CellReturnValue:
-        """调用列回调或返回默认字段值。"""
+        """Call the column's callback, or return the field value when it has none.
+
+        A callback may be a plain method or a coroutine (one that reads the table's database session, or
+        renders a fragment with `render_modal`); either way its value is returned. Cells are produced one
+        after another, never concurrently, so a callback may use the request's one session.
+        """
         callback = column.callback or callback_name_for_column(column) or f"get_column_{column_index}_data"
         method = getattr(self, callback, None) if callback else None
         if method is not None:
-            return method(
+            value = method(
                 row,
                 column=column,
                 field_path=column.field_path,
@@ -578,6 +586,7 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
                 table=self,
                 request=request,
             )
+            return await value if isawaitable(value) else value
         return normalize_display_value(default_value)
 
     def resolve_response_type(self, request: Any) -> str:

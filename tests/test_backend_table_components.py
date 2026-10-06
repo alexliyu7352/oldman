@@ -7,8 +7,10 @@ import json
 import unittest
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, Literal, cast
 
+from jinja2 import DictLoader, Environment
 from markupsafe import Markup
 from sqlalchemy import ForeignKey, Integer, String, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -17,6 +19,7 @@ from oldman.web.api.enums import ApiErrorCode
 from oldman.web.components.tables import BaseTableView, Column, SQLAlchemyTableView, TableRenderer, TableResult
 from oldman.web.components.tables.request import TableRequest
 from oldman.web.components.tables.views import TableInvalidRequest
+from oldman.web.template import template_globals
 
 
 @dataclass
@@ -343,7 +346,7 @@ class TableStructuredDataTest(unittest.TestCase):
         self.assertIn('<option value="5">5</option>', html)
 
     def test_head_offers_sort_controls_with_column_metadata(self) -> None:
-        html = str(DemoProgramTable().render_html_head())
+        html = str(asyncio.run(DemoProgramTable().render_html_head()))
 
         self.assertIn('class="sort sorting"', html)
         self.assertIn('data-om-table-sort="title"', html)
@@ -354,12 +357,38 @@ class TableStructuredDataTest(unittest.TestCase):
     def test_pagination_lists_only_a_window_of_pages_for_a_large_result(self) -> None:
         result = TableResult(rows=[], row_contexts=[], total=700, filtered_total=700, page=350, page_size=1)
 
-        html = DemoProgramTable().render_html_pagination(result)
+        html = asyncio.run(DemoProgramTable().render_html_pagination(result))
 
         self.assertIn('data-om-table-page="1"', html)
         self.assertIn('data-om-table-page="350"', html)
         self.assertIn('data-om-table-page="700"', html)
         self.assertLess(html.count("data-om-table-page="), 20)
+
+    def test_cell_templates_render_in_the_async_app_environment(self) -> None:
+        """Table templates use the app's own async environment, so an async template global in a cell is awaited."""
+
+        async def cell_note() -> str:
+            return "AWAITED"
+
+        environment = Environment(loader=DictLoader({"probe/cell.html": "<td>{{ cell_note() }}</td>"}), autoescape=True, enable_async=True)
+        template_globals(environment)["cell_note"] = cell_note
+
+        class ProbeRenderer(TableRenderer):
+            def template_name(self, name: str) -> str:
+                return "probe/cell.html" if name == "cell.html" else super().template_name(name)
+
+        class ProbeTable(DemoProgramTable):
+            renderer_class = ProbeRenderer
+
+        request = SimpleNamespace(args={}, headers={}, app=SimpleNamespace(ext=SimpleNamespace(environment=environment)))
+        table = ProbeTable()
+        table.request = request
+        table_request = table.build_table_request(request, route_kwargs={})
+        result = asyncio.run(table.query_result(table_request))
+        html = str(asyncio.run(table.render_html_fragment(table_request, result)))
+
+        self.assertIn("<td>AWAITED</td>", html)
+        self.assertNotIn("coroutine", html)
 
     def test_table_rendering_delegates_to_renderer_class(self) -> None:
         class MinimalRenderer(TableRenderer):
@@ -581,7 +610,7 @@ class TableStructuredDataTest(unittest.TestCase):
         result = asyncio.run(table.query_result(request))
 
         html = str(asyncio.run(table.render_html_fragment(request, result)))
-        payload = table.render_json_payload(request, result)
+        payload = asyncio.run(table.render_json_payload(request, result))
 
         self.assertIn("data-om-table-select-all", html)
         self.assertIn("data-om-table-select-row", html)
@@ -594,7 +623,7 @@ class TableStructuredDataTest(unittest.TestCase):
         result = asyncio.run(table.query_result(request))
 
         html = str(asyncio.run(table.render_html_fragment(request, result)))
-        payload = table.render_json_payload(request, result)
+        payload = asyncio.run(table.render_json_payload(request, result))
 
         self.assertIn('data-om-table-row-id="Alpha Show"', html)
         self.assertEqual("Alpha Show", payload["rows"][0]["data"]["id"])
@@ -603,7 +632,7 @@ class TableStructuredDataTest(unittest.TestCase):
         table = DemoProgramTable()
         request = table.build_table_request(make_request(headers={"accept": "application/json"}), route_kwargs={})
 
-        payload = table.render_json_payload(request, asyncio.run(table.query_result(request)))
+        payload = asyncio.run(table.render_json_payload(request, asyncio.run(table.query_result(request))))
 
         self.assertEqual("&lt;a href=&#34;/programmes/2&#34;&gt;Alpha Show&lt;/a&gt;", payload["rows"][0]["cells"]["title"])
         self.assertEqual("Alpha Show", payload["rows"][0]["raw_values"]["title"])
@@ -622,7 +651,7 @@ class TableStructuredDataTest(unittest.TestCase):
         table = StructuredRawTable()
         request = table.build_table_request(make_request(headers={"accept": "application/json"}), route_kwargs={})
 
-        payload = table.render_json_payload(request, asyncio.run(table.query_result(request)))
+        payload = asyncio.run(table.render_json_payload(request, asyncio.run(table.query_result(request))))
 
         self.assertIsInstance(payload["rows"][0]["raw_values"]["title"], str)
 

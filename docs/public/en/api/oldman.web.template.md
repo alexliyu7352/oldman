@@ -110,16 +110,6 @@ async def render_component_template(owner: Any, template_name: str, context: dic
 
 Render component template asynchronously when supported.
 
-## `render_component_template_sync`
-
-function · defined in `oldman.web.template`
-
-```python
-def render_component_template_sync(owner: Any, template_name: str, context: dict[str, Any]) -> Markup
-```
-
-Render component template synchronously.
-
 ## `render_fragment`
 
 function · defined in `oldman.web.template`
@@ -149,16 +139,6 @@ def site_name() -> str
 ```
 
 The site's name for templates (brand, error pages): `core.site_name`, or `core.app_name` when unset.
-
-## `sync_template_environment`
-
-function · defined in `oldman.web.template`
-
-```python
-def sync_template_environment() -> Environment
-```
-
-Create sync component template environment.
 
 ## `template_globals`
 
