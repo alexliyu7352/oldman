@@ -464,10 +464,10 @@ class WebApplication(BaseApplication):
             self.prepare_server(primary)
 
             settings = self.bootstrap_context.settings
-            logger.warning("Starting %s service", self.app_name)
-            logger.warning("Listening on %s", primary.serve_location)
-            logger.warning("Data directory: %s", settings.core.data_dir)
-            logger.warning("Logs directory: %s", settings.logging.dir)
+            logger.info("Starting %s service", self.app_name)
+            logger.info("Listening on %s", primary.serve_location)
+            logger.info("Data directory: %s", settings.core.data_dir)
+            logger.info("Logs directory: %s", settings.logging.dir)
             _fix_sanic_worker_manager()
             Sanic.serve(primary=primary, app_loader=loader)
         except Exception:

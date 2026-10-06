@@ -587,6 +587,10 @@ class OldmanLoggingWebRuntimeTest(unittest.TestCase):
         for workers in (1, 2):
             with self.subTest(workers=workers):
                 result = self._run_service(workers)
+                # The startup lines are information, not warnings, and the default level (INFO) still shows them.
+                console = result.stdout + result.stderr
+                self.assertRegex(console, r"\[INFO\] Listening on ")
+                self.assertNotIn("[WARNING] Listening on ", console)
                 self.assertTrue(result.state["owns_rotation"])
                 self.assertEqual(["oldman-log-rotation"], result.state["rotation_threads"])
                 self.assertIn("AtomicAppendFileHandler", result.state["handlers"])
