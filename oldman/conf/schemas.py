@@ -805,26 +805,28 @@ class TaskiqConfig(ConfigModel):
     nats_alias: str = Field(default="DEFAULT", min_length=1, description="Named NATS connection for task transport")
     redis_alias: str = Field(default="DEFAULT", min_length=1, description="Named Redis connection for results and schedules")
     consume_queues: list[str] = Field(
-        default_factory=lambda: ["default"], min_length=1, description="Queues sharing this service's execution processes"
+        default_factory=lambda: ["default"],
+        min_length=1,
+        description="Worker only, a web or API service ignores it: the queues this worker's execution processes consume",
     )
-    workers: int = Field(default=2, gt=0, description="Number of task execution processes")
-    max_async_tasks: int = Field(default=100, gt=0, description="Concurrent tasks per process, shared by all queues")
-    max_prefetch: int = Field(default=0, ge=0, description="Extra Receiver admission slots beyond max_async_tasks; zero adds none")
+    workers: int = Field(default=2, gt=0, description="Worker only: number of task execution processes")
+    max_async_tasks: int = Field(default=100, gt=0, description="Worker only: concurrent tasks per process, shared by all queues")
+    max_prefetch: int = Field(default=0, ge=0, description="Worker only: extra Receiver admission slots beyond max_async_tasks; zero adds none")
     startup_timeout: float = Field(default=30, gt=0, allow_inf_nan=False, description="Total seconds allowed for one initialization attempt")
     startup_attempts: int = Field(default=3, gt=0, description="Initial attempts per execution position, including the first")
     shutdown_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="Resource cleanup budget in seconds, after business work")
     stop_timeout: float = Field(default=60, gt=0, allow_inf_nan=False, description="Total service stop deadline before killing its process group")
     ack_wait: float = Field(
-        default=60, gt=0, allow_inf_nan=False, description="Consumer acknowledgement wait; renewal runs every third of this interval"
+        default=60, gt=0, allow_inf_nan=False, description="Worker only: consumer acknowledgement wait; renewal runs every third of this interval"
     )
     publish_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="One publish confirmation or broadcast flush timeout")
-    ack_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="One acknowledged completion timeout")
+    ack_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description="Worker only: one acknowledged completion timeout")
     duplicate_window: float = Field(default=120, gt=0, allow_inf_nan=False, description="Stream publish-deduplication window in seconds")
     result_ex_time: int = Field(default=86400, gt=0, description="Result retention in seconds from its write, not its last read")
     stream_max_bytes: int = Field(default=-1, description="Stream byte limit; -1 uses the server/account capacity")
     stream_replicas: Literal[1, 3, 5] = Field(default=1, description="JetStream replicas; the deployment must provide enough nodes")
-    max_ack_pending: int = Field(default=1000, gt=0, description="Unacknowledged tasks across all consumers of one queue")
-    schedule_update_interval: int = Field(default=5, gt=0, description="Seconds between native schedule-source refreshes")
+    max_ack_pending: int = Field(default=1000, gt=0, description="Worker only: unacknowledged tasks across all consumers of one queue")
+    schedule_update_interval: int = Field(default=5, gt=0, description="Scheduler only: seconds between native schedule-source refreshes")
 
     @field_validator("namespace")
     @classmethod

@@ -901,23 +901,23 @@ Members:
 - `namespace: str | None = Field(default=None, description='Shared task namespace; required when enabled')`
 - `nats_alias: str = Field(default='DEFAULT', min_length=1, description='Named NATS connection for task transport')`
 - `redis_alias: str = Field(default='DEFAULT', min_length=1, description='Named Redis connection for results and schedule…`
-- `consume_queues: list[str] = Field(default_factory=lambda: ['default'], min_length=1, description="Queues sharing this service's…`
-- `workers: int = Field(default=2, gt=0, description='Number of task execution processes')`
-- `max_async_tasks: int = Field(default=100, gt=0, description='Concurrent tasks per process, shared by all queues')`
-- `max_prefetch: int = Field(default=0, ge=0, description='Extra Receiver admission slots beyond max_async_tasks; zero add…`
+- `consume_queues: list[str] = Field(default_factory=lambda: ['default'], min_length=1, description="Worker only, a web or API ser…`
+- `workers: int = Field(default=2, gt=0, description='Worker only: number of task execution processes')`
+- `max_async_tasks: int = Field(default=100, gt=0, description='Worker only: concurrent tasks per process, shared by all queu…`
+- `max_prefetch: int = Field(default=0, ge=0, description='Worker only: extra Receiver admission slots beyond max_async_ta…`
 - `startup_timeout: float = Field(default=30, gt=0, allow_inf_nan=False, description='Total seconds allowed for one initializat…`
 - `startup_attempts: int = Field(default=3, gt=0, description='Initial attempts per execution position, including the first')`
 - `shutdown_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description='Resource cleanup budget in seconds, after …`
 - `stop_timeout: float = Field(default=60, gt=0, allow_inf_nan=False, description='Total service stop deadline before killin…`
-- `ack_wait: float = Field(default=60, gt=0, allow_inf_nan=False, description='Consumer acknowledgement wait; renewal ru…`
+- `ack_wait: float = Field(default=60, gt=0, allow_inf_nan=False, description='Worker only: consumer acknowledgement wai…`
 - `publish_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description='One publish confirmation or broadcast flus…`
-- `ack_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description='One acknowledged completion timeout')`
+- `ack_timeout: float = Field(default=5, gt=0, allow_inf_nan=False, description='Worker only: one acknowledged completion t…`
 - `duplicate_window: float = Field(default=120, gt=0, allow_inf_nan=False, description='Stream publish-deduplication window in s…`
 - `result_ex_time: int = Field(default=86400, gt=0, description='Result retention in seconds from its write, not its last re…`
 - `stream_max_bytes: int = Field(default=-1, description='Stream byte limit; -1 uses the server/account capacity')`
 - `stream_replicas: Literal[1, 3, 5] = Field(default=1, description='JetStream replicas; the deployment must provide enough nodes')`
-- `max_ack_pending: int = Field(default=1000, gt=0, description='Unacknowledged tasks across all consumers of one queue')`
-- `schedule_update_interval: int = Field(default=5, gt=0, description='Seconds between native schedule-source refreshes')`
+- `max_ack_pending: int = Field(default=1000, gt=0, description='Worker only: unacknowledged tasks across all consumers of on…`
+- `schedule_update_interval: int = Field(default=5, gt=0, description='Scheduler only: seconds between native schedule-source refreshe…`
 - `classmethod def validate_namespace(value: str | None) -> str | None` — An omitted disabled namespace is valid; supplied names are always checked.
 - `classmethod def validate_queues(values: list[str]) -> list[str]` — One subscription per queue; preserve the operator's exact queue names.
 - `def validate_limits() -> TaskiqConfig` — Check related values without contacting a task service.
