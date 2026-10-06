@@ -912,6 +912,10 @@ msgid "Generated %(app)s revision %(revision)s: %(path)s"
 msgstr "已產生 %(app)s 遷移版本 %(revision)s：%(path)s"
 
 #: oldman/cli/database.py
+msgid "Migration cancelled; nothing was applied."
+msgstr "已取消遷移，沒有執行任何遷移。"
+
+#: oldman/cli/database.py
 msgid "Recovered Oldman migration state."
 msgstr "已恢復 Oldman 遷移狀態。"
 
@@ -923,6 +927,13 @@ msgstr "已套用遷移版本：%(revisions)s"
 #: oldman/cli/database.py
 msgid "No pending migrations."
 msgstr "沒有待執行的遷移。"
+
+#: oldman/cli/database.py
+#, python-format
+msgid ""
+"Still without a migration: %(apps)s. Run db makemigrations for them, then"
+" db migrate."
+msgstr "以下 App 仍然沒有遷移：%(apps)s。先為它們執行 db makemigrations，再執行 db migrate。"
 
 #: oldman/cli/database.py
 msgid "No applied App can be downgraded."
@@ -1243,6 +1254,14 @@ msgid ""
 msgstr ""
 "資料庫裡沒有 Oldman 內部遷移狀態。庫中有 %(tables)s 張非內部資料表，原始碼中有 %(revisions)s "
 "個遷移版本。這是首次使用，還是狀態遺失了？"
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"%(apps)s have models but no migration yet. makemigrations can create one "
+"only after the other Apps' pending migrations are applied. Apply those "
+"now?"
+msgstr "%(apps)s 有模型但還沒有遷移。要先執行其他 App 待執行的遷移，makemigrations 才能為它產生遷移。現在執行嗎？"
 
 #: oldman/db/migrations/commands.py
 #, python-format

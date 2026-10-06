@@ -890,6 +890,10 @@ msgid "Generated %(app)s revision %(revision)s: %(path)s"
 msgstr ""
 
 #: oldman/cli/database.py
+msgid "Migration cancelled; nothing was applied."
+msgstr ""
+
+#: oldman/cli/database.py
 msgid "Recovered Oldman migration state."
 msgstr ""
 
@@ -900,6 +904,13 @@ msgstr ""
 
 #: oldman/cli/database.py
 msgid "No pending migrations."
+msgstr ""
+
+#: oldman/cli/database.py
+#, python-format
+msgid ""
+"Still without a migration: %(apps)s. Run db makemigrations for them, then"
+" db migrate."
 msgstr ""
 
 #: oldman/cli/database.py
@@ -1218,6 +1229,14 @@ msgid ""
 "The database has no Oldman internal migration state. It contains "
 "%(tables)s non-internal table(s), while source contains %(revisions)s "
 "migration revision(s). Is this first use or was the state lost?"
+msgstr ""
+
+#: oldman/db/migrations/commands.py
+#, python-format
+msgid ""
+"%(apps)s have models but no migration yet. makemigrations can create one "
+"only after the other Apps' pending migrations are applied. Apply those "
+"now?"
 msgstr ""
 
 #: oldman/db/migrations/commands.py

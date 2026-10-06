@@ -113,6 +113,94 @@ class MigrationCommandTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
 
+    def test_migrate_applies_the_other_apps_first_so_makemigrations_can_create_a_new_apps_revision(self) -> None:
+        """An App added before the database was migrated: makemigrations needs the database at the source heads,
+        and migrate refused while any App lacked a revision, so each asked for the other first."""
+        model = """
+            from sqlalchemy.orm import Mapped, mapped_column
+            from oldman.db import DatabaseModel
+            class {name}(DatabaseModel):
+                __tablename__ = "{table}"
+                id: Mapped[int] = mapped_column(primary_key=True)
+        """
+        completed = _run_project(
+            {
+                "notes/__init__.py": "",
+                "notes/apps.py": _app("notes"),
+                "notes/models.py": model.format(name="Note", table="notes_note"),
+                "notes/migrations/__init__.py": "",
+                "customers/__init__.py": "",
+                "customers/apps.py": _app("customers"),
+                "customers/models.py": model.format(name="Customer", table="customers_customer"),
+                "customers/migrations/__init__.py": "",
+            },
+            _joined(
+                _project_source(("notes", "customers")),
+                """
+                from sqlalchemy import create_engine, inspect
+                from oldman.db.migrations.commands import MissingInitialMigrationError, makemigrations, migrate
+
+                def tables():
+                    return set(inspect(create_engine(f"sqlite:///{database_path}")).get_table_names())
+
+                class Answers:
+                    def __init__(self, *, app=None, interactive=True, apply_others=None):
+                        self.app, self.is_interactive, self.apply_others, self.confirmations = app, interactive, apply_others, []
+                    def choose(self, prompt, choices):
+                        if "first use" in choices:
+                            return "first use"
+                        if "all" in choices:
+                            return "all"
+                        assert self.app in choices, (prompt, choices)
+                        return self.app
+                    def confirm(self, prompt, *, default=False):
+                        self.confirmations.append(prompt)
+                        if self.apply_others is None:
+                            raise AssertionError(prompt)
+                        return self.apply_others
+                    def text(self, prompt, *, default):
+                        return default
+
+                # notes gets its first revision while the database is still empty; customers has none yet.
+                assert makemigrations(project, Answers(app="notes")).app_label == "notes"
+
+                # Without a terminal the way out cannot be offered: the refusal says to run migrate in one.
+                try:
+                    migrate(project, Answers(interactive=False))
+                except MissingInitialMigrationError as exc:
+                    assert "customers" in str(exc) and "terminal" in str(exc), str(exc)
+                else:
+                    raise AssertionError("migrate ran without a terminal while customers had no revision")
+
+                # In a terminal, migrate offers to apply the other Apps first; cancelling changes nothing.
+                declined = Answers(apply_others=False)
+                result = migrate(project, declined)
+                assert result.cancelled and result.applied_revisions == () and "customers" in declined.confirmations[0]
+                assert "notes_note" not in tables()
+
+                accepted = Answers(apply_others=True)
+                result = migrate(project, accepted)
+                assert result.apps_without_migrations == ("customers",), result
+                assert len(accepted.confirmations) == 1
+                assert "notes_note" in tables() and "customers_customer" not in tables()
+
+                # The database is at the source heads now: makemigrations can run, so migrate asks nothing and refuses.
+                try:
+                    migrate(project, Answers())
+                except MissingInitialMigrationError as exc:
+                    assert "run makemigrations and select: customers" in str(exc), str(exc)
+                else:
+                    raise AssertionError("migrate ran while customers had no revision and nothing else was pending")
+
+                assert makemigrations(project, Answers(app="customers")).app_label == "customers"
+                result = migrate(project, Answers())
+                assert result.apps_without_migrations == ()
+                assert {"notes_note", "customers_customer"} <= tables()
+                """,
+            ),
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_migrate_rejects_managed_app_without_initial_revision_before_connecting(self) -> None:
         completed = _run_project(
             {

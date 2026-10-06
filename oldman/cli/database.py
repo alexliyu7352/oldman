@@ -106,6 +106,9 @@ def register_database_commands(
         from oldman.db.migrations.commands import migrate
 
         result = _execute(migrate, exit_with_error)
+        if result.cancelled:
+            typer.echo(gettext("Migration cancelled; nothing was applied."))
+            return
         if result.recovered:
             typer.echo(gettext("Recovered Oldman migration state."))
         if result.applied_revisions:
@@ -117,6 +120,13 @@ def register_database_commands(
             )
         elif not result.recovered:
             typer.echo(gettext("No pending migrations."))
+        if result.apps_without_migrations:
+            typer.echo(
+                gettext(
+                    "Still without a migration: %(apps)s. Run db makemigrations for them, then db migrate.",
+                    apps=", ".join(result.apps_without_migrations),
+                )
+            )
 
     def downgrade_command() -> None:
         """Interactively downgrade one App migration branch."""

@@ -97,7 +97,13 @@ adoption revision 在空数据库可创建表，在表已存在且与当前模�
 
 `oldman_user` 的表及核心结构归 Auth；选中的自定义 User 所在 App 管理扩展列、索引和约束。自定义类继承 AbstractUser，不能覆盖框架核心结构。基础迁移和扩展迁移各自随所属 App 保存，扩展外键仍使用 `oldman_user.id`。
 
-新项目先在默认 User 配置下执行 Auth 基础迁移，再注册自定义 User App、切换 user_model，并为扩展部分生成迁移。已有项目在修改模型前先执行现有 heads。不能先把没有初始 revision 的自定义扩展加入全部服务，再假定 migrate 会忽略它只执行 Auth：执行入口会检查所有受管 App 的初始迁移是否齐全。
+新项目先在默认 User 配置下执行 Auth 基础迁移，再注册自定义 User App、切换 user_model，并为扩展部分生成迁移。已有项目在修改模型前先执行现有 heads。
+
+有受管 App 还没有初始 revision 时（新加了带模型的 App，或自定义 User 有扩展却还没生成迁移），migrate 不会悄悄跳过它，做法取决于数据库：
+
+- 数据库已在当前 heads、没有别的待执行迁移：拒绝，提示先 `makemigrations` 并选中这个 App。
+- 其他 App 还有待执行的迁移（从未迁移过的新库，或升级框架后带来了新迁移）：`makemigrations` 要求数据库在 heads，此时还生成不了，所以 migrate 在终端里先问是否只执行其他 App 的迁移；确认后执行，并提示下一步先 `makemigrations`、再 `migrate`。没有终端时拒绝，并说明要在终端里执行。
+- 第三方 App 缺迁移：始终拒绝，应安装带迁移的版本。
 
 不要为此建第二张用户表、自动切换数据库表名或复制默认 User 的迁移到业务 App。
 

@@ -92,6 +92,11 @@ class MigrationResult:
     target_app: str | None
     applied_revisions: tuple[str, ...]
     recovered: bool = False
+    # The user answered cancel to one of migrate's questions; nothing was applied.
+    cancelled: bool = False
+    # Local Apps whose models still have no revision: the other Apps were migrated first so that
+    # makemigrations can now create one for each of them.
+    apps_without_migrations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +162,8 @@ class _ExecutionContext:
 
     graph: MigrationGraph
     metadata: MigrationMetadata
+    # Local Apps with models but no revision, left for migrate to decide once it knows the database's state.
+    missing_initial: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,7 +188,7 @@ def migrate(
     interaction: MigrationInteraction,
 ) -> MigrationResult:
     """Apply all pending branches or one interactively selected App and its prerequisites."""
-    context = _load_execution_context(project)
+    context = _load_execution_context(project, defer_local_missing=True)
     return _run_sync(_migrate(project, context, interaction))
 
 
@@ -286,8 +293,13 @@ def history(project: MigrationProject) -> tuple[AppMigrationHistory, ...]:
     )
 
 
-def _load_execution_context(project: MigrationProject) -> _ExecutionContext:
-    """Reject model and graph errors before opening the configured database."""
+def _load_execution_context(project: MigrationProject, *, defer_local_missing: bool = False) -> _ExecutionContext:
+    """Reject model and graph errors before opening the configured database.
+
+    With `defer_local_missing`, local Apps that have models but no revision are passed on to migrate instead of
+    refused here, as long as the source has revisions to apply: whether migrate may go ahead depends on the
+    database's state.
+    """
     metadata = load_migration_metadata(project)
     graph = load_migration_graph(
         project,
@@ -300,41 +312,46 @@ def _load_execution_context(project: MigrationProject) -> _ExecutionContext:
             f"Migration branches have multiple heads ({details}). Run makemigrations "
             "interactively to create a merge revision; upgrade third-party Apps that ship divergent heads."
         )
-    _require_initial_revisions(project, graph, metadata)
-    return _ExecutionContext(graph=graph, metadata=metadata)
+    local, third_party = _missing_initial_revisions(project, graph, metadata)
+    has_revisions = any(branch.revisions for branch in graph.branches.values())
+    if third_party or (local and not (defer_local_missing and has_revisions)):
+        raise MissingInitialMigrationError(_missing_initial_message(local, third_party))
+    return _ExecutionContext(graph=graph, metadata=metadata, missing_initial=local)
 
 
-def _require_initial_revisions(
+def _missing_initial_revisions(
     project: MigrationProject,
     graph: MigrationGraph,
     metadata: MigrationMetadata,
-) -> None:
-    """Require branches only for Apps that own real managed structure."""
+) -> tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]:
+    """The (label, package) of local and of third-party Apps that own managed structure but have no revision."""
     required = {item.app_label for item in metadata.tables.values() if item.managed}
     user = metadata.user
     if user is not None and user.app_label != USER_TABLE_OWNER_LABEL and _user_has_extension(metadata):
         required.add(user.app_label)
     missing = tuple(sorted(label for label in required if not graph.branches[label].revisions))
-    if not missing:
-        return
     package_by_label = dict(zip(project.apps.labels, project.apps.packages, strict=True))
-    local = []
-    third_party = []
+    local: list[tuple[str, str]] = []
+    third_party: list[tuple[str, str]] = []
     for label in missing:
-        package = package_by_label[label]
         location = graph.branches[label].location
         try:
             location.path.resolve().relative_to(project.project_root.resolve())
         except ValueError:
-            third_party.append(f"{label} ({package})")
+            third_party.append((label, package_by_label[label]))
         else:
-            local.append(f"{label} ({package})")
+            local.append((label, package_by_label[label]))
+    return tuple(local), tuple(third_party)
+
+
+def _missing_initial_message(local: Iterable[tuple[str, str]], third_party: Iterable[tuple[str, str]] = ()) -> str:
+    """The refusal for Apps without a revision, naming what to do for each kind."""
     details = []
-    if local:
-        details.append("run makemigrations and select: " + ", ".join(local))
-    if third_party:
-        details.append("install releases that include migrations for: " + ", ".join(third_party))
-    raise MissingInitialMigrationError("Managed Apps have no initial migration; " + "; ".join(details) + ".")
+    if local_names := [f"{label} ({package})" for label, package in local]:
+        details.append("run makemigrations and select: " + ", ".join(local_names))
+    if third_party_names := [f"{label} ({package})" for label, package in third_party]:
+        details.append("install releases that include migrations for: " + ", ".join(third_party_names))
+    return "Managed Apps have no initial migration; " + "; ".join(details) + "."
 
 
 def _user_has_extension(metadata: MigrationMetadata) -> bool:
@@ -391,7 +408,7 @@ async def _migrate(
                 ("first use", "state lost", "cancel"),
             )
             if choice == "cancel":
-                return MigrationResult(target_app=None, applied_revisions=())
+                return MigrationResult(target_app=None, applied_revisions=(), cancelled=True)
             if choice == "state lost":
                 return await _recover(engine, project, context, state, interaction)
             if choice != "first use":
@@ -401,9 +418,13 @@ async def _migrate(
             state.require_current_owner(project)
             _validate_applied_revisions(context.graph, state)
 
+        apps_without_migrations = tuple(label for label, _package in context.missing_initial)
+        if apps_without_migrations and not _apply_others_first(context, state, interaction):
+            return MigrationResult(target_app=None, applied_revisions=(), cancelled=True)
+
         plan = _choose_upgrade_plan(context.graph, state, interaction)
         if plan is None:
-            return MigrationResult(target_app=None, applied_revisions=())
+            return MigrationResult(target_app=None, applied_revisions=(), cancelled=True)
         if first_use:
             async with engine.begin() as connection:
                 await connection.run_sync(ensure_for_first_migrate, project)
@@ -418,9 +439,37 @@ async def _migrate(
         return MigrationResult(
             target_app=plan.target_app,
             applied_revisions=tuple(script.revision for script in plan.scripts),
+            apps_without_migrations=apps_without_migrations,
         )
     finally:
         await engine.dispose()
+
+
+def _apply_others_first(context: _ExecutionContext, state: MigrationState, interaction: MigrationInteraction) -> bool:
+    """Whether migrate may apply the other Apps while some local Apps have models but no revision.
+
+    makemigrations compares the models with a database at the source heads, so it cannot write those Apps' first
+    revision while other revisions are pending: migrate offers to apply those first. With nothing else pending,
+    makemigrations can run, and migrate refuses as before.
+    """
+    message = _missing_initial_message(context.missing_initial)
+    applied = _applied_closure(context.graph, state.revisions)
+    if all(not branch.heads or branch.heads[0].revision in applied for branch in context.graph.branches.values()):
+        raise MissingInitialMigrationError(message)
+    if not _is_interactive(interaction):
+        raise MissingInitialMigrationError(
+            f"{message} Other Apps have pending migrations, so makemigrations cannot run yet: run migrate in a terminal, "
+            "which offers to apply them first."
+        )
+    labels = ", ".join(label for label, _package in context.missing_initial)
+    return interaction.confirm(
+        gettext(
+            "%(apps)s have models but no migration yet. makemigrations can create one only after the other Apps' "
+            "pending migrations are applied. Apply those now?",
+            apps=labels,
+        ),
+        default=False,
+    )
 
 
 def _choose_upgrade_plan(

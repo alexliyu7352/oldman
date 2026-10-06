@@ -10,9 +10,9 @@ generated project is your `.oldman-docs/` clone. Before using any `oldman` impor
 This is the complete sequence, verified on a generated `dashboard` project with SQLite whose service is `dashboard`,
 in Chrome. Replace `customers`, `Customer` and the fields with what the user asked for; keep every step.
 
-The project must have been set up once as its README says (`settings sync`, `db migrate`, `createsuperuser`): you
-add models to a migrated database. On a database that was never migrated, `db makemigrations` asks for `db migrate`
-first and `db migrate` refuses while an App has models without a migration.
+Normally the project was set up once as its README says (`settings sync`, `db migrate`, `createsuperuser`) and you
+add models to a migrated database. If it was never migrated, run `db migrate` first anyway: it asks whether to apply
+the other Apps' migrations before your App has one; after that, `db makemigrations` creates your App's first one.
 
 ### 1. Create and register the App
 
