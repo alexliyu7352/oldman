@@ -882,11 +882,15 @@ def _register_i18n_commands(app: typer.Typer) -> None:
 
 
 def _print_version(value: bool) -> None:
-    """Answer `oldman --version` with the installed distribution, in or out of a project."""
-    if value:
-        from importlib.metadata import version
+    """Answer `oldman --version` with the installed framework's version, in or out of a project.
 
-        typer.echo(f"oldman {version('oldman')}")
+    It prints the release version as its tag is written (`v` + this): a project's AGENTS.md clones the docs at that
+    tag. The package metadata normalizes a prerelease (`0.6.0-rc.1` becomes `0.6.0rc1`), so it is not read here.
+    """
+    if value:
+        from oldman.version import __VERSION__
+
+        typer.echo(f"oldman {__VERSION__}")
         raise typer.Exit()
 
 

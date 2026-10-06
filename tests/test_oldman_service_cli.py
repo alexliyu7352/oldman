@@ -241,7 +241,7 @@ class ServiceCliTest(unittest.TestCase):
 
     def test_version_answers_inside_and_outside_a_project(self) -> None:
         """`oldman --version` needs no project and imports no service."""
-        from importlib.metadata import version
+        from oldman.version import __VERSION__
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -252,8 +252,30 @@ class ServiceCliTest(unittest.TestCase):
                 completed = _run_cli(directory, marker, "--version")
                 with self.subTest(directory=directory.name):
                     self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
-                    self.assertEqual(f"oldman {version('oldman')}", completed.stdout.strip())
+                    self.assertEqual(f"oldman {__VERSION__}", completed.stdout.strip())
             self.assertFalse(marker.exists())
+
+    def test_version_prints_the_release_tag_form_also_for_a_prerelease(self) -> None:
+        """Agents clone the docs at `v<printed version>`: a prerelease prints 0.6.0-rc.1, as its tag is written,
+        not the 0.6.0rc1 its package metadata normalizes it to."""
+        import io
+        from contextlib import redirect_stdout
+        from unittest.mock import patch
+
+        import typer
+
+        import oldman.version
+        from oldman.cli._main import _print_version
+
+        output = io.StringIO()
+        with (
+            patch.object(oldman.version, "__VERSION__", "0.6.0-rc.1"),
+            patch("importlib.metadata.version", return_value="0.6.0rc1"),
+            redirect_stdout(output),
+            self.assertRaises(typer.Exit),
+        ):
+            _print_version(True)
+        self.assertEqual("oldman 0.6.0-rc.1", output.getvalue().strip())
 
     def test_settings_init_is_cold_and_uses_the_service_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
