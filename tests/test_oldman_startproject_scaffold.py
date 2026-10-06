@@ -327,6 +327,35 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 self.assertIn('exec "$OLDMAN_BIN" "$@"', run_script.read_text(encoding="utf-8"))
                 self.assertFalse((target / "main.py").exists())
 
+    def test_every_service_of_a_new_project_shares_the_projects_own_redis_namespace(self) -> None:
+        """Two projects on one Redis kept their keys under the same default namespace (`oldman`); a new project's
+        schema defaults core.namespace to its slug, so a service added later writes the same one into its YAML."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            for project_type in SERVICE_NAMES:
+                with self.subTest(project_type=project_type), working_directory(parent):
+                    target = start_project(f"billing-{project_type.value}", project_type=project_type, db=DatabaseChoice.SQLITE)
+                    with working_directory(target):
+                        start_service("jobs", service_type=ServiceType.TASKIQ_WORKER)
+                    initialized = subprocess.run(
+                        [sys.executable, "-m", "oldman.cli", "jobs", "settings", "init"],
+                        cwd=target,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(0, initialized.returncode, initialized.stdout + initialized.stderr)
+                    jobs = YAML(typ="safe").load((target / "data" / "jobs_settings.yaml").read_text(encoding="utf-8"))
+                    self.assertEqual(f"billing_{project_type.value}", jobs["core"]["namespace"])
+                    probe = subprocess.run(
+                        [sys.executable, "-c", "from config.schemas import CoreSettings; print(CoreSettings.model_validate({'site_name': 'x'}).namespace)"],
+                        cwd=target,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(f"billing_{project_type.value}", probe.stdout.strip(), probe.stderr)
+
     def test_minimal_seed_and_readme_follow_the_selected_database(self) -> None:
         """Scaffold writes only known choices before settings sync expands them."""
         expected_urls = {
