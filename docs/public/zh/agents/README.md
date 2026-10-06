@@ -11,7 +11,7 @@
 | 给 App 增加配置 | [配置参考](../developers/configuration.md#app-settings)，直接导入该 App 的强类型实例 |
 | 增加项目命令 | [Command 合同](../developers/cli.md#自定义-app-命令)，使用 Registry 已有发现机制 |
 | 处理初始化或导入错误 | [加载顺序](../developers/applications.md#实际加载顺序)，区分配置、模型与 Web 阶段 |
-| 开发 Dashboard CRUD/Modal Form | [接线指南](dashboard-crud.md)，覆盖权限、数据库、两种 Table、响应和浏览器验证 |
+| 开发 Dashboard CRUD/Modal Form | [接线指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)，覆盖权限、数据库、两种 Table、响应和浏览器验证 |
 | 添加现有 UI 或字段增强 | [组件用法](../users/components.md)与[字段参考](../developers/forms.md)，复用当前 loader/Widget |
 | 构建应用样式、图标及翻译 | [资源参考](../developers/assets.md)，在应用工程安装和构建，不复制框架产物 |
 | 修改模型、准备 fixture 或接入文件 | [数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)，核对迁移范围、事务和文件生命周期 |

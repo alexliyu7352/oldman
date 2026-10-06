@@ -51,7 +51,7 @@ GUIDES: tuple[tuple[Applies, str], ...] = (
     (services, "| Persistent queue, job results, schedules | `zh/agents/distributed-tasks.md` |"),
     (services, "| Cache, Redis, outbound HTTP, NATS | `zh/agents/cache-and-network.md` |"),
     (services, "| Server-sent events, notifications | `zh/agents/realtime.md` |"),
-    (types("dashboard"), "| A dashboard page: table, form, create/edit/delete | `zh/agents/dashboard-crud.md` |"),
+    (types("dashboard"), "| A dashboard page: table, form, create/edit/delete | `en/agents/dashboard-crud.md` |"),
     (with_admin, "| Show a model in the built-in Admin, or change how it does | `zh/agents/admin.md` |"),
 )
 
