@@ -1,4 +1,4 @@
-export const OLDMAN_WEB_VERSION = "0.5.0";
+export const OLDMAN_WEB_VERSION = "0.6.0-rc.1";
 
 export { startOldman } from "./runtime/start";
 export type { OldmanApp, StartOldmanActionsOptions, StartOldmanOptions } from "./types";
