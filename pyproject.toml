@@ -1,6 +1,6 @@
 [project]
 name = "oldman"
-version = "0.6.0-rc.1"
+version = "0.6.0"
 description = "Oldman backend-rendered Python Web and application framework."
 readme = "README.md"
 license = { file = "LICENSE" }

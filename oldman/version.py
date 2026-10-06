@@ -6,4 +6,4 @@
 
 __author__ = "alex"
 
-__VERSION__ = "0.6.0-rc.1"
+__VERSION__ = "0.6.0"
