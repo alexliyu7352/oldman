@@ -348,7 +348,11 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     jobs = YAML(typ="safe").load((target / "data" / "jobs_settings.yaml").read_text(encoding="utf-8"))
                     self.assertEqual(f"billing_{project_type.value}", jobs["core"]["namespace"])
                     probe = subprocess.run(
-                        [sys.executable, "-c", "from config.schemas import CoreSettings; print(CoreSettings.model_validate({'site_name': 'x'}).namespace)"],
+                        [
+                            sys.executable,
+                            "-c",
+                            "from config.schemas import CoreSettings; print(CoreSettings.model_validate({'site_name': 'x'}).namespace)",
+                        ],
                         cwd=target,
                         capture_output=True,
                         text=True,
