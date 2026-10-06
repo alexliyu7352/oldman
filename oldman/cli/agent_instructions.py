@@ -78,6 +78,11 @@ RULES: tuple[tuple[Applies, str], ...] = (
     ),
     (
         http_services,
+        "- A view's `request` is Sanic's: the parsed JSON body is the property `request.json` (not\n"
+        "  `await request.json()`), form fields are `request.form`, query arguments `request.args`.",
+    ),
+    (
+        http_services,
         "- Work after the response: fire-and-forget inside a web handler uses `request.app.ctx.tasks.spawn(...)`.\n"
         "  Work whose status or result someone will query, or that must survive a restart, uses Taskiq\n"
         "  (`zh/agents/distributed-tasks.md`). Never call `asyncio.create_task` in a view, never keep job state\n"
@@ -116,11 +121,14 @@ RULES: tuple[tuple[Applies, str], ...] = (
     ),
     (
         signs_users_in,
-        "- `./run.sh {service_name} createsuperuser` asks for a password in a terminal; ask the user to run it.",
+        "- The first account: `./run.sh {service_name} createsuperuser` asks for it in a terminal. Without one, use\n"
+        "  `OLDMAN_SUPERUSER_PASSWORD='<password>' ./run.sh {service_name} createsuperuser --username <name> --noinput`\n"
+        "  and tell the user the account. Never create users by writing to the database or from `shell`.",
     ),
     (
         services,
-        "- Commands that ask for passwords or migration decisions need a terminal; ask the user instead of\n  working around them.",
+        "- Commands that ask questions need a terminal. Use their documented non-interactive form where there is\n"
+        "  one; otherwise ask the user to run them instead of working around them.",
     ),
     (
         services,

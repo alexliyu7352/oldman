@@ -555,6 +555,14 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     self.assertEqual(admin, "zh/agents/admin.md" in agents)
                     self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser" in agents)
                     self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "`apps/accounts/models.py`" in agents)
+                    # Agents guessed `await request.json()` and created users from `shell`; the rules answer both.
+                    self.assertEqual(
+                        project_type in {ProjectType.API, ProjectType.WEB, ProjectType.DASHBOARD}, "the property `request.json`" in agents
+                    )
+                    self.assertEqual(admin or project_type == ProjectType.DASHBOARD, "createsuperuser --username <name> --noinput" in agents)
+                    # `--version` prints a prerelease as its tag is written (0.6.0-rc.1), no longer the Python form.
+                    self.assertNotIn("Python form", agents)
+                    self.assertIn("`oldman 0.6.0-rc.1` is tag `v0.6.0-rc.1`", agents)
 
     def test_each_project_type_has_only_its_own_parts(self) -> None:
         """A script project has no services, an API no templates; every README says how to install and start it."""
