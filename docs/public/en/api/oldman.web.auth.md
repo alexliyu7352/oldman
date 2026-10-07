@@ -592,7 +592,7 @@ Members:
 - `def database() -> DatabaseManager` — Where the users live, the process's database by default.
 - `def object_url(user: Any, action: str) -> str` — `edit`, `password`, `password-modal`, `status`, `status-modal`, `delete` or `delete-modal` for one user.
 - `def table_class(name_prefix: str='') -> type[UserTable]` — The user table data endpoint at `<base_path>/table`; `UserTable` itself asks for `auth.users.view`.
-- `def activity(request: Any, title: str, description: str, *, tone: str, icon: str) -> DashboardActivityAction` — The topbar's activity entry for one change.
+- `def activity(request: Any, title: str, description: str, *, tone: str, icon: str) -> DashboardActivityAction` — The topbar's activity entry for one change, linking to the user list.
 - `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, name_prefix: str='') -> None` — Install the pages, the table data endpoint, the modals and their submits under `base_path`.
 
 ## `UserModelForm`

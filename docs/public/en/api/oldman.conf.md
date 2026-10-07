@@ -301,6 +301,7 @@ Members:
 - `profile_url: str = Field(default='/user-session', description="The signed-in user's own page; changing one's own passw…`
 - `user_events_url: str = Field(default='/user-events', description='Server-sent events for the signed-in user (session ended…`
 - `users_url: str = Field(default='/users', description="User management: the list, with each account's pages below it")`
+- `roles_url: str = Field(default='/roles', description="Role management: the list, with each role's pages below it")`
 - `classmethod def validate_paths(value: str | None, info: ValidationInfo) -> str | None` — Registered as routes and redirected to, so plain local paths.
 
 ### `APIKeyConfig`

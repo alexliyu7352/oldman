@@ -62,7 +62,8 @@ msgstr ""
 msgid "No"
 msgstr ""
 
-#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+#: oldman/apps/admin/model_admin.py oldman/apps/roles/management.py
+#: oldman/web/auth/tables.py
 msgid "Edit"
 msgstr ""
 
@@ -158,7 +159,7 @@ msgstr ""
 
 #: frontend/packages/oldman-web/src/dashboard/topbar.ts
 #: oldman/apps/admin/model_admin.py oldman/apps/admin/site.py
-#: oldman/web/auth/user_management.py
+#: oldman/web/messages/actions.py
 msgid "Just now"
 msgstr ""
 
@@ -214,7 +215,8 @@ msgstr ""
 msgid "User status updated"
 msgstr ""
 
-#: oldman/apps/admin/table.py oldman/web/auth/tables.py
+#: oldman/apps/admin/table.py oldman/apps/roles/management.py
+#: oldman/web/auth/tables.py
 msgid "Action"
 msgstr ""
 
@@ -281,11 +283,14 @@ msgstr ""
 #: oldman/web/templates/oldman/auth/partials/password_form.html
 #: oldman/web/templates/oldman/auth/partials/user_delete_form.html
 #: oldman/web/templates/oldman/auth/partials/user_status_form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
 msgid "Cancel"
 msgstr ""
 
-#: oldman/apps/admin/templates/admin/model/form.html oldman/web/auth/tables.py
+#: oldman/apps/admin/templates/admin/model/form.html
+#: oldman/apps/roles/management.py oldman/web/auth/tables.py
 #: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
 msgid "Delete"
 msgstr ""
 
@@ -325,14 +330,16 @@ msgstr ""
 
 #: oldman/apps/roles/apps.py oldman/apps/roles/models.py
 #: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 msgid "Roles"
 msgstr ""
 
-#: oldman/apps/roles/forms.py
+#: oldman/apps/roles/forms.py oldman/apps/roles/management.py
 msgid "Name"
 msgstr ""
 
-#: oldman/apps/roles/forms.py
+#: oldman/apps/roles/forms.py oldman/apps/roles/management.py
 msgid "Description"
 msgstr ""
 
@@ -352,6 +359,54 @@ msgstr ""
 
 #: oldman/apps/roles/management.py oldman/web/auth/permissions.py
 msgid "The permission store is unavailable"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "No roles found."
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role actions"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role created"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role saved"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was created."
+msgstr ""
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was updated."
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role not found"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "Delete Role"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role not found."
+msgstr ""
+
+#: oldman/apps/roles/management.py
+msgid "Role deleted"
+msgstr ""
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was deleted."
 msgstr ""
 
 #: oldman/apps/roles/models.py
@@ -1667,6 +1722,7 @@ msgstr ""
 #: oldman/web/components/modals.py
 #: oldman/web/templates/oldman/auth/partials/user_modals.html
 #: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 #: oldman/web/templates/oldman/dashboard/partials/topbar.html
 msgid "Close"
 msgstr ""
@@ -2010,6 +2066,7 @@ msgid "Delete user?"
 msgstr ""
 
 #: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 msgid "Select a row action to continue."
 msgstr ""
 
@@ -2077,6 +2134,23 @@ msgstr ""
 
 #: oldman/web/templates/oldman/dashboard/account/login.html
 msgid "Sign in with your account to continue."
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
+msgid "Delete role?"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "New Role"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+msgid "Edit Role"
+msgstr ""
+
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "Roles List"
 msgstr ""
 
 #: oldman/web/templates/oldman/dashboard/errors/403.html

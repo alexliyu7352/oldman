@@ -149,6 +149,22 @@ def warning(request: Request, content: str) -> None
 
 Add an escaped warning message.
 
+## Module `oldman.web.messages.actions`
+
+Transient Dashboard browser messages.
+
+Import with `from oldman.web.messages.actions import <name>`.
+
+### `recent_activity`
+
+function · defined in `oldman.web.messages.actions`
+
+```python
+def recent_activity(request: Any, title: str, description: str, *, tone: str, icon: str, href: str) -> DashboardActivityAction
+```
+
+The topbar's activity entry for a change this request has just made; its time reads "Just now".
+
 ## Module `oldman.web.messages.paths`
 
 The one rule for a link a message may point at.

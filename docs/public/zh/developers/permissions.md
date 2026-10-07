@@ -58,7 +58,7 @@ auth App 自己的权限模块叫 `user_permissions`（见下一节），因为 
 | `CHANGE_ROLES` | `roles.change` |
 | `DELETE_ROLES` | `roles.delete` |
 
-内置 Admin 的角色管理检查它们，项目自己的角色管理页面也检查它们，同一个角色在哪里管理角色都一样。roles App 的其他模块只在检查时才导入它，没装 roles App 的服务没有这四个名字。
+内置 Admin 的角色管理和 dashboard 的 `RoleManagementFlow` 检查它们，项目另写的角色管理页面也应当检查它们，同一个角色在哪里管理角色都一样。roles App 的其他模块只在检查时才导入它，没装 roles App 的服务没有这四个名字。
 
 两张表：
 
@@ -76,7 +76,7 @@ auth App 自己的权限模块叫 `user_permissions`（见下一节），因为 
 | `user_role_ids(user_id)` | 用户持有的角色 id，升序 |
 | `replace_user_roles(session, user_id, role_ids)` | 在调用方的事务里把用户的角色换成给定的这些，返回是否有变化 |
 
-内置 Admin 在服务安装了 roles App 时自带角色管理（见 [Admin](admin.md#角色管理)）。项目自己写角色管理页面时，表单用 `oldman.apps.roles.forms.RoleForm`（名称、说明、按 App 分组的权限复选框），保存、删除用 `oldman.apps.roles.management` 里与 Admin 共用的三个函数，它们按上表的顺序维护角色的键：
+内置 Admin 在服务安装了 roles App 时自带角色管理（见 [Admin](admin.md#角色管理)）；dashboard 装 `RoleManagementFlow`（见[账户页面的现成流程](web.md#账户页面的现成流程)），列表、新建、编辑、删除都是现成的。项目另写角色管理页面时，表单用 `oldman.apps.roles.forms.RoleForm`（名称、说明、按 App 分组的权限复选框），保存、删除用 `oldman.apps.roles.management` 里与 Admin 共用的三个函数，它们按上表的顺序维护角色的键：
 
 | 函数 | 何时调用 | 做什么 |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ auth App 自己的权限模块叫 `user_permissions`（见下一节），因为 
 
 给用户分配角色用共用的用户表单（`oldman.web.auth.user_create_form_class` / `user_edit_form_class`）：服务装了 roles App、并且至少有一个角色时，表单带一组「角色」复选框，选项从数据库读，所以表单要绑定 session。用户行写入之后、在同一个事务里调用 `await form.save_roles(session, user)`（新用户这时才有 id），它返回角色是否有变化；返回 `True` 时在提交之后结束这个用户的登录。表单没有角色字段时它什么都不写，返回 `False`。
 
-`publish_role` 和 `forget_role` 只有保存、删除角色的代码会调用。用 `loaddata` 导入角色、或直接改表时不经过它们：缓存里还没有这个角色的键时，下一次检查从数据库读到的就是新值；已经有键时，键里的旧权限会一直留着，要在 Admin 里把这个角色再保存一次（或删掉它的键）。
+`publish_role` 和 `forget_role` 只有保存、删除角色的代码会调用。用 `loaddata` 导入角色、或直接改表时不经过它们：缓存里还没有这个角色的键时，下一次检查从数据库读到的就是新值；已经有键时，键里的旧权限会一直留着，要在角色管理页（Admin 或 dashboard 的）把这个角色再保存一次（或删掉它的键）。
 
 已知限制：某个请求在角色被删除前刚从数据库读到它、又在删除之后才写回键时，这个键会重新出现；它只影响仍带着这个 id 的登录，其他角色不受影响。这需要"键恰好缺失"和"删除"同时发生。
 

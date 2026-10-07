@@ -83,7 +83,7 @@ async def example_message_trusted_html(request: Request):
 
 Form 顶部专用 `data-om-form-message` 和字段错误由 Form 负责，先显示，再执行 actions；字段只显示第一条错误。`feedback` Action 按顺序调用当前 Page 的 Feedback。业务错误不阻止动作执行，网络错误不伪造成 Form message。完整协议见[响应参考](responses.md)，不要把这些临时结果改成数据库通知。
 
-`DashboardActivityAction` 是浏览器壳内临时操作记录；它也不是持久个人通知。其当前 DOM 与个人通知预览分区不同，不使用数据库 read_at。
+`DashboardActivityAction` 是浏览器壳内临时操作记录；它也不是持久个人通知。其当前 DOM 与个人通知预览分区不同，不使用数据库 read_at。刚做完一项修改时，`recent_activity(request, title, description, *, tone, icon, href)`（`oldman.web.messages.actions`）给出时间写着「刚刚」的一条，用户管理和角色管理流程都用它。
 
 ## 安装持久通知
 

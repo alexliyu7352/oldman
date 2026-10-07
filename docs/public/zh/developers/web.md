@@ -189,13 +189,14 @@ async def login_submit(request: Any):
 
 ## 账户页面的现成流程
 
-登录、登出、个人页和用户管理不必每个站点手写。`oldman.web.auth` 提供三个流程，与[找回密码](security.md#找回密码的-token)的 `PasswordResetFlow` 形状相同：dataclass 收各页面的路径，以及可选的 `auth_settings`、`db_manager`（默认取已安装的 Auth App 设置和进程的数据库管理器）；`register_routes(app=None, *, render=None, template_prefix=None, name_prefix="")` 装路由。页面要么用 `render=`（`async def render(request, page, /, **context)`，返回响应），要么用 `template_prefix=`（渲染 `<template_prefix>/<page>.html`），两个都给或都不给报 `ValueError`；省略 `app` 时经 `oldman.web.router` 注册；路由名都带 `name_prefix`。
+登录、登出、个人页、用户管理和角色管理不必每个站点手写。`oldman.web.auth` 提供三个流程，roles App 另提供角色管理的 `RoleManagementFlow`（`oldman.apps.roles.management`），都与[找回密码](security.md#找回密码的-token)的 `PasswordResetFlow` 形状相同：dataclass 收各页面的路径，以及可选的 `auth_settings`、`db_manager`（默认取已安装的 Auth App 设置和进程的数据库管理器）；`register_routes(app=None, *, render=None, template_prefix=None, name_prefix="")` 装路由。页面要么用 `render=`（`async def render(request, page, /, **context)`，返回响应），要么用 `template_prefix=`（渲染 `<template_prefix>/<page>.html`），两个都给或都不给报 `ValueError`；省略 `app` 时经 `oldman.web.router` 注册；路由名都带 `name_prefix`。
 
 | 流程 | 路由 | 页面与上下文 | 谁能用 |
 | --- | --- | --- | --- |
 | `LoginFlow(login_path, logout_path, home_path, password_reset_path=None, accept_user=None, rate_limit=None, ...)` | GET/POST `login_path`、GET `logout_path`；路由名 `login`、`login_submit`、`logout` | `login`：`login_form`、`login_url`、`next_url`、`login_error`、`password_reset_url` | 启用的账户（上节的底线）；`accept_user(user)` 再加站点自己的条件，被它拒绝和密码错误得到同样的回答。已登录的浏览器打开登录页直接去 `next`（判断用 `register_routes(is_authenticated=...)`，默认看会话）。失败的登录按 Auth App 设置 `login` 的 `ip_limit`、`username_limit` 计数，超出返回 429 |
 | `AccountFlow(profile_path, login_path, logout_path, language_path, notification_routes=None, user_events_path=None, ...)` | 个人页 `profile_path`，改自己密码 `<profile_path>/password-modal` 与 `<profile_path>/password`，语言偏好 POST `language_path`，它是语言 cookie 唯一的写入方；传了 `notification_routes` 时通知中心页装在它的 `center_url`；传了 `user_events_path` 且 `web.sse.enabled` 时装用户事件流，`register_routes` 返回这个路径，否则返回 None | `user_session`：`session_profile`、`session_path`、`password_modal_path`、`logout_path`；`user_notifications`：`notification_center_content` | `register_routes(allow=...)` 决定，默认已登录即可，拒绝时已登录回 403、未登录走登录协议；语言偏好对所有访客开放，登录页也能切换语言 |
 | `UserManagementFlow(base_path, login_path, user_model=None, ...)` | 列表 `base_path`、表格数据 `<base_path>/table`、新建 `<base_path>/new`，每个账户 `<base_path>/<id>/edit`、`/password`、`/status`、`/delete`，以及装入弹窗内容的 `/password-modal`、`/status-modal`、`/delete-modal`；表格数据接口的路由名是 `users_table` | `users/index`：`table`、`filter_form`、`users_url`、`new_url`；`users/form`：`form`、`user`（新建时 None）、`action`、`users_url` | 查看、新建、修改（编辑、改密、启停）、删除分别要求 `auth.users.view`、`.add`、`.change`、`.delete`（超级用户都有），之上再套 `can_manage_user` |
+| `RoleManagementFlow(base_path, login_path, db_manager=None)` | 列表 `base_path`、表格数据 `<base_path>/table`、新建 `<base_path>/new`，每个角色 `<base_path>/<id>/edit`、`/delete`，以及装入删除弹窗内容的 `/delete-modal`；表格数据接口的路由名是 `roles_table` | `roles/index`：`table`、`roles_url`、`new_url`；`roles/form`：`form`、`role`（新建时 None）、`action`、`roles_url` | 查看、新建、修改、删除分别要求 `roles.view`、`.add`、`.change`、`.delete`（超级用户都有）；表单用 `RoleForm`，不是超级用户的人新加的权限必须自己持有。保存、删除按 Admin 的顺序维护角色的缓存键，Redis 不可用时回 503 和「权限存储暂时不可用」，删除时什么都不删。删除角色不结束任何人的登录。传入的 `app` 没装 roles App 时 `register_routes` 报错 |
 
 谁能登录：所有登录的底线是启用的账户。内置 Admin 在此之上要求 staff（`accept_user` 传 staff 规则）；dashboard 默认让所有启用的用户登录，某个页面要 staff 就用 `staff_required`，要某个权限就用 `require_perm`（见[权限入口](#权限入口)）。
 
@@ -223,13 +224,14 @@ dashboard 的路径来自[账户页面地址](configuration.md#账户页面地�
 | `AccountFlow` 的 `profile_path`、`login_path`、`logout_path`、`language_path`、`user_events_path` | `web.account.profile_url`、`login_url`、`logout_url`，`i18n.preference_url`，`web.account.user_events_url` |
 | `AccountFlow` 的 `notification_routes` | 装了通知时，`oldman.web.messages.notifications.init_app(app)` 的返回值 |
 | `UserManagementFlow` 的 `base_path`、`login_path` | `web.account.users_url`、`login_url` |
+| `RoleManagementFlow` 的 `base_path`、`login_path` | `web.account.roles_url`、`login_url` |
 | `PasswordResetFlow` 的 `base_path`、`login_path`、`home_path`（见[找回密码](security.md#找回密码的-token)） | `web.account.password_reset_url`（未设置就不装）、`login_url`、`login_redirect_url` |
 
 `startproject` 选 dashboard 生成的 `apps/accounts/routes.py` 就是按这张表装好的三个流程（登录、个人页与通知、用户管理），服务在 `init()` 里调用它；只让部分账户登录就给 `LoginFlow` 传 `accept_user`，要找回密码就在旁边装 `PasswordResetFlow`。EPG Demo 的 [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) 就是这份原文，只在末尾多装了 `PasswordResetFlow`。骨架的其余部分见[Dashboard 脚手架的范围](assets.md#dashboard-脚手架的范围)。
 
-流程在服务 `init()` 里 `super().init()` 之后安装，与 `install_admin` 同一处；`app` 是 `self.runtime_app`。`template_prefix="oldman/dashboard/account"` 用框架自带的 dashboard 账户页：登录页和找回密码页（`PasswordResetFlow` 用 `oldman/dashboard/account/password_reset`）继承 `oldman/dashboard/account/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏和顶栏，`data-om-page="login"`，加载项目的 `app_main_bundle`）；个人页、通知中心和用户管理页继承项目自己的 `base.html`。改外观就在项目模板目录放同名文件覆盖，或用 `framework:` 继承原版只改一块（见[启用模板](#启用模板)）。浏览器端由 `startDashboard` 的 `AuthPage` 挂载认证页，见[前端](frontend.md#框架的启动入口)。
+流程在服务 `init()` 里 `super().init()` 之后安装，与 `install_admin` 同一处；`app` 是 `self.runtime_app`。`template_prefix="oldman/dashboard/account"` 用框架自带的 dashboard 账户页：登录页和找回密码页（`PasswordResetFlow` 用 `oldman/dashboard/account/password_reset`）继承 `oldman/dashboard/account/auth_base.html`，它包装共享的独立认证页 `oldman/auth/base.html`（没有侧栏和顶栏，`data-om-page="login"`，加载项目的 `app_main_bundle`）；个人页、通知中心、用户管理和角色管理页继承项目自己的 `base.html`。改外观就在项目模板目录放同名文件覆盖，或用 `framework:` 继承原版只改一块（见[启用模板](#启用模板)）。浏览器端由 `startDashboard` 的 `AuthPage` 挂载认证页，见[前端](frontend.md#框架的启动入口)。
 
-项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `home`（`web.account.login_redirect_url`，登录后的落地页）、`login`、`logout`、`profile`、`users`（`web.account.users_url`，用户管理）、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节的登录提交就是 `LoginFlow` 装的：`next` 校验、错误回显、限流和"记住我"都在流程里，站点不再手写。
+项目模板里的账户链接用模板全局 `account_urls(request)`，不写死地址。它返回 `home`（`web.account.login_redirect_url`，登录后的落地页）、`login`、`logout`、`profile`、`users`（`web.account.users_url`，用户管理）、`roles`（`web.account.roles_url`，角色管理）、`password_reset`，`user_events`（只在 `web.sse.enabled` 时有值）和 `notifications`（装了通知时是 `{"center": ..., "topbar": ...}`，否则 None）。上一节的登录提交就是 `LoginFlow` 装的：`next` 校验、错误回显、限流和"记住我"都在流程里，站点不再手写。
 
 ## 请求认证：request.ctx.user
 

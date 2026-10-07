@@ -365,9 +365,10 @@ SimpleApplication 不自动补全或生成 `web` 节点，不执行上述 Web �
 | `web.account.profile_url` | `/user-session`；当前用户自己的页面，改自己密码的地址在它下面 |
 | `web.account.user_events_url` | `/user-events`；当前用户的服务端事件流（会话结束、通知），只在 `web.sse.enabled` 时安装 |
 | `web.account.users_url` | `/users`；用户管理列表，每个账户的页面在它下面 |
+| `web.account.roles_url` | `/roles`；角色管理列表，每个角色的页面在它下面 |
 | `i18n.preference_url` | `/preferences/language`；切换语言后浏览器把选择 POST 到这里，登录与否都可以 |
 
-读取它们的地方：`login_required` 等装饰器、表格/图表/下拉的数据接口、SSE 与通知接口在没有显式传 `login_url` 时，于请求时读 `web.account.login_url`；模板全局 `account_urls(request)` 把这些地址交给项目模板；`i18n compile-frontend` 把 `i18n.preference_url` 写进生成的 `generated.ts`（`languagePreferencePath`）。登录、个人页、用户管理三个流程不自己读设置，由服务把这些值传进去，见[账户页面的现成流程](web.md#账户页面的现成流程)。内置 Admin 的页面都在 `app_settings.admin.prefix` 下，不读这一组。
+读取它们的地方：`login_required` 等装饰器、表格/图表/下拉的数据接口、SSE 与通知接口在没有显式传 `login_url` 时，于请求时读 `web.account.login_url`；模板全局 `account_urls(request)` 把这些地址交给项目模板；`i18n compile-frontend` 把 `i18n.preference_url` 写进生成的 `generated.ts`（`languagePreferencePath`）。登录、个人页、用户管理、角色管理这几个流程不自己读设置，由服务把这些值传进去，见[账户页面的现成流程](web.md#账户页面的现成流程)。内置 Admin 的页面都在 `app_settings.admin.prefix` 下，不读这一组。
 
 ## 配置变更的操作边界
 

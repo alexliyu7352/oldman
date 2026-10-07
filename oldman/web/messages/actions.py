@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from oldman.i18n import LazyTranslation
+from typing import Any
+
+from oldman.i18n import LazyTranslation, gettext
 from oldman.web.api import ResponseAction
 from oldman.web.messages.paths import is_safe_link
 
@@ -31,4 +33,16 @@ class DashboardActivityAction(ResponseAction, tag="dashboard_activity", kw_only=
             raise ValueError("href must not use a scheme that executes (javascript:, data:, ...)")
 
 
-__all__ = ["DashboardActivityAction"]
+def recent_activity(request: Any, title: str, description: str, *, tone: str, icon: str, href: str) -> DashboardActivityAction:
+    """The topbar's activity entry for a change this request has just made; its time reads "Just now"."""
+    return DashboardActivityAction(
+        title=title,
+        description=description,
+        tone=tone,
+        icon=icon,
+        href=href,
+        time=gettext("Just now", request=request),
+    )
+
+
+__all__ = ["DashboardActivityAction", "recent_activity"]

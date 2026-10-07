@@ -47,7 +47,7 @@ from oldman.web.auth.tables import USER_FILTER_FIELDS, UserTable
 from oldman.web.auth.user_session import SIGN_IN_AGAIN_DELAY_MS
 from oldman.web.authentication import request_user
 from oldman.web.http import access_denied_response
-from oldman.web.messages.actions import DashboardActivityAction
+from oldman.web.messages.actions import DashboardActivityAction, recent_activity
 from oldman.web.response import Response, json_response, redirect_response
 from oldman.web.routing import Router, router
 from oldman.web.security.csrf import add_csrf_token, csrf_protect
@@ -140,15 +140,8 @@ class UserManagementFlow:
         return ManagedUserTable
 
     def activity(self, request: Any, title: str, description: str, *, tone: str, icon: str) -> DashboardActivityAction:
-        """The topbar's activity entry for one change."""
-        return DashboardActivityAction(
-            title=title,
-            description=description,
-            tone=tone,
-            icon=icon,
-            href=self.base_path,
-            time=gettext("Just now", request=request),
-        )
+        """The topbar's activity entry for one change, linking to the user list."""
+        return recent_activity(request, title, description, tone=tone, icon=icon, href=self.base_path)
 
     def register_routes(
         self,

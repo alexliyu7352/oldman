@@ -80,7 +80,8 @@ msgstr "是"
 msgid "No"
 msgstr "否"
 
-#: oldman/apps/admin/model_admin.py oldman/web/auth/tables.py
+#: oldman/apps/admin/model_admin.py oldman/apps/roles/management.py
+#: oldman/web/auth/tables.py
 msgid "Edit"
 msgstr "编辑"
 
@@ -176,7 +177,7 @@ msgstr "用户已保存"
 
 #: frontend/packages/oldman-web/src/dashboard/topbar.ts
 #: oldman/apps/admin/model_admin.py oldman/apps/admin/site.py
-#: oldman/web/auth/user_management.py
+#: oldman/web/messages/actions.py
 msgid "Just now"
 msgstr "刚刚"
 
@@ -232,7 +233,8 @@ msgstr "密码已修改"
 msgid "User status updated"
 msgstr "用户状态已更新"
 
-#: oldman/apps/admin/table.py oldman/web/auth/tables.py
+#: oldman/apps/admin/table.py oldman/apps/roles/management.py
+#: oldman/web/auth/tables.py
 msgid "Action"
 msgstr "操作"
 
@@ -299,11 +301,14 @@ msgstr "此操作无法撤销。"
 #: oldman/web/templates/oldman/auth/partials/password_form.html
 #: oldman/web/templates/oldman/auth/partials/user_delete_form.html
 #: oldman/web/templates/oldman/auth/partials/user_status_form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
 msgid "Cancel"
 msgstr "取消"
 
-#: oldman/apps/admin/templates/admin/model/form.html oldman/web/auth/tables.py
+#: oldman/apps/admin/templates/admin/model/form.html
+#: oldman/apps/roles/management.py oldman/web/auth/tables.py
 #: oldman/web/templates/oldman/auth/partials/user_delete_form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
 msgid "Delete"
 msgstr "删除"
 
@@ -343,14 +348,16 @@ msgstr "请查收邮件"
 
 #: oldman/apps/roles/apps.py oldman/apps/roles/models.py
 #: oldman/web/auth/forms.py
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 msgid "Roles"
 msgstr "角色"
 
-#: oldman/apps/roles/forms.py
+#: oldman/apps/roles/forms.py oldman/apps/roles/management.py
 msgid "Name"
 msgstr "名称"
 
-#: oldman/apps/roles/forms.py
+#: oldman/apps/roles/forms.py oldman/apps/roles/management.py
 msgid "Description"
 msgstr "说明"
 
@@ -371,6 +378,54 @@ msgstr "只能授予自己拥有的权限：%(permissions)s"
 #: oldman/apps/roles/management.py oldman/web/auth/permissions.py
 msgid "The permission store is unavailable"
 msgstr "权限存储暂时不可用"
+
+#: oldman/apps/roles/management.py
+msgid "No roles found."
+msgstr "未找到角色。"
+
+#: oldman/apps/roles/management.py
+msgid "Role actions"
+msgstr "角色操作"
+
+#: oldman/apps/roles/management.py
+msgid "Role created"
+msgstr "角色已创建"
+
+#: oldman/apps/roles/management.py
+msgid "Role saved"
+msgstr "角色已保存"
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was created."
+msgstr "已创建 %(name)s。"
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was updated."
+msgstr "已更新 %(name)s。"
+
+#: oldman/apps/roles/management.py
+msgid "Role not found"
+msgstr "未找到角色"
+
+#: oldman/apps/roles/management.py
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "Delete Role"
+msgstr "删除角色"
+
+#: oldman/apps/roles/management.py
+msgid "Role not found."
+msgstr "未找到角色。"
+
+#: oldman/apps/roles/management.py
+msgid "Role deleted"
+msgstr "角色已删除"
+
+#: oldman/apps/roles/management.py
+#, python-format
+msgid "%(name)s was deleted."
+msgstr "已删除 %(name)s。"
 
 #: oldman/apps/roles/models.py
 msgid "Role"
@@ -1696,6 +1751,7 @@ msgstr "刷新令牌存储暂时不可用"
 #: oldman/web/components/modals.py
 #: oldman/web/templates/oldman/auth/partials/user_modals.html
 #: oldman/web/templates/oldman/auth/user_session_content.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 #: oldman/web/templates/oldman/dashboard/partials/topbar.html
 msgid "Close"
 msgstr "关闭"
@@ -2039,6 +2095,7 @@ msgid "Delete user?"
 msgstr "删除该用户？"
 
 #: oldman/web/templates/oldman/auth/partials/user_modals.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
 msgid "Select a row action to continue."
 msgstr "请选择一项行操作以继续。"
 
@@ -2107,6 +2164,23 @@ msgstr "如果这个邮箱对应一个账号，设置新密码的链接已经发
 #: oldman/web/templates/oldman/dashboard/account/login.html
 msgid "Sign in with your account to continue."
 msgstr "请使用你的账号登录以继续。"
+
+#: oldman/web/templates/oldman/dashboard/account/roles/delete_form.html
+msgid "Delete role?"
+msgstr "删除该角色？"
+
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "New Role"
+msgstr "新建角色"
+
+#: oldman/web/templates/oldman/dashboard/account/roles/form.html
+msgid "Edit Role"
+msgstr "编辑角色"
+
+#: oldman/web/templates/oldman/dashboard/account/roles/index.html
+msgid "Roles List"
+msgstr "角色列表"
 
 #: oldman/web/templates/oldman/dashboard/errors/403.html
 #: oldman/web/templates/oldman/errors/403.html

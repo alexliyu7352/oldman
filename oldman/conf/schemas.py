@@ -1171,8 +1171,11 @@ class AccountConfig(ConfigModel):
         description="Server-sent events for the signed-in user (session ended, notifications); only with web.sse.enabled",
     )
     users_url: str = Field(default="/users", description="User management: the list, with each account's pages below it")
+    roles_url: str = Field(default="/roles", description="Role management: the list, with each role's pages below it")
 
-    @field_validator("login_url", "logout_url", "login_redirect_url", "password_reset_url", "profile_url", "user_events_url", "users_url")
+    @field_validator(
+        "login_url", "logout_url", "login_redirect_url", "password_reset_url", "profile_url", "user_events_url", "users_url", "roles_url"
+    )
     @classmethod
     def validate_paths(cls, value: str | None, info: ValidationInfo) -> str | None:
         """Registered as routes and redirected to, so plain local paths."""

@@ -1,0 +1,40 @@
+{#-
+  A dashboard's role list: the project's base.html around the role table and its delete modal.
+  Context from RoleManagementFlow: table, roles_url, new_url.
+-#}
+{% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+{% from "oldman/dashboard/components/modal.html" import modal %}
+
+{% block title %}{{ _("Roles") }} · {{ site_name() }}{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    {% call page_head(_("Roles")) %}
+      <a href="{{ new_url }}" class="om-button om-button-primary"><i class="ri-add-line" aria-hidden="true"></i>{{ _("New Role") }}</a>
+    {% endcall %}
+
+    <div id="roles-feedback" data-om-component="feedback"></div>
+    <div class="om-card om-table-card">
+      <div class="om-card-header">
+        <h2 class="om-card-title">{{ _("Roles List") }}</h2>
+      </div>
+      <div class="om-card-body">
+        {{ table.render_shell(html_id="roles-table", data_format="json") }}
+      </div>
+    </div>
+  </div>
+
+  {#- The delete modal the row menu opens (oldman.apps.roles.management.ROLE_DELETE_MODAL). -#}
+  {% call modal(
+    "role-delete-modal",
+    _("Delete Role"),
+    component="modal",
+    close_label=_("Close"),
+    dialog_scrollable=true,
+    inline_hidden_style=true,
+    remote_content=true
+  ) %}
+    <p class="text-default-500 mb-0">{{ _("Select a row action to continue.") }}</p>
+  {% endcall %}
+{% endblock %}

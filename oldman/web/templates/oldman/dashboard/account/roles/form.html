@@ -1,0 +1,31 @@
+{#-
+  A dashboard's create and edit page for one role: the project's base.html around the shared role form.
+  Context from RoleManagementFlow: form, role (None when creating), action, roles_url.
+-#}
+{% extends "base.html" %}
+{% from "oldman/dashboard/components/page_head.html" import page_head with context %}
+
+{% block title %}{{ _("New Role") if role is none else _("Edit Role") }} · {{ site_name() }}{% endblock %}
+
+{% block content %}
+  <div class="om-page-section">
+    {% call page_head(_("New Role") if role is none else _("Edit Role")) %}
+      <a href="{{ roles_url }}" class="om-button om-button-secondary">
+        <i class="ri-arrow-left-line" aria-hidden="true"></i>{{ _("Roles") }}
+      </a>
+    {% endcall %}
+
+    <div class="om-card">
+      <div class="om-card-body">
+        <div id="roles-form-feedback" data-om-component="feedback"></div>
+        {{ form.render(
+          action=action,
+          cancel_url=roles_url,
+          form_mode="json",
+          validate=True,
+          feedback_target="#roles-form-feedback"
+        ) }}
+      </div>
+    </div>
+  </div>
+{% endblock %}

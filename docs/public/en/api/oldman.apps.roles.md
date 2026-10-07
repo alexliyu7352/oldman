@@ -69,7 +69,7 @@ Members:
 
 ## Module `oldman.apps.roles.management`
 
-Saving and deleting a role so that permission checks see the change: the steps every role page takes.
+Managing roles: the steps every role page takes, and a dashboard's role pages.
 
 Import with `from oldman.apps.roles.management import <name>`.
 
@@ -102,6 +102,44 @@ async def publish_saved_role(role: Role) -> None
 ```
 
 Write the saved permissions to the role's cache key; call it once the save has committed.
+
+### `RoleManagementFlow`
+
+class · defined in `oldman.apps.roles.management`
+
+```python
+class RoleManagementFlow
+```
+
+A dashboard's role pages: list, create, edit and delete.
+
+Members:
+
+- `base_path: str`
+- `login_path: str`
+- `db_manager: DatabaseManager | None = None`
+- `def database() -> DatabaseManager` — Where the roles live, the process's database by default.
+- `def object_url(role: Any, action: str) -> str` — `edit`, `delete-modal` or `delete` for one role.
+- `def table_class(name_prefix: str='') -> type[RoleTable]` — The role table data endpoint at `<base_path>/table`; `RoleTable` itself asks for `roles.view`.
+- `def register_routes(app: Sanic | Router | None=None, *, render: PageRenderer | None=None, template_prefix: str | None=None, name_prefix: str='') -> None` — Install the pages, the table data endpoint, the delete modal and its submit under `base_path`.
+
+### `RoleTable`
+
+class · defined in `oldman.apps.roles.management`
+
+```python
+class RoleTable(SQLAlchemyTableView)
+```
+
+The role list as a table data endpoint; a site sets `route_name`, `route_path` and `object_url()`.
+
+Members:
+
+- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — `roles.view`, checked before the query runs.
+- `def object_url(row: Any, action: str) -> str` — Map "edit" and "delete-modal" to this site's routes for `row`.
+- `async def get_queryset()`
+- `def get_column_name_data(row: Any, **_: object)`
+- `def get_column_action_data(row: Any, **_: object) -> tuple[Markup, str]`
 
 ## Module `oldman.apps.roles.models`
 
