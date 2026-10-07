@@ -160,7 +160,7 @@ Demo 的 [tables/dynamic.html](https://github.com/alexliyu7352/oldman-epg-dashbo
 
 声明式远程加载使用 Modal parts JSON。通用 parts 有 title/body/footer；Demo 的 Dashboard Modal 实际接收 `{"title": "...", "html": "<form>..." }`，其中 html 装入内容区。它不是 ResponseAction JSON。后端不要自己拼这个 dict：`oldman.web.api.modal_response(title, html=...)` 或 `modal_response(title, body=..., footer=...)` 生成载荷，只读 modal 用 `close_label=_("Close")` 直接得到那一个关闭按钮，对象已经不存在时用 `modal_not_found_response(title, message)`（404 加一行灰字，浏览器手上的列表过期是正常情况，不是 500）。`loadParts(url)` 处理这种分部内容；需要真实 HTML HTTP 响应时使用 `loadContent(url)`，不要混淆两种方法。
 
-声明式触发先加载内容，成功后才打开 Modal。失败会设置 error 状态并派发 om:modal:error，但不打开尚未加载成功的内容；共享点击入口同时使用所属 Page 的现有 Feedback 显示“请求失败”。Demo 不需要额外监听这个事件再弹一次提示。离开页面或销毁组件导致的请求取消保持静默，不把旧页面的错误带到新页面。
+声明式触发先加载内容，成功后才打开 Modal。失败会设置 error 状态并派发 om:modal:error，但不打开尚未加载成功的内容；共享点击入口同时使用所属 Page 的现有 Feedback 提示失败（文字规则同[响应](responses.md)：框架响应体的 `message`，否则“没有权限”或“请求失败”）。Demo 不需要额外监听这个事件再弹一次提示。离开页面或销毁组件导致的请求取消保持静默，不把旧页面的错误带到新页面。
 
 直接调用 `loadParts/loadContent` 时，方法仍将原异常抛给业务调用方，不自动再弹 Feedback；调用方按自己的交互流程处理。没有 Page 的独立底层 Modal 会记录声明式点击的原错误，不偷偷创建全局 Feedback。隐藏容器里的状态文字不是可见错误提示；需要用户反馈的页面应提供 Page/Feedback，一次失败只在负责该请求的入口显示一次。
 

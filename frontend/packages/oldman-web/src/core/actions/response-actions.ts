@@ -1,3 +1,4 @@
+import { httpErrorMessage, normalizeHttpError } from "../http/client";
 import type { Page } from "../page/page";
 import { abortable, abortError } from "../services/abort";
 
@@ -282,7 +283,14 @@ export async function showDefaultResponseMessage(
   await feedback.alert({ icon: "error", titleText: response.message });
 }
 
-/** Share request/action failure feedback without fabricating a Form business message. */
+/**
+ * Share request/action failure feedback without fabricating a Form business message.
+ *
+ * A refused request says what `httpErrorMessage` says: the framework's own answer carries a
+ * `message` written for users and already translated (a 503 "The permission store is
+ * unavailable", say), otherwise 403 reads "Permission denied" and the rest "Request failed".
+ * An error that is not a request's, such as a failing action, never shows its own text.
+ */
 export async function showResponseActionFailure(
   page: Page,
   source: HTMLElement,
@@ -300,7 +308,8 @@ export async function showResponseActionFailure(
     return;
   }
   try {
-    await feedback.alert({ icon: "error", titleText: page.i18n.t("Request failed") });
+    const titleText = normalizeHttpError(error).isAxiosError ? httpErrorMessage(error, page.i18n) : page.i18n.t("Request failed");
+    await feedback.alert({ icon: "error", titleText });
   } catch (feedbackError) {
     page.logger.error("Oldman response action failed", error, feedbackError);
   }

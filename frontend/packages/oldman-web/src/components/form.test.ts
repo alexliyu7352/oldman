@@ -1,3 +1,4 @@
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HttpClient } from "../core/http/client";
 import { Page } from "../core/page/page";
@@ -152,6 +153,48 @@ describe("Form", () => {
     expect(form.dataset.omStatus).toBe("error");
     expect(form.querySelector<HTMLElement>("[data-om-form-status]")?.hidden).toBe(true);
     expect(form.querySelector<HTMLElement>("[data-om-form-message]")?.hidden).toBe(true);
+  });
+
+  it("says what the server said when it refused the submission in the framework's own answer", async () => {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    const refused = (status: number, data: unknown) => new AxiosError(`Request failed with status code ${status}`, "ERR_BAD_RESPONSE", config, {}, {
+      data,
+      status,
+      statusText: "",
+      headers: {},
+      config,
+      request: {}
+    });
+    const titles: unknown[] = [];
+    for (const error of [
+      // A role saved while the permission store is down: the framework's envelope, translated by the server.
+      refused(503, { errors: {}, error_code: 1503, message: "权限存储暂时不可用", data: {}, actions: [] }),
+      // Sanic's own error body is an English diagnostic, not a message for users.
+      refused(503, { description: "Service Unavailable", status: 503, message: "The permission store is unavailable" }),
+      refused(403, "<p>Forbidden</p>")
+    ]) {
+      const http = createHttp();
+      vi.mocked(http.postForm).mockRejectedValue(error);
+      const { component, form, page } = await mountForm(
+        '<form data-om-component="form" data-om-form data-om-form-mode="json" action="/roles/1/edit">'
+        + '<div data-om-form-message hidden></div><p data-om-form-status hidden></p></form>',
+        http
+      );
+      const alert = vi.fn().mockResolvedValue({});
+      page.feedback = { alert, toast: vi.fn(), close: vi.fn() };
+
+      await component.submitForm(form);
+
+      titles.push(alert.mock.calls[0]?.[0]);
+      await registry?.unmount();
+      registry = null;
+    }
+
+    expect(titles).toEqual([
+      { icon: "error", titleText: "权限存储暂时不可用" },
+      { icon: "error", titleText: "Request failed" },
+      { icon: "error", titleText: "Permission denied" }
+    ]);
   });
 
   it("renders JSON message and errors before running business-error actions", async () => {

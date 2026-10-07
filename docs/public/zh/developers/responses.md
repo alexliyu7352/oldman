@@ -111,7 +111,7 @@ Table 和 Modal 的初次远程加载有自己的数据格式，不因为也用 
 
 字段错误进入 `[data-om-error-for="字段提交名"]`；顶部 message 进入 `[data-om-form-message]`。`[data-om-form-status]` 只放“正在提交”等瞬时状态。网络失败不再额外生成一条业务 message。
 
-Form 请求失败时先结束 loading、派发一次 `om:form:error`，再复用普通 `data-om-action` 已使用的 `showResponseActionFailure`，通过当前 Page 的 Feedback 显示“请求失败”。这是共享组件的职责，Demo 页面不需要自行补 `onError` 弹窗。HTTP Client 继续保留原始 rejection；默认不另装全局弹窗回调，避免同一次错误在 HTTP 层和组件层各显示一次。应用自行提供 `onError` 时，也不要对这些已有 UI 消费者重复弹窗。
+Form 请求失败时先结束 loading、派发一次 `om:form:error`，再复用普通 `data-om-action` 已使用的 `showResponseActionFailure`，通过当前 Page 的 Feedback 提示失败。提示的文字和表格、下拉、图表一样来自 `httpErrorMessage`：服务端用框架的响应格式拒绝（带数字 `error_code` 和非空 `message`，例如权限存储不可用时的 503 + 1503）就显示它的 `message`，那是服务端按请求语言翻译好的；否则 403 显示“没有权限”，其余显示“请求失败”。Sanic 自己的错误体是英文诊断，不显示；不是请求的错误（比如某个动作自己抛错）也只显示“请求失败”，不把异常文字给用户看。这是共享组件的职责，Demo 页面不需要自行补 `onError` 弹窗。HTTP Client 继续保留原始 rejection；默认不另装全局弹窗回调，避免同一次错误在 HTTP 层和组件层各显示一次。应用自行提供 `onError` 时，也不要对这些已有 UI 消费者重复弹窗。
 
 主动取消或页面切换引起的请求中止不显示这个错误。HTML 422 和 JSON 业务错误仍按表单内容处理；它们不是网络失败，不额外弹“请求失败”。请求异常不会伪造顶部 message 或字段 errors，用户已经填写的内容也不会因此被清空。
 

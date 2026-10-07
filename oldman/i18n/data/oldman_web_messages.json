@@ -324,7 +324,7 @@
         },
         {
           "path": "frontend/packages/oldman-web/src/core/actions/response-actions.ts",
-          "line": 303
+          "line": 311
         },
         {
           "path": "frontend/packages/oldman-web/src/core/http/client.ts",
