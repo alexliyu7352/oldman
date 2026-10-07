@@ -143,6 +143,31 @@ class PermissionLoadingTest(unittest.TestCase):
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
+    def test_the_roles_app_declares_role_management_only_where_it_is_installed(self) -> None:
+        with _temporary_packages({}) as root:
+            result = _run_python(
+                root,
+                """
+                import oldman.apps.admin.roles
+                import oldman.apps.roles.forms
+                import oldman.apps.roles.management
+                import oldman.apps.roles.store
+                from oldman.apps import AppRegistry
+                from oldman.auth import get_permission
+
+                # Importing the App's code declares nothing: a service without the App has no roles.* names.
+                assert get_permission("roles.view") is None
+
+                registry = AppRegistry()
+                registry.register_packages(("oldman.auth", "oldman.apps.roles"))
+                registry.load_models(user_model_path="oldman.auth.models.User")
+                registry.load_permissions()
+                names = [f"roles.{action}" for action in ("view", "add", "change", "delete")]
+                assert all(get_permission(name) is not None for name in names), names
+                """,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

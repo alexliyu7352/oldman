@@ -181,6 +181,20 @@ class RoleAdminTest(AdminWithRolesCase):
         install_admin(without_roles, db_manager=self.database, admin_site=plain_site, admin_settings=AdminSettings(prefix="/control"))
         self.assertFalse(plain_site.is_registered(Role))
 
+    async def test_the_role_page_checks_the_roles_apps_permissions(self) -> None:
+        """Not Admin model permissions: a project's own role pages check the same four."""
+        role_admin = self.site.get_model_admin(Role)
+        self.assertEqual(
+            [f"roles.{action}" for action in ("view", "add", "change", "delete")],
+            [role_admin.permission(action).name for action in ("view", "add", "change", "delete")],
+        )
+        # A request reads its permissions once, so each check gets its own.
+        with grants("roles.view"):
+            allowed = await self.call(ROLES_PATH, ("GET",), make_request(self.app, path=ROLES_PATH, session=staff_session()))
+        with grants(*USER_MANAGEMENT):
+            refused = await self.call(ROLES_PATH, ("GET",), make_request(self.app, path=ROLES_PATH, session=staff_session()))
+        self.assertEqual((200, 403), (allowed.status, refused.status))
+
     async def test_saving_and_deleting_a_role_rewrites_and_drops_its_cache_key(self) -> None:
         created = await self.call(
             f"{ROLES_PATH}/new",
@@ -309,7 +323,7 @@ class RoleAdminTest(AdminWithRolesCase):
 
         # Once the key is gone and the row deleted, a failure to drop it again is only logged.
         forget = AsyncMock(side_effect=[None, RedisConnectionError("down")])
-        with patch("oldman.apps.roles.store.forget_role", forget), self.assertLogs("oldman.apps.admin.roles", "WARNING"):
+        with patch("oldman.apps.roles.store.forget_role", forget), self.assertLogs("oldman.apps.roles.management", "WARNING"):
             await self.call(delete_path, ("POST",), self.post(delete_path, {}), object_id=str(role_id))
         self.assertIsNone(await self.role_named("Analysts"))
         self.assertEqual(2, forget.await_count)

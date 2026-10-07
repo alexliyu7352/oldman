@@ -162,10 +162,6 @@ msgstr ""
 msgid "Just now"
 msgstr ""
 
-#: oldman/apps/admin/roles.py oldman/web/auth/permissions.py
-msgid "The permission store is unavailable"
-msgstr ""
-
 #: oldman/apps/admin/site.py oldman/web/auth/user_session.py
 msgid "Unsupported language."
 msgstr ""
@@ -354,6 +350,10 @@ msgstr ""
 msgid "You can only grant permissions you hold: %(permissions)s"
 msgstr ""
 
+#: oldman/apps/roles/management.py oldman/web/auth/permissions.py
+msgid "The permission store is unavailable"
+msgstr ""
+
 #: oldman/apps/roles/models.py
 msgid "Role"
 msgstr ""
@@ -364,6 +364,22 @@ msgstr ""
 
 #: oldman/apps/roles/models.py
 msgid "User roles"
+msgstr ""
+
+#: oldman/apps/roles/permissions.py
+msgid "View roles"
+msgstr ""
+
+#: oldman/apps/roles/permissions.py
+msgid "Add roles"
+msgstr ""
+
+#: oldman/apps/roles/permissions.py
+msgid "Change roles"
+msgstr ""
+
+#: oldman/apps/roles/permissions.py
+msgid "Delete roles"
 msgstr ""
 
 #: oldman/auth/apps.py

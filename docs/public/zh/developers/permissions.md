@@ -49,6 +49,17 @@ auth App 自己的权限模块叫 `user_permissions`（见下一节），因为 
 
 安装：服务的 `apps` 加入 `oldman.apps.roles`，然后按[数据库迁移](migrations.md)执行 migrate。它是单独的 App、不在 `oldman.auth` 里，因为使用自定义 User 模型的项目不会加载 `oldman.auth` 的模型。
 
+装了 roles App 的服务有四个管理角色的权限，在 `oldman.apps.roles.permissions`（roles App 的 `permissions_module`）里：
+
+| 对象 | 名字 |
+| --- | --- |
+| `VIEW_ROLES` | `roles.view` |
+| `ADD_ROLES` | `roles.add` |
+| `CHANGE_ROLES` | `roles.change` |
+| `DELETE_ROLES` | `roles.delete` |
+
+内置 Admin 的角色管理检查它们，项目自己的角色管理页面也检查它们，同一个角色在哪里管理角色都一样。roles App 的其他模块只在检查时才导入它，没装 roles App 的服务没有这四个名字。
+
 两张表：
 
 - `oldman_role`：`id`、`name`（唯一）、`description`、`permissions`（权限名的 JSON 数组）。已删除角色的 id 不会再分配给新角色。
@@ -65,7 +76,15 @@ auth App 自己的权限模块叫 `user_permissions`（见下一节），因为 
 | `user_role_ids(user_id)` | 用户持有的角色 id，升序 |
 | `replace_user_roles(session, user_id, role_ids)` | 在调用方的事务里把用户的角色换成给定的这些，返回是否有变化 |
 
-内置 Admin 在服务安装了 roles App 时自带角色管理（见 [Admin](admin.md#角色管理)）。项目自己写角色管理页面时，表单用 `oldman.apps.roles.forms.RoleForm`（名称、说明、按 App 分组的权限复选框），保存的事务提交之后调用 `publish_role`；删除时按上表在删行之前和提交之后各调用一次 `forget_role`。`oldman.web.auth.roles_installed(app)` 回答服务装没装 roles App。
+内置 Admin 在服务安装了 roles App 时自带角色管理（见 [Admin](admin.md#角色管理)）。项目自己写角色管理页面时，表单用 `oldman.apps.roles.forms.RoleForm`（名称、说明、按 App 分组的权限复选框），保存、删除用 `oldman.apps.roles.management` 里与 Admin 共用的三个函数，它们按上表的顺序维护角色的键：
+
+| 函数 | 何时调用 | 做什么 |
+| --- | --- | --- |
+| `publish_saved_role(role)` | 保存的事务提交之后 | `publish_role`；Redis 不可用时抛 503（`ServiceUnavailable`，「权限存储暂时不可用」），角色已经保存，Redis 恢复后再保存一次即修复 |
+| `delete_role(session, role)` | 删除的事务里 | 先 `forget_role`，Redis 不可用时抛 503，异常回滚事务，什么都不删；再删行 |
+| `forget_deleted_role(role_id)` | 删除的事务提交之后 | 再 `forget_role` 一次；Redis 不可用时只记 WARNING |
+
+`oldman.web.auth.roles_installed(app)` 回答服务装没装 roles App。
 
 给用户分配角色用共用的用户表单（`oldman.web.auth.user_create_form_class` / `user_edit_form_class`）：服务装了 roles App、并且至少有一个角色时，表单带一组「角色」复选框，选项从数据库读，所以表单要绑定 session。用户行写入之后、在同一个事务里调用 `await form.save_roles(session, user)`（新用户这时才有 id），它返回角色是否有变化；返回 `True` 时在提交之后结束这个用户的登录。表单没有角色字段时它什么都不写，返回 `False`。
 

@@ -211,9 +211,10 @@ Roles edited with the shared RoleForm; each save or delete refreshes the role's 
 Members:
 
 - `def get_form_class(*, create: bool=True, dialect: Any=None) -> type[Any]` — Every role is edited through the same form: name, description and grouped permission checkboxes.
-- `async def after_save(request: Any, instance: Any, *, created: bool) -> None` — Write the saved permissions to the role's cache key.
-- `async def delete_model(session: Any, instance: Any) -> None` — Drop the role's cache key first, inside the transaction, then delete the row.
-- `async def after_delete(request: Any, instance: Any) -> None` — Drop the key once more after the commit.
+- `def permission(action: str) -> Permission` — Role management checks the roles App's permissions, not Admin model permissions.
+- `async def after_save(request: Any, instance: Any, *, created: bool) -> None` — Write the saved permissions to the role's cache key; a 503 if Redis refuses, the role saved.
+- `async def delete_model(session: Any, instance: Any) -> None` — Drop the role's cache key first, inside the transaction, then delete the row; a 503 deletes nothing.
+- `async def after_delete(request: Any, instance: Any) -> None` — Drop the key once more after the commit; a refusal is logged, not reported.
 
 ## Module `oldman.apps.admin.settings`
 

@@ -180,10 +180,6 @@ msgstr "用户已保存"
 msgid "Just now"
 msgstr "刚刚"
 
-#: oldman/apps/admin/roles.py oldman/web/auth/permissions.py
-msgid "The permission store is unavailable"
-msgstr "权限存储暂时不可用"
-
 #: oldman/apps/admin/site.py oldman/web/auth/user_session.py
 msgid "Unsupported language."
 msgstr "不支持该语言。"
@@ -372,6 +368,10 @@ msgstr "已有同名角色"
 msgid "You can only grant permissions you hold: %(permissions)s"
 msgstr "只能授予自己拥有的权限：%(permissions)s"
 
+#: oldman/apps/roles/management.py oldman/web/auth/permissions.py
+msgid "The permission store is unavailable"
+msgstr "权限存储暂时不可用"
+
 #: oldman/apps/roles/models.py
 msgid "Role"
 msgstr "角色"
@@ -383,6 +383,22 @@ msgstr "用户角色"
 #: oldman/apps/roles/models.py
 msgid "User roles"
 msgstr "用户角色"
+
+#: oldman/apps/roles/permissions.py
+msgid "View roles"
+msgstr "查看角色"
+
+#: oldman/apps/roles/permissions.py
+msgid "Add roles"
+msgstr "新增角色"
+
+#: oldman/apps/roles/permissions.py
+msgid "Change roles"
+msgstr "修改角色"
+
+#: oldman/apps/roles/permissions.py
+msgid "Delete roles"
+msgstr "删除角色"
 
 #: oldman/auth/apps.py
 msgid "Authentication"

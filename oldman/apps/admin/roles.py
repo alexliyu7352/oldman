@@ -1,22 +1,16 @@
 """The Admin page for roles, registered when the service installs ``oldman.apps.roles``.
 
 Saving a role rewrites its cached permissions once the transaction commits; deleting one drops
-the cache key before the delete and again after it. Permission checks read the cache, not the
-database.
+the cache key before the delete and again after it (``oldman.apps.roles.management``). Permission
+checks read the cache, not the database.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from redis.exceptions import RedisError
-from sanic.exceptions import ServiceUnavailable
-
 from oldman.apps.admin.model_admin import ModelAdmin
-from oldman.i18n import gettext
-from oldman.logging import get_logger
-
-logger = get_logger(__name__)
+from oldman.auth import Permission
 
 
 class RoleModelAdmin(ModelAdmin):
@@ -35,48 +29,41 @@ class RoleModelAdmin(ModelAdmin):
 
         return RoleForm
 
-    async def after_save(self, request: Any, instance: Any, *, created: bool) -> None:
-        """Write the saved permissions to the role's cache key.
+    def permission(self, action: str) -> Permission:
+        """Role management checks the roles App's permissions, not Admin model permissions.
 
-        The role is already saved. If Redis refuses, the response says the permission store is
-        unavailable, and saving the role again once it is back repairs the key.
+        They are the ones a project's own role pages check too, so a role that may change roles
+        may do so wherever roles are managed.
         """
-        del request, created
-        from oldman.apps.roles.store import publish_role
+        # Imported here: importing the Admin must declare no roles.* permission.
+        from oldman.apps.roles import permissions
 
-        try:
-            await publish_role(instance)
-        except RedisError as exc:
-            raise ServiceUnavailable(gettext("The permission store is unavailable")) from exc
+        return {
+            "view": permissions.VIEW_ROLES,
+            "add": permissions.ADD_ROLES,
+            "change": permissions.CHANGE_ROLES,
+            "delete": permissions.DELETE_ROLES,
+        }[action]
+
+    async def after_save(self, request: Any, instance: Any, *, created: bool) -> None:
+        """Write the saved permissions to the role's cache key; a 503 if Redis refuses, the role saved."""
+        del request, created
+        from oldman.apps.roles.management import publish_saved_role
+
+        await publish_saved_role(instance)
 
     async def delete_model(self, session: Any, instance: Any) -> None:
-        """Drop the role's cache key first, inside the transaction, then delete the row.
+        """Drop the role's cache key first, inside the transaction, then delete the row; a 503 deletes nothing."""
+        from oldman.apps.roles.management import delete_role
 
-        If Redis refuses, the error rolls the transaction back and nothing is deleted. The other
-        order would leave a key nothing can remove: the role would be gone, and the next delete
-        would find no role.
-        """
-        from oldman.apps.roles.store import forget_role
-
-        try:
-            await forget_role(instance.id)
-        except RedisError as exc:
-            raise ServiceUnavailable(gettext("The permission store is unavailable")) from exc
-        await super().delete_model(session, instance)
+        await delete_role(session, instance)
 
     async def after_delete(self, request: Any, instance: Any) -> None:
-        """Drop the key once more after the commit.
-
-        A request that read the role just before the delete may have written the key back in
-        between. The delete already stands, so a refusal here is logged, not reported.
-        """
+        """Drop the key once more after the commit; a refusal is logged, not reported."""
         del request
-        from oldman.apps.roles.store import forget_role
+        from oldman.apps.roles.management import forget_deleted_role
 
-        try:
-            await forget_role(instance.id)
-        except RedisError:
-            logger.warning("Could not drop the cache key of deleted role %s", instance.id, exc_info=True)
+        await forget_deleted_role(instance.id)
 
 
 __all__ = ["RoleModelAdmin"]

@@ -67,6 +67,42 @@ Members:
 - `async def clean_name() -> str` — Names are unique; say so before the database constraint does.
 - `async def clean_permissions() -> list[str]` — Sorted without repeats. What is checked must be declared here; what this service does not declare is kept.
 
+## Module `oldman.apps.roles.management`
+
+Saving and deleting a role so that permission checks see the change: the steps every role page takes.
+
+Import with `from oldman.apps.roles.management import <name>`.
+
+### `delete_role`
+
+function · defined in `oldman.apps.roles.management`
+
+```python
+async def delete_role(session: Any, role: Role) -> None
+```
+
+Drop the role's cache key, then delete its row, inside the caller's transaction.
+
+### `forget_deleted_role`
+
+function · defined in `oldman.apps.roles.management`
+
+```python
+async def forget_deleted_role(role_id: int) -> None
+```
+
+Drop the key once more after the delete has committed.
+
+### `publish_saved_role`
+
+function · defined in `oldman.apps.roles.management`
+
+```python
+async def publish_saved_role(role: Role) -> None
+```
+
+Write the saved permissions to the role's cache key; call it once the save has committed.
+
 ## Module `oldman.apps.roles.models`
 
 A role is a named set of permissions; users hold roles.
@@ -104,6 +140,44 @@ Members:
 
 - `user_id: Mapped[int] = mapped_column(Integer, ForeignKey('oldman_user.id', ondelete='CASCADE'), primary_key=True)`
 - `role_id: Mapped[int] = mapped_column(Integer, ForeignKey('oldman_role.id', ondelete='CASCADE'), primary_key=True)`
+
+## Module `oldman.apps.roles.permissions`
+
+The permissions the roles App declares: managing roles.
+
+Import with `from oldman.apps.roles.permissions import <name>`.
+
+### `ADD_ROLES`
+
+value · defined in `oldman.apps.roles.permissions`
+
+```python
+ADD_ROLES = declare_permission('roles', 'add', _('Add roles'))
+```
+
+### `CHANGE_ROLES`
+
+value · defined in `oldman.apps.roles.permissions`
+
+```python
+CHANGE_ROLES = declare_permission('roles', 'change', _('Change roles'))
+```
+
+### `DELETE_ROLES`
+
+value · defined in `oldman.apps.roles.permissions`
+
+```python
+DELETE_ROLES = declare_permission('roles', 'delete', _('Delete roles'))
+```
+
+### `VIEW_ROLES`
+
+value · defined in `oldman.apps.roles.permissions`
+
+```python
+VIEW_ROLES = declare_permission('roles', 'view', _('View roles'))
+```
 
 ## Module `oldman.apps.roles.store`
 
