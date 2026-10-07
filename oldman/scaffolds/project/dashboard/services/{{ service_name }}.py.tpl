@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 from apps.accounts.routes import install_account_pages
 from config.settings import settings
-{{ admin_import }}from oldman.auth.user_permissions import VIEW_USERS
+{{ admin_import }}from oldman.apps.roles.permissions import VIEW_ROLES
+from oldman.auth.user_permissions import VIEW_USERS
 from oldman.i18n import gettext
 from oldman.runtime import WebApplication
 from oldman.web.auth import has_perm
@@ -37,6 +38,11 @@ async def can_manage_users(request: Any) -> bool:
     return await has_perm(request, VIEW_USERS)
 
 
+async def can_manage_roles(request: Any) -> bool:
+    """Whether the menu lists Role management: the permission its pages check (a superuser holds it)."""
+    return await has_perm(request, VIEW_ROLES)
+
+
 def install_dashboard_templates(app: WebApp) -> StaticBundleRegistry:
     """Install shared templates, the project's Vite bundle and the public bundle helpers."""
     registry = app_bundle_registry(app)
@@ -58,6 +64,7 @@ def install_dashboard_templates(app: WebApp) -> StaticBundleRegistry:
     registry.install_template_globals(environment)
     environment.globals["app_main_bundle"] = APP_MAIN_BUNDLE
     environment.globals["can_manage_users"] = can_manage_users
+    environment.globals["can_manage_roles"] = can_manage_roles
     return registry
 
 

@@ -1,4 +1,4 @@
-"""The account pages: sign-in and sign-out, the user's own page and notifications, user management.
+"""The account pages: sign-in and sign-out, the user's own page and notifications, user and role management.
 
 These are the framework's flows at the paths `web.account` and `i18n.preference_url` name; their pages are
 the framework's `oldman/dashboard/account/*` templates, which a file of the same name under `templates/`
@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from config.settings import settings
+from oldman.apps.roles.management import RoleManagementFlow
 from oldman.web.auth import AccountFlow, LoginFlow, UserManagementFlow
 
 if TYPE_CHECKING:
@@ -39,5 +40,9 @@ def install_account_pages(app: WebApp, *, notification_routes: NotificationRoute
     ).register_routes(app, template_prefix=ACCOUNT_TEMPLATES)
     UserManagementFlow(
         base_path=account.users_url,
+        login_path=account.login_url,
+    ).register_routes(app, template_prefix=ACCOUNT_TEMPLATES)
+    RoleManagementFlow(
+        base_path=account.roles_url,
         login_path=account.login_url,
     ).register_routes(app, template_prefix=ACCOUNT_TEMPLATES)

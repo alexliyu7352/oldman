@@ -4,7 +4,7 @@
 
 Oldman Dashboard 项目。默认服务是 {{ service_name }}，配置在 data/{{ service_name }}_settings.yaml。run.sh 只透传命令，不会替你创建数据、构建前端或启动全部服务。
 
-生成后就是一个能登录的后台：登录与登出、首页、个人页（语言、修改自己的密码）、通知、用户管理。所有启用的账户都能登录；用户管理要 `auth.users.view` 等权限（超级用户都有，其他人经角色授予）。
+生成后就是一个能登录的后台：登录与登出、首页、个人页（语言、修改自己的密码）、通知、用户管理、角色管理。所有启用的账户都能登录；用户管理要 `auth.users.view` 等权限，角色管理要 `roles.view` 等权限（超级用户都有，其他人经角色授予）。
 
 ## 首次运行
 
@@ -43,7 +43,7 @@ pnpm build
 ## 文件分工
 
 - `apps/accounts/models.py`：项目自己的 User 模型（表仍是框架的 `oldman_user`）。要给用户加字段就在这里加，再 `./run.sh db makemigrations` 和 `./run.sh db migrate`。
-- `apps/accounts/routes.py`：按配置 `web.account` 装登录、个人页与通知、用户管理三个框架流程。只让部分账户登录就给 `LoginFlow` 传 `accept_user`；要找回密码就在旁边装 `PasswordResetFlow`。
+- `apps/accounts/routes.py`：按配置 `web.account` 装登录、个人页与通知、用户管理、角色管理四个框架流程。只让部分账户登录就给 `LoginFlow` 传 `accept_user`；要找回密码就在旁边装 `PasswordResetFlow`。
 - `apps/home/`、`templates/home/index.html`：首页，换成自己的内容。
 - `templates/base.html`：所有页面的外壳（侧栏、顶栏、语言、账户菜单），框架的账户页面也用它。
 - `templates/partials/sidebar.html`：菜单只在这里列。新页面在这里加一项。
@@ -51,7 +51,7 @@ pnpm build
 - `frontend/src/main.ts`：前端入口；`frontend/src/pages/base-page.ts` 是所有页面共用的页面类。
 - `data/{{ service_name }}_settings.yaml`：本服务配置，含密钥，不进 Git。
 
-登录、个人页、用户管理等页面的模板在框架里（`oldman/dashboard/account/*`）。要改哪一页，就在 `templates/` 下放同路径的文件，项目的优先；删掉就回到框架的版本。要一次把框架模板全部复制过来再改，用 `./run.sh {{ service_name }} templates copy`：已存在且内容不同的文件会先列出、再问是否全部覆盖。地址（`/login`、`/users` 等）在配置 `web.account` 里改。
+登录、个人页、用户管理、角色管理等页面的模板在框架里（`oldman/dashboard/account/*`）。要改哪一页，就在 `templates/` 下放同路径的文件，项目的优先；删掉就回到框架的版本。要一次把框架模板全部复制过来再改，用 `./run.sh {{ service_name }} templates copy`：已存在且内容不同的文件会先列出、再问是否全部覆盖。地址（`/login`、`/users`、`/roles` 等）在配置 `web.account` 里改。
 
 ## 新增页面
 

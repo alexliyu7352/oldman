@@ -32,7 +32,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | `service` | `services/service.py`，基于 SimpleApplication；`main()` 是示例循环，每 10 秒记一行日志，运行到 `stop` 为止 |
 | `api` | `services/api.py`，不预装前端的 WebApplication；项目 App `apps.home` 有三个接口：`/` 健康检查，`/api/caller` 只认 API key，`/api/ops` 只认 HTTP Basic。两份凭据在生成时随机产生，只写进服务配置（`web.auth`），不需要数据库和 Session |
 | `web` | `services/web.py`，启用异步模板环境的 WebApplication；`/` 是欢迎页（项目 App `apps.home`，可改可删），`templates/base.html` 的 `<html lang>` 跟随请求语言 |
-| `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
+| `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理、角色管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
 
 每种项目都带 `AGENTS.md`（给 coding agent 的说明：按已装版本克隆文档到 `.oldman-docs/`、按任务必读的指南、规则与事实，内容随项目类型和是否集成 Admin 增减）和只有一行 `@AGENTS.md` 的 `CLAUDE.md`；`.gitignore` 排除 `.oldman-docs/`。这两个文件建项目时生成，升级框架后不会自动更新。
 

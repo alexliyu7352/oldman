@@ -16,7 +16,7 @@
 | 职责 | 实际源码 |
 | --- | --- |
 | Session、CSRF、模板、通知和静态 bundle 初始化 | [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) |
-| 登录、个人页和用户管理（框架的账户流程） | [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) |
+| 登录、个人页、用户管理和角色管理（框架的账户流程） | [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) |
 | 数据模型 | [apps/examples/models.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py) |
 | 筛选表单和编辑表单 | [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) |
 | 两种格式共用的 Table | [apps/examples/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tables.py) |

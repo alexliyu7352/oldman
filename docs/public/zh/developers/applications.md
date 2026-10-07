@@ -206,8 +206,8 @@ def init(self) -> None:
 
 - `StatelessCSRFManager` 从 `oldman.web.security.csrf` 导入。
 - `install_notifications` 是 `oldman.web.messages.notifications.init_app` 的导入名称，不是另一个 subscriber；它返回的通知路由交给账户页面装通知中心。
-- `install_dashboard_templates()` 与骨架同名同形：安装共享/项目模板 loader，用 `register_project_bundle()` 和 `registry.install_template_globals()` 接入静态 bundle（见 [Assets](assets.md)），再登记 `app_main_bundle`、菜单用的 `can_manage_users` 和 Demo 的顶栏业务通知；语言菜单、CSRF token 和账户地址 `account_urls` 是框架全局，不由它提供。
-- `install_account_pages()`（apps/accounts/routes.py）装框架的登录、个人页、通知中心、用户管理和找回密码流程，地址来自 `web.account`；`/user-events` 也由它装，SSE 关闭时不装。
+- `install_dashboard_templates()` 与骨架同名同形：安装共享/项目模板 loader，用 `register_project_bundle()` 和 `registry.install_template_globals()` 接入静态 bundle（见 [Assets](assets.md)），再登记 `app_main_bundle`、菜单用的 `can_manage_users`、`can_manage_roles` 和 Demo 的顶栏业务通知；语言菜单、CSRF token 和账户地址 `account_urls` 是框架全局，不由它提供。
+- `install_account_pages()`（apps/accounts/routes.py）装框架的登录、个人页、通知中心、用户管理、角色管理和找回密码流程，地址来自 `web.account`；`/user-events` 也由它装，SSE 关闭时不装。
 - `install_token_routes()`（apps/accounts/tokens.py）装令牌接口，骨架没有这一项；`install_admin()` 装内置 Admin。
 
 父类 `init()` 创建 Sanic 和扩展环境，按开关安装 messages、Session，初始化 Storage 与 SSE 输出扩展，再让 Registry 加载 models/views。模型阶段在 bootstrap 已完成，再调用不会重复加载。Demo 的上述覆盖随后才安装自己的附加能力；最终开始处理请求时，这些接线都已完成。不能在 `apps.py`、models 或 views 的导入阶段就假定项目的模板 globals/CSRF 助手已经可用。项目注册自己的模板全局时写 `template_globals(environment)["name"] = value`（`from oldman.web.template import template_globals`）：Jinja 没给 `environment.globals` 标类型，类型检查器按它的默认值推断出一个很窄的字典，直接写 `environment.globals[...]` 会被 Pyrefly 报错，运行结果两者相同。

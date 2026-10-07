@@ -650,9 +650,9 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                     self.assertTrue((target / "apps" / "accounts" / "migrations" / "__init__.py").is_file())
 
                     routes = (target / "apps" / "accounts" / "routes.py").read_text(encoding="utf-8")
-                    for flow in ("LoginFlow(", "AccountFlow(", "UserManagementFlow("):
+                    for flow in ("LoginFlow(", "AccountFlow(", "UserManagementFlow(", "RoleManagementFlow("):
                         self.assertIn(flow, routes)
-                    self.assertEqual(3, routes.count("template_prefix=ACCOUNT_TEMPLATES"))
+                    self.assertEqual(4, routes.count("template_prefix=ACCOUNT_TEMPLATES"))
                     self.assertIn("class User(AbstractUser):", (target / "apps" / "accounts" / "models.py").read_text(encoding="utf-8"))
                     home = (target / "apps" / "home" / "views.py").read_text(encoding="utf-8")
                     self.assertIn('@router.get("/", name="home")\n@login_required()', home)
@@ -673,6 +673,8 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
 
                     sidebar = (target / "templates" / "partials" / "sidebar.html").read_text(encoding="utf-8")
                     self.assertIn("{% if can_manage_users(request) %}", sidebar)
+                    self.assertIn("{% if can_manage_roles(request) %}", sidebar)
+                    self.assertIn('environment.globals["can_manage_roles"] = can_manage_roles', service)
                     self.assertIn("account_urls(request)", sidebar)
                     # The Admin entry: only with the Admin, only for staff (its own floor), by route name rather than a path.
                     self.assertEqual(admin, 'url_for("oldman_admin_index")' in sidebar)

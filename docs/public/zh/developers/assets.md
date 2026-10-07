@@ -217,7 +217,7 @@ Tailwind 里带数字的 `primary-50`、`primary-100`、`primary-500`、`primary
 
 ### 框架自带的翻译
 
-框架带一份自己的翻译 `oldman/locales`（简体 `zh_Hans`、繁体 `zh_Hant`），框架的全部文案都在里面：内置 Admin、账户页面（登录、个人页、用户管理、找回密码）、表格与表单、通知、角色、错误页、CLI 与迁移命令，以及 `oldman-web` 的前端文案。查翻译的顺序是：
+框架带一份自己的翻译 `oldman/locales`（简体 `zh_Hans`、繁体 `zh_Hant`），框架的全部文案都在里面：内置 Admin、账户页面（登录、个人页、用户管理、角色管理、找回密码）、表格与表单、通知、角色、错误页、CLI 与迁移命令，以及 `oldman-web` 的前端文案。查翻译的顺序是：
 
 1. 项目自己的 `locales/`；
 2. 服务装了的每个 App 自带的 `locales/`（第三方 App 可以自带翻译）；
@@ -330,8 +330,8 @@ const i18n = createI18n({
 
 `startproject` 选 dashboard 生成的是能登录的骨架：
 
-- 账户：项目自己的 User 模型（`apps/accounts/models.py`），`apps/accounts/routes.py` 按配置 `web.account` 装 `LoginFlow`、`AccountFlow`、`UserManagementFlow`（见[账户页面的现成流程](web.md#账户页面的现成流程)）。所有启用的账户都能登录；用户管理要 `auth.users.*` 权限。
-- 首页 `apps/home`（`/`，要求登录）；外壳 `templates/base.html`；菜单只在 `templates/partials/sidebar.html` 列，用户管理一项只对有 `auth.users.view` 的人显示（服务里登记的模板函数 `can_manage_users`）。
+- 账户：项目自己的 User 模型（`apps/accounts/models.py`），`apps/accounts/routes.py` 按配置 `web.account` 装 `LoginFlow`、`AccountFlow`、`UserManagementFlow`、`RoleManagementFlow`（见[账户页面的现成流程](web.md#账户页面的现成流程)）。所有启用的账户都能登录；用户管理要 `auth.users.*` 权限，角色管理要 `roles.*` 权限。
+- 首页 `apps/home`（`/`，要求登录）；外壳 `templates/base.html`；菜单只在 `templates/partials/sidebar.html` 列，用户管理一项只对有 `auth.users.view` 的人显示、角色管理一项只对有 `roles.view` 的人显示（服务里登记的模板函数 `can_manage_users`、`can_manage_roles`）。
 - 服务按顺序装 CSRF、通知、模板与前端包、账户页面；生成时选了内置 Admin 的再装 `/admin`，侧栏给 staff 显示它的入口。
 - 前端入口用框架的 `startDashboard`，`frontend/src/pages/base-page.ts` 是所有页面共用的页面类。
 - 配置打开 Session（要 Redis）、`core.site_name` 是项目名，装 auth、角色、通知、`apps.accounts`、`apps.home`。

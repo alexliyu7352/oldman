@@ -5,7 +5,7 @@
 
 {{ sidebar_menu_link(urls.home, _("Home"), "ri-home-4-line", active=request.path == urls.home) }}
 
-{% set system_paths = [urls.profile, urls.users, notifications_url] %}
+{% set system_paths = [urls.profile, urls.users, urls.roles, notifications_url] %}
 {% set system_active = namespace(value=false) %}
 {% for path in system_paths if path and (request.path == path or request.path.startswith(path ~ "/")) %}
   {% set system_active.value = true %}
@@ -13,6 +13,9 @@
 {% call sidebar_menu_group("system-menu", _("System"), "ri-settings-3-line", active=system_active.value) %}
   {% if can_manage_users(request) %}
     {{ sidebar_menu_item(urls.users, _("Users"), active=request.path == urls.users or request.path.startswith(urls.users ~ "/")) }}
+  {% endif %}
+  {% if can_manage_roles(request) %}
+    {{ sidebar_menu_item(urls.roles, _("Roles"), active=request.path == urls.roles or request.path.startswith(urls.roles ~ "/")) }}
   {% endif %}
   {% if notifications_url %}
     {{ sidebar_menu_item(notifications_url, _("Notifications"), active=request.path == notifications_url) }}
