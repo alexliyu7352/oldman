@@ -244,6 +244,7 @@ Members:
 - `def incr_timeout(reset: bool=False) -> None` — 更新父客户端记录的连续超时次数。
 - `async def aiter_bytes(chunk_size: int=512 * 1024) -> AsyncIterator[bytes]` — 迭代正文，并用一个连续预算处理读取失败和后续重连。
 - `async def release_response() -> None` — 退出 backend 上下文，由统一流响应完成幂等关闭。
+- `def detach_response() -> AbstractAsyncContextManager[HttpStreamResponse] | None` — 把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
 - `async def release() -> None` — 清理当前断点续传响应。
 - `def update_response_status(response: HttpStreamResponse) -> None` — Update response metadata and reject unsafe resume responses.
 

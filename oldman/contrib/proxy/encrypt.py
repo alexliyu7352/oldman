@@ -483,8 +483,10 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
             else:
                 return await self.process_sub_stream(request, channel_id, ts_context, **custom_params)
 
-        except asyncio.CancelledError:
-            logger.warning(f"协程取消: url is {ts_url}, lock_key is {lock_key}")
+        except asyncio.CancelledError as e:
+            # 上游最终失败时 stream_response 已经记过带地址的错误、也关掉了请求方连接，这里不再记成"协程取消"。
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: url is {ts_url}, lock_key is {lock_key}")
             return None
         except Exception as e:
             logger.error(f"获取内容失败: {repr(e)}")

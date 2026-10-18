@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import os
+import socket
+import time
 import unittest
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import urlsplit
 
+from sanic import HTTPResponse, Request, Sanic, text
 from sanic.compat import Header
 
 import oldman.conf as conf
@@ -296,6 +300,8 @@ class ProxyResponseBoundaryTest(unittest.IsolatedAsyncioTestCase):
         """The stream bridge forwards duplicate headers and writes the body once."""
 
         class Upstream:
+            status_code = 200
+            url = "https://origin.test/live.ts"
             response_headers = HttpHeaders(
                 [
                     ("Content-Type", "video/mp2t"),
@@ -589,6 +595,231 @@ class ProxyDirectTcpIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("transfer-encoding", sanic_writer.headers)
         self.assertNotIn("connection", sanic_writer.headers)
         await asyncio.wait_for(origin_finished.wait(), timeout=1)
+
+
+_RELAY_PAYLOAD = bytes(range(256)) * 400
+
+
+class _RelayOrigin:
+    """Raw TCP origin for relay tests.
+
+    complete / missing / range answer every request the same way; zero sends headers and no body every
+    time; cut and chunked_cut send part of the body on the first request and 503 afterwards.
+    """
+
+    def __init__(self, mode: str) -> None:
+        self.mode = mode
+        self.requests: list[dict[str, str]] = []
+
+    async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Answer one request and close the connection."""
+
+        try:
+            head = await reader.readuntil(b"\r\n\r\n")
+            lines = head.decode("latin-1").split("\r\n")
+            headers = {name.strip().lower(): value.strip() for name, _, value in (line.partition(":") for line in lines[1:] if ":" in line)}
+            self.requests.append(headers)
+            writer.write(self._answer(len(self.requests), headers.get("range")))
+            await writer.drain()
+        except (ConnectionError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            writer.close()
+            with suppress(Exception):
+                await writer.wait_closed()
+
+    def _answer(self, attempt: int, range_header: str | None) -> bytes:
+        """Build the raw response for this attempt."""
+
+        body = _RELAY_PAYLOAD
+        media = "Content-Type: video/mp2t\r\n"
+        if self.mode == "complete":
+            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode() + body
+        if self.mode == "missing":
+            return f"HTTP/1.1 404 Not Found\r\n{media}Content-Length: 4\r\n\r\n".encode() + b"gone"
+        if self.mode == "range":
+            first, _, last = (range_header or "").removeprefix("bytes=").partition("-")
+            start, end = int(first), int(last)
+            return (
+                f"HTTP/1.1 206 Partial Content\r\n{media}Content-Range: bytes {start}-{end}/{len(body)}\r\nContent-Length: {end - start + 1}\r\n\r\n"
+            ).encode() + body[start : end + 1]
+        if self.mode == "zero":
+            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode()
+        if attempt > 1:
+            return b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n"
+        if self.mode == "cut":
+            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode() + body[:30000]
+        if self.mode == "chunked_cut":
+            return f"HTTP/1.1 200 OK\r\n{media}Transfer-Encoding: chunked\r\n\r\n{30000:x}\r\n".encode() + body[:30000] + b"\r\n"
+        raise AssertionError(self.mode)
+
+
+@asynccontextmanager
+async def _relay(
+    origin: _RelayOrigin,
+    *,
+    handling: str = "raise",
+    proxy_class: type[BaseStreamProxy] = BaseStreamProxy,
+    user_agent: str | None = None,
+) -> AsyncIterator[tuple[str, int]]:
+    """Serve a real Sanic app whose route relays the origin through the proxy; yield its address.
+
+    `handling` is what the route does with a cancellation from the proxy, written the ways
+    downstream projects write it: raise it, return None, or answer 404.
+    """
+
+    origin_server = await asyncio.start_server(origin.handle, "127.0.0.1", 0)
+    upstream = f"http://127.0.0.1:{origin_server.sockets[0].getsockname()[1]}/segment.ts"
+    with patch.dict(conf.__dict__, {"settings": _settings()}):
+        proxy = proxy_class("relay")
+    client = MultiHttpClient(proxy.get_client_type(user_agent), retry_count=1, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
+    await client.init_client()
+
+    async def get_client(*args: Any, **kwargs: Any) -> MultiHttpClient:
+        """Hand every lookup the one client of this relay."""
+
+        return client
+
+    proxy.get_client = get_client  # type: ignore[method-assign]
+    app = Sanic(f"oldman-relay-{time.time_ns()}")
+    app.config.ACCESS_LOG = False
+    # TOUCHUP rewrites class methods; several apps started in one process would interfere.
+    app.config.TOUCHUP = False
+    # A bare server: sanic-ext's CORS middleware expects route setup this test does not run.
+    app.config.AUTO_EXTEND = False
+
+    @app.get("/segment")
+    async def segment(request: Request) -> HTTPResponse | None:
+        """Relay the origin the way a downstream route does."""
+
+        headers = {"Range": request.headers["range"]} if "range" in request.headers else None
+        try:
+            if isinstance(proxy, SimpleStreamProxy):
+                return await proxy.proxy_sub_manifest_or_stream(request, upstream, None, client_type=user_agent)
+            return await proxy.get_ts_stream(request, upstream, user_agent=user_agent, headers=headers)
+        except asyncio.CancelledError:
+            if handling == "return_none":
+                return None
+            if handling == "return_404":
+                return text("cancelled", status=404)
+            raise
+
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    server = await app.create_server(sock=sock, access_log=False, return_asyncio_server=True)
+    try:
+        assert server is not None
+        await server.startup()
+        serving = server.start_serving()  # Sanic types these as maybe None: it returns None before the server exists.
+        assert serving is not None
+        await serving
+        yield sock.getsockname()
+    finally:
+        if server is not None:
+            server.close()
+            closed = server.wait_closed()
+            if closed is not None:
+                await closed
+        sock.close()
+        Sanic.unregister_app(app)
+        await client.close_client()
+        origin_server.close()
+        await origin_server.wait_closed()
+
+
+async def _fetch(address: tuple[str, int], extra_headers: str = "") -> tuple[int, dict[str, str], bytes]:
+    """Read the relay's response over a raw socket: status, headers, and every body byte before the close."""
+
+    reader, writer = await asyncio.open_connection(*address)
+    try:
+        writer.write(f"GET /segment HTTP/1.1\r\nHost: relay\r\nConnection: close\r\n{extra_headers}\r\n".encode())
+        await writer.drain()
+        data = await asyncio.wait_for(reader.read(), 10)
+    finally:
+        writer.close()
+    head, _, body = data.partition(b"\r\n\r\n")
+    lines = head.decode("latin-1").split("\r\n")
+    headers = {name.lower(): value for name, value in (line.split(": ", 1) for line in lines[1:])}
+    return int(lines[0].split(" ")[1]), headers, body
+
+
+def _dechunk(body: bytes) -> tuple[bytes, bool]:
+    """Undo chunked framing; the flag says whether the terminating chunk arrived."""
+
+    data, position = bytearray(), 0
+    while position < len(body):
+        line_end = body.index(b"\r\n", position)
+        size = int(body[position:line_end], 16)
+        if size == 0:
+            return bytes(data), True
+        data += body[line_end + 2 : line_end + 2 + size]
+        position = line_end + 2 + size + 2
+    return bytes(data), False
+
+
+class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
+    """A real Sanic relay: what the requester gets when the upstream answers, or fails for good."""
+
+    async def test_the_upstream_status_reaches_the_requester(self) -> None:
+        """200, 404 and a 206 for the requester's own Range keep their status and body."""
+
+        for mode, extra, expected_status, expected_body in (
+            ("complete", "", 200, _RELAY_PAYLOAD),
+            ("missing", "", 404, b"gone"),
+            ("range", "Range: bytes=10-19\r\n", 206, _RELAY_PAYLOAD[10:20]),
+        ):
+            with self.subTest(mode=mode):
+                async with _relay(_RelayOrigin(mode)) as address:
+                    status, headers, body = await _fetch(address, extra)
+                self.assertEqual(expected_status, status)
+                self.assertEqual(expected_body, body)
+                if mode == "range":
+                    self.assertEqual(f"bytes 10-19/{len(_RELAY_PAYLOAD)}", headers["content-range"])
+
+    async def test_a_failure_before_any_byte_is_answered_with_500(self) -> None:
+        """The upstream sent headers but no body and cannot be resumed: not an empty 200."""
+
+        for proxy_class in (BaseStreamProxy, SimpleStreamProxy):
+            with self.subTest(proxy=proxy_class.__name__):
+                async with _relay(_RelayOrigin("zero"), proxy_class=proxy_class) as address:
+                    status, _, body = await _fetch(address)
+                self.assertEqual(500, status)
+                self.assertNotEqual(_RELAY_PAYLOAD[:1], body[:1])
+
+    async def test_a_failure_after_part_of_the_body_drops_the_connection(self) -> None:
+        """Half a body is never ended like a complete one, however the route handles the cancellation.
+
+        The proxy closes the requester's connection itself, so a route that swallows the
+        cancellation (common downstream) cannot turn the half body into a complete response.
+        """
+
+        for proxy_class in (BaseStreamProxy, SimpleStreamProxy):
+            for user_agent in (None, "chrome"):
+                for handling in ("raise", "return_none", "return_404"):
+                    with self.subTest(proxy=proxy_class.__name__, user_agent=user_agent, handling=handling):
+                        origin = _RelayOrigin("chunked_cut")
+                        with self.assertLogs("default", level="WARNING") as logs:
+                            async with _relay(origin, handling=handling, proxy_class=proxy_class, user_agent=user_agent) as address:
+                                status, headers, body = await _fetch(address)
+                        self.assertEqual(200, status)
+                        self.assertEqual("chunked", headers.get("transfer-encoding"))
+                        data, terminated = _dechunk(body)
+                        self.assertFalse(terminated, "a half body must not carry the terminating chunk")
+                        self.assertTrue(0 < len(data) < len(_RELAY_PAYLOAD))
+                        self.assertEqual(_RELAY_PAYLOAD[: len(data)], data)
+                        self.assertEqual(2, len(origin.requests))
+                        self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                        self.assertFalse(any("协程取消" in line for line in logs.output), "an upstream failure is not a cancelled request")
+
+    async def test_a_known_length_body_cut_short_ends_short(self) -> None:
+        """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""
+
+        async with _relay(_RelayOrigin("cut")) as address:
+            status, headers, body = await _fetch(address)
+        self.assertEqual(200, status)
+        self.assertEqual(str(len(_RELAY_PAYLOAD)), headers["content-length"])
+        self.assertTrue(0 < len(body) < len(_RELAY_PAYLOAD))
+        self.assertEqual(_RELAY_PAYLOAD[: len(body)], body)
 
 
 class ProxyParameterTest(unittest.IsolatedAsyncioTestCase):

@@ -397,6 +397,18 @@ class ReconnectStreamResponse:
         except Exception as e:
             logger.error(f"释放流响应时出错: {type(e).__name__}")
 
+    def detach_response(self) -> AbstractAsyncContextManager[HttpStreamResponse] | None:
+        """把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
+
+        给中转层在最终失败时用：它要立刻把异常抛给调用方，不能在处理请求的任务里等上游的响应放掉，
+        于是把上下文拿走、放到后台去退出。没有打开的响应时返回 None。
+        """
+
+        context = self._response_context
+        self._response_context = None
+        self.current_response = None
+        return context
+
     async def release(self) -> None:
         """清理当前断点续传响应。"""
 

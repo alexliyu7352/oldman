@@ -16,6 +16,7 @@ from urllib import parse
 from msgspec import msgpack
 from redis.exceptions import LockError
 from sanic import HTTPResponse, Request, redirect, text
+from sanic.exceptions import RequestCancelled
 
 from oldman.contrib.http import ReconnectStreamResponse
 from oldman.contrib.http.schemas import HttpMethod
@@ -430,16 +431,15 @@ class SimpleStreamProxy(BaseStreamProxy):
                         content_type=response_content_type,
                     )
                 else:
-                    response_headers = _sanic_response_headers(stream.response_headers, body_changed=True)
-                    response_content_type = response_headers.pop("content-type", None)
-                    last_response = HTTPResponse(
-                        status=stream.status_code or 500,
-                        headers=response_headers,
-                        content_type=response_content_type,
-                    )
-                    # 流式返回内容
+                    # 流式返回内容。失败时不能返回上游的状态码（见 BaseStreamProxy.stream_response），last_response 保持 500。
                     await self.stream_response(request, stream)
                     return None
+        except RequestCancelled as e:
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: ts_url={stream_url}")
+                return None
+            # stream_response 已经发出一部分正文后最终失败（连接它已经关掉）：原样上抛，不当成普通的取消返回 None。
+            raise
         except asyncio.CancelledError:
             logger.warning(f"协程取消: ts_url={stream_url}")
             return None
@@ -641,16 +641,15 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
                         content_type=response_content_type,
                     )
                 else:
-                    response_headers = _sanic_response_headers(stream.response_headers, body_changed=True)
-                    response_content_type = response_headers.pop("content-type", None)
-                    last_response = HTTPResponse(
-                        status=stream.status_code or 500,
-                        headers=response_headers,
-                        content_type=response_content_type,
-                    )
-                    # 流式返回内容
+                    # 流式返回内容。失败时不能返回上游的状态码（见 BaseStreamProxy.stream_response），last_response 保持 500。
                     await self.stream_response(request, stream)
                     return None
+        except RequestCancelled as e:
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: ts_url={stream_url}")
+                return None
+            # stream_response 已经发出一部分正文后最终失败（连接它已经关掉）：原样上抛，不当成普通的取消返回 None。
+            raise
         except asyncio.CancelledError:
             logger.warning(f"协程取消: ts_url={stream_url}")
             return None

@@ -3,6 +3,7 @@ import hashlib
 import socket
 from collections import defaultdict
 from collections.abc import Mapping
+from contextlib import AbstractAsyncContextManager, suppress
 from functools import lru_cache
 from typing import Any
 from urllib import parse
@@ -11,6 +12,7 @@ from urllib.parse import urlparse
 from redis.exceptions import LockError
 from sanic import HTTPResponse, Request, text
 from sanic.compat import Header
+from sanic.exceptions import RequestCancelled
 
 from oldman.cache import MemoryCache, TwoLevelCache, redis_cache
 from oldman.conf.schemas import DefaultSettings
@@ -18,6 +20,7 @@ from oldman.contrib.http import HttpHeaders, MultiHttpClient, ReconnectStreamRes
 from oldman.contrib.http.schemas import ClientType, HttpMethod
 from oldman.logging import logger
 from oldman.providers.redis import redis_client, redis_key
+from oldman.tasks.simple import BackgroundTaskManager
 from oldman.utils import strings_utils
 
 """
@@ -581,8 +584,17 @@ class BaseStreamProxy:
         :param request: Sanic请求对象
         :param response: 代理响应对象
         :param content_type: 内容类型
+
+        上游的状态码和响应头原样转给请求方。读取中断后的内部续传在 response.aiter_bytes 里完成，这里看不到；
+        从它抛出来的异常都是最终失败，按已经发出多少处理：
+        - 一个字节都还没发给请求方：异常原样抛给调用方，由调用方返回错误状态码（get_ts_stream 返回 500）；
+        - 已经发出一部分正文：关掉请求方的连接（不发结束标记），把上游的响应交到后台放掉，立刻抛 RequestCancelled
+          （原因在 __cause__）。请求方看到的是没有结束标记的断开，知道内容不完整、去重新请求。
+        请求被取消（请求方断开，或太久没读走数据、Sanic 的响应超时到了）同样不照常结束：已经发出一部分就关掉连接，
+        再把取消原样抛出。
+        调用方要知道的：这里一关请求方的连接，Sanic 就会取消这个处理任务，调用方在这次调用之后遇到的第一个 await
+        会被取消。流式调用之后还有收尾工作（写 Redis、释放并发额度等）的，要放在它之前做，或者接住 CancelledError。
         """
-        # 创建流式响应
         response_headers = _sanic_response_headers(response.response_headers)
 
         # 处理content-type
@@ -611,26 +623,95 @@ class BaseStreamProxy:
         #             except (ValueError, IndexError):
         #                 pass
 
-        # 创建响应流
-        response_stream = await request.respond(content_type=content_type, headers=response_headers)
-        if response_stream is None:
-            raise RuntimeError("Sanic did not create a streaming response")
+        # 响应流在读到第一块正文时才创建：在那之前失败，调用方还能返回错误状态码
+        # （Sanic 本来也是第一次 send 时才把状态码和响应头发出去，对请求方没有区别）。
+        response_stream: Any = None
+
+        async def start_response() -> Any:
+            stream = await request.respond(status=response.status_code or 200, content_type=content_type, headers=response_headers)
+            if stream is None:
+                raise RuntimeError("Sanic did not create a streaming response")
+            return stream
 
         try:
             # 使用较大的块大小提高性能
             async for chunk in response.aiter_bytes(2 * 1024 * 1024):
                 if chunk:
+                    if response_stream is None:
+                        response_stream = await start_response()
                     await response_stream.send(chunk)
         except asyncio.CancelledError:
             logger.debug("流式响应被取消")
+            if response_stream is not None:
+                self._close_client_connection(request)
+            raise
         except Exception as e:
-            logger.error(f"流式响应异常: {repr(e)}")
-        finally:
-            # 确保关闭流
-            try:
-                await response_stream.eof()  # type: ignore
-            except Exception:
-                pass
+            logger.error(f"流式响应异常: {repr(e)}, url={response.url}")
+            if response_stream is None:
+                raise
+            # 从这里到异常回到调用方之间不能有任何等待：请求方的连接一关，只要让出一次事件循环，Sanic 就会取消
+            # 这个处理任务，取消会顶掉带原因的 RequestCancelled（调用方就分不清是上游失败还是请求被取消）。
+            # 所以上游的响应交到后台去放掉，不在这里等。
+            self._close_client_connection(request)
+            self._release_upstream_in_background(response)
+            raise RequestCancelled() from e
+
+        if response_stream is None:
+            # 上游没有正文（空文件、416 等）：状态码和响应头照常发回去。
+            response_stream = await start_response()
+        with suppress(Exception):
+            await response_stream.eof()
+
+    # 最终失败后，后台放掉上游响应最多等这么久（秒），到时取消这次释放；没有任何请求在等它。
+    RELEASE_TIMEOUT = 2.0
+
+    def _release_upstream_in_background(self, response: ReconnectStreamResponse) -> None:
+        """最终失败后把上游的响应交到后台去放掉，不在处理请求的任务里等（原因见 stream_response）。
+
+        从 response 上把底层响应拿走（之后调用方退出流式上下文时已经没有东西要等），交给 BackgroundTaskManager。
+        拿不到的（测试替身）不处理，仍由调用方退出时释放。进程正在关闭、管理器不再接任务时什么都不做：
+        客户端随进程关闭时会关掉整个会话。
+        """
+        detach = getattr(response, "detach_response", None)
+        context = detach() if callable(detach) else None
+        if context is None:
+            return
+        try:
+            BackgroundTaskManager().spawn(self._release_detached, context, getattr(response, "url", None))
+        except RuntimeError:
+            logger.debug("进程正在关闭，上游响应留给客户端关闭时一并释放")
+
+    @classmethod
+    async def _release_detached(cls, context: AbstractAsyncContextManager[Any], url: str | None) -> None:
+        """退出上游响应的上下文，最多等 RELEASE_TIMEOUT 秒。"""
+        try:
+            await asyncio.wait_for(context.__aexit__(None, None, None), timeout=cls.RELEASE_TIMEOUT)
+        except TimeoutError:
+            logger.warning(f"上游的响应 {cls.RELEASE_TIMEOUT} 秒内没有放掉，已取消释放: url={url}")
+        except Exception as error:
+            logger.warning(f"释放上游响应时出错: {error!r}, url={url}")
+
+    @staticmethod
+    def _is_upstream_failure(error: BaseException) -> bool:
+        """是不是 stream_response 报告的上游最终失败（带原因的 RequestCancelled）：它已经记过带地址的错误，不是请求被取消。"""
+        return isinstance(error, RequestCancelled) and error.__cause__ is not None
+
+    @staticmethod
+    def _close_client_connection(request: Request) -> None:
+        """关掉请求方的这条连接，用 Sanic 自己收尾时的同一个方法：已发出的数据照常发完，之后不再发任何东西，包括结束标记。
+
+        用在"正文发了一部分、上游最终失败或请求被取消"时。只抛异常的话，要每一层调用方都原样上抛，Sanic 才会断开连接；
+        而调用方常常把取消吞掉后正常返回，Sanic 于是照常发出结束标记，请求方把半截内容当成完整的。先在这里关掉，
+        结果就不取决于调用方怎么写。拿不到连接对象时（ASGI、测试替身）什么都不做，仍靠上抛的 RequestCancelled。
+        """
+        try:
+            get_protocol = getattr(getattr(request, "transport", None), "get_protocol", None)
+            close = getattr(get_protocol() if callable(get_protocol) else None, "close", None)
+            if callable(close):
+                close()
+        except Exception as error:
+            # 关不掉也不能盖住真正的原因：调用方接下来还会收到 RequestCancelled。
+            logger.warning(f"关闭请求方连接时出错: {error!r}")
 
     async def get_ts_stream(
         self,
@@ -662,19 +743,15 @@ class BaseStreamProxy:
 
         try:
             async with client.reconnect_stream(HttpMethod.GET, ts_url, headers=request_headers, live_stream=live_stream) as stream:
-                response_headers = _sanic_response_headers(stream.response_headers, body_changed=True)
-                response_content_type = response_headers.pop("content-type", None)
-                last_response = HTTPResponse(
-                    status=stream.status_code or 500,
-                    headers=response_headers,
-                    content_type=response_content_type,
-                )
+                # last_response 保持 500：正文一个字节都没读到就失败时（stream_response 抛出），换成上游的状态码
+                # 等于给请求方一个状态正常、内容为空的响应。
                 logger.debug(f"获取TS流成功: ts_url={ts_url}, status={stream.status_code}")
                 # 流式返回内容
                 await self.stream_response(request, stream)
                 return None
-        except asyncio.CancelledError:
-            logger.warning(f"协程取消: ts_url={ts_url}")
+        except asyncio.CancelledError as e:
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: ts_url={ts_url}")
             raise
         except Exception as e:
             logger.error(f"获取TS失败: {repr(e)}")
@@ -968,8 +1045,9 @@ class BaseStreamProxy:
             else:
                 return await self.process_sub_stream(request, channel_id, ts_context, **custom_params)
 
-        except asyncio.CancelledError:
-            logger.warning(f"协程取消: url is {ts_url}, lock_key is {lock_key}")
+        except asyncio.CancelledError as e:
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: url is {ts_url}, lock_key is {lock_key}")
             return None
         except Exception as e:
             logger.error(f"获取内容失败: {repr(e)}")
@@ -991,8 +1069,9 @@ class BaseStreamProxy:
                 return await self.get_ts_stream_direct(request, play_url, proxy_url, user_agent)
             else:
                 return await self.get_ts_stream(request, play_url, proxy_url, user_agent, headers, True)
-        except asyncio.CancelledError:
-            logger.warning(f"协程取消: play_url={play_url}")
+        except asyncio.CancelledError as e:
+            if not self._is_upstream_failure(e):
+                logger.warning(f"协程取消: play_url={play_url}")
             # 客户端断开时返回None，避免Sanic尝试发送响应
             return None
         except Exception as e:
