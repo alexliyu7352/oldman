@@ -15,7 +15,7 @@ dependencies = [
     "babel>=2.14.0",
     "billiard>=4.2.2",
     "cryptography>=45.0.6",
-    "curl-cffi==0.15.0",
+    "curl-cffi==0.16.3",
     "faststream[nats]>=0.7.1",
     "hiredis>=3.3.0",
     "httpx[socks]>=0.28.1",

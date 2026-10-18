@@ -14,7 +14,6 @@ from urllib.parse import urljoin, urlsplit
 
 from curl_cffi import CurlOpt
 from curl_cffi.requests import AsyncSession, Cookies, Response
-from curl_cffi.requests.exceptions import RequestException
 
 from oldman.contrib.http.base import BaseHttpClient
 from oldman.contrib.http.contants import CURL_HEADERS
@@ -169,18 +168,8 @@ async def _ensure_stream_response_started(response: Response) -> None:
         return
     # curl_cffi 极短失败存在 header 事件和错误队列之间的竞态。消费这个
     # 仅错误路径的 iterator 会抛出原始 RequestException。
-    try:
-        async for _chunk in response.aiter_content():
-            pass
-    except asyncio.CancelledError as exc:
-        current_task = asyncio.current_task()
-        if current_task is not None and current_task.cancelling():
-            raise
-        # curl_cffi 0.15.0 复用发生过快速传输失败的 session 时，内部下载
-        # task 可能只留下 STREAM_END 后进入 cancelled 状态。它不是调用方
-        # 取消，仍应作为“尚未取得 HTTP 响应”的传输错误对外暴露。
-        response.astream_task = None
-        raise RequestException("curl_cffi 流请求在响应头前终止", response=response) from exc
+    async for _chunk in response.aiter_content():
+        pass
     raise RuntimeError("curl_cffi 流响应缺少有效状态或 URL")
 
 
@@ -241,6 +230,7 @@ class CurlCffiClient(BaseHttpClient):
                     impersonate=None,
                     max_clients=self.parent.max_connections,
                     curl_options=self.curl_options,
+                    retry=0,  # 重试只由 MultiHttpClient 负责
                 )  # type: ignore
             return self.client
 

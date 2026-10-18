@@ -6,6 +6,7 @@ import asyncio
 import datetime
 import gzip
 import ipaddress
+import socket
 import ssl
 import tempfile
 import time
@@ -2681,6 +2682,36 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
             response = await asyncio.wait_for(client.get(f"{self.base_url}/json"), timeout=1.0)
             self.assertEqual(201, response.status_code)
             self.assertLess(elapsed, 0.5)
+        finally:
+            self.slow_stream_release.set()
+            await client.close_client()
+
+    async def test_curl_stream_failing_before_headers_returns_its_handle_once(self) -> None:
+        """A curl stream that fails before its headers leaves its handle in the pool once.
+
+        curl_cffi 0.15.0 returned it when raising and again when its download task ended. With other
+        streams open the pool had room for the second copy, so the next two requests shared one
+        handle and both failed.
+        """
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            unused_port = probe.getsockname()[1]
+        client = MultiHttpClient(ClientType.CURL_CFFI, max_connections=4, user_agent="Oldman-Test/1", retry_count=0)
+        await client.init_client()
+        try:
+            async with (
+                client.stream(HttpMethod.GET, f"{self.base_url}/slow-stream"),
+                client.stream(HttpMethod.GET, f"{self.base_url}/slow-stream"),
+            ):
+                with self.assertRaises(CurlError):
+                    async with client.stream(HttpMethod.GET, f"http://127.0.0.1:{unused_port}/"):
+                        pass
+                responses = await asyncio.wait_for(
+                    asyncio.gather(*(client.get(f"{self.base_url}/json") for _ in range(2))),
+                    timeout=2,
+                )
+            self.assertEqual([201, 201], [response.status_code for response in responses])
         finally:
             self.slow_stream_release.set()
             await client.close_client()
