@@ -708,6 +708,7 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
         app.router.add_get("/redirect-delete-cookie", self._redirect_delete_cookie_response)
         app.router.add_get("/retry-cookie", self._retry_cookie_response)
         app.router.add_get("/encoded", self._encoded_response)
+        app.router.add_get("/accept-encoding", self._accept_encoding_response)
         app.router.add_get("/deflate", self._deflate_response)
         app.router.add_get("/stream", self._stream_response)
         app.router.add_get("/success-stream", self._success_stream_response)
@@ -840,6 +841,15 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
             response.set_cookie("retry", "server", path="/")
             return response
         return web.Response(status=200, text=cookie_header)
+
+    @staticmethod
+    async def _accept_encoding_response(request: web.Request) -> web.Response:
+        """Answer with the Accept-Encoding the client sent, br-compressed whenever br was offered."""
+
+        offered = request.headers.get("Accept-Encoding", "")
+        if "br" in offered:
+            return web.Response(status=200, body=brotli.compress(offered.encode()), headers={"Content-Encoding": "br"})
+        return web.Response(status=200, text=offered)
 
     @staticmethod
     async def _encoded_response(request: web.Request) -> web.Response:
@@ -2745,6 +2755,37 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
         finally:
             self.slow_stream_release.set()
             await client.close_client()
+
+    async def test_curl_browser_fingerprint_keeps_its_own_accept_encoding(self) -> None:
+        """A curl browser fingerprint sends the browser's Accept-Encoding; every other request keeps Oldman's.
+
+        Without a fingerprint Oldman writes gzip, deflate (decoding on) or identity (decoding off). A
+        fingerprint whose Accept-Encoding were replaced would no longer look like that browser.
+        """
+
+        fingerprint = "gzip, deflate, br, zstd"
+        cases = [
+            (client_type, user_agent, decoding)
+            for client_type in ClientType
+            for user_agent in ("Oldman-Test/1", "chrome")
+            for decoding in (False, True)
+            if user_agent == "Oldman-Test/1" or client_type == ClientType.CURL_CFFI
+        ]
+        for client_type, user_agent, decoding in cases:
+            with self.subTest(client_type=client_type, user_agent=user_agent, decoding=decoding):
+                client = MultiHttpClient(client_type, content_decoding=decoding, retry_count=0)
+                await client.init_client()
+                try:
+                    response = await client.get(f"{self.base_url}/accept-encoding", headers={"User-Agent": user_agent})
+                finally:
+                    await client.close_client()
+                if user_agent == "chrome":
+                    sent = brotli.decompress(response.raw_content())
+                    self.assertEqual(fingerprint.encode(), sent)
+                    # Decoding on: the br body comes back decoded. Off: the caller gets the wire bytes.
+                    self.assertEqual(sent if decoding else response.raw_content(), response.content)
+                else:
+                    self.assertEqual("gzip, deflate" if decoding else "identity", response.text)
 
     async def test_curl_stream_failing_before_headers_returns_its_handle_once(self) -> None:
         """A curl stream that fails before its headers leaves its handle in the pool once.

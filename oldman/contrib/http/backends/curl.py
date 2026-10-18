@@ -269,7 +269,10 @@ class CurlCffiClient(BaseHttpClient):
         kwargs["allow_redirects"] = allow_redirects
         kwargs = self.update_impersonate(**kwargs)
         headers = dict(kwargs.get("headers", {}))
-        if not any(name.lower() == "accept-encoding" for name in headers):
+        # A browser fingerprint sends that browser's own Accept-Encoding (gzip, deflate, br, zstd), decoding on
+        # or off: replacing it would no longer look like the browser. With decoding off the caller then gets
+        # whatever compressed bytes the origin sends.
+        if kwargs["impersonate"] is None and not any(name.lower() == "accept-encoding" for name in headers):
             headers["Accept-Encoding"] = "gzip, deflate" if self.parent.content_decoding else "identity"
         kwargs["headers"] = headers
         # curl_cffi 只合并 cookie store，无法同步删除，还会持久化单次请求 cookies。
