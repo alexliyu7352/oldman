@@ -12,3 +12,7 @@ project_id = "{{ project_id }}"
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+# Oldman's own code is formatted to 150 columns; ruff's default would be 88.
+line-length = 150

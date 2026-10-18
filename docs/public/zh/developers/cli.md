@@ -34,7 +34,7 @@ EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/
 | `web` | `services/web.py`，启用异步模板环境的 WebApplication；`/` 是欢迎页（项目 App `apps.home`，可改可删），`templates/base.html` 的 `<html lang>` 跟随请求语言 |
 | `dashboard` | 能登录的后台骨架：登录、首页、个人页、通知、用户管理、角色管理，项目自己的 User 模型，Vite/Tailwind 前端工程（详见[资源参考](assets.md#dashboard-脚手架的范围)） |
 
-每种项目都带 `AGENTS.md`（给 coding agent 的说明：按已装版本克隆文档到 `.oldman-docs/`、按任务必读的指南、规则与事实，内容随项目类型和是否集成 Admin 增减）和只有一行 `@AGENTS.md` 的 `CLAUDE.md`；`.gitignore` 排除 `.oldman-docs/`。这两个文件建项目时生成，升级框架后不会自动更新。
+每种项目都带 `AGENTS.md`（给 coding agent 的说明：按已装版本克隆文档到 `.oldman-docs/`、按任务必读的指南、规则与事实，内容随项目类型和是否集成 Admin 增减）和只有一行 `@AGENTS.md` 的 `CLAUDE.md`；`.gitignore` 排除 `.oldman-docs/`。这两个文件建项目时生成，升级框架后不会自动更新。生成的 `pyproject.toml` 带 `[tool.ruff] line-length = 150`（与框架自己的代码相同；不写时 ruff 默认 88 列），生成的代码和 `startapp` 加的 App 都按它通过 `ruff format --check` 与 `ruff check`；团队习惯别的行宽就改这一行。
 
 数据库选项是 `none`、`sqlite`、`mysql`、`postgres`。CLI 脚本不询问数据库；Dashboard 必须选择数据库。MySQL 与 PostgreSQL 脚手架会声明相应驱动，但你仍需填写实际 URL、创建数据库和完成迁移。
 

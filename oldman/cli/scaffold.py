@@ -222,7 +222,8 @@ def start_app(
         "app_slug": app_slug,
         "app_class": pascal_case(app_slug),
         "app_type": app_type.value,
-        "display_name_literal": repr(normalized_display_name),
+        # Double-quoted, as ruff formats it; the same literal goes into apps.py and the Jinja templates.
+        "display_name_literal": json.dumps(normalized_display_name, ensure_ascii=False),
     }
     copy_template_tree(
         (scaffold_root("app", APP_TEMPLATE_DIRS[app_type]),),

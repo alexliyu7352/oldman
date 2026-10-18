@@ -630,6 +630,36 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
                 copy_template_tree((root / "own", root / "common"), target, context={})
             self.assertEqual([], list(target.iterdir()))
 
+    def test_generated_projects_and_their_apps_pass_ruff(self) -> None:
+        """Each project type, with the Apps startapp adds to it, passes ruff under the settings it ships with.
+
+        The generated pyproject sets line-length 150, as Oldman's own does; without it ruff's 88 applied, and two
+        dashboard lines and every startapp `apps.py` (a single-quoted name) failed the format check.
+        """
+        cases = (
+            (ProjectType.CLI, DatabaseChoice.NONE, False, ()),
+            (ProjectType.SERVICE, DatabaseChoice.SQLITE, False, (AppType.SERVICE,)),
+            (ProjectType.API, DatabaseChoice.SQLITE, False, (AppType.API,)),
+            (ProjectType.WEB, DatabaseChoice.SQLITE, False, (AppType.WEB, AppType.API)),
+            (ProjectType.WEB, DatabaseChoice.SQLITE, True, ()),
+            (ProjectType.DASHBOARD, DatabaseChoice.SQLITE, False, (AppType.DASHBOARD, AppType.API, AppType.SERVICE)),
+            (ProjectType.DASHBOARD, DatabaseChoice.SQLITE, True, ()),
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            for project_type, db, admin, app_types in cases:
+                with self.subTest(project_type=project_type, admin=admin):
+                    with working_directory(parent):
+                        target = start_project(f"lint_{project_type}_{admin}".lower(), project_type=project_type, db=db, admin=admin)
+                    with working_directory(target):
+                        for app_type in app_types:
+                            start_app(f"extra_{app_type}", app_type=app_type, display_name=f"Extra {app_type}")
+                    pyproject = tomllib.loads((target / "pyproject.toml").read_text(encoding="utf-8"))
+                    self.assertEqual(150, pyproject["tool"]["ruff"]["line-length"])
+                    for command in (("format", "--check", "."), ("check", ".")):
+                        completed = subprocess.run([sys.executable, "-m", "ruff", *command], cwd=target, capture_output=True, text=True, check=False)
+                        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+
     def test_the_dashboard_skeleton_signs_its_users_in(self) -> None:
         """A generated dashboard has its User model, the account pages, a home page and one menu."""
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -789,8 +819,8 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
             # Written like the skeleton's home page: "<page> · <site>" in the tab, the shared page head, translatable text.
             template = (target / "templates" / "reports" / "index.html").read_text(encoding="utf-8")
             Environment().parse(template)
-            self.assertIn("{% block title %}{{ _('Reports') }} · {{ site_name() }}{% endblock %}", template)
-            self.assertIn("{{ page_head(_('Reports')) }}", template)
+            self.assertIn('{% block title %}{{ _("Reports") }} · {{ site_name() }}{% endblock %}', template)
+            self.assertIn('{{ page_head(_("Reports")) }}', template)
 
     def test_dashboard_frontend_and_release_versions_are_preserved(self) -> None:
         """The settings refactor does not replace the established dashboard assets."""

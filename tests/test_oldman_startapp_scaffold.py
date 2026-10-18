@@ -120,7 +120,7 @@ class StartAppScaffoldTests(unittest.TestCase):
             self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
             metadata = (project / "apps" / "server_monitor" / "apps.py").read_text(encoding="utf-8")
             self.assertIn("Server Monitor", result.output)
-            self.assertIn("display_name = _('Server Monitor')", metadata)
+            self.assertIn('display_name = _("Server Monitor")', metadata)
 
     def test_custom_display_name_is_safely_rendered_as_python(self) -> None:
         """Quotes in a human-facing name cannot corrupt generated source."""
@@ -136,8 +136,8 @@ class StartAppScaffoldTests(unittest.TestCase):
 
             self.assertEqual(result.exit_code, 0, result.output + repr(result.exception))
             source = (project / "apps" / "reports" / "apps.py").read_text(encoding="utf-8")
-            ast.parse(source)
-            self.assertIn(repr(display_name), source)
+            call = next(node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "_")
+            self.assertEqual(display_name, ast.literal_eval(call.args[0]))
 
     def test_missing_template_answer_leaves_no_partial_app(self) -> None:
         """Without a terminal or a preset template the command stops before filesystem writes."""
@@ -163,7 +163,7 @@ class StartAppScaffoldTests(unittest.TestCase):
 
             self.assertEqual(result.exit_code, 0, result.output)
             source = (project / "apps" / "sales_reports" / "apps.py").read_text(encoding="utf-8")
-            self.assertIn("'Sales Reports'", source)
+            self.assertIn('"Sales Reports"', source)
 
     def test_existing_app_is_rejected_without_partial_overwrite(self) -> None:
         """A target conflict is detected before copying any App file."""
