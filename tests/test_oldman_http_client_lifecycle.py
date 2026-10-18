@@ -6,10 +6,12 @@ import asyncio
 import gc
 import unittest
 import weakref
+from collections.abc import AsyncIterator
 from unittest.mock import patch
 
 from oldman.contrib.http.multi_client import MultiHttpClient
-from oldman.contrib.http.schemas import ClientType
+from oldman.contrib.http.schemas import ClientType, HttpMethod
+from tests.raw_http_origin import RawOrigin, response_head
 
 
 def session_of(backend: object) -> object | None:
@@ -128,6 +130,69 @@ class BackendLifecycleTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(hasattr(backend, backend.session_attribute))
                 self.assertNotEqual("HTTP", backend.backend_label, "label should name the backend")
                 await client.close_client()
+
+
+class ClosedClientStreamTest(unittest.IsolatedAsyncioTestCase):
+    """A stream still reading when its client closes, and a stream whose release is cancelled."""
+
+    async def test_a_stream_still_reading_after_close_builds_no_new_session(self) -> None:
+        """Resuming on a backend its owner has closed fails instead of opening a session nobody will close."""
+
+        body = bytes(range(256)) * 400
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                cut = asyncio.Event()
+
+                async def answer(attempt: int, headers: dict[str, str], cut: asyncio.Event = cut) -> AsyncIterator[bytes]:
+                    yield response_head("200 OK", {"Content-Length": len(body), "Accept-Ranges": "bytes"}) + body[:30000]
+                    await cut.wait()
+
+                origin = RawOrigin(answer)
+                client = MultiHttpClient(client_type, retry_count=3, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
+                await client.init_client()
+                async with origin.serve() as base_url:
+                    with self.assertRaises(RuntimeError):
+                        async with client.reconnect_stream(HttpMethod.GET, f"{base_url}/file") as stream:
+                            backend = stream.client
+                            pieces = stream.aiter_bytes(8192)
+                            await anext(pieces)
+                            self.assertTrue(await client.close_client())
+                            cut.set()
+                            async for _ in pieces:
+                                pass
+                self.assertIsNone(session_of(backend), "no session may be left on a backend its owner dropped")
+                self.assertEqual(1, len(origin.requests))
+
+    async def test_a_release_cancelled_halfway_still_ends_the_active_request(self) -> None:
+        """active_requests is what reset waits for; a cancel during release must not leave it counting one."""
+
+        body = b"x" * 1000
+        origin = RawOrigin(lambda attempt, headers: response_head("200 OK", {"Content-Length": len(body)}) + body)
+        client = MultiHttpClient(ClientType.AIOHTTP, retry_count=0, connect_timeout=3, read_timeout=3)
+        await client.init_client()
+        releasing = asyncio.Event()
+
+        async def use() -> None:
+            async with client.reconnect_stream(HttpMethod.GET, f"{base_url}/file") as stream:
+                release = stream.release_response
+
+                async def slow_release() -> None:
+                    releasing.set()
+                    await asyncio.sleep(1)
+                    await release()
+
+                stream.release_response = slow_release  # type: ignore[method-assign]
+
+        try:
+            async with origin.serve() as base_url:
+                task = asyncio.ensure_future(use())
+                await releasing.wait()
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+        finally:
+            await client.close_client()
+        self.assertEqual(0, client.active_requests)
 
 
 class ExitCleanupTest(unittest.TestCase):

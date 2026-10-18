@@ -335,9 +335,13 @@ class MultiHttpClient(BaseHttpClient):
         except Exception as exc:
             # 导出失败也不能跳过网络资源清理，更不该把异常丢给调用方。
             logger.error(f"导出 {self.client_type} Cookie 失败: {type(exc).__name__}")
+        # 关闭期间和关闭以后，还在读的流去续传时不能在这个 backend 上新建会话（见 BaseHttpClient._ensure_open）。
+        impl.closed = True
         released = await impl.close_client()
         # backend 用 False 明确报告"会话还在"，这时丢掉引用就再也没人能关掉它。
         if released is False:
+            # 会话还在、引用也留着：照常可用，下一次关闭再试。
+            impl.closed = False
             logger.error(f"{self.client_type} 客户端未能释放，保留引用以便重试")
             return False
         self._impl = None
@@ -516,12 +520,14 @@ class MultiHttpClient(BaseHttpClient):
             logger.error(f"流式请求失败: {type(e).__name__}, [{log_url}]")
             raise
         finally:
-            # 确保资源被清理
-            if stream_response:
-                await stream_response.release()
-            self.active_requests = max(0, self.active_requests - 1)
-            if self.active_requests == 0:
-                self._no_active_requests.set()
+            # 确保资源被清理；释放被取消或出错时，活动请求数也要减掉（重置靠它判断有没有请求在进行）。
+            try:
+                if stream_response:
+                    await stream_response.release()
+            finally:
+                self.active_requests = max(0, self.active_requests - 1)
+                if self.active_requests == 0:
+                    self._no_active_requests.set()
 
     def export_cookies(self) -> CookieJar | None:
         """显式导出 backend 运行态 Cookie 到构造时传入的标准库 jar。"""

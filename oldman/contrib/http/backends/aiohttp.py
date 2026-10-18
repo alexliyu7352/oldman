@@ -198,6 +198,7 @@ class AioHttpClient(BaseHttpClient):
     async def get_client(self) -> aiohttp.ClientSession:
         """获取或创建aiohttp会话"""
 
+        self._ensure_open()
         async with self.parent.lock:
             if self.session is None or self.session.closed:
                 # 配置TCP连接器

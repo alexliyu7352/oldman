@@ -220,6 +220,7 @@ class CurlCffiClient(BaseHttpClient):
     async def get_client(self) -> AsyncSession:
         """获取或创建curl_cffi客户端"""
 
+        self._ensure_open()
         async with self.parent.lock:
             if self.client is None:
                 # 创建curl_cffi会话

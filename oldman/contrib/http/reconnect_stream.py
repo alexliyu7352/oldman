@@ -459,8 +459,10 @@ class ReconnectStreamResponse:
     async def release(self) -> None:
         """清理当前断点续传响应。"""
 
-        await self.release_response()
-        self.client = None  # type: ignore[assignment] -- release 后对象与来源实现一样不可复用
+        try:
+            await self.release_response()
+        finally:
+            self.client = None  # type: ignore[assignment] -- release 后对象与来源实现一样不可复用
 
     def update_response_status(self, response: HttpStreamResponse) -> None:
         """首次响应确定对外状态、响应头和续传方式；之后的响应只核对能不能接上，不改对外的东西。"""

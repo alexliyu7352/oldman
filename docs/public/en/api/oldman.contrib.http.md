@@ -21,6 +21,7 @@ Members:
 - `async def init_client() -> None` — 初始化 backend，但不要求立即建立网络连接。
 - `session_attribute: ClassVar[str] = ''`
 - `backend_label: ClassVar[str] = 'HTTP'`
+- `closed: bool = False`
 - `async def close_session(session: Any) -> None` — 关闭一个活动会话。子类用自己的关闭调用覆盖它。
 - `async def reset_client() -> bool` — 丢弃当前会话，下次请求会重新建立。失败向上抛，由调用方决定冷却。
 - `async def close_client() -> bool` — 释放会话资源。

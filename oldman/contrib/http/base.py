@@ -33,6 +33,18 @@ class BaseHttpClient:
     session_attribute: ClassVar[str] = ""
     #: 日志里用来指代这个 backend 的名字。
     backend_label: ClassVar[str] = "HTTP"
+    #: 拥有者（MultiHttpClient）关闭它时置 True，见 _ensure_open。自己的 close_client() / reset_client() 不置它：
+    #: 关掉会话以后下一次请求照常新建一个，重置走的就是这条路。
+    closed: bool = False
+
+    def _ensure_open(self) -> None:
+        """拥有者已经关闭这个 backend 以后还有人来要会话：只会是关闭时还在读的流去续传。
+
+        明确失败，不在没人管的 backend 上新建一个再也没人关的会话。
+        """
+
+        if self.closed:
+            raise RuntimeError("HTTP 客户端已经关闭，不再新建会话")
 
     async def close_session(self, session: Any) -> None:
         """关闭一个活动会话。子类用自己的关闭调用覆盖它。"""

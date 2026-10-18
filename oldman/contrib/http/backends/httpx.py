@@ -71,6 +71,7 @@ class HttpxClient(BaseHttpClient):
 
     async def get_client(self) -> httpx.AsyncClient:
         """获取或创建HTTPX客户端实例"""
+        self._ensure_open()
         async with self.parent.lock:
             if self.http_client is None or self.http_client.is_closed:
                 # 配置连接池
