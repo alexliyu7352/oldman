@@ -14,6 +14,7 @@ dependencies = [
     "async-lru>=2.0.5",
     "babel>=2.14.0",
     "billiard>=4.2.2",
+    "brotli>=1.2.0",  # br Content-Encoding (oldman.contrib.http)
     "cryptography>=45.0.6",
     "curl-cffi==0.16.3",
     "faststream[nats]>=0.7.1",
@@ -48,6 +49,7 @@ dependencies = [
     "typer>=0.26.0,<0.28",  # The CLI imports typer._click, Typer's private bundled Click (0.26+).
     "uuid6>=2025.0.1",
     "wtforms>=3.2",
+    "zstandard>=0.25.0",  # zstd Content-Encoding (oldman.contrib.http)
     "aiosmtplib>=5.1.3",
 ]
 

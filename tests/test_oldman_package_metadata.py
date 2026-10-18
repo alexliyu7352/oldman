@@ -16,6 +16,7 @@ PYPROJECT = ROOT / "pyproject.toml"
 REQUIRED_DEFAULT_DEPENDENCIES = {
     "aiohttp",
     "aiosqlite",
+    "brotli",
     "cryptography",
     "curl-cffi",
     "faststream",
@@ -36,6 +37,7 @@ REQUIRED_DEFAULT_DEPENDENCIES = {
     "typer",
     "uuid6",
     "wtforms",
+    "zstandard",
 }
 FORBIDDEN_SERVER_DB_DRIVERS = {"aiomysql", "asyncpg", "mysqlclient", "psycopg", "psycopg2"}
 FORBIDDEN_EXTRAS = {"http_client", "cache", "web", "messaging", "media", "db", "dashboard", "admin"}

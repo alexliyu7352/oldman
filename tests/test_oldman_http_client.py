@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import cast
 
 import aiohttp
+import brotli
 import httpx
+import zstandard
 from aiohttp import web
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -315,6 +317,64 @@ class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(HttpContentDecodingError):
             _ = response.content
+
+    async def test_brotli_and_zstd_are_decoded_and_truncation_is_rejected(self) -> None:
+        """br and zstd decode buffered and streamed bodies; a cut-off body is not a complete response."""
+
+        zstd_frames = zstandard.ZstdCompressor().compress(STREAM_BODY) + zstandard.ZstdCompressor().compress(b"second-frame")
+        cases = {
+            "br": (brotli.compress(STREAM_BODY), STREAM_BODY),
+            "zstd": (zstd_frames, STREAM_BODY + b"second-frame"),
+        }
+        for encoding, (compressed, expected) in cases.items():
+            with self.subTest(encoding=encoding):
+                buffered = HttpResponse(
+                    status_code=200,
+                    url="https://example.test/encoded",
+                    headers={"Content-Encoding": encoding},
+                    raw_content=compressed,
+                    decode_content=True,
+                )
+                self.assertEqual(expected, buffered.content)
+
+                async def iter_raw(data: bytes = compressed) -> AsyncIterator[bytes]:
+                    """Expose the compressed body in small network chunks."""
+
+                    for offset in range(0, len(data), 7):
+                        yield data[offset : offset + 7]
+
+                async def close() -> None:
+                    """Provide the no-op close required by the stream contract."""
+
+                streamed = HttpStreamResponse(
+                    status_code=200,
+                    url="https://example.test/encoded",
+                    headers={"Content-Encoding": encoding},
+                    iter_raw=iter_raw,
+                    close=close,
+                    decode_content=True,
+                )
+                self.assertEqual(expected, b"".join([chunk async for chunk in streamed.aiter_bytes()]))
+
+                truncated = HttpResponse(
+                    status_code=200,
+                    url="https://example.test/truncated",
+                    headers={"Content-Encoding": encoding},
+                    raw_content=compressed[:-4],
+                    decode_content=True,
+                )
+                with self.assertRaises(HttpContentDecodingError):
+                    _ = truncated.content
+
+                corrupt = HttpResponse(
+                    status_code=200,
+                    url="https://example.test/corrupt",
+                    headers={"Content-Encoding": encoding},
+                    raw_content=b"not-a-compressed-body",
+                    decode_content=True,
+                )
+                with self.assertRaises(HttpContentDecodingError):
+                    _ = corrupt.content
 
     def test_concatenated_gzip_and_deflate_members_are_all_decoded(self) -> None:
         """Every compressed member belongs to the response representation."""

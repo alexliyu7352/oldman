@@ -207,7 +207,7 @@ headers 大小写不敏感，重复 header 使用 get_list(name) 或 multi_items
 
 响应流由 stream 上下文关闭，client 的池仍由其拥有者关闭。stream 主要处理建立响应阶段的重试，不承诺读取中途能透明续传；不要让业务依赖它对已交付部分正文重新执行。
 
-content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip/deflate；raw_content/aiter_raw 仍可读取原始 bytes。不支持的编码或损坏压缩体抛 HttpContentDecodingError；不是任意压缩格式自动支持。
+content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip、deflate、br、zstd（请求默认只声明 gzip, deflate；服务端仍回 br、zstd 时同样能解）；raw_content/aiter_raw 仍可读取原始 bytes。其他编码、截断或损坏的压缩体抛 HttpContentDecodingError。
 
 ## 中断后的续传
 

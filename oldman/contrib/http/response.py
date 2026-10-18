@@ -13,11 +13,16 @@ from http.cookiejar import CookieJar
 from typing import Any, Protocol, cast
 from urllib.request import Request
 
+import brotli
+import zstandard
+
 from .exceptions import HttpContentDecodingError, HttpStatusError, HttpStreamConsumedError
 
 HeaderItems = Iterable[tuple[str | bytes, str | bytes | None]]
 AsyncBytesFactory = Callable[[], AsyncIterator[bytes]]
 AsyncClose = Callable[[], Awaitable[None]]
+# What the gzip/deflate, br and zstd decoders raise for a corrupt or truncated body.
+_DECODER_ERRORS = (zlib.error, brotli.error, zstandard.ZstdError)
 
 
 def _to_text(value: str | bytes | None) -> str:
@@ -302,6 +307,56 @@ class _DeflateDecoder:
         return -zlib.MAX_WBITS
 
 
+class _BrotliDecoder:
+    """Incrementally decode a br body; a stream that never reaches its end marker is truncated."""
+
+    def __init__(self) -> None:
+        """Create the brotli stream decoder."""
+
+        self._decompressor = brotli.Decompressor()
+
+    def decode(self, data: bytes) -> bytes:
+        """Decode one br fragment."""
+
+        return self._decompressor.process(data) if data else b""
+
+    def flush(self) -> bytes:
+        """Reject a body that stopped before the br stream ended."""
+
+        if not self._decompressor.is_finished():
+            raise brotli.error("incomplete or truncated br stream")
+        return b""
+
+
+class _ZstdDecoder:
+    """Strictly decode every zstd frame of a body, the way _ZLibMemberDecoder handles gzip members."""
+
+    def __init__(self) -> None:
+        """Create the decoder for the first frame."""
+
+        self._decompressor = zstandard.ZstdDecompressor().decompressobj()
+
+    def decode(self, data: bytes) -> bytes:
+        """Decode input and continue through concatenated frames."""
+
+        output = bytearray()
+        pending = data
+        while pending:
+            if self._decompressor.eof:
+                # A decompressobj handles one frame; the next frame needs a new one.
+                self._decompressor = zstandard.ZstdDecompressor().decompressobj()
+            output.extend(self._decompressor.decompress(pending))
+            pending = self._decompressor.unused_data if self._decompressor.eof else b""
+        return bytes(output)
+
+    def flush(self) -> bytes:
+        """Reject a body that stopped inside a frame."""
+
+        if not self._decompressor.eof:
+            raise zstandard.ZstdError("incomplete or truncated zstd stream")
+        return b""
+
+
 class _MultiDecoder:
     """Reverse a sequence of Content-Encoding transformations."""
 
@@ -349,6 +404,10 @@ def _content_decoder(headers: HttpHeaders, decode_content: bool) -> _ContentDeco
             decoders.append(_GZipDecoder())
         elif encoding == "deflate":
             decoders.append(_DeflateDecoder())
+        elif encoding == "br":
+            decoders.append(_BrotliDecoder())
+        elif encoding == "zstd":
+            decoders.append(_ZstdDecoder())
         else:
             raise HttpContentDecodingError(f"不支持的 Content-Encoding: {encoding}")
     if not decoders:
@@ -364,7 +423,7 @@ def _decode_content(content: bytes, headers: HttpHeaders, decode_content: bool) 
     decoder = _content_decoder(headers, decode_content)
     try:
         return decoder.decode(content) + decoder.flush()
-    except zlib.error as exc:
+    except _DECODER_ERRORS as exc:
         raise HttpContentDecodingError(f"响应正文解码失败: {exc}") from exc
 
 
@@ -385,7 +444,7 @@ async def _iter_decoded(
         tail = decoder.flush()
         if tail:
             yield tail
-    except zlib.error as exc:
+    except _DECODER_ERRORS as exc:
         raise HttpContentDecodingError(f"响应正文解码失败: {exc}") from exc
 
 
