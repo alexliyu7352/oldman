@@ -2288,8 +2288,10 @@
     @apply flex flex-wrap items-center gap-2;
   }
 
+  /* Grows into the free space, but its content (the 16rem search box) is its basis: when the tools do not fit
+     beside it, they wrap to the next line instead of squeezing the search box. Empty, it takes no room. */
   .om-table-toolbar-start {
-    @apply min-w-0 flex-1;
+    @apply min-w-0 flex-auto;
   }
 
   .om-table-search {

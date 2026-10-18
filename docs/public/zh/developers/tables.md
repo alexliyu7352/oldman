@@ -191,7 +191,7 @@ Demo `/examples/tables/realtime` 是手写 HTML table 配合页面私有 Realtim
 
 ## 工具条
 
-表格外壳在数据区上方输出一条工具条（`om-table-toolbar`），放在 `om-table-card` 里时贴在卡片头下面。左侧依次是搜索框（`render_shell(show_search=True)` 时）、"已选 N 项"计数（`selectable=True` 时）和批量动作槽；右侧是工具按钮。工具由表格类的 `toolbar` 声明，默认 `("columns", "density", "export")`：
+表格外壳在数据区上方输出一条工具条（`om-table-toolbar`），放在 `om-table-card` 里时贴在卡片头下面。左侧依次是搜索框（`render_shell(show_search=True)` 时）、"已选 N 项"计数（`selectable=True` 时）和批量动作槽；右侧是工具按钮。窄屏放不下时右侧的工具按钮换到下一行，搜索框保持自己的宽度，不被挤窄。工具由表格类的 `toolbar` 声明，默认 `("columns", "density", "export")`：
 
 | 工具 | 作用 | 备注 |
 | --- | --- | --- |
