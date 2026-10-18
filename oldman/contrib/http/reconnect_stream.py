@@ -76,7 +76,7 @@ class ReconnectStreamResponse:
     """读取中断后自动重连的流式响应。上层业务先拿响应头、再读正文，所以底层上下文跨 connect 和 aiter_bytes 保存。
 
     对外的状态码和响应头在首次响应时确定，内部重连不改变它们。底层始终读未经解压的实体字节，Range 的偏移和长度都按它算。
-    首次的 206 必须正是调用方要的区间（见 _check_requested_range），正文长度以 Content-Range 为准。
+    首次的 206 必须从调用方要的起点开始、落在要的区间之内（可以只是一部分，见 _check_requested_range），正文长度以 Content-Range 为准。
 
     **文件**（live_stream=False，默认）：读取中断后从已收下的位置带 Range 续传，接不接得上只核对字节层面：
     - 上游按要求回 206：起点、终点、总长度都要和首次对得上；
@@ -595,26 +595,27 @@ class ReconnectStreamResponse:
         return start, end, total
 
     def _check_requested_range(self) -> None:
-        """首次的 206 必须正是调用方要的区间：起点相同；带终点的到那个终点（资源更短时到资源结尾）；
-        开放区间到资源结尾；后缀区间是资源最后 n 个字节。认不出的 Range（多区间等）不核对。"""
+        """首次的 206 必须从调用方要的起点开始，并落在要的区间之内；后缀区间的起点是资源最后 n 个字节的开头。
+
+        服务器可以只给要的一部分（RFC 9110 14.2，例如 CDN 对 bytes=0- 只回前 1MB），这个 206 本身说清了给的是哪一段，
+        原样交给调用方，内部续传也只在这一段之内。起点不对、或超出要的区间，才不是调用方要的。认不出的 Range（多区间等）不核对。
+        """
 
         match = re.fullmatch(r"bytes=(\d*)-(\d*)", (self.original_range_header or "").strip(), re.IGNORECASE)
         if match is None or (not match[1] and not match[2]):
             return
         total = self.total_length
+        last_allowed: int | None
         if match[1]:
             expected_start = int(match[1])
-            if match[2]:
-                expected_end: int | None = min(int(match[2]), total - 1) if total is not None else int(match[2])
-            else:
-                expected_end = total - 1 if total is not None else None
+            last_allowed = int(match[2]) if match[2] else None
         else:
             if total is None:
                 raise HttpRangeError(f"后缀 Range 的响应缺少资源总长度，无法核对范围: {self.url}")
-            expected_start, expected_end = max(total - int(match[2]), 0), total - 1
-        if self.response_start != expected_start or (expected_end is not None and self.response_end != expected_end):
+            expected_start, last_allowed = max(total - int(match[2]), 0), None
+        if self.response_start != expected_start or (last_allowed is not None and self.response_end is not None and self.response_end > last_allowed):
             raise HttpRangeError(
-                f"206 的范围与请求的 Range 不一致: 请求 {self.original_range_header}, 实际 {self.response_start}-{self.response_end}, {self.url}"
+                f"206 的范围不是请求的 Range 的一部分: 请求 {self.original_range_header}, 实际 {self.response_start}-{self.response_end}, {self.url}"
             )
 
     @staticmethod

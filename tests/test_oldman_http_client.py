@@ -3088,6 +3088,45 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(compressed, body)
                         self.assertEqual("gzip", headers.get("content-encoding"))
 
+    async def test_a_206_that_gives_only_part_of_the_requested_range_is_accepted(self) -> None:
+        """A server may answer less than was asked (a CDN gives the first 1 MB for bytes=0-): that 206 is the response.
+
+        It must still start where the caller asked and stay inside the request; an interruption resumes within it.
+        """
+
+        def capped(first: int, last: int, cut: int | None = None):
+            def answer(attempt: int, headers: dict[str, str]) -> bytes:
+                interval = requested_range(headers, len(RECOVERY_BODY))
+                assert interval is not None
+                start = interval[0] if attempt > 1 else first
+                body = RECOVERY_BODY[start : last + 1]
+                if attempt == 1 and cut is not None:
+                    body = body[:cut]
+                head = response_head(
+                    "206 Partial Content",
+                    {"Content-Range": f"bytes {start}-{last}/{len(RECOVERY_BODY)}", "Content-Length": last - start + 1},
+                )
+                return head + body
+
+            return answer
+
+        for client_type in ClientType:
+            for requested, first, last, cut in (("bytes=0-", 0, 1023, None), ("bytes=100-4999", 100, 1099, None), ("bytes=0-", 0, 1023, 500)):
+                with self.subTest(client_type=client_type, requested=requested, cut=cut):
+                    origin = RawOrigin(capped(first, last, cut))
+                    status, headers, body = await _read_reconnect(origin, client_type, headers={"Range": requested})
+                    self.assertEqual((206, RECOVERY_BODY[first : last + 1]), (status, body))
+                    self.assertEqual(f"bytes {first}-{last}/{len(RECOVERY_BODY)}", headers.get("content-range"))
+                    if cut is not None:
+                        self.assertEqual(f"bytes={first + cut}-{last}", origin.requests[1].get("range"))
+            for requested, answer in (
+                ("bytes=0-", capped(10, 1023)),
+                ("bytes=0-99", capped(0, 199)),
+            ):
+                with self.subTest(client_type=client_type, requested=requested, rejected=True):
+                    with self.assertRaises(HttpRangeError):
+                        await _read_reconnect(RawOrigin(answer), client_type, headers={"Range": requested})
+
     async def test_a_lengthless_body_whose_resume_is_answered_416_at_its_end_is_complete(self) -> None:
         """All bytes arrived but not the end of the chunked body: resuming at the total length gets 416 bytes */N."""
 

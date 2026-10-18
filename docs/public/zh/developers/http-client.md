@@ -216,7 +216,7 @@ content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: ide
 - 状态码和响应头取首次响应，内部续传不改变它们。aiter_bytes(chunk_size) 收到多少交多少，chunk_size 只是每块的上限；curl 会把 50 毫秒内到的小块攒成一批。
 - 调用方带的 Range 被上游用 416 拒绝时，去掉 Range 再请求一次（不扣重试次数），拿完整内容；把 416 写进 no_retry_statuses 则原样返回 416。
 - 默认文件模式（live_stream=False）在读取中断后，从已收下的字节位置带 Range 续传，不带 If-Range。接上的条件只看字节：206 的起点、终点、总长度与首次一致；或者上游回完整的 200、总长度与首次相同（首次没有长度时，要求强 ETag 相同），这时跳过已交付的部分；Content-Encoding 不能变。multipart 响应重放原请求，并逐字节比对已交付的部分。ETag、Last-Modified 与首次不同不算失败：很多 CDN 每次换节点，内容相同、这些头不同。
-- 首次的 206 必须正是调用方要的区间：起点相同，带终点的到那个终点，开放区间到资源结尾，后缀区间是最后 n 个字节，并且带有效的 Content-Range；否则抛 HttpRangeError。正文长度以 Content-Range 为准，短了续传，长了报错。没人要求的 206 缺有效 Content-Range 时照常读完，但不续传。
+- 首次的 206 必须从调用方要的起点开始（后缀区间：资源最后 n 个字节的开头），落在要的区间之内，并带有效的 Content-Range；否则抛 HttpRangeError。服务器可以只给一部分（例如 CDN 对 bytes=0- 只回前 1MB），这个 206 原样交给调用方，内部续传也只在这一段之内。正文长度以 Content-Range 为准，短了续传，长了报错。没人要求的 206 缺有效 Content-Range 时照常读完，但不续传。
 - 接不上就抛 HttpRangeError（错误状态码是 HttpStatusError），不拼接。已接受的风险：同一地址上的内容被换成长度相同的另一份时发现不了；首次没有长度时，换成任何一份都发现不了。
 - 正文比 Content-Length 短就算中断，即使连接正常结束；没有长度的正文缺了结束块、续传时上游回 416 且 `bytes */N` 正好是已收到的长度，算完整读完。
 - 续传偏移按**原始字节**计算。客户端开了 content_decoding 时，包装器把完整响应（不是 206）解压后输出，并从 response_headers 去掉 Content-Encoding、Content-Length；206、HEAD 和解不了的编码按原始字节输出。
