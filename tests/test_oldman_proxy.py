@@ -23,6 +23,7 @@ from oldman.contrib.http import ClientType, HttpHeaders, HttpMethod, MultiHttpCl
 from oldman.contrib.proxy.base import BaseStreamProxy, _sanic_response_headers
 from oldman.contrib.proxy.encrypt import EncryptMixStreamProxy, EncryptStreamProxy
 from oldman.contrib.proxy.simple import SimpleStreamProxy
+from tests.raw_http_origin import RawOrigin, chunk_frame, requested_range, response_head
 
 _PROXY_FREE_ENVIRONMENT = {
     "HTTP_PROXY": "",
@@ -600,63 +601,46 @@ class ProxyDirectTcpIntegrationTest(unittest.IsolatedAsyncioTestCase):
 _RELAY_PAYLOAD = bytes(range(256)) * 400
 
 
-class _RelayOrigin:
-    """Raw TCP origin for relay tests.
+def _relay_origin(mode: str) -> RawOrigin:
+    """Origin for relay tests.
 
     complete / missing / range answer every request the same way; zero sends headers and no body every
     time; cut and chunked_cut send part of the body on the first request and 503 afterwards.
     """
 
-    def __init__(self, mode: str) -> None:
-        self.mode = mode
-        self.requests: list[dict[str, str]] = []
-
-    async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        """Answer one request and close the connection."""
-
-        try:
-            head = await reader.readuntil(b"\r\n\r\n")
-            lines = head.decode("latin-1").split("\r\n")
-            headers = {name.strip().lower(): value.strip() for name, _, value in (line.partition(":") for line in lines[1:] if ":" in line)}
-            self.requests.append(headers)
-            writer.write(self._answer(len(self.requests), headers.get("range")))
-            await writer.drain()
-        except (ConnectionError, asyncio.IncompleteReadError):
-            pass
-        finally:
-            writer.close()
-            with suppress(Exception):
-                await writer.wait_closed()
-
-    def _answer(self, attempt: int, range_header: str | None) -> bytes:
-        """Build the raw response for this attempt."""
-
+    def answer(attempt: int, headers: dict[str, str]) -> bytes:
         body = _RELAY_PAYLOAD
-        media = "Content-Type: video/mp2t\r\n"
-        if self.mode == "complete":
-            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode() + body
-        if self.mode == "missing":
-            return f"HTTP/1.1 404 Not Found\r\n{media}Content-Length: 4\r\n\r\n".encode() + b"gone"
-        if self.mode == "range":
-            first, _, last = (range_header or "").removeprefix("bytes=").partition("-")
-            start, end = int(first), int(last)
+        media = {"Content-Type": "video/mp2t"}
+        if mode == "complete":
+            return response_head("200 OK", {**media, "Content-Length": len(body)}) + body
+        if mode == "missing":
+            return response_head("404 Not Found", {**media, "Content-Length": 4}) + b"gone"
+        if mode == "range":
+            interval = requested_range(headers, len(body))
+            assert interval is not None
+            start, end = interval
             return (
-                f"HTTP/1.1 206 Partial Content\r\n{media}Content-Range: bytes {start}-{end}/{len(body)}\r\nContent-Length: {end - start + 1}\r\n\r\n"
-            ).encode() + body[start : end + 1]
-        if self.mode == "zero":
-            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode()
+                response_head(
+                    "206 Partial Content", {**media, "Content-Range": f"bytes {start}-{end}/{len(body)}", "Content-Length": end - start + 1}
+                )
+                + body[start : end + 1]
+            )
+        if mode == "zero":
+            return response_head("200 OK", {**media, "Content-Length": len(body)})
         if attempt > 1:
-            return b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n"
-        if self.mode == "cut":
-            return f"HTTP/1.1 200 OK\r\n{media}Content-Length: {len(body)}\r\n\r\n".encode() + body[:30000]
-        if self.mode == "chunked_cut":
-            return f"HTTP/1.1 200 OK\r\n{media}Transfer-Encoding: chunked\r\n\r\n{30000:x}\r\n".encode() + body[:30000] + b"\r\n"
-        raise AssertionError(self.mode)
+            return response_head("503 Service Unavailable", {"Content-Length": 0})
+        if mode == "cut":
+            return response_head("200 OK", {**media, "Content-Length": len(body)}) + body[:30000]
+        if mode == "chunked_cut":
+            return response_head("200 OK", {**media, "Transfer-Encoding": "chunked"}) + chunk_frame(body[:30000])
+        raise AssertionError(mode)
+
+    return RawOrigin(answer)
 
 
 @asynccontextmanager
 async def _relay(
-    origin: _RelayOrigin,
+    origin: RawOrigin,
     *,
     handling: str = "raise",
     proxy_class: type[BaseStreamProxy] = BaseStreamProxy,
@@ -668,8 +652,20 @@ async def _relay(
     downstream projects write it: raise it, return None, or answer 404.
     """
 
-    origin_server = await asyncio.start_server(origin.handle, "127.0.0.1", 0)
-    upstream = f"http://127.0.0.1:{origin_server.sockets[0].getsockname()[1]}/segment.ts"
+    async with origin.serve() as origin_url:
+        async with _relay_app(f"{origin_url}/segment.ts", handling, proxy_class, user_agent) as address:
+            yield address
+
+
+@asynccontextmanager
+async def _relay_app(
+    upstream: str,
+    handling: str,
+    proxy_class: type[BaseStreamProxy],
+    user_agent: str | None,
+) -> AsyncIterator[tuple[str, int]]:
+    """The Sanic side of _relay."""
+
     with patch.dict(conf.__dict__, {"settings": _settings()}):
         proxy = proxy_class("relay")
     client = MultiHttpClient(proxy.get_client_type(user_agent), retry_count=1, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
@@ -723,8 +719,6 @@ async def _relay(
         sock.close()
         Sanic.unregister_app(app)
         await client.close_client()
-        origin_server.close()
-        await origin_server.wait_closed()
 
 
 async def _fetch(address: tuple[str, int], extra_headers: str = "") -> tuple[int, dict[str, str], bytes]:
@@ -769,7 +763,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
             ("range", "Range: bytes=10-19\r\n", 206, _RELAY_PAYLOAD[10:20]),
         ):
             with self.subTest(mode=mode):
-                async with _relay(_RelayOrigin(mode)) as address:
+                async with _relay(_relay_origin(mode)) as address:
                     status, headers, body = await _fetch(address, extra)
                 self.assertEqual(expected_status, status)
                 self.assertEqual(expected_body, body)
@@ -781,7 +775,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
 
         for proxy_class in (BaseStreamProxy, SimpleStreamProxy):
             with self.subTest(proxy=proxy_class.__name__):
-                async with _relay(_RelayOrigin("zero"), proxy_class=proxy_class) as address:
+                async with _relay(_relay_origin("zero"), proxy_class=proxy_class) as address:
                     status, _, body = await _fetch(address)
                 self.assertEqual(500, status)
                 self.assertNotEqual(_RELAY_PAYLOAD[:1], body[:1])
@@ -797,7 +791,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
             for user_agent in (None, "chrome"):
                 for handling in ("raise", "return_none", "return_404"):
                     with self.subTest(proxy=proxy_class.__name__, user_agent=user_agent, handling=handling):
-                        origin = _RelayOrigin("chunked_cut")
+                        origin = _relay_origin("chunked_cut")
                         with self.assertLogs("default", level="WARNING") as logs:
                             async with _relay(origin, handling=handling, proxy_class=proxy_class, user_agent=user_agent) as address:
                                 status, headers, body = await _fetch(address)
@@ -814,7 +808,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""
 
-        async with _relay(_RelayOrigin("cut")) as address:
+        async with _relay(_relay_origin("cut")) as address:
             status, headers, body = await _fetch(address)
         self.assertEqual(200, status)
         self.assertEqual(str(len(_RELAY_PAYLOAD)), headers["content-length"])

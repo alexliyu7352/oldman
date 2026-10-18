@@ -213,10 +213,15 @@ content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: ide
 
 `async with client.reconnect_stream(HttpMethod.GET, url, live_stream=False, ...) as stream` 返回 ReconnectStreamResponse，不是普通 HttpStreamResponse。通过 status_code、response_headers 查看当前响应，通过 aiter_bytes 读取；当前响应在 current_response，可先调用其 raise_for_status。上下文负责 release。
 
-- 默认文件模式在读取中断后，从已交付的字节位置请求 Range；支持可换算的单一区间，续传检查 206、Content-Range 起止/总长和已知强 ETag。
-- 不把返回 200 的完整文件或错误页拼到已有内容后面；不满足续传合同会抛错。没有强 ETag 时不能凭空保证资源内容从未变化。
-- 这个包装器按**原始字节**计数，aiter_bytes 实际消费底层 aiter_raw；不要与普通流的内容解压混为一谈，下载文件建议维持 identity 编码。
-- live_stream=True 是重新连接当前实时流，忽略 Range/If-Range；不提供无缝回放、丢包恢复或浏览器 SSE 事件重放。
+- 状态码和响应头取首次响应，内部续传不改变它们。aiter_bytes(chunk_size) 收到多少交多少，chunk_size 只是每块的上限；curl 会把 50 毫秒内到的小块攒成一批。
+- 调用方带的 Range 被上游用 416 拒绝时，去掉 Range 再请求一次（不扣重试次数），拿完整内容；把 416 写进 no_retry_statuses 则原样返回 416。
+- 默认文件模式（live_stream=False）在读取中断后，从已收下的字节位置带 Range 续传，不带 If-Range。接上的条件只看字节：206 的起点、终点、总长度与首次一致；或者上游回完整的 200、总长度与首次相同（首次没有长度时，要求强 ETag 相同），这时跳过已交付的部分；Content-Encoding 不能变。multipart 响应重放原请求，并逐字节比对已交付的部分。ETag、Last-Modified 与首次不同不算失败：很多 CDN 每次换节点，内容相同、这些头不同。
+- 首次的 206 必须正是调用方要的区间：起点相同，带终点的到那个终点，开放区间到资源结尾，后缀区间是最后 n 个字节，并且带有效的 Content-Range；否则抛 HttpRangeError。正文长度以 Content-Range 为准，短了续传，长了报错。没人要求的 206 缺有效 Content-Range 时照常读完，但不续传。
+- 接不上就抛 HttpRangeError（错误状态码是 HttpStatusError），不拼接。已接受的风险：同一地址上的内容被换成长度相同的另一份时发现不了；首次没有长度时，换成任何一份都发现不了。
+- 正文比 Content-Length 短就算中断，即使连接正常结束；没有长度的正文缺了结束块、续传时上游回 416 且 `bytes */N` 正好是已收到的长度，算完整读完。
+- 续传偏移按**原始字节**计算。客户端开了 content_decoding 时，包装器把完整响应（不是 206）解压后输出，并从 response_headers 去掉 Content-Encoding、Content-Length；206、HEAD 和解不了的编码按原始字节输出。
+- live_stream=True 是重新连接当前实时流，忽略 Range/If-Range，不核对接不接得上；正文靠关连接结束（HTTP/1.x、没有长度也不分块）时，上游关连接按中断处理去重连。不提供无缝回放、丢包恢复或浏览器 SSE 事件重放。
+- 重试预算是连续的：连接失败、错误状态码和读取中断共用 retry_count，重连后交出了新字节就恢复。
 - 没有取得新字节的连续重连共享预算；成功取得新字节后预算重置。无进展会最终报错，不是永久循环重试。
 
 本入口用于应用确实需要的下载/流转发；普通 JSON API 用 request/get 即可，不为它套续传逻辑。

@@ -230,7 +230,7 @@ class · defined in `oldman.contrib.http.reconnect_stream`
 class ReconnectStreamResponse
 ```
 
-一个通用的流式响应包装类，用于在需要时重新连接流式请求。由于上层业务是流式输出, 所以需要先建立连接并记录response头, 然后读取数据.
+读取中断后自动重连的流式响应。上层业务先拿响应头、再读正文，所以底层上下文跨 connect 和 aiter_bytes 保存。
 
 Constructor:
 
@@ -240,13 +240,13 @@ ReconnectStreamResponse(client: _ReconnectClient, method: HttpMethod, url: str, 
 
 Members:
 
-- `async def connect() -> None` — 建立初始响应，并让连接失败和状态重试共享一个预算。
+- `async def connect() -> None` — 建立首次响应；读取中断后也由它建立恢复响应。连接失败、错误状态码和读取中断共用一份连续的重试预算。
 - `def incr_timeout(reset: bool=False) -> None` — 更新父客户端记录的连续超时次数。
-- `async def aiter_bytes(chunk_size: int=512 * 1024) -> AsyncIterator[bytes]` — 迭代正文，并用一个连续预算处理读取失败和后续重连。
+- `async def aiter_bytes(chunk_size: int=512 * 1024) -> AsyncIterator[bytes]` — 输出本次响应的连续字节；读取中断后按续传规则恢复。
 - `async def release_response() -> None` — 退出 backend 上下文，由统一流响应完成幂等关闭。
 - `def detach_response() -> AbstractAsyncContextManager[HttpStreamResponse] | None` — 把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
 - `async def release() -> None` — 清理当前断点续传响应。
-- `def update_response_status(response: HttpStreamResponse) -> None` — Update response metadata and reject unsafe resume responses.
+- `def update_response_status(response: HttpStreamResponse) -> None` — 首次响应确定对外状态、响应头和续传方式；之后的响应只核对能不能接上，不改对外的东西。
 
 ## `RequestFailedError`
 
