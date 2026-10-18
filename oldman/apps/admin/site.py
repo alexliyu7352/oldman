@@ -259,20 +259,30 @@ class AdminSite:
         login_path = admin_login_path(prefix)
         self.require_superuser = admin_settings.require_superuser
 
+        def store_unavailable(request: Request, exc: ServiceUnavailable) -> Any:
+            """The framework's 503 envelope when a store a model hook needs is down; None for a page request.
+
+            Raised, the 503 reaches the browser as Sanic's own error body, which has no error_code,
+            so the Admin could only say "Request failed" (a role saved or deleted while the
+            permission store was down, say). The envelope carries the translated message instead.
+            A page request keeps Sanic's error page: on None the caller raises again.
+            """
+            if resolve_response_mode(request) != "json":
+                return None
+            return form_error_response(str(exc), error_code=ApiErrorCode.SERVICE_UNAVAILABLE, status=503)
+
         async def run_after_save(current_admin: ModelAdmin, request: Request, instance: Any, *, created: bool) -> Any:
             """The project's hook once the save committed; a store it needs being down is answered, not raised.
 
-            Raised, the 503 reaches the browser as Sanic's own error body, which has no error_code,
-            so the Admin could only say "Request failed" (a role saved while the permission store
-            was down, say). The framework's envelope carries the translated message instead. The
-            save stands either way. A page request keeps Sanic's error page.
+            The save stands either way.
             """
             try:
                 await current_admin.after_save(request, instance, created=created)
             except ServiceUnavailable as exc:
-                if resolve_response_mode(request) != "json":
+                answer = store_unavailable(request, exc)
+                if answer is None:
                     raise
-                return form_error_response(str(exc), error_code=ApiErrorCode.SERVICE_UNAVAILABLE, status=503)
+                return answer
             return None
 
         def admitted(request: Request) -> bool:
@@ -661,34 +671,48 @@ class AdminSite:
                 user_admin = current_admin if isinstance(current_admin, AdminUserModelAdmin) else None
                 username: str | None = None
                 target_user_id: int | None = None
-                async with manager.get_session() as session:
-                    instance = await load_admin_object(current_admin, session, object_id)
-                    if instance is None:
+                try:
+                    async with manager.get_session() as session:
+                        instance = await load_admin_object(current_admin, session, object_id)
+                        if instance is None:
+                            if user_admin is not None:
+                                return form_error_response(
+                                    gettext("User not found", request=request),
+                                    status=404,
+                                )
+                            raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
+                        if not await current_admin.has_delete_permission(request, instance):
+                            return await access_denied_response(request, login_url=login_path)
                         if user_admin is not None:
-                            return form_error_response(
-                                gettext("User not found", request=request),
-                                status=404,
-                            )
-                        raise NotFound(gettext("%(name)s %(id)s was not found", request=request, name=current_admin.verbose_name, id=object_id))
-                    if not await current_admin.has_delete_permission(request, instance):
-                        return await access_denied_response(request, login_url=login_path)
-                    if user_admin is not None:
-                        # Staff and superuser accounts are managed by superusers only.
-                        if not can_manage_user(request, instance):
-                            return form_error_response(gettext("Permission denied", request=request))
-                        try:
-                            user_admin.validate_delete(instance, current_user_id=request_user_id(request))
-                        except UserManagementError as exc:
-                            message = gettext(str(exc), request=request)
-                            return form_error_response(message)
-                        username = str(getattr(instance, "username", current_admin.verbose_name))
-                        target_user_id = user_identity(instance)
-                    await current_admin.delete_model(session, instance)
+                            # Staff and superuser accounts are managed by superusers only.
+                            if not can_manage_user(request, instance):
+                                return form_error_response(gettext("Permission denied", request=request))
+                            try:
+                                user_admin.validate_delete(instance, current_user_id=request_user_id(request))
+                            except UserManagementError as exc:
+                                message = gettext(str(exc), request=request)
+                                return form_error_response(message)
+                            username = str(getattr(instance, "username", current_admin.verbose_name))
+                            target_user_id = user_identity(instance)
+                        await current_admin.delete_model(session, instance)
+                except ServiceUnavailable as exc:
+                    # Raised inside the transaction, which rolled back: nothing was deleted.
+                    answer = store_unavailable(request, exc)
+                    if answer is None:
+                        raise
+                    return answer
                 if user_admin is not None:
                     # The deleted user's logins end before the project's hook, which may fail.
                     assert target_user_id is not None
                     await finish_user_change(request, target_user_id, login_url=login_path)
-                await current_admin.after_delete(request, instance)
+                try:
+                    await current_admin.after_delete(request, instance)
+                except ServiceUnavailable as exc:
+                    # The delete stands; the answer says why the follow-up failed.
+                    answer = store_unavailable(request, exc)
+                    if answer is None:
+                        raise
+                    return answer
                 if user_admin is not None:
                     assert username is not None
                     return admin_modal_success_response(

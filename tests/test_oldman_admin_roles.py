@@ -313,11 +313,16 @@ class RoleAdminTest(AdminWithRolesCase):
         await self.connection.set(f"svc:role:{role_id}", json.dumps(["role_admin_test.view"]))
         delete_path = f"{ROLES_PATH}/<object_id>/delete"
 
-        with (
-            patch("oldman.apps.roles.store.forget_role", AsyncMock(side_effect=RedisConnectionError("down"))),
-            self.assertRaises(ServiceUnavailable),
-        ):
-            await self.call(delete_path, ("POST",), self.post(delete_path, {}), object_id=str(role_id))
+        page = self.post(delete_path, {})
+        page.headers = {**page.headers, "accept": "text/html"}
+        with patch("oldman.apps.roles.store.forget_role", AsyncMock(side_effect=RedisConnectionError("down"))):
+            # The row-menu modal submits JSON: the answer says why, in the framework's envelope, not Sanic's body.
+            refused = await self.call(delete_path, ("POST",), self.post(delete_path, {}), object_id=str(role_id))
+            # A page request keeps Sanic's error page.
+            with self.assertRaises(ServiceUnavailable):
+                await self.call(delete_path, ("POST",), page, object_id=str(role_id))
+        payload = json.loads(refused.body)
+        self.assertEqual((503, 1503, "The permission store is unavailable"), (refused.status, payload["error_code"], payload["message"]))
         self.assertIsNotNone(await self.role_named("Analysts"))
         self.assertEqual(["role_admin_test.view"], await self.cached(role_id))
 

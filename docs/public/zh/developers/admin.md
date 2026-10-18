@@ -90,7 +90,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 - `async get_object(session, object_id)`：解析单列主键并读取实例；找不到返回 None，非法主键产生 `InvalidAdminObjectId`，由站点转成相应错误。
 - `async save_model(session, instance)`：默认 add + flush，返回实例；不提交外层事务。
 - `async delete_model(session, instance)`：默认 delete + flush；同样不自行提交。
-- `async after_save(request, instance, *, created)`、`async after_delete(request, instance)`：新建、编辑、删除的事务**提交之后**才调用（用户管理里的启用/停用、修改密码也保存了用户这一行，同样调用 `after_save`，`created=False`），默认什么都不做。用来做只能跟在已提交的修改后面的事，比如刷新数据库之外的一份副本；这里抛出异常会让响应失败，但保存或删除已经生效；`after_save` 抛出 `ServiceUnavailable`（它依赖的存储不可用）时，Admin 的表单请求得到带 `error_code` 1503 的框架响应，界面能显示它翻译后的消息。
+- `async after_save(request, instance, *, created)`、`async after_delete(request, instance)`：新建、编辑、删除的事务**提交之后**才调用（用户管理里的启用/停用、修改密码也保存了用户这一行，同样调用 `after_save`，`created=False`），默认什么都不做。用来做只能跟在已提交的修改后面的事，比如刷新数据库之外的一份副本；这里抛出异常会让响应失败，但保存或删除已经生效；`after_save`、`after_delete` 或 `delete_model` 抛出 `ServiceUnavailable`（它依赖的存储不可用）时，Admin 的表单与弹窗请求得到带 `error_code` 1503 的框架响应，界面显示它翻译后的消息；普通页面请求仍是错误页。`delete_model` 在删除的事务里，抛出时事务回滚，什么都没删。
 - `await has_view_permission(request, obj=None)`、`await has_add_permission(request)`、`await has_change_permission(request, obj=None)`、`await has_delete_permission(request, obj=None)`：异步布尔判断，默认各自检查该模型对应动作的权限（见下文「权限与 User」）。处理函数先不带对象检查一次，读出对象后再带着对象检查一次；需要按对象判断时重写这些方法，先 `await super()...` 再加自己的条件。
 - `row_value(instance, field_name)`、`table_cell_value(instance, field_name, *, admin_prefix)`：定制展示值；可信 HTML 需要按共享 Table 的输出规则显式声明。默认实现把布尔值渲染成 Yes/No 徽章，`datetime` 显示为 `YYYY-MM-DD HH:MM` 并把 ISO 8601 作为 raw value，`date` 直接用 ISO 日期；其余值保持规范化后的原值。
 - `table_action_html(instance, *, admin_prefix)`、`get_edit_extra_buttons(instance, admin_prefix)`：定制控制按钮；需复用共享 DOM 和 actions 协议。
@@ -114,7 +114,7 @@ Admin Demo 同样不在启动钩子写数据：其25条项目在 `apps/demo/fixt
 服务安装了 `oldman.apps.roles` 时，安装器把角色模型注册到 Admin（项目已经用自己的 ModelAdmin 注册了 `Role` 时保留项目的），菜单里在 Authentication 组下、用户旁边出现「角色」。和用户管理一样，它检查的不是 Admin 的模型权限，而是 roles App 自己声明的 `roles.view`、`.add`、`.change`、`.delete`（见[权限](permissions.md#角色oldmanappsroles)）：项目自己的角色管理页面检查的也是这四个。
 
 - 新建和编辑用 `oldman.apps.roles.forms.RoleForm`：名称（唯一）、说明、权限。权限列出服务声明的全部权限，按声明它的 App 分组成复选框（组名是 App 的显示名）；保存时排序去重。不是超级用户的人编辑角色时，新勾上的权限必须是自己持有的；取消、保留原有的权限不受限制。角色里存着、但本服务没有声明的权限名（例如共用角色表的另一个服务声明的 `admin.*`），编辑页不显示，保存时原样保留：保存只改本服务声明的那些。代码已经不再声明的旧权限名从这里分辨不出来，也会保留。
-- 保存的事务提交之后，`RoleModelAdmin` 用 `after_save` 把角色的权限写进它的缓存键（保存、删除的缓存步骤都调用 `oldman.apps.roles.management` 里与项目页面共用的函数）；Redis 写失败时响应是 503，角色已经保存，Redis 恢复后再保存一次这个角色就修好了；这个 503 用框架的响应格式（`error_code` 1503），界面显示翻译后的「权限存储暂时不可用」，而不是笼统的「请求失败」。删除时先在事务里删掉缓存键、再删行，提交后用 `after_delete` 再删一次（见[权限](permissions.md#角色oldmanappsroles)）；Redis 不可用时第一步就失败，响应 503，什么都没删，Redis 恢复后再删即可。
+- 保存的事务提交之后，`RoleModelAdmin` 用 `after_save` 把角色的权限写进它的缓存键（保存、删除的缓存步骤都调用 `oldman.apps.roles.management` 里与项目页面共用的函数）；Redis 写失败时响应是 503，角色已经保存，Redis 恢复后再保存一次这个角色就修好了；这个 503 用框架的响应格式（`error_code` 1503），界面显示翻译后的「权限存储暂时不可用」，而不是笼统的「请求失败」。删除时先在事务里删掉缓存键、再删行，提交后用 `after_delete` 再删一次（见[权限](permissions.md#角色oldmanappsroles)）；Redis 不可用时第一步就失败，响应 503（同样是 `error_code` 1503 和「权限存储暂时不可用」），什么都没删，Redis 恢复后再删即可。
 - 能修改角色的人只能加自己持有的权限（上一条），但能把它们加给任何角色，包括他自己持有的角色；这个权限只给信得过的人。
 - 用户的新建和编辑表单多一组「角色」复选框（至少有一个角色时才出现），编辑页勾着用户现在持有的角色。保存时和用户行在同一个事务里写入；角色有变化时，提交后结束这个用户的全部登录，和改变启用/staff/超级用户标志一样。上面的规则照样适用：staff 和超级用户账号只有超级用户能编辑，所以也只有超级用户能给它们分配角色；能修改普通用户的 staff 可以给普通用户分配任何角色。
 
