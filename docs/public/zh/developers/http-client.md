@@ -181,7 +181,7 @@ TLS verify 仅接受构造级 bool，默认验证服务端证书。单次请求�
 
 当前重试不按 HTTP 方法判断幂等性，POST 也可能重发。写入、付款、创建资源等普通请求应显式 `retries=0`，或给该实例设置 retry_count=0；需要重试时必须由业务确认幂等。error_code 是响应 JSON 的业务字段，HTTP 客户端不会自动解释或据此重试。
 
-连接和读取异常在预算耗尽后通常原样抛出 backend 异常；取消继续传播。不要只捕获 HTTPClientError 就宣称覆盖所有网络异常，RequestFailedError 本身也不继承它。协议定义的状态、解压、流消费和 Range 错误分别为 HttpStatusError、HttpContentDecodingError、HttpStreamConsumedError、HttpRangeError。
+aiohttp 对幂等请求另有一次自己的重发（服务器一个响应都没回就断开时换连接再发一次），不计入 retry_count：上游每次都不回响应就断开时，retry_count=N 实际发出 2×(N+1) 个请求，httpx、curl 是 N+1 个。连接和读取异常在预算耗尽后通常原样抛出 backend 异常；取消继续传播。不要只捕获 HTTPClientError 就宣称覆盖所有网络异常，RequestFailedError 本身也不继承它。协议定义的状态、解压、流消费和 Range 错误分别为 HttpStatusError、HttpContentDecodingError、HttpStreamConsumedError、HttpRangeError。
 
 ## 两种响应的读取方式
 

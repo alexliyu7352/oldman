@@ -120,6 +120,11 @@ def service_process_group() -> Iterator[GroupIdentity]:
                 _set_foreground(terminal, os.getpgrp())
         yield GroupIdentity.current()
     finally:
+        # Known limit: a service that took the foreground and is then SIGKILLed (stop past its deadline, the
+        # OOM killer) never gets here. The foreground stays on a group that no longer exists, and the script
+        # that started it fails (EIO) or is stopped on its next terminal read. A killed process has nothing
+        # left to run; only whoever started it can take the foreground back. A service started in the
+        # background (`&`, stdin not a terminal) does not take the foreground and is not affected.
         if terminal is not None:
             try:
                 if restore_foreground is not None and os.tcgetpgrp(terminal) == os.getpgrp():

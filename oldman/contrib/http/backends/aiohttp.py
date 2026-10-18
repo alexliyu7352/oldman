@@ -201,6 +201,9 @@ class AioHttpClient(BaseHttpClient):
         self._ensure_open()
         async with self.parent.lock:
             if self.session is None or self.session.closed:
+                # aiohttp 对幂等请求另有一次不计入 retry_count 的重发：服务器一个响应都没回就断开时（典型是复用到对端
+                # 已经关掉的长连接）换一条连接再发一次。保留它：关掉以后 retry_count=0 的调用会直接失败。代价是上游每次
+                # 都不回响应就断开时，retry_count=N 实际发出 2×(N+1) 个请求（实测 0/1/3 → 2/4/8；httpx、curl 是 1/2/4）。
                 # 配置TCP连接器
                 if self.parent.nameservers:
                     resolver = AsyncResolver(nameservers=self.parent.nameservers)
