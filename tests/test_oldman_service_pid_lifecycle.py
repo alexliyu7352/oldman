@@ -354,6 +354,30 @@ class ServicePidLifecycleTest(unittest.TestCase):
         self.assertFalse(project.pid_file.exists())
         self.assertFalse(project.identity_file.exists())
 
+    def test_start_and_stop_without_permission_say_to_use_the_user_that_started_the_service(self) -> None:
+        # A service started by another user (root, a service account) leaves records this user may not touch.
+        # Both commands used to print only the raw "[Errno 13] Permission denied: <path>".
+        project = self.project()
+        pids = project.pid_file.parent
+        pids.mkdir(parents=True)
+        pids.chmod(0o500)
+        try:
+            started = project.run("start")
+        finally:
+            pids.chmod(0o755)
+        project.identity_file.write_text("{}")
+        project.identity_file.chmod(0)
+        try:
+            stopped = project.run("stop")
+        finally:
+            project.identity_file.chmod(0o644)
+        for result in (started, stopped):
+            output = result.stdout + result.stderr
+            self.assertEqual(1, result.returncode, output)
+            self.assertIn("Permission denied", output)
+            self.assertIn("run this as the user that started the service", output)
+            self.assertNotIn("Traceback", output)
+
     def test_a_service_that_never_finishes_stopping_is_killed_at_the_deadline(self) -> None:
         project = self.project(stop_timeout=1)
         service = project.start(mode="stubborn")

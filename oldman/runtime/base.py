@@ -781,13 +781,18 @@ class BaseApplication(ABC):
         except BlockingIOError:
             holder = _pid_in(self.pid_file_path) or "unknown"
             raise RuntimeError(f"{self.app_name} is already running, pid: {holder}") from None
+        except PermissionError as error:
+            raise self._permission_denied(error) from error
         try:
             self._refuse_surviving_group()
             with service_process_group() as identity:
                 self._group_identity = identity
-                # The identity first: stop goes by it, so no moment has a pid without an identity to verify it.
-                self._write_identity(identity)
-                _write_pid(self._pid_fd, identity.pid)
+                try:
+                    # The identity first: stop goes by it, so no moment has a pid without an identity to verify it.
+                    self._write_identity(identity)
+                    _write_pid(self._pid_fd, identity.pid)
+                except PermissionError as error:
+                    raise self._permission_denied(error) from error
                 logger.info(f"{self.app_name} main process pid: {identity.pid}")
                 self.run(*args, **kwargs)
         finally:
@@ -800,6 +805,20 @@ class BaseApplication(ABC):
         seconds. Returns the main process's pid, or 0 when nothing runs; the CLI reports either one
         in a sentence (`Stopped web (main process 123).` / `web is not running.`).
         """
+        try:
+            return self._stop()
+        except PermissionError as error:
+            raise self._permission_denied(error) from error
+
+    def _permission_denied(self, error: PermissionError) -> RuntimeError:
+        """No right to the PID file, the identity record or the service's processes: typically another user started it."""
+        return RuntimeError(
+            f"{self.app_name}: {error}. The PID file {self.pid_file_path}, its identity record or the service's "
+            "processes may belong to another user: run this as the user that started the service."
+        )
+
+    def _stop(self) -> int:
+        """stop() without the permission-error translation."""
         try:
             recorded = self._identity_path.read_text(encoding="utf-8")
             identity = GroupIdentity.from_json(recorded)
