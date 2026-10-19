@@ -17,6 +17,7 @@ from sanic.exceptions import RequestCancelled
 from oldman.cache import MemoryCache, TwoLevelCache, redis_cache
 from oldman.conf.schemas import DefaultSettings
 from oldman.contrib.http import HttpHeaders, MultiHttpClient, ReconnectStreamResponse
+from oldman.contrib.http.contants import CURL_HEADERS
 from oldman.contrib.http.schemas import ClientType, HttpMethod
 from oldman.logging import logger
 from oldman.providers.redis import redis_client, redis_key
@@ -152,13 +153,7 @@ class BaseStreamProxy:
     @classmethod
     def is_use_curl(cls, user_agent: str | None = None) -> bool:
         """判断是否使用curl_cffi, 根据user_agent起始字符串判断"""
-        if user_agent:
-            # 可配置的浏览器标识列表
-            browser_prefixes = ["edge", "chrome", "firefox", "safari", "curl"]
-            for prefix in browser_prefixes:
-                if user_agent.lower().startswith(prefix):
-                    return True
-        return False
+        return user_agent is not None and user_agent.lower().startswith(tuple(CURL_HEADERS))
 
     def get_client_type(self, user_agent: str | None = None) -> ClientType:
         """

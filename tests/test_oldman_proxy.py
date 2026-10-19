@@ -992,6 +992,13 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
                 self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
 
+    async def test_a_relay_whose_user_agent_only_starts_like_a_fingerprint_still_works(self) -> None:
+        """ "chrome (custom build)" picks the curl backend but is no fingerprint name: it is relayed, not a 500."""
+
+        async with _relay(_relay_origin("complete"), user_agent="chrome (custom build)") as address:
+            status, _, body = await _fetch(address)
+        self.assertEqual((200, _RELAY_PAYLOAD), (status, body))
+
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""
 

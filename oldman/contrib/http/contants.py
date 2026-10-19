@@ -38,13 +38,6 @@ M3U8_HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-CURL_HEADERS = ["edge", "chrome", "firefox", "safari", "curl", "chrome_android"]
-
-
-def is_use_curl(play_ua: str | None = None) -> bool:
-    """判断是否使用curl_cffi, 根据play_ua起始字符串判断"""
-    if play_ua:
-        for prefix in CURL_HEADERS:
-            if play_ua.startswith(prefix):
-                return True
-    return False
+# User-Agent 以这些开头（不分大小写）时，BaseStreamProxy 选 curl 后端。用不用浏览器指纹由 curl 后端决定：
+# 这个值本身是 curl_cffi 的指纹名才用（见 backends/curl.py 的 _FINGERPRINTS），其余原样作为 User-Agent 发出。
+CURL_HEADERS = ["edge", "chrome", "firefox", "safari", "curl"]

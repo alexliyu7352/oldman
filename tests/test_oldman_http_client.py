@@ -741,6 +741,7 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
         app.router.add_get("/retry-cookie", self._retry_cookie_response)
         app.router.add_get("/encoded", self._encoded_response)
         app.router.add_get("/accept-encoding", self._accept_encoding_response)
+        app.router.add_get("/client-headers", self._client_headers_response)
         app.router.add_get("/deflate", self._deflate_response)
         app.router.add_get("/stream", self._stream_response)
         app.router.add_get("/success-stream", self._success_stream_response)
@@ -873,6 +874,12 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
             response.set_cookie("retry", "server", path="/")
             return response
         return web.Response(status=200, text=cookie_header)
+
+    @staticmethod
+    async def _client_headers_response(request: web.Request) -> web.Response:
+        """Answer with the User-Agent and Accept-Encoding the client sent, one per line."""
+
+        return web.Response(status=200, text=f"{request.headers.get('User-Agent', '')}\n{request.headers.get('Accept-Encoding', '')}")
 
     @staticmethod
     async def _accept_encoding_response(request: web.Request) -> web.Response:
@@ -2817,6 +2824,32 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(sent if decoding else response.raw_content(), response.content)
                 else:
                     self.assertEqual("gzip, deflate" if decoding else "identity", response.text)
+
+    async def test_only_a_curl_fingerprint_name_turns_a_user_agent_into_a_browser_fingerprint(self) -> None:
+        """A User-Agent that is a curl_cffi target name is impersonated; any other value is sent as it is.
+
+        Values that merely start with such a name (a real browser's header, "curl/8.0", "chrome (custom build)")
+        used to be taken for fingerprint names, and every request with them failed with ImpersonateError.
+        """
+
+        client = MultiHttpClient(ClientType.CURL_CFFI, retry_count=0, user_agent="Oldman-Test/1")
+        await client.init_client()
+        try:
+            for user_agent in ("chrome (custom build)", "curl/8.0", "Chrome/120.0.0.0 Safari/537.36", "safari-like/1"):
+                with self.subTest(user_agent=user_agent):
+                    response = await client.get(f"{self.base_url}/client-headers", headers={"User-Agent": user_agent})
+                    self.assertEqual(f"{user_agent}\nidentity", response.text)
+            with self.subTest(user_agent="curl"):
+                response = await client.get(f"{self.base_url}/client-headers", headers={"User-Agent": "curl"})
+                self.assertEqual("Oldman-Test/1\nidentity", response.text)
+            for name in ("chrome", "chrome124", "edge"):
+                with self.subTest(user_agent=name):
+                    response = await client.get(f"{self.base_url}/client-headers", headers={"User-Agent": name})
+                    sent_user_agent, sent_encoding = response.text.split("\n")
+                    self.assertTrue(sent_user_agent.startswith("Mozilla/5.0"), sent_user_agent)
+                    self.assertIn("br", sent_encoding)
+        finally:
+            await client.close_client()
 
     async def test_a_callers_accept_encoding_wins_over_a_browser_fingerprint(self) -> None:
         """SimpleStreamProxy writes Accept-Encoding: identity to parse playlists; a fingerprint must not replace it."""
