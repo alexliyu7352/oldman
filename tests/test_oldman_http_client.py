@@ -1205,7 +1205,7 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
         return response
 
     async def _ignore_resume_response(self, request: web.Request) -> web.StreamResponse:
-        """Ignore a resumed Range so the client must reject unsafe concatenation."""
+        """Ignore a resumed Range and resend everything: the client skips what it delivered (same length)."""
 
         range_header = request.headers.get("Range")
         if range_header:
@@ -2818,6 +2818,19 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
                 else:
                     self.assertEqual("gzip, deflate" if decoding else "identity", response.text)
 
+    async def test_a_callers_accept_encoding_wins_over_a_browser_fingerprint(self) -> None:
+        """SimpleStreamProxy writes Accept-Encoding: identity to parse playlists; a fingerprint must not replace it."""
+
+        for decoding in (False, True):
+            with self.subTest(decoding=decoding):
+                client = MultiHttpClient(ClientType.CURL_CFFI, content_decoding=decoding, retry_count=0)
+                await client.init_client()
+                try:
+                    response = await client.get(f"{self.base_url}/accept-encoding", headers={"User-Agent": "chrome", "Accept-Encoding": "identity"})
+                finally:
+                    await client.close_client()
+                self.assertEqual("identity", response.text)
+
     async def test_curl_stream_failing_before_headers_returns_its_handle_once(self) -> None:
         """A curl stream that fails before its headers leaves its handle in the pool once.
 
@@ -3034,8 +3047,18 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                         _, _, body = await _read_reconnect(origin, client_type)
                         self.assertEqual(RECOVERY_BODY, body)
                     else:
-                        with self.assertRaises(HttpRangeError):
-                            await _read_reconnect(origin, client_type)
+                        delivered = bytearray()
+                        client = MultiHttpClient(client_type, retry_count=3, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
+                        await client.init_client()
+                        try:
+                            with self.assertRaises(HttpRangeError):
+                                async with origin.serve() as base_url, client.reconnect_stream(HttpMethod.GET, f"{base_url}/file") as stream:
+                                    async for piece in stream.aiter_bytes(8192):
+                                        delivered.extend(piece)
+                        finally:
+                            await client.close_client()
+                        # Only what the first response delivered: nothing of the resent, different content.
+                        self.assertEqual(RECOVERY_BODY[:30000], bytes(delivered))
                     self.assertEqual(2, len(origin.requests))
 
     async def test_a_multipart_response_is_replayed_and_its_delivered_part_compared(self) -> None:
@@ -3244,6 +3267,171 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                         await client.close_client()
                     self.assertIn("/file", str(raised.exception))
                     self.assertEqual(delivered, len(body))
+
+    async def test_new_bytes_restore_the_retry_budget(self) -> None:
+        """Agreed rule: each resume that brings new bytes restores the budget, so a flaky origin still finishes."""
+
+        def ten_thousand_at_a_time(attempt: int, headers: dict[str, str]) -> bytes:
+            interval = requested_range(headers, len(RECOVERY_BODY)) or (0, len(RECOVERY_BODY) - 1)
+            start, end = interval
+            head = response_head(
+                "206 Partial Content" if "range" in headers else "200 OK",
+                {"Content-Length": end - start + 1, **({"Content-Range": f"bytes {start}-{end}/{len(RECOVERY_BODY)}"} if "range" in headers else {})},
+            )
+            return head + RECOVERY_BODY[start : min(start + 10000, end + 1)]
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                origin = RawOrigin(ten_thousand_at_a_time)
+                client = MultiHttpClient(client_type, retry_count=1, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
+                await client.init_client()
+                try:
+                    async with origin.serve() as base_url, client.reconnect_stream(HttpMethod.GET, f"{base_url}/file") as stream:
+                        body = b"".join([piece async for piece in stream.aiter_bytes(8192)])
+                finally:
+                    await client.close_client()
+                self.assertEqual(RECOVERY_BODY, body)
+                self.assertEqual(11, len(origin.requests))
+
+    async def test_asking_again_without_a_refused_range_uses_no_retry(self) -> None:
+        """Agreed rule (W2): re-asking without the refused Range is not a retry, so even retry_count=0 gets the body."""
+
+        def refuses_range(attempt: int, headers: dict[str, str]) -> bytes:
+            if "range" in headers:
+                return response_head("416 Range Not Satisfiable", {"Content-Range": f"bytes */{len(RECOVERY_BODY)}", "Content-Length": 0})
+            return response_head("200 OK", {"Content-Length": len(RECOVERY_BODY)}) + RECOVERY_BODY
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                origin = RawOrigin(refuses_range)
+                client = MultiHttpClient(client_type, retry_count=0, connect_timeout=3, read_timeout=3)
+                await client.init_client()
+                try:
+                    async with (
+                        origin.serve() as base_url,
+                        client.reconnect_stream(HttpMethod.GET, f"{base_url}/file", headers={"Range": "bytes=0-"}) as stream,
+                    ):
+                        body = b"".join([piece async for piece in stream.aiter_bytes(8192)])
+                        status = stream.status_code
+                finally:
+                    await client.close_client()
+                self.assertEqual((200, RECOVERY_BODY), (status, body))
+                self.assertEqual(2, len(origin.requests))
+
+    async def test_a_206_resumed_by_a_full_200_still_ends_at_its_own_range(self) -> None:
+        """The caller asked for bytes 10-19; a full 200 on resume is skipped to the delivered offset and cut at 19."""
+
+        def answer(attempt: int, headers: dict[str, str]) -> bytes:
+            if attempt == 1:
+                return (
+                    response_head("206 Partial Content", {"Content-Range": f"bytes 10-19/{len(RECOVERY_BODY)}", "Content-Length": 10})
+                    + RECOVERY_BODY[10:14]
+                )
+            return response_head("200 OK", {"Content-Length": len(RECOVERY_BODY)}) + RECOVERY_BODY
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                status, _, body = await _read_reconnect(RawOrigin(answer), client_type, headers={"Range": "bytes=10-19"})
+                self.assertEqual((206, RECOVERY_BODY[10:20]), (status, body))
+
+    async def test_decoding_rules_of_the_wrapper(self) -> None:
+        """A truncated gzip with a clean end, a corrupt body, a resume with another encoding, a 206 and a HEAD."""
+
+        compressed = gzip.compress(RECOVERY_BODY, mtime=0)
+
+        def truncated(attempt: int, headers: dict[str, str]) -> bytes:
+            data = compressed[: len(compressed) // 2]
+            return response_head("200 OK", {"Transfer-Encoding": "chunked", "Content-Encoding": "gzip"}) + chunk_frame(data) + b"0\r\n\r\n"
+
+        def corrupt(attempt: int, headers: dict[str, str]) -> bytes:
+            return response_head("200 OK", {"Content-Length": 20, "Content-Encoding": "gzip"}) + b"not a gzip stream!!!"
+
+        def other_encoding_on_resume(attempt: int, headers: dict[str, str]) -> bytes:
+            if attempt == 1:
+                return response_head("200 OK", {"Content-Length": len(compressed), "Content-Encoding": "gzip"}) + compressed[:100]
+            start = int(headers["range"].removeprefix("bytes=").split("-")[0])
+            return (
+                response_head(
+                    "206 Partial Content",
+                    {"Content-Range": f"bytes {start}-{len(compressed) - 1}/{len(compressed)}", "Content-Length": len(compressed) - start},
+                )
+                + compressed[start:]
+            )
+
+        def partial(attempt: int, headers: dict[str, str]) -> bytes:
+            return (
+                response_head(
+                    "206 Partial Content", {"Content-Range": f"bytes 0-99/{len(compressed)}", "Content-Length": 100, "Content-Encoding": "gzip"}
+                )
+                + compressed[:100]
+            )
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type, case="truncated, clean end"):
+                with self.assertRaises(HttpContentDecodingError):
+                    await _read_reconnect(RawOrigin(truncated), client_type, content_decoding=True)
+            with self.subTest(client_type=client_type, case="corrupt"):
+                with self.assertRaises(HttpContentDecodingError):
+                    await _read_reconnect(RawOrigin(corrupt), client_type, content_decoding=True)
+            with self.subTest(client_type=client_type, case="other encoding on resume"):
+                with self.assertRaises(HttpRangeError):
+                    await _read_reconnect(RawOrigin(other_encoding_on_resume), client_type, content_decoding=True)
+            with self.subTest(client_type=client_type, case="206 stays raw"):
+                _, headers, body = await _read_reconnect(RawOrigin(partial), client_type, headers={"Range": "bytes=0-99"}, content_decoding=True)
+                self.assertEqual((compressed[:100], "gzip"), (body, headers.get("content-encoding")))
+            with self.subTest(client_type=client_type, case="HEAD keeps its headers"):
+                client = MultiHttpClient(client_type, retry_count=0, connect_timeout=3, read_timeout=3, content_decoding=True)
+                await client.init_client()
+                head_origin = RawOrigin(
+                    lambda attempt, headers: response_head("200 OK", {"Content-Length": len(compressed), "Content-Encoding": "gzip"})
+                )
+                try:
+                    async with head_origin.serve() as base_url, client.reconnect_stream(HttpMethod.HEAD, f"{base_url}/file") as stream:
+                        self.assertEqual("gzip", stream.response_headers.get("content-encoding"))
+                        self.assertEqual(str(len(compressed)), stream.response_headers.get("content-length"))
+                finally:
+                    await client.close_client()
+
+    async def test_a_live_reconnect_starts_a_new_decoder_for_the_new_stream(self) -> None:
+        """Each live connection is a fresh compressed stream: decoding the second one with the first decoder would fail."""
+
+        def live(attempt: int, headers: dict[str, str]) -> bytes:
+            # br, not gzip: a finished gzip decoder would accept a second member, a finished br decoder rejects more input.
+            body = brotli.compress(bytes([attempt]) * 5000)
+            return response_head("200 OK", {"Content-Encoding": "br", "Connection": "close"}) + body
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                _, _, body = await _read_reconnect(RawOrigin(live), client_type, live_stream=True, content_decoding=True, stop_after=10000)
+                self.assertEqual(bytes([1]) * 5000 + bytes([2]) * 5000, body[:10000])
+
+    async def test_an_httpx_read_timeout_in_the_middle_of_a_body_is_resumed(self) -> None:
+        """httpx raises its own ReadTimeout, not TimeoutError: it is a read interruption like the others."""
+
+        async def stalls(attempt: int, headers: dict[str, str]) -> AsyncIterator[bytes]:
+            if attempt == 1:
+                yield response_head("200 OK", {"Content-Length": len(RECOVERY_BODY)}) + RECOVERY_BODY[:30000]
+                await asyncio.sleep(3)
+                return
+            start = int(headers["range"].removeprefix("bytes=").split("-")[0])
+            yield (
+                response_head(
+                    "206 Partial Content",
+                    {"Content-Range": f"bytes {start}-{len(RECOVERY_BODY) - 1}/{len(RECOVERY_BODY)}", "Content-Length": len(RECOVERY_BODY) - start},
+                )
+                + RECOVERY_BODY[start:]
+            )
+
+        origin = RawOrigin(stalls)
+        client = MultiHttpClient(ClientType.HTTPX, retry_count=2, retry_backoff_factor=0, connect_timeout=3, read_timeout=0.5)
+        await client.init_client()
+        try:
+            async with origin.serve() as base_url, client.reconnect_stream(HttpMethod.GET, f"{base_url}/file") as stream:
+                body = b"".join([piece async for piece in stream.aiter_bytes(8192)])
+        finally:
+            await client.close_client()
+        self.assertEqual(RECOVERY_BODY, body)
+        self.assertEqual(2, len(origin.requests))
 
     async def test_a_clean_end_short_of_the_content_length_is_resumed(self) -> None:
         """A backend that ends a 200 early without an error does not complete it."""

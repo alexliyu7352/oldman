@@ -647,17 +647,22 @@ async def _relay(
     proxy_class: type[BaseStreamProxy] = BaseStreamProxy,
     user_agent: str | None = None,
     stream_options: dict[str, Any] | None = None,
+    response_timeout: float | None = None,
+    caught: list[tuple[str, str | None]] | None = None,
 ) -> AsyncIterator[tuple[str, int]]:
     """Serve a real Sanic app whose route relays the origin through the proxy; yield its address.
 
-    `stream_options` go to get_ts_stream as keyword arguments (BaseStreamProxy only).
+    `stream_options` go to get_ts_stream as keyword arguments (BaseStreamProxy only). `response_timeout` is Sanic's
+    RESPONSE_TIMEOUT. `caught` collects (exception type, cause type) of every cancellation the route receives.
 
     `handling` is what the route does with a cancellation from the proxy, written the ways
     downstream projects write it: raise it, return None, or answer 404.
     """
 
     async with origin.serve() as origin_url:
-        async with _relay_app(f"{origin_url}/segment.ts", handling, proxy_class, user_agent, stream_options or {}) as address:
+        async with _relay_app(
+            f"{origin_url}/segment.ts", handling, proxy_class, user_agent, stream_options or {}, response_timeout, caught
+        ) as address:
             yield address
 
 
@@ -668,6 +673,8 @@ async def _relay_app(
     proxy_class: type[BaseStreamProxy],
     user_agent: str | None,
     stream_options: dict[str, Any],
+    response_timeout: float | None,
+    caught: list[tuple[str, str | None]] | None,
 ) -> AsyncIterator[tuple[str, int]]:
     """The Sanic side of _relay."""
 
@@ -688,6 +695,8 @@ async def _relay_app(
     app.config.TOUCHUP = False
     # A bare server: sanic-ext's CORS middleware expects route setup this test does not run.
     app.config.AUTO_EXTEND = False
+    if response_timeout is not None:
+        app.config.update({"RESPONSE_TIMEOUT": response_timeout})
 
     @app.get("/segment")
     async def segment(request: Request) -> HTTPResponse | None:
@@ -698,7 +707,9 @@ async def _relay_app(
             if isinstance(proxy, SimpleStreamProxy):
                 return await proxy.proxy_sub_manifest_or_stream(request, upstream, None, client_type=user_agent)
             return await proxy.get_ts_stream(request, upstream, user_agent=user_agent, headers=headers, **stream_options)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as error:
+            if caught is not None:
+                caught.append((type(error).__name__, type(error.__cause__).__name__ if error.__cause__ is not None else None))
             if handling == "return_none":
                 return None
             if handling == "return_404":
@@ -874,6 +885,69 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 self.assertLess(origin.ended_at[0] - started, 1.5)
                 self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
                 self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
+
+    async def test_a_requester_that_goes_away_is_logged_as_a_cancellation_and_the_upstream_stops(self) -> None:
+        """A real cancellation is still logged as one (only upstream failures are not), and the upstream is hung up."""
+
+        async def trickle(attempt: int, headers: dict[str, str]) -> AsyncIterator[bytes]:
+            yield response_head("200 OK", {"Content-Type": "video/mp2t", "Transfer-Encoding": "chunked"})
+            for _ in range(400):
+                yield chunk_frame(_RELAY_PAYLOAD[:65536])
+                await asyncio.sleep(0.01)
+            yield b"0\r\n\r\n"
+
+        origin = RawOrigin(trickle)
+        with self.assertLogs("default", level="WARNING") as logs:
+            async with _relay(origin) as address:
+                reader, writer = await asyncio.open_connection(*address)
+                writer.write(b"GET /segment HTTP/1.1\r\nHost: relay\r\nConnection: close\r\n\r\n")
+                await writer.drain()
+                received = 0
+                while received < 200_000:
+                    received += len(await asyncio.wait_for(reader.read(65536), 5))
+                started = time.monotonic()
+                writer.close()
+                await asyncio.sleep(1)
+        self.assertTrue(any("协程取消" in line for line in logs.output), logs.output)
+        self.assertEqual(1, len(origin.ended_at))
+        self.assertLess(origin.ended_at[0] - started, 1)
+
+    async def test_a_requester_that_stops_reading_past_the_response_timeout_gets_no_end_marker(self) -> None:
+        """Sanic cancels the handler at RESPONSE_TIMEOUT; whatever the route does with that, half a body is not ended."""
+
+        async def flood(attempt: int, headers: dict[str, str]) -> AsyncIterator[bytes]:
+            yield response_head("200 OK", {"Content-Type": "video/mp2t", "Transfer-Encoding": "chunked"})
+            for _ in range(400):
+                yield chunk_frame(_RELAY_PAYLOAD[:65536])
+            yield b"0\r\n\r\n"
+
+        for handling in ("raise", "return_none", "return_404"):
+            with self.subTest(handling=handling):
+                async with _relay(RawOrigin(flood), handling=handling, response_timeout=1) as address:
+                    sock = socket.socket()
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16384)
+                    sock.setblocking(False)
+                    await asyncio.get_running_loop().sock_connect(sock, address)
+                    reader, writer = await asyncio.open_connection(sock=sock)
+                    writer.write(b"GET /segment HTTP/1.1\r\nHost: relay\r\nConnection: close\r\n\r\n")
+                    await writer.drain()
+                    data = bytearray(await asyncio.wait_for(reader.read(100_000), 5))
+                    await asyncio.sleep(3)
+                    while piece := await asyncio.wait_for(reader.read(1 << 20), 5):
+                        data += piece
+                    writer.close()
+                head, _, body = bytes(data).partition(b"\r\n\r\n")
+                self.assertIn(b"transfer-encoding: chunked", head.lower())
+                self.assertFalse(body.endswith(b"0\r\n\r\n"), "a half body must not carry the terminating chunk")
+                self.assertLess(len(body), 400 * 65536)
+
+    async def test_simple_proxy_passes_an_upstream_failure_on_instead_of_ending_normally(self) -> None:
+        """SimpleStreamProxy raises the RequestCancelled that carries the upstream failure, so the route can tell it."""
+
+        caught: list[tuple[str, str | None]] = []
+        async with _relay(_relay_origin("chunked_cut"), proxy_class=SimpleStreamProxy, caught=caught) as address:
+            await _fetch(address)
+        self.assertEqual([("RequestCancelled", "HttpStatusError")], caught)
 
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""

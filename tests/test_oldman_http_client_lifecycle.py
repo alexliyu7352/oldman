@@ -178,8 +178,11 @@ class ClosedClientStreamTest(unittest.IsolatedAsyncioTestCase):
 
                 async def slow_release() -> None:
                     releasing.set()
-                    await asyncio.sleep(1)
-                    await release()
+                    try:
+                        await asyncio.sleep(1)
+                    finally:
+                        # The cancellation lands in the sleep; the response is still released, then the cancel goes on.
+                        await release()
 
                 stream.release_response = slow_release  # type: ignore[method-assign]
 
@@ -193,6 +196,22 @@ class ClosedClientStreamTest(unittest.IsolatedAsyncioTestCase):
         finally:
             await client.close_client()
         self.assertEqual(0, client.active_requests)
+
+    async def test_a_client_whose_close_failed_keeps_working(self) -> None:
+        """A close that reports failure keeps the backend and its session: the client stays usable until closed again."""
+
+        origin = RawOrigin(lambda attempt, headers: response_head("200 OK", {"Content-Length": 2}) + b"ok")
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                client = MultiHttpClient(client_type, retry_count=0, connect_timeout=3, read_timeout=3)
+                await client.init_client()
+                async with origin.serve() as base_url:
+                    await client.get(f"{base_url}/warm")
+                    with patch.object(client.client, "close_session", side_effect=RuntimeError("boom")):
+                        self.assertFalse(await client.close_client())
+                    response = await client.get(f"{base_url}/after")
+                self.assertEqual(b"ok", response.content)
+                self.assertTrue(await client.close_client())
 
 
 class ExitCleanupTest(unittest.TestCase):
