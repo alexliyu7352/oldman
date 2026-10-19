@@ -40,6 +40,14 @@ _READ_ERRORS = (*StreamReadError, httpx.TimeoutException, TimeoutError, asyncio.
 _CURL_BATCH_WAIT = 0.05
 
 
+class _ShortBody(asyncio.IncompleteReadError):
+    """包装器自己发现的正文不足（连接正常结束、字节却不够）：按读取中断续传；续不上时以 HttpRangeError 交给调用方。"""
+
+    def __init__(self, message: str, missing: int) -> None:
+        super().__init__(b"", missing)
+        self.message = message
+
+
 class _HttpClientParent(Protocol):
     """断点续传所需的 MultiHttpClient 最小配置接口。"""
 
@@ -336,9 +344,15 @@ class ReconnectStreamResponse:
                             break
                 # 该跳过的部分没读完、或已知长度不足，即使协议上正常结束，也不能当作读完。
                 if self._read_offset < self._skip_until:
-                    raise asyncio.IncompleteReadError(b"", self._skip_until - self._read_offset)
+                    raise _ShortBody(
+                        f"重新发来的内容在已交付的 {self._skip_until - self.response_start} 字节之前就结束了: {self.url}",
+                        self._skip_until - self._read_offset,
+                    )
                 if self._finite and self.content_length is not None and self._received_bytes != self.content_length:
-                    raise asyncio.IncompleteReadError(b"", self.content_length - self._received_bytes)
+                    raise _ShortBody(
+                        f"正文短于本次响应的长度 {self.content_length} 字节，只收到 {self._received_bytes} 字节: {self.url}",
+                        self.content_length - self._received_bytes,
+                    )
                 if self.live_stream and self._ends_at_close and self.status_code in (200, 206):
                     # 声明的直播流，正文靠关连接结束：上游一关连接，看起来和"发完了"一模一样。直播没有"发完"，按中断去重连。
                     raise ConnectionError("直播流的上游关闭了连接（正文没有长度也不分块，结束和中断分不出来，按中断处理）")
@@ -349,6 +363,8 @@ class ReconnectStreamResponse:
                         self.incr_timeout()
                     # 错误状态的正文、不按文件续传的响应（HEAD、POST……）不续传。
                     if self.status_code not in (200, 206) or (not self._finite and not self.live_stream) or not self._consume_retry():
+                        if isinstance(error, _ShortBody):
+                            raise HttpRangeError(error.message) from error
                         raise
                     logger.warning(f"流读取中断，尝试恢复: {type(error).__name__}, 已输出 {self.transmitted_bytes} 字节, [{self._log_url}]")
                     self._backoff_pending = True

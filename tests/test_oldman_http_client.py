@@ -3205,6 +3205,45 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                     )
                     self.assertEqual(b"", body)
 
+    async def test_a_body_the_wrapper_finds_short_ends_in_http_range_error_with_its_url(self) -> None:
+        """When the wrapper itself sees too few bytes and the retries run out, it raises HttpRangeError naming the URL."""
+
+        def short_resumes(attempt: int, headers: dict[str, str]) -> bytes:
+            # Every answer ends cleanly; the resumes bring no new byte.
+            if attempt == 1:
+                return response_head("206 Partial Content", {"Content-Range": "bytes 0-99/100", "Content-Length": 50}) + RECOVERY_BODY[:50]
+            return response_head("206 Partial Content", {"Content-Range": "bytes 50-99/100", "Content-Length": 0})
+
+        def short_resend(attempt: int, headers: dict[str, str]) -> bytes:
+            # Lengthless and strongly validated; the full resend stops before what was already delivered.
+            head = response_head("200 OK", {"Transfer-Encoding": "chunked", "ETag": '"v1"'})
+            if attempt == 1:
+                return head + chunk_frame(RECOVERY_BODY[:30000])
+            return head + chunk_frame(RECOVERY_BODY[:20000]) + b"0\r\n\r\n"
+
+        for name, answer, headers, delivered in (
+            ("206 stuck short", short_resumes, {"Range": "bytes=0-"}, 50),
+            ("resend shorter than delivered", short_resend, {}, 30000),
+        ):
+            for client_type in ClientType:
+                with self.subTest(case=name, client_type=client_type):
+                    origin = RawOrigin(answer)
+                    body = bytearray()
+                    client = MultiHttpClient(client_type, retry_count=2, retry_backoff_factor=0, connect_timeout=3, read_timeout=3)
+                    await client.init_client()
+                    try:
+                        with self.assertRaises(HttpRangeError) as raised:
+                            async with (
+                                origin.serve() as base_url,
+                                client.reconnect_stream(HttpMethod.GET, f"{base_url}/file", headers=headers) as stream,
+                            ):
+                                async for piece in stream.aiter_bytes(8192):
+                                    body.extend(piece)
+                    finally:
+                        await client.close_client()
+                    self.assertIn("/file", str(raised.exception))
+                    self.assertEqual(delivered, len(body))
+
     async def test_a_clean_end_short_of_the_content_length_is_resumed(self) -> None:
         """A backend that ends a 200 early without an error does not complete it."""
 
