@@ -14,9 +14,9 @@ from urllib.parse import urljoin, urlsplit
 
 from curl_cffi import CurlOpt
 from curl_cffi.requests import AsyncSession, Cookies, Response
-from curl_cffi.requests.impersonate import REAL_TARGET_MAP, BrowserType
 
 from oldman.contrib.http.base import BaseHttpClient
+from oldman.contrib.http.contants import CURL_HEADERS
 from oldman.contrib.http.response import (
     HttpHeaders,
     HttpResponse,
@@ -27,10 +27,6 @@ from oldman.contrib.http.response import (
 )
 from oldman.contrib.http.schemas import HttpMethod
 from oldman.logging import logger
-
-# curl_cffi 能模拟的浏览器：带版本的指纹名，加上指向最新版的简称（chrome、edge、safari……）。
-# curl_cffi 注明 BrowserType 会在 1.x 去掉；到时 test_only_a_curl_fingerprint_name_turns_a_user_agent_into_a_browser_fingerprint 会失败。
-_FINGERPRINTS = frozenset({browser.value for browser in BrowserType} | set(REAL_TARGET_MAP))
 
 # 只在类型检查时导入，避免循环导入
 if TYPE_CHECKING:
@@ -254,9 +250,10 @@ class CurlCffiClient(BaseHttpClient):
                 # "curl" 只表示要 curl 后端：不用指纹，发客户端自己的 User-Agent。
                 headers.pop(user_agent_key)
                 headers["User-Agent"] = self.parent.user_agent
-            elif user_agent in _FINGERPRINTS:
-                # 这个值是要模拟的浏览器，curl_cffi 发那个浏览器自己的 User-Agent。只是以指纹名开头的值
-                # （真实浏览器的头、"curl/8.0"、"chrome (custom build)"）不是指纹名，原样作为 User-Agent 发出。
+            elif user_agent.startswith(tuple(CURL_HEADERS)) and not any(char == "/" or char.isspace() for char in user_agent):
+                # 要模拟的浏览器，curl_cffi 发那个浏览器自己的 User-Agent。指纹名里从来没有 "/" 和空白，所以
+                # "curl/8.0"、"chrome (custom build)" 这类值原样作为 User-Agent 发出；其余不是有效指纹名的
+                # （打错的名字、curl_cffi 去掉的版本）照旧由 curl_cffi 报 ImpersonateError，不悄悄当成 User-Agent。
                 impersonate = headers.pop(user_agent_key)
         kwargs["headers"] = headers
         kwargs["impersonate"] = impersonate

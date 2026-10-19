@@ -34,7 +34,7 @@
 
 ## 浏览器指纹与压缩
 
-User-Agent 以 edge、chrome、firefox、safari、curl 开头（不分大小写）时，上游请求走 curl 后端。只有这个值本身是 curl_cffi 的指纹名（区分大小写，例如 `chrome`、`chrome124`、`edge`、`safari17_0`、`firefox`）时才使用浏览器指纹：发出去的 User-Agent 换成指纹自己的，`Accept-Encoding` 也由指纹决定（例如 `gzip, deflate, br, zstd`，`edge` 是 `gzip, deflate, br`）。其余以这些字开头的值（真实浏览器的 UA 如 `Chrome/120.0.0.0 …`、`curl/8.0`、`chrome (custom build)`）走 curl 后端但不用指纹，原样作为 User-Agent 发出；值正好是 `curl` 时不用指纹，发客户端自己的 User-Agent。用了指纹、中转用的客户端又不解压，所以：
+User-Agent 以 edge、chrome、firefox、safari、curl 开头（不分大小写）时，上游请求走 curl 后端。值以这些字开头（区分大小写）、又不含 `/` 和空白时，当成 curl_cffi 的指纹名，使用浏览器指纹（例如 `chrome`、`chrome124`、`edge`、`safari17_0`、`firefox`）：发出去的 User-Agent 换成指纹自己的，`Accept-Encoding` 也由指纹决定（例如 `gzip, deflate, br, zstd`，`edge` 是 `gzip, deflate, br`）。这样的值不是有效指纹名时（打错的名字，或者 curl_cffi 去掉的版本），每个请求报 ImpersonateError，不会悄悄当成 User-Agent 发出。指纹名里没有 `/` 和空白，所以 `curl/8.0`、`chrome (custom build)`、真实浏览器的 UA（`Chrome/120.0.0.0 …`）走 curl 后端但不用指纹，原样作为 User-Agent 发出；值正好是 `curl` 时不用指纹，发客户端自己的 User-Agent。用了指纹、中转用的客户端又不解压，所以：
 
 - 上游压缩时，压缩过的字节连同 `Content-Encoding` 原样转给播放器；只认 gzip / deflate 的播放器解不开 br、zstd。
 - 动态压缩的上游（分块传输、弱 ETag、不理会 Range，nginx 的 gzip / brotli 模块就是这样）中途断开后续不上：既没有长度可比，也不按 Range 续传。播放器会收到没有结束标记的断开。

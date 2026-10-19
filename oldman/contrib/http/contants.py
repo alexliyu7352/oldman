@@ -39,5 +39,5 @@ M3U8_HEADERS = {
 }
 
 # User-Agent 以这些开头（不分大小写）时，BaseStreamProxy 选 curl 后端。用不用浏览器指纹由 curl 后端决定：
-# 这个值本身是 curl_cffi 的指纹名才用（见 backends/curl.py 的 _FINGERPRINTS），其余原样作为 User-Agent 发出。
+# 以这些开头（分大小写）、又不含 "/" 和空白的值才当成指纹名（见 backends/curl.py 的 update_impersonate）。
 CURL_HEADERS = ["edge", "chrome", "firefox", "safari", "curl"]

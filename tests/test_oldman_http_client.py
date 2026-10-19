@@ -30,6 +30,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from curl_cffi import CurlError
+from curl_cffi.requests.exceptions import ImpersonateError
 from multidict import CIMultiDict
 
 from oldman.contrib.http import (
@@ -2825,11 +2826,13 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
                 else:
                     self.assertEqual("gzip, deflate" if decoding else "identity", response.text)
 
-    async def test_only_a_curl_fingerprint_name_turns_a_user_agent_into_a_browser_fingerprint(self) -> None:
-        """A User-Agent that is a curl_cffi target name is impersonated; any other value is sent as it is.
+    async def test_a_user_agent_with_a_slash_or_a_space_is_never_taken_for_a_browser_fingerprint(self) -> None:
+        """No fingerprint name has a "/" or whitespace: such a value is sent as it is; the rest is decided as before.
 
-        Values that merely start with such a name (a real browser's header, "curl/8.0", "chrome (custom build)")
-        used to be taken for fingerprint names, and every request with them failed with ImpersonateError.
+        Values like "curl/8.0" or "chrome (custom build)" used to be taken for fingerprint names, and every request
+        with them failed with ImpersonateError. A value that has neither, starts like a fingerprint and is not one
+        (a typo, or a version curl_cffi dropped) still fails loudly instead of going out as a User-Agent, and a value
+        that does not start like one ("tor") is still sent as it is.
         """
 
         client = MultiHttpClient(ClientType.CURL_CFFI, retry_count=0, user_agent="Oldman-Test/1")
@@ -2848,6 +2851,11 @@ class HttpBackendMatrixTest(unittest.IsolatedAsyncioTestCase):
                     sent_user_agent, sent_encoding = response.text.split("\n")
                     self.assertTrue(sent_user_agent.startswith("Mozilla/5.0"), sent_user_agent)
                     self.assertIn("br", sent_encoding)
+            with self.subTest(user_agent="tor"):
+                response = await client.get(f"{self.base_url}/client-headers", headers={"User-Agent": "tor"})
+                self.assertEqual("tor\nidentity", response.text)
+            with self.subTest(user_agent="chrome_124"), self.assertRaises(ImpersonateError):
+                await client.get(f"{self.base_url}/client-headers", headers={"User-Agent": "chrome_124"})
         finally:
             await client.close_client()
 
