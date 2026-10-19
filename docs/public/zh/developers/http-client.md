@@ -207,13 +207,13 @@ headers 大小写不敏感，重复 header 使用 get_list(name) 或 multi_items
 
 响应流由 stream 上下文关闭，client 的池仍由其拥有者关闭。stream 主要处理建立响应阶段的重试，不承诺读取中途能透明续传；不要让业务依赖它对已交付部分正文重新执行。
 
-content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip、deflate、br、zstd（请求默认只声明 gzip, deflate；服务端仍回 br、zstd 时同样能解）。curl 用浏览器指纹（User-Agent 以 chrome、edge、firefox、safari 等开头）时例外：Accept-Encoding 由指纹决定（例如 chrome 的默认指纹是 gzip, deflate, br, zstd，较旧的指纹可能不带 zstd），开不开解压都一样，不开解压时可能拿到压缩过的原始 bytes；需要明文又不解压的请求自己写 Accept-Encoding: identity；raw_content/aiter_raw 仍可读取原始 bytes。其他编码、截断或损坏的压缩体抛 HttpContentDecodingError。
+content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip、deflate、br、zstd（请求默认只声明 gzip, deflate；服务端仍回 br、zstd 时同样能解）。curl 用浏览器指纹（User-Agent 的值是 curl_cffi 的指纹名，例如 chrome、chrome124、edge；见[流媒体中转](proxy.md#浏览器指纹与压缩)）时例外：Accept-Encoding 由指纹决定（例如 chrome 的默认指纹是 gzip, deflate, br, zstd，较旧的指纹可能不带 zstd），开不开解压都一样，不开解压时可能拿到压缩过的原始 bytes；需要明文又不解压的请求自己写 Accept-Encoding: identity；raw_content/aiter_raw 仍可读取原始 bytes。其他编码、截断或损坏的压缩体抛 HttpContentDecodingError；一个字节都没有的正文算空，不算截断（204、304、HEAD、Content-Length: 0，也包括靠关连接结束、在第一个字节之前就断开的压缩正文，与不压缩时一样分不出"空"和"截断"）。
 
 ## 中断后的续传
 
 `async with client.reconnect_stream(HttpMethod.GET, url, live_stream=False, ...) as stream` 返回 ReconnectStreamResponse，不是普通 HttpStreamResponse。通过 status_code、response_headers 查看首次响应（内部续传不改变它们），通过 aiter_bytes 读取；当前这条连接的底层响应在 current_response，可先调用其 raise_for_status。上下文负责 release。
 
-- 状态码和响应头取首次响应，内部续传不改变它们。aiter_bytes(chunk_size) 收到多少交多少，chunk_size 只是每块的上限；curl 会把 50 毫秒内到的小块攒成一批。
+- 状态码和响应头取首次响应，内部续传不改变它们。aiter_bytes(chunk_size) 收到多少交多少，chunk_size 只是每块的上限（开解压时只限原始块，见下文）；curl 会把 50 毫秒内到的小块攒成一批。
 - 调用方带的 Range 被上游用 416 拒绝时，去掉 Range 再请求一次（不扣重试次数），拿完整内容；把 416 写进 no_retry_statuses 则原样返回 416。
 - 默认文件模式（live_stream=False）在读取中断后，从已收下的字节位置带 Range 续传，不带 If-Range。接上的条件只看字节：206 的起点、终点、总长度与首次一致；或者上游回完整的 200、总长度与首次相同（首次没有长度时，要求强 ETag 相同），这时跳过已交付的部分；Content-Encoding 不能变。multipart 响应重放原请求，并逐字节比对已交付的部分。ETag、Last-Modified 与首次不同不算失败：很多 CDN 每次换节点，内容相同、这些头不同。
 - 首次的 206 必须从调用方要的起点开始（后缀区间：资源最后 n 个字节的开头），落在要的区间之内，并带有效的 Content-Range；否则抛 HttpRangeError。服务器可以只给一部分（例如 CDN 对 bytes=0- 只回前 1MB），这个 206 原样交给调用方，内部续传也只在这一段之内。正文长度以 Content-Range 为准，短了续传，长了报错。没人要求的 206 缺有效 Content-Range 时照常读完，但不续传。

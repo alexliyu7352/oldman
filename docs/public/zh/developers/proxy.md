@@ -6,7 +6,11 @@
 
 ## 状态码与响应头
 
-上游的状态码和响应头原样转给播放器：200、206（带上游的 Content-Range）、304、404 连同错误页正文都一样。逐跳头（Connection、Transfer-Encoding、Keep-Alive 等，以及 Connection 点名的头）不转，同名的头（例如多个 Set-Cookie）逐条保留。发给播放器的响应在读到第一块正文时才创建；上游没有正文时照常发状态码和响应头。
+经过 `stream_response` 的响应，上游的状态码和响应头原样转给播放器：200、206（带上游的 Content-Range）、304、404 连同错误页正文都一样。逐跳头（Connection、Transfer-Encoding、Keep-Alive 等，以及 Connection 点名的头）不转，同名的头（例如多个 Set-Cookie）逐条保留。发给播放器的响应在读到第一块正文时才创建；上游没有正文时照常发状态码和响应头。
+
+`SimpleStreamProxy` 只有音视频内容走这条路。上游回 200、206 以外的状态码时，它只回状态码和响应头、不带正文（404 收到的是 `Content-Length: 0`）；上游跳转时回一个指向自己代理路径的 302；m3u8、mpd 读完改写后一律回 200。`fetch_sub_manifest_or_stream` 的 m3u8 分支走 `process_sub_manifest`，回 200 或 404 "Content expired"，也不经过 `stream_response`。
+
+内置入口不会把播放器的 Range 转给上游（`get_request_headers` 只返回基础头）。要转发，就把它放进 `get_ts_stream` 的 `headers=`，或者覆盖 `get_request_headers`；下面说的 206、416 都以此为前提。
 
 ## 最终失败
 
@@ -19,10 +23,10 @@
 连接在 `stream_response` 里就关掉，所以结果不取决于路由处理函数怎么处理这个异常。路由处理函数要知道的：
 
 - 连接一关，Sanic 就会取消这个处理任务：**处理函数在中转调用之后遇到的第一个 await 会被取消**。中转之后还有收尾工作（写 Redis、释放并发额度等）的，放在中转调用之前做，或者接住 `CancelledError`。
-- 把取消吞掉、再返回 None 或另一个响应，播放器收到的字节不变，但 Sanic 会多记一条 ERROR（"The response object returned by the route handler will not be sent…"；响应超时发生在第一块正文之前、处理函数返回 None 时，是 "Invalid response type None"，播放器收到 500）。原样上抛就没有这条日志。
+- 把取消吞掉不改变播放器收到的字节，但 Sanic 的日志会不同（原样上抛时都没有）：吞掉后返回另一个响应，上游中途失败时多一条 ERROR（"The response object returned by the route handler will not be sent…"）；返回 None，上游中途失败时没有额外日志，请求方断开、正文带 Content-Length 时多两条 ERROR（"Response was smaller than content-length"、"The error response will not be sent to the client…"）。响应超时发生在第一块正文之前、处理函数返回 None 时，Sanic 记 "Invalid response type None"，播放器收到 500。框架自己的 `proxy_stream`、`fetch_sub_manifest_or_stream`、`SimpleStreamProxy` 是返回 None 的写法。
 - 判断是不是上游失败：带原因的 `RequestCancelled`（`error.__cause__ is not None`）是上游最终失败，不带原因的是请求被取消。`SimpleStreamProxy.proxy_sub_manifest_or_stream` 把前者原样上抛，后者照旧记"协程取消"并返回 None。
 
-`get_ts_stream` 的其余关键字参数原样交给 `reconnect_stream`（`retries`、`retry_backoff`、`no_retry_statuses` 等）。例如播放器带着 Range 来、上游见到 Range 就回 416 时，默认去掉 Range 再请求一次，播放器拿到完整的 200；传 `no_retry_statuses=[404, 416]` 则把 416 原样交给播放器。
+`get_ts_stream` 的其余关键字参数原样交给 `reconnect_stream`（`retries`、`retry_backoff`、`no_retry_statuses` 等）。例如播放器的 Range 经 `headers` 转给上游、上游见到 Range 就回 416 时，默认去掉 Range 再请求一次，播放器拿到完整的 200；传 `no_retry_statuses=[404, 416]` 则把 416 原样交给播放器。
 
 ## 直播入口
 
@@ -30,9 +34,9 @@
 
 ## 浏览器指纹与压缩
 
-User-Agent 以 chrome、edge、firefox、safari 等开头时，上游请求走 curl 后端并使用对应的浏览器指纹，`Accept-Encoding` 由指纹决定（例如 `gzip, deflate, br, zstd`）。中转用的客户端不解压，所以：
+User-Agent 以 edge、chrome、firefox、safari、curl 开头（不分大小写）时，上游请求走 curl 后端。只有这个值本身是 curl_cffi 的指纹名（区分大小写，例如 `chrome`、`chrome124`、`edge`、`safari17_0`、`firefox`）时才使用浏览器指纹：发出去的 User-Agent 换成指纹自己的，`Accept-Encoding` 也由指纹决定（例如 `gzip, deflate, br, zstd`，`edge` 是 `gzip, deflate, br`）。真实浏览器的 UA（例如 `Chrome/120.0.0.0 …`）走 curl 后端但不用指纹，原样发出；以小写指纹前缀开头、却不是有效指纹名的值（例如 `chrome (custom build)`）会让每个请求报 ImpersonateError。用了指纹、中转用的客户端又不解压，所以：
 
 - 上游压缩时，压缩过的字节连同 `Content-Encoding` 原样转给播放器；只认 gzip / deflate 的播放器解不开 br、zstd。
 - 动态压缩的上游（分块传输、弱 ETag、不理会 Range，nginx 的 gzip / brotli 模块就是这样）中途断开后续不上：既没有长度可比，也不按 Range 续传。播放器会收到没有结束标记的断开。
 
-需要明文的请求在请求头里自己写 `Accept-Encoding: identity`，调用方写的头优先于指纹；`SimpleStreamProxy` 要解析 m3u8，就是这样写的。不用指纹的请求在不解压时本来就发 `identity`。影音切片很少被压缩，受影响的主要是 m3u8、字幕、密钥这类文本资源。
+需要明文的请求在请求头里自己写 `Accept-Encoding: identity`，调用方写的头优先于指纹；`SimpleStreamProxy` 要解析 m3u8，就是这样写的。不用指纹的请求在不解压时本来就发 `identity`。`BaseStreamProxy` 取清单用的是开了解压的 `request()`，作为清单取回的 m3u8 会被解开，不受影响；受影响的是经 `get_ts_stream` / `proxy_stream` 当作流转发的资源。影音切片很少被压缩，主要是字幕、密钥、当作流转发的 m3u8 这类文本。
