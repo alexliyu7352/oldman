@@ -308,8 +308,8 @@ class ReconnectStreamResponse:
             if self.current_response is None:
                 await self.connect()
                 if self._complete:
-                    self.incr_timeout(True)
-                    return
+                    # 续传的 416 证明字节已经收全：和正常读完一样走下面的收尾（解码器要核对压缩流有没有被截断）。
+                    break
             response = self.current_response
             if response is None:
                 raise RuntimeError("流响应尚未建立")
@@ -355,12 +355,12 @@ class ReconnectStreamResponse:
                     await self.release_response()
                     continue
                 # 本次响应的字节已经全部收下，出错的只是收尾（例如分块正文缺了结束块）：内容是完整的。
-            tail = self._finish_decoding()
-            if tail:
-                self.transmitted_bytes += len(tail)
-                yield tail
-            self.incr_timeout(True)
-            return
+            break
+        tail = self._finish_decoding()
+        if tail:
+            self.transmitted_bytes += len(tail)
+            yield tail
+        self.incr_timeout(True)
 
     async def _iter_response(self, response: HttpStreamResponse, chunk_size: int) -> AsyncGenerator[bytes, None]:
         """底层收到多少交多少，每块不超过 chunk_size。

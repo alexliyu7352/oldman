@@ -3142,6 +3142,24 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(RECOVERY_BODY, body)
                 self.assertEqual(f"bytes={len(RECOVERY_BODY)}-", origin.requests[1].get("range"))
 
+    async def test_a_compressed_body_completed_by_a_416_is_still_checked_for_truncation(self) -> None:
+        """All entity bytes arrived, but they are half a gzip stream: decoding must still report the truncation."""
+
+        compressed = gzip.compress(RECOVERY_BODY * 4, mtime=0)
+        half = compressed[: len(compressed) // 2]
+
+        def answer(attempt: int, headers: dict[str, str]) -> bytes:
+            if attempt == 1:
+                return response_head("200 OK", {"Transfer-Encoding": "chunked", "Content-Encoding": "gzip"}) + chunk_frame(half)
+            return response_head("416 Range Not Satisfiable", {"Content-Range": f"bytes */{len(half)}", "Content-Length": 0})
+
+        for client_type in ClientType:
+            with self.subTest(client_type=client_type):
+                origin = RawOrigin(answer)
+                with self.assertRaises(HttpContentDecodingError):
+                    await _read_reconnect(origin, client_type, content_decoding=True)
+                self.assertEqual(f"bytes={len(half)}-", origin.requests[1].get("range"))
+
     async def test_a_clean_end_short_of_the_content_length_is_resumed(self) -> None:
         """A backend that ends a 200 early without an error does not complete it."""
 
