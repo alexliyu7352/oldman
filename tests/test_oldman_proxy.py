@@ -10,7 +10,7 @@ import unittest
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
 from urllib.parse import urlsplit
 
@@ -23,6 +23,7 @@ from oldman.contrib.http import ClientType, HttpHeaders, HttpMethod, MultiHttpCl
 from oldman.contrib.proxy.base import BaseStreamProxy, _sanic_response_headers
 from oldman.contrib.proxy.encrypt import EncryptMixStreamProxy, EncryptStreamProxy
 from oldman.contrib.proxy.simple import SimpleStreamProxy
+from oldman.tasks.simple import BackgroundTaskManager
 from tests.raw_http_origin import RawOrigin, chunk_frame, requested_range, response_head
 
 _PROXY_FREE_ENVIRONMENT = {
@@ -645,15 +646,18 @@ async def _relay(
     handling: str = "raise",
     proxy_class: type[BaseStreamProxy] = BaseStreamProxy,
     user_agent: str | None = None,
+    stream_options: dict[str, Any] | None = None,
 ) -> AsyncIterator[tuple[str, int]]:
     """Serve a real Sanic app whose route relays the origin through the proxy; yield its address.
+
+    `stream_options` go to get_ts_stream as keyword arguments (BaseStreamProxy only).
 
     `handling` is what the route does with a cancellation from the proxy, written the ways
     downstream projects write it: raise it, return None, or answer 404.
     """
 
     async with origin.serve() as origin_url:
-        async with _relay_app(f"{origin_url}/segment.ts", handling, proxy_class, user_agent) as address:
+        async with _relay_app(f"{origin_url}/segment.ts", handling, proxy_class, user_agent, stream_options or {}) as address:
             yield address
 
 
@@ -663,6 +667,7 @@ async def _relay_app(
     handling: str,
     proxy_class: type[BaseStreamProxy],
     user_agent: str | None,
+    stream_options: dict[str, Any],
 ) -> AsyncIterator[tuple[str, int]]:
     """The Sanic side of _relay."""
 
@@ -692,7 +697,7 @@ async def _relay_app(
         try:
             if isinstance(proxy, SimpleStreamProxy):
                 return await proxy.proxy_sub_manifest_or_stream(request, upstream, None, client_type=user_agent)
-            return await proxy.get_ts_stream(request, upstream, user_agent=user_agent, headers=headers)
+            return await proxy.get_ts_stream(request, upstream, user_agent=user_agent, headers=headers, **stream_options)
         except asyncio.CancelledError:
             if handling == "return_none":
                 return None
@@ -804,6 +809,71 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(2, len(origin.requests))
                         self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
                         self.assertFalse(any("协程取消" in line for line in logs.output), "an upstream failure is not a cancelled request")
+
+    async def test_get_ts_stream_passes_stream_options_to_the_reconnect_stream(self) -> None:
+        """retries / no_retry_statuses reach the wrapper: listing 416 hands the refusal back instead of re-asking."""
+
+        def refuses_range(attempt: int, headers: dict[str, str]) -> bytes:
+            if "range" in headers:
+                return response_head("416 Range Not Satisfiable", {"Content-Range": f"bytes */{len(_RELAY_PAYLOAD)}", "Content-Length": 0})
+            return response_head("200 OK", {"Content-Type": "video/mp2t", "Content-Length": len(_RELAY_PAYLOAD)}) + _RELAY_PAYLOAD
+
+        async with _relay(RawOrigin(refuses_range)) as address:
+            status, _, body = await _fetch(address, "Range: bytes=0-\r\n")
+        self.assertEqual((200, _RELAY_PAYLOAD), (status, body))
+        async with _relay(RawOrigin(refuses_range), stream_options={"no_retry_statuses": [404, 416]}) as address:
+            status, _, body = await _fetch(address, "Range: bytes=0-\r\n")
+        self.assertEqual((416, b""), (status, body))
+
+    async def test_a_detached_upstream_is_released_even_while_the_task_manager_stops(self) -> None:
+        """The web runtime stops BackgroundTaskManager before Sanic's graceful shutdown ends: releases must not depend on it."""
+
+        released = asyncio.Event()
+
+        class Context:
+            async def __aexit__(self, *exc_info: object) -> None:
+                released.set()
+
+        class Upstream:
+            url = "https://origin.test/live.ts"
+
+            def detach_response(self) -> Context:
+                return Context()
+
+        manager = BackgroundTaskManager()
+        stopping = manager._stopping
+        manager._stopping = True
+        try:
+            object.__new__(BaseStreamProxy)._release_upstream_in_background(cast(Any, Upstream()))
+            await asyncio.wait_for(released.wait(), timeout=1)
+        finally:
+            manager._stopping = stopping
+
+    async def test_a_failure_while_the_upstream_still_sends_hangs_it_up_and_is_not_logged_as_a_cancellation(self) -> None:
+        """A 206 that overruns its Content-Range fails while the upstream is still sending: the upstream is let go in
+        the background, the requester's connection is dropped at once, and the failure is not logged as a cancellation."""
+
+        async def overrunning(attempt: int, headers: dict[str, str]) -> AsyncIterator[bytes]:
+            yield response_head("206 Partial Content", {"Content-Type": "video/mp2t", "Content-Range": "bytes 0-9/100", "Content-Length": 10_000_000})
+            yield b"01234"
+            await asyncio.sleep(0.2)
+            for _ in range(2000):
+                yield b"x" * 16384
+                await asyncio.sleep(0.01)
+
+        for user_agent in (None, "chrome"):
+            with self.subTest(user_agent=user_agent):
+                origin = RawOrigin(overrunning)
+                with self.assertLogs("default", level="WARNING") as logs:
+                    async with _relay(origin, user_agent=user_agent) as address:
+                        started = time.monotonic()
+                        status, _, body = await _fetch(address)
+                        await asyncio.sleep(0.5)
+                self.assertEqual((206, b"01234"), (status, body))
+                self.assertEqual(1, len(origin.ended_at), "the upstream connection must be closed")
+                self.assertLess(origin.ended_at[0] - started, 1.5)
+                self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
 
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""

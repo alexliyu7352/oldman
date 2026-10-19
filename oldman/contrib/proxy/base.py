@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import AbstractAsyncContextManager, suppress
 from functools import lru_cache
-from typing import Any
+from typing import Any, ClassVar, cast
 from urllib import parse
 from urllib.parse import urlparse
 
@@ -20,7 +20,6 @@ from oldman.contrib.http import HttpHeaders, MultiHttpClient, ReconnectStreamRes
 from oldman.contrib.http.schemas import ClientType, HttpMethod
 from oldman.logging import logger
 from oldman.providers.redis import redis_client, redis_key
-from oldman.tasks.simple import BackgroundTaskManager
 from oldman.utils import strings_utils
 
 """
@@ -664,22 +663,24 @@ class BaseStreamProxy:
 
     # 最终失败后，后台放掉上游响应最多等这么久（秒），到时取消这次释放；没有任何请求在等它。
     RELEASE_TIMEOUT = 2.0
+    # 后台正在放掉的上游响应：持有引用，任务才不会在完成前被回收。
+    _releasing: ClassVar[set[asyncio.Task[None]]] = set()
 
-    def _release_upstream_in_background(self, response: ReconnectStreamResponse) -> None:
+    @classmethod
+    def _release_upstream_in_background(cls, response: ReconnectStreamResponse) -> None:
         """最终失败后把上游的响应交到后台去放掉，不在处理请求的任务里等（原因见 stream_response）。
 
-        从 response 上把底层响应拿走（之后调用方退出流式上下文时已经没有东西要等），交给 BackgroundTaskManager。
-        拿不到的（测试替身）不处理，仍由调用方退出时释放。进程正在关闭、管理器不再接任务时什么都不做：
-        客户端随进程关闭时会关掉整个会话。
+        从 response 上把底层响应拿走（之后调用方退出流式上下文时已经没有东西要等），另起一个任务退出它，任务由这个类持有。
+        不交给 BackgroundTaskManager：Web 运行时在 Sanic 优雅关闭之前就停了它，那段时间里还有请求在中转，
+        交不出去的上游只能等垃圾回收才放掉。拿不到的（测试替身）不处理，仍由调用方退出时释放。
         """
         detach = getattr(response, "detach_response", None)
-        context = detach() if callable(detach) else None
+        context = cast("AbstractAsyncContextManager[Any] | None", detach()) if callable(detach) else None
         if context is None:
             return
-        try:
-            BackgroundTaskManager().spawn(self._release_detached, context, getattr(response, "url", None))
-        except RuntimeError:
-            logger.debug("进程正在关闭，上游响应留给客户端关闭时一并释放")
+        task = asyncio.get_running_loop().create_task(cls._release_detached(context, getattr(response, "url", None)))
+        cls._releasing.add(task)
+        task.add_done_callback(cls._releasing.discard)
 
     @classmethod
     async def _release_detached(cls, context: AbstractAsyncContextManager[Any], url: str | None) -> None:
@@ -721,9 +722,11 @@ class BaseStreamProxy:
         user_agent: str | None = None,
         headers: dict[str, str] | None = None,
         live_stream: bool = False,
+        **kwargs: Any,
     ) -> HTTPResponse | None:
         """
         获取TS流内容
+        :param kwargs: 原样交给 MultiHttpClient.reconnect_stream 的选项（retries、retry_backoff、no_retry_statuses 等）
         :param live_stream: 是否是直播流
         :param request: Sanic请求对象
         :param ts_url: TS URL
@@ -742,7 +745,7 @@ class BaseStreamProxy:
         last_response = HTTPResponse(status=500, headers={})
 
         try:
-            async with client.reconnect_stream(HttpMethod.GET, ts_url, headers=request_headers, live_stream=live_stream) as stream:
+            async with client.reconnect_stream(HttpMethod.GET, ts_url, headers=request_headers, live_stream=live_stream, **kwargs) as stream:
                 # last_response 保持 500：正文一个字节都没读到就失败时（stream_response 抛出），换成上游的状态码
                 # 等于给请求方一个状态正常、内容为空的响应。
                 logger.debug(f"获取TS流成功: ts_url={ts_url}, status={stream.status_code}")

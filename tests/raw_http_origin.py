@@ -7,6 +7,7 @@ terminators, close-delimited bodies and slow trickles need the bytes written by 
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 
@@ -23,6 +24,8 @@ class RawOrigin:
     def __init__(self, answer: Callable[[int, dict[str, str]], Answer | Awaitable[Answer]]) -> None:
         self.answer = answer
         self.requests: list[dict[str, str]] = []
+        # time.monotonic() when each connection ended (answer finished, or the peer went away).
+        self.ended_at: list[float] = []
 
     async def _serve_one(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Read one request head, write the answer, close."""
@@ -45,6 +48,7 @@ class RawOrigin:
         except (ConnectionError, asyncio.IncompleteReadError):
             pass
         finally:
+            self.ended_at.append(time.monotonic())
             writer.close()
             with suppress(Exception):
                 await writer.wait_closed()
