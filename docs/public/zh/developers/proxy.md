@@ -8,7 +8,7 @@
 
 经过 `stream_response` 的响应，上游的状态码和响应头原样转给播放器：200、206（带上游的 Content-Range）、304、404 连同错误页正文都一样。逐跳头（Connection、Transfer-Encoding、Keep-Alive 等，以及 Connection 点名的头）不转，同名的头（例如多个 Set-Cookie）逐条保留。发给播放器的响应在读到第一块正文时才创建；上游没有正文时照常发状态码和响应头。
 
-`SimpleStreamProxy` 只有音视频内容走这条路。上游回 200、206 以外的状态码时，它只回状态码和响应头、不带正文（404 收到的是 `Content-Length: 0`）；上游跳转时回一个指向自己代理路径的 302；m3u8、mpd 读完改写后一律回 200。`fetch_sub_manifest_or_stream` 的 m3u8 分支走 `process_sub_manifest`，回 200 或 404 "Content expired"，也不经过 `stream_response`。
+`SimpleStreamProxy` 只有音视频内容（Content-Type 含 video、audio 或 octet-stream）走这条路。上游回 200、206 以外的状态码时，它只回状态码和响应头、不带正文（404 收到的是 `Content-Length: 0`）；上游跳转时回一个指向自己代理路径的 302。其余内容先整份读完：是播放清单（m3u8；`SimpleStreamProxy` 还有 mpd）就把里面的地址改写成代理地址、回 200；不是播放清单的（字幕、JSON、被标成文字类型或没有类型的密钥……）字节、状态码和 Content-Type 照上游原样回，上游没写类型时回 `application/octet-stream`。`fetch_sub_manifest_or_stream` 的 m3u8 分支走 `process_sub_manifest`，回 200 或 404 "Content expired"，也不经过 `stream_response`。
 
 内置入口不会把播放器的 Range 转给上游（`get_request_headers` 只返回基础头）。要转发，就把它放进 `get_ts_stream` 的 `headers=`，或者覆盖 `get_request_headers`；下面说的 206、416 都以此为前提。
 

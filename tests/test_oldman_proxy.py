@@ -999,6 +999,40 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
             status, _, body = await _fetch(address)
         self.assertEqual((200, _RELAY_PAYLOAD), (status, body))
 
+    async def test_simple_proxies_relay_non_media_bodies_byte_for_byte_and_rewrite_only_playlists(self) -> None:
+        """A body that is not audio/video/octet-stream is read whole; only a playlist is decoded and rewritten.
+
+        A key served as text/plain, application/pgp-keys or without Content-Type used to be decoded as UTF-8
+        with undecodable bytes dropped: 16 bytes reached the player as 5, labelled text/plain.
+        """
+
+        key = bytes([0x00, 0x9F, 0xFF, 0x80, 0xC3, 0x28, 0xA0, 0xA1, 0xE2, 0x28, 0xA1, 0xF0, 0x28, 0x8C, 0xBC, 0x10])
+        playlist = b"#EXTM3U\n#EXTINF:5,\nsegment.ts\n"
+
+        def serving(body: bytes, content_type: str | None):
+            def answer(attempt: int, headers: dict[str, str]) -> bytes:
+                head: dict[str, str | int] = {"Content-Length": len(body)}
+                if content_type is not None:
+                    head["Content-Type"] = content_type
+                return response_head("200 OK", head) + body
+
+            return answer
+
+        for proxy_class in (SimpleStreamProxy, SimpleEncryptedStreamProxy):
+            for content_type in ("text/plain", "application/pgp-keys", None):
+                with self.subTest(proxy=proxy_class.__name__, content_type=content_type):
+                    async with _relay(RawOrigin(serving(key, content_type)), proxy_class=proxy_class) as address:
+                        status, headers, body = await _fetch(address)
+                    self.assertEqual((200, key), (status, body))
+                    # No type upstream: Sanic always writes one, so the generic binary type, never a guessed text type.
+                    self.assertEqual(content_type or "application/octet-stream", headers.get("content-type"))
+            with self.subTest(proxy=proxy_class.__name__, content_type="playlist"):
+                async with _relay(RawOrigin(serving(playlist, "application/vnd.apple.mpegurl")), proxy_class=proxy_class) as address:
+                    status, _, body = await _fetch(address)
+                self.assertEqual(200, status)
+                self.assertTrue(body.startswith(b"#EXTM3U"), body)
+                self.assertNotEqual(playlist, body, "a playlist is still rewritten to the proxy's paths")
+
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""
 

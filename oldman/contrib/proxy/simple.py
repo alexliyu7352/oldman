@@ -42,6 +42,19 @@ class SimpleStreamProxy(BaseStreamProxy):
         super().__init__(proxy_name)
         self.local_proxy = local_proxy
 
+    @staticmethod
+    def _raw_response(stream: ReconnectStreamResponse, body: bytes) -> HTTPResponse:
+        """不是要改写的清单：字节、状态码和 Content-Type 都照上游原样回给请求方。
+
+        这条路收的是 Content-Type 不是音视频 / octet-stream 的内容，其中也有二进制的（密钥被标成 text/plain、
+        application/pgp-keys 或者干脆没有 Content-Type）：按 UTF-8 解读会丢掉解不了的字节，16 字节的密钥只剩 5 字节。
+        """
+        response_headers = _sanic_response_headers(stream.response_headers, body_changed=True)
+        # 上游没写 Content-Type 时也不能省：Sanic 有正文就一定写这个头（传 None 会写出字符串 "None"）。
+        # 用 RFC 9110 8.3 说的、没有类型时接收方可以假定的 application/octet-stream，不猜成文字。
+        content_type = response_headers.pop("content-type", None) or "application/octet-stream"
+        return HTTPResponse(body, status=stream.status_code or 200, headers=response_headers, content_type=content_type)
+
     @classmethod
     async def _get_final_url(cls, stream: ReconnectStreamResponse):
         try:
@@ -417,7 +430,10 @@ class SimpleStreamProxy(BaseStreamProxy):
                     async for chunk in stream.aiter_bytes(2 * 1024 * 1024):
                         if chunk:
                             blocks.append(chunk)
-                    content = b"".join(blocks).decode("utf-8", errors="ignore")
+                    body = b"".join(blocks)
+                    if b"#EXTM3U" not in body and b"<MPD" not in body:
+                        return self._raw_response(stream, body)
+                    content = body.decode("utf-8", errors="ignore")
                     if not final_url:
                         final_url = stream_url
                     base_url = final_url[: final_url.rfind("/") + 1]
@@ -626,12 +642,14 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
                     async for chunk in stream.aiter_bytes(2 * 1024 * 1024):
                         if chunk:
                             blocks.append(chunk)
-                    content = b"".join(blocks).decode("utf-8", errors="ignore")
+                    body = b"".join(blocks)
+                    if b"#EXTM3U" not in body:
+                        return self._raw_response(stream, body)
+                    content = body.decode("utf-8", errors="ignore")
                     if not final_url:
                         final_url = stream_url
                     base_url = final_url[: final_url.rfind("/") + 1]
-                    if "#EXTM3U" in content:
-                        content = self.process_m3u8_ts_path(content, base_url, params_str, local_proxy)
+                    content = self.process_m3u8_ts_path(content, base_url, params_str, local_proxy)
                     response_headers = _sanic_response_headers(stream.response_headers, body_changed=True)
                     response_content_type = response_headers.pop("content-type", None) or content_type or "text/plain; charset=utf-8"
                     return text(
