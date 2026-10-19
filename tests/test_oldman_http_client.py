@@ -3266,6 +3266,8 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                     finally:
                         await client.close_client()
                     self.assertIn("/file", str(raised.exception))
+                    # The wrapper's own finding stays reachable for whoever logs or inspects the error.
+                    self.assertIsInstance(raised.exception.__cause__, asyncio.IncompleteReadError)
                     self.assertEqual(delivered, len(body))
 
     async def test_new_bytes_restore_the_retry_budget(self) -> None:

@@ -22,7 +22,7 @@ from oldman.cache import MemoryCache, redis_cache
 from oldman.contrib.http import ClientType, HttpHeaders, HttpMethod, MultiHttpClient
 from oldman.contrib.proxy.base import BaseStreamProxy, _sanic_response_headers
 from oldman.contrib.proxy.encrypt import EncryptMixStreamProxy, EncryptStreamProxy
-from oldman.contrib.proxy.simple import SimpleStreamProxy
+from oldman.contrib.proxy.simple import SimpleEncryptedStreamProxy, SimpleStreamProxy
 from oldman.tasks.simple import BackgroundTaskManager
 from tests.raw_http_origin import RawOrigin, chunk_frame, requested_range, response_head
 
@@ -649,11 +649,14 @@ async def _relay(
     stream_options: dict[str, Any] | None = None,
     response_timeout: float | None = None,
     caught: list[tuple[str, str | None]] | None = None,
+    entry: str = "get_ts_stream",
 ) -> AsyncIterator[tuple[str, int]]:
     """Serve a real Sanic app whose route relays the origin through the proxy; yield its address.
 
     `stream_options` go to get_ts_stream as keyword arguments (BaseStreamProxy only). `response_timeout` is Sanic's
     RESPONSE_TIMEOUT. `caught` collects (exception type, cause type) of every cancellation the route receives.
+    `entry` picks the BaseStreamProxy entry the route calls: get_ts_stream, proxy_stream, sub
+    (fetch_sub_manifest_or_stream) or encrypt_sub (EncryptMixStreamProxy's); the sub-URL lookups are patched.
 
     `handling` is what the route does with a cancellation from the proxy, written the ways
     downstream projects write it: raise it, return None, or answer 404.
@@ -661,7 +664,7 @@ async def _relay(
 
     async with origin.serve() as origin_url:
         async with _relay_app(
-            f"{origin_url}/segment.ts", handling, proxy_class, user_agent, stream_options or {}, response_timeout, caught
+            f"{origin_url}/segment.ts", handling, proxy_class, user_agent, stream_options or {}, response_timeout, caught, entry
         ) as address:
             yield address
 
@@ -675,6 +678,7 @@ async def _relay_app(
     stream_options: dict[str, Any],
     response_timeout: float | None,
     caught: list[tuple[str, str | None]] | None,
+    entry: str,
 ) -> AsyncIterator[tuple[str, int]]:
     """The Sanic side of _relay."""
 
@@ -704,8 +708,29 @@ async def _relay_app(
 
         headers = {"Range": request.headers["range"]} if "range" in request.headers else None
         try:
+            if isinstance(proxy, SimpleEncryptedStreamProxy):
+                return await proxy.proxy_sub_manifest_or_stream(request, proxy.encrypt_url(upstream), None, client_type=user_agent)
             if isinstance(proxy, SimpleStreamProxy):
                 return await proxy.proxy_sub_manifest_or_stream(request, upstream, None, client_type=user_agent)
+            if entry == "proxy_stream":
+                return await proxy.proxy_stream(request, upstream, user_agent=user_agent)
+            if entry == "sub":
+
+                async def sub_url(channel_id: str, hash_url: str) -> dict[str, Any]:
+                    return {"ts_url": upstream, "proxy_url": None, "user_agent": user_agent, "ext_name": ".ts"}
+
+                with patch.object(proxy, "get_sub_url", sub_url):
+                    return await proxy.fetch_sub_manifest_or_stream(request, "channel", "hash")
+            if entry == "encrypt_sub":
+
+                async def load_params(channel_id: str) -> dict[str, Any]:
+                    return {"ts_url": "", "proxy_url": None, "user_agent": user_agent, "ext_name": ".ts"}
+
+                async def decrypt_url(hash_url: str) -> str:
+                    return upstream
+
+                with patch.object(proxy, "load_params", load_params), patch.object(proxy, "decrypt_url", decrypt_url):
+                    return await proxy.fetch_sub_manifest_or_stream(request, "channel", "hash")
             return await proxy.get_ts_stream(request, upstream, user_agent=user_agent, headers=headers, **stream_options)
         except asyncio.CancelledError as error:
             if caught is not None:
@@ -942,12 +967,30 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 self.assertLess(len(body), 400 * 65536)
 
     async def test_simple_proxy_passes_an_upstream_failure_on_instead_of_ending_normally(self) -> None:
-        """SimpleStreamProxy raises the RequestCancelled that carries the upstream failure, so the route can tell it."""
+        """Both Simple proxies raise the RequestCancelled that carries the upstream failure, so the route can tell it."""
 
-        caught: list[tuple[str, str | None]] = []
-        async with _relay(_relay_origin("chunked_cut"), proxy_class=SimpleStreamProxy, caught=caught) as address:
-            await _fetch(address)
-        self.assertEqual([("RequestCancelled", "HttpStatusError")], caught)
+        for proxy_class in (SimpleStreamProxy, SimpleEncryptedStreamProxy):
+            with self.subTest(proxy=proxy_class.__name__):
+                caught: list[tuple[str, str | None]] = []
+                async with _relay(_relay_origin("chunked_cut"), proxy_class=proxy_class, caught=caught) as address:
+                    await _fetch(address)
+                self.assertEqual([("RequestCancelled", "HttpStatusError")], caught)
+
+    async def test_entries_that_swallow_cancellation_do_not_log_an_upstream_failure_as_one(self) -> None:
+        """proxy_stream, fetch_sub_manifest_or_stream and EncryptMix's entry return None on a cancellation: an upstream
+        failure there is logged once with its URL, not as 协程取消, and the requester still gets no end marker."""
+
+        for entry, proxy_class in (("proxy_stream", BaseStreamProxy), ("sub", BaseStreamProxy), ("encrypt_sub", EncryptMixStreamProxy)):
+            with self.subTest(entry=entry):
+                with self.assertLogs("default", level="WARNING") as logs:
+                    async with _relay(_relay_origin("chunked_cut"), proxy_class=proxy_class, entry=entry) as address:
+                        status, _, body = await _fetch(address)
+                data, terminated = _dechunk(body)
+                self.assertEqual(200, status)
+                self.assertFalse(terminated, "a half body must not carry the terminating chunk")
+                self.assertTrue(0 < len(data) < len(_RELAY_PAYLOAD))
+                self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
 
     async def test_a_known_length_body_cut_short_ends_short(self) -> None:
         """With a Content-Length the requester sees fewer bytes than declared, never a padded body."""
