@@ -207,11 +207,11 @@ headers 大小写不敏感，重复 header 使用 get_list(name) 或 multi_items
 
 响应流由 stream 上下文关闭，client 的池仍由其拥有者关闭。stream 主要处理建立响应阶段的重试，不承诺读取中途能透明续传；不要让业务依赖它对已交付部分正文重新执行。
 
-content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip、deflate、br、zstd（请求默认只声明 gzip, deflate；服务端仍回 br、zstd 时同样能解）。curl 用浏览器指纹（User-Agent 以 chrome、edge、firefox、safari 等开头）时例外：Accept-Encoding 由指纹决定（gzip, deflate, br, zstd），开不开解压都一样，不开解压时可能拿到压缩过的原始 bytes；需要明文又不解压的请求自己写 Accept-Encoding: identity；raw_content/aiter_raw 仍可读取原始 bytes。其他编码、截断或损坏的压缩体抛 HttpContentDecodingError。
+content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: identity，即使服务端仍返回压缩内容也保留原 bytes。设 True 后统一解码 gzip、deflate、br、zstd（请求默认只声明 gzip, deflate；服务端仍回 br、zstd 时同样能解）。curl 用浏览器指纹（User-Agent 以 chrome、edge、firefox、safari 等开头）时例外：Accept-Encoding 由指纹决定（例如 chrome 的默认指纹是 gzip, deflate, br, zstd，较旧的指纹可能不带 zstd），开不开解压都一样，不开解压时可能拿到压缩过的原始 bytes；需要明文又不解压的请求自己写 Accept-Encoding: identity；raw_content/aiter_raw 仍可读取原始 bytes。其他编码、截断或损坏的压缩体抛 HttpContentDecodingError。
 
 ## 中断后的续传
 
-`async with client.reconnect_stream(HttpMethod.GET, url, live_stream=False, ...) as stream` 返回 ReconnectStreamResponse，不是普通 HttpStreamResponse。通过 status_code、response_headers 查看当前响应，通过 aiter_bytes 读取；当前响应在 current_response，可先调用其 raise_for_status。上下文负责 release。
+`async with client.reconnect_stream(HttpMethod.GET, url, live_stream=False, ...) as stream` 返回 ReconnectStreamResponse，不是普通 HttpStreamResponse。通过 status_code、response_headers 查看首次响应（内部续传不改变它们），通过 aiter_bytes 读取；当前这条连接的底层响应在 current_response，可先调用其 raise_for_status。上下文负责 release。
 
 - 状态码和响应头取首次响应，内部续传不改变它们。aiter_bytes(chunk_size) 收到多少交多少，chunk_size 只是每块的上限；curl 会把 50 毫秒内到的小块攒成一批。
 - 调用方带的 Range 被上游用 416 拒绝时，去掉 Range 再请求一次（不扣重试次数），拿完整内容；把 416 写进 no_retry_statuses 则原样返回 416。
@@ -219,10 +219,10 @@ content_decoding=False 是当前默认：请求通常声明 Accept-Encoding: ide
 - 首次的 206 必须从调用方要的起点开始（后缀区间：资源最后 n 个字节的开头），落在要的区间之内，并带有效的 Content-Range；否则抛 HttpRangeError。服务器可以只给一部分（例如 CDN 对 bytes=0- 只回前 1MB），这个 206 原样交给调用方，内部续传也只在这一段之内。正文长度以 Content-Range 为准，短了续传，长了报错。没人要求的 206 缺有效 Content-Range 时照常读完，但不续传。
 - 接不上就抛 HttpRangeError（错误状态码是 HttpStatusError），不拼接。已接受的风险：同一地址上的内容被换成长度相同的另一份时发现不了；首次没有长度时，换成任何一份都发现不了。
 - 正文比 Content-Length 短就算中断，即使连接正常结束；没有长度的正文缺了结束块、续传时上游回 416 且 `bytes */N` 正好是已收到的长度，算完整读完。
-- 续传偏移按**原始字节**计算。客户端开了 content_decoding 时，包装器把完整响应（不是 206）解压后输出，并从 response_headers 去掉 Content-Encoding、Content-Length；206、HEAD 和解不了的编码按原始字节输出。
+- 续传偏移按**原始字节**计算。客户端开了 content_decoding 时，包装器把完整响应（不是 206）解压后输出，并从 response_headers 去掉 Content-Encoding、Content-Length；206、HEAD 和解不了的编码按原始字节输出。chunk_size 只限制底层读到的原始块：解压后的一块可以远大于它（压缩率高的内容一次解出很多），总量也不设上限，给不可信的上游开解压之前要知道这一点。解压后 response_headers 仍带上游的 ETag、Accept-Ranges，它们描述的是压缩后的表示。
 - live_stream=True 是重新连接当前实时流，忽略 Range/If-Range，不核对接不接得上；正文靠关连接结束（HTTP/1.x、没有长度也不分块）时，上游关连接按中断处理去重连。不提供无缝回放、丢包恢复或浏览器 SSE 事件重放。
-- 重试预算是连续的：连接失败、错误状态码和读取中断共用 retry_count，重连后交出了新字节就恢复。
-- 没有取得新字节的连续重连共享预算；成功取得新字节后预算重置。无进展会最终报错，不是永久循环重试。
+- 重试预算是连续的：连接失败、错误状态码和读取中断共用 retry_count；没有取得新字节的连续重连会把它用完并报错，交出了新字节就恢复。所以上游每次都给一点就断开的直播流会一直重连，直到调用方停止读取。
+- 只有 GET 的 200/206 按文件续传、声明直播的按直播重连；POST 等响应读到一半断了直接报错（curl 的错误在响应头之前出现时，会按连接失败重试）。
 
 本入口用于应用确实需要的下载/流转发；普通 JSON API 用 request/get 即可，不为它套续传逻辑。
 
