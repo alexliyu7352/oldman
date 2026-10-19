@@ -28,7 +28,14 @@ protect_breaking_commits = true
 tag_pattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
 sort_commits = "oldest"
 # The HTML comments order the groups and are stripped from the headings.
+# Corrections for subjects that cannot change after the push. Each names its commit and why.
+commit_preprocessors = [
+    # 723109a3 changed what a route handler sees, but its subject has no "!".
+    { pattern = "^fix\\(proxy\\): the relay passes on the upstream status and never ends a failed relay like a complete one", replace = "fix(proxy)!: the relay passes on the upstream status and never ends a failed relay like a complete one; once part of the body is sent, a failure closes the player's connection and raises RequestCancelled, so the route handler's first await after the relay is cancelled" },
+]
 commit_parsers = [
+    # afad4457's rule was replaced before release by c9869a81; listing both would contradict.
+    { sha = "afad4457f6c020f2b47c50d0933b028588793871", skip = true },
     { field = "breaking", pattern = "true", group = "<!-- 0 -->Breaking changes" },
     { message = "^feat", group = "<!-- 1 -->Added" },
     { message = "^fix", group = "<!-- 2 -->Fixed" },
