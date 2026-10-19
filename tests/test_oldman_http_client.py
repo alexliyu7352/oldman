@@ -322,6 +322,34 @@ class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(HttpContentDecodingError):
             _ = response.content
 
+    async def test_an_empty_body_with_a_content_encoding_is_empty_not_truncated(self) -> None:
+        """204, 304, HEAD and Content-Length: 0 may carry Content-Encoding with no body at all."""
+
+        async def no_body() -> AsyncIterator[bytes]:
+            """Yield nothing, as a bodiless response does."""
+
+            return
+            yield b""
+
+        async def close() -> None:
+            """Provide the no-op close required by the stream contract."""
+
+        for encoding in ("gzip", "deflate", "br", "zstd", "gzip, br"):
+            with self.subTest(encoding=encoding):
+                buffered = HttpResponse(
+                    status_code=304, url="https://example.test/empty", headers={"Content-Encoding": encoding}, decode_content=True
+                )
+                self.assertEqual(b"", buffered.content)
+                streamed = HttpStreamResponse(
+                    status_code=204,
+                    url="https://example.test/empty",
+                    headers={"Content-Encoding": encoding},
+                    iter_raw=no_body,
+                    close=close,
+                    decode_content=True,
+                )
+                self.assertEqual(b"", await streamed.aread())
+
     async def test_brotli_and_zstd_are_decoded_and_truncation_is_rejected(self) -> None:
         """br and zstd decode buffered and streamed bodies; a cut-off body is not a complete response."""
 
@@ -3159,6 +3187,23 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(HttpContentDecodingError):
                     await _read_reconnect(origin, client_type, content_decoding=True)
                 self.assertEqual(f"bytes={len(half)}-", origin.requests[1].get("range"))
+
+    async def test_a_reconnect_stream_without_a_body_but_with_a_content_encoding_is_empty(self) -> None:
+        """A 304 or a Content-Length: 0 response that names gzip has nothing to decode."""
+
+        def bodiless(status: str, extra: dict[str, str | int]):
+            def answer(attempt: int, headers: dict[str, str]) -> bytes:
+                return response_head(status, {"Content-Encoding": "gzip", **extra})
+
+            return answer
+
+        for status, extra in (("304 Not Modified", {}), ("200 OK", {"Content-Length": 0})):
+            for client_type in ClientType:
+                with self.subTest(status=status, client_type=client_type):
+                    _, _, body = await _read_reconnect(
+                        RawOrigin(bodiless(status, extra)), client_type, content_decoding=True, no_retry_statuses=[304]
+                    )
+                    self.assertEqual(b"", body)
 
     async def test_a_clean_end_short_of_the_content_length_is_resumed(self) -> None:
         """A backend that ends a 200 early without an error does not complete it."""

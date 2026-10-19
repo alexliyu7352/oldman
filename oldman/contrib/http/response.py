@@ -381,6 +381,32 @@ class _MultiDecoder:
         return data
 
 
+class _BodyDecoder:
+    """Decode one body through its Content-Encoding chain; a body without a single byte is empty, not truncated.
+
+    204, 304, HEAD and Content-Length: 0 responses may name a Content-Encoding and carry no body; only a body
+    that started and then stopped short is a truncated stream.
+    """
+
+    def __init__(self, decoder: _ContentDecoder) -> None:
+        """Wrap the decoder chain built for the response's Content-Encoding."""
+
+        self._decoder = decoder
+        self._started = False
+
+    def decode(self, data: bytes) -> bytes:
+        """Decode one fragment and remember that the body has bytes."""
+
+        if data:
+            self._started = True
+        return self._decoder.decode(data)
+
+    def flush(self) -> bytes:
+        """Finish the chain, unless the body never had a byte."""
+
+        return self._decoder.flush() if self._started else b""
+
+
 def _content_encodings(headers: HttpHeaders) -> tuple[str, ...]:
     """Parse all Content-Encoding header values in application order."""
 
@@ -412,9 +438,7 @@ def _content_decoder(headers: HttpHeaders, decode_content: bool) -> _ContentDeco
             raise HttpContentDecodingError(f"不支持的 Content-Encoding: {encoding}")
     if not decoders:
         return _IdentityDecoder()
-    if len(decoders) == 1:
-        return decoders[0]
-    return _MultiDecoder(decoders)
+    return _BodyDecoder(decoders[0] if len(decoders) == 1 else _MultiDecoder(decoders))
 
 
 def _decode_content(content: bytes, headers: HttpHeaders, decode_content: bool) -> bytes:
