@@ -42,7 +42,7 @@ Members:
 - `def update_ttl_from_content(m3u8_content: str, current_ttl: int) -> int` — 从m3u8内容中提取缓存时间并更新TTL
 - `async def fetch_remote_manifest(request: Request, channel_id: str, play_url: str, ttl: int=2, sub_ttl: tuple[int, int]=(3600, 300), direct: bool=False, proxy_url: str | None=None, user_agent: str | None=None, is_sub_manifest: bool=False, **extra_context) -> str | None` — 获取远程m3u8内容,支持缓存
 - `async def stream_response(request: Request, response: ReconnectStreamResponse, content_type: str='video/mp2t') -> None` — 流式返回响应内容
-- `async def get_ts_stream(request: Request, ts_url: str, proxy_url: str | None=None, user_agent: str | None=None, headers: dict[str, str] | None=None, live_stream: bool=False) -> HTTPResponse | None` — 获取TS流内容
+- `async def get_ts_stream(request: Request, ts_url: str, proxy_url: str | None=None, user_agent: str | None=None, headers: dict[str, str] | None=None, live_stream: bool=False, **kwargs: Any) -> HTTPResponse | None` — 获取TS流内容
 - `async def get_ts_stream_direct(request: Request, ts_url: str, proxy_url: str | None=None, user_agent: str | None=None) -> HTTPResponse | None` — 使用直接TCP连接获取TS流内容，优化CPU使用率并处理chunked编码
 - `async def process_sub_manifest(request: Request, channel_id: str, ts_context: dict[str, Any], ttl: int=2, sub_ttl: int=0, **kwargs) -> HTTPResponse | None` — 处理子m3u8的逻辑，子类可重载此方法以实现特定逻辑
 - `async def process_sub_stream(request: Request, channel_id: str, ts_context: dict[str, Any], **kwargs) -> HTTPResponse | None` — 处理子流的逻辑，子类可重载此方法以实现特定逻辑
