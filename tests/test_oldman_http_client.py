@@ -3197,7 +3197,8 @@ class ReconnectStreamRecoveryTest(unittest.IsolatedAsyncioTestCase):
 
             return answer
 
-        for status, extra in (("304 Not Modified", {}), ("200 OK", {"Content-Length": 0})):
+        cases: list[tuple[str, dict[str, str | int]]] = [("304 Not Modified", {}), ("200 OK", {"Content-Length": 0})]
+        for status, extra in cases:
             for client_type in ClientType:
                 with self.subTest(status=status, client_type=client_type):
                     _, _, body = await _read_reconnect(
