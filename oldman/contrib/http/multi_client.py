@@ -336,12 +336,12 @@ class MultiHttpClient(BaseHttpClient):
             # 导出失败也不能跳过网络资源清理，更不该把异常丢给调用方。
             logger.error(f"导出 {self.client_type} Cookie 失败: {type(exc).__name__}")
         # 关闭期间和关闭以后，还在读的流去续传时不能在这个 backend 上新建会话（见 BaseHttpClient._ensure_open）。
-        impl.closed = True
+        impl._closed_by_owner = True
         released = await impl.close_client()
         # backend 用 False 明确报告"会话还在"，这时丢掉引用就再也没人能关掉它。
         if released is False:
             # 会话还在、引用也留着：照常可用，下一次关闭再试。
-            impl.closed = False
+            impl._closed_by_owner = False
             logger.error(f"{self.client_type} 客户端未能释放，保留引用以便重试")
             return False
         self._impl = None
