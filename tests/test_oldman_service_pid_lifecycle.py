@@ -378,6 +378,24 @@ class ServicePidLifecycleTest(unittest.TestCase):
             self.assertIn("run this as the user that started the service", output)
             self.assertNotIn("Traceback", output)
 
+    def test_start_says_to_use_the_starting_user_when_only_the_pid_directory_is_not_writable(self) -> None:
+        # The PID file is there and writable, the directory is not: locking works, writing the identity record fails,
+        # and so does removing the PID file afterwards. The hint must survive that second failure.
+        project = self.project()
+        pids = project.pid_file.parent
+        pids.mkdir(parents=True)
+        project.pid_file.write_text("")
+        pids.chmod(0o500)
+        try:
+            started = project.run("start")
+        finally:
+            pids.chmod(0o755)
+        output = started.stdout + started.stderr
+        self.assertEqual(1, started.returncode, output)
+        self.assertIn("run this as the user that started the service", output)
+        self.assertIn("not writable", output)
+        self.assertNotIn("Traceback", output)
+
     def test_a_service_that_never_finishes_stopping_is_killed_at_the_deadline(self) -> None:
         project = self.project(stop_timeout=1)
         service = project.start(mode="stubborn")

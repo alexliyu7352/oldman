@@ -130,6 +130,10 @@ def _release_pid_file(fd: int, path: str, *, before_unlock: Callable[[], None] |
                 os.remove(path)
         except FileNotFoundError:
             pass
+        except PermissionError as error:
+            # Cleanup must not replace the error that ended the run: an unlocked file left behind never looks like a
+            # running service (see _lock_pid_file).
+            logger.warning("Could not remove the PID file %s: %s", path, error)
         if before_unlock is not None:
             before_unlock()
     finally:
@@ -814,7 +818,8 @@ class BaseApplication(ABC):
         """No right to the PID file, the identity record or the service's processes: typically another user started it."""
         return RuntimeError(
             f"{self.app_name}: {error}. The PID file {self.pid_file_path}, its identity record or the service's "
-            "processes may belong to another user: run this as the user that started the service."
+            "processes may belong to another user, or their directory is not writable: run this as the user that "
+            "started the service, or fix the directory's permissions."
         )
 
     def _stop(self) -> int:
