@@ -57,6 +57,10 @@ class Size(msgspec.Struct):
     height: int
 
 
+class Opaque:
+    """A class neither pydantic nor msgspec can describe."""
+
+
 class Shelf(msgspec.Struct):
     """Nested and recursive: its schema needs $defs beside the root."""
 
@@ -196,6 +200,26 @@ class OutputTest(unittest.TestCase):
             return Shelf(sizes=[Size(width=1, height=2)])
 
         @registry.tool()
+        async def maybe_size() -> Size | None:
+            """A Struct or nothing."""
+            return Size(width=3, height=4)
+
+        @registry.tool()
+        async def no_size() -> Size | None:
+            """Nothing this time."""
+            return None
+
+        @registry.tool()
+        async def sizes() -> list[Size]:
+            """A list of Structs."""
+            return [Size(width=1, height=2)]
+
+        @registry.tool()
+        async def sizes_by_name() -> dict[str, Size]:
+            """A str-keyed dict of Structs: an object, not wrapped."""
+            return {"small": Size(width=1, height=2)}
+
+        @registry.tool()
         async def mapping() -> dict[str, int]:
             """A str-keyed dict."""
             return {"a": 1}
@@ -238,6 +262,17 @@ class OutputTest(unittest.TestCase):
                 result = self.result(name)
                 self.assertEqual(value, result["structuredContent"])
                 self.assertEqual(value, json.loads(result["content"][0]["text"]))
+
+    def test_structs_inside_other_types_are_described_by_msgspec_with_the_same_wrapping_rules(self) -> None:
+        wrapped = {"maybe_size": {"width": 3, "height": 4}, "no_size": None, "sizes": [{"width": 1, "height": 2}]}
+        for name, value in wrapped.items():
+            with self.subTest(name=name):
+                schema = self.tools[name]["outputSchema"]
+                self.assertEqual((["result"], ["result"], {"Size"}), (list(schema["properties"]), schema["required"], set(schema["$defs"])))
+                self.assertEqual({"result": value}, self.result(name)["structuredContent"])
+        mapping = self.tools["sizes_by_name"]["outputSchema"]
+        self.assertEqual(({"$ref": "#/$defs/Size"}, {"Size"}), (mapping["additionalProperties"], set(mapping["$defs"])))
+        self.assertEqual({"small": {"width": 1, "height": 2}}, self.result("sizes_by_name")["structuredContent"])
 
     def test_every_revision_lists_the_output_schemas_with_an_object_at_the_root(self) -> None:
         """The handshake revisions refuse an outputSchema whose root is not ``"type": "object"``."""
@@ -294,16 +329,30 @@ class ReturnValueTest(unittest.TestCase):
             """Does not match."""
             return "three"  # type: ignore[return-value]
 
+        @registry.tool()
+        async def sizes_from_dicts() -> list[Size]:
+            """Dicts that match the Struct inside a list."""
+            return [{"width": 1, "height": 2}]  # type: ignore[list-item]
+
+        @registry.tool()
+        async def maybe_size_with_a_wrong_field() -> Size | None:
+            """Does not match."""
+            return {"width": "wide", "height": 2}  # type: ignore[return-value]
+
         self.server = serve(registry)
 
     def test_a_value_that_matches_the_declared_type_is_sent_as_that_type(self) -> None:
-        for name, value in (("size_from_a_dict", {"width": 1, "height": 2}), ("point_from_a_dict", {"x": 1, "y": 2})):
+        for name, value in (
+            ("size_from_a_dict", {"width": 1, "height": 2}),
+            ("point_from_a_dict", {"x": 1, "y": 2}),
+            ("sizes_from_dicts", {"result": [{"width": 1, "height": 2}]}),
+        ):
             with self.subTest(name=name):
                 self.assertEqual(value, call(self.server, a_request(), name)["result"]["structuredContent"])
 
     def test_a_value_that_does_not_match_is_logged_and_the_call_fails(self) -> None:
         """Never sent as a success: a client checking structuredContent against the schema would reject it."""
-        for name in ("size_with_a_wrong_field", "size_as_none", "point_with_a_wrong_field", "number_as_text"):
+        for name in ("size_with_a_wrong_field", "size_as_none", "point_with_a_wrong_field", "number_as_text", "maybe_size_with_a_wrong_field"):
             with self.subTest(name=name), self.assertLogs("default.mcp", level="ERROR") as logs:
                 result = call(self.server, a_request(), name)["result"]
                 self.assertEqual((True, "The tool failed"), (result["isError"], result["content"][0]["text"]))
@@ -421,15 +470,24 @@ class PermissionTest(unittest.TestCase):
 
 class DeclarationTest(unittest.TestCase):
     def test_a_signature_type_without_a_json_schema_names_the_tool(self) -> None:
-        registry = McpRegistry()
+        async def opaque() -> Opaque:
+            """Returns a plain class."""
+            return Opaque()
 
-        @registry.tool()
-        async def sizes() -> list[Size]:
-            """Pydantic has no schema for a msgspec Struct inside a list."""
-            return []
+        async def mixed() -> tuple[Point, Size]:
+            """A pydantic model beside a Struct: msgspec describes it, and does not know the model."""
+            return Point(x=1, y=2), Size(width=1, height=2)
 
-        with self.assertRaisesRegex(TypeError, r"MCP tool 'sizes' in '.*': a type in its signature has no JSON schema .*Size"):
-            registry.catalog([__name__])
+        async def struct_parameter(size: Size) -> int:
+            """Parameters are pydantic's, which has no schema for a Struct."""
+            return size.width
+
+        for function in (opaque, mixed, struct_parameter):
+            with self.subTest(tool=function.__name__):
+                registry = McpRegistry()
+                registry.tool()(function)
+                with self.assertRaisesRegex(TypeError, rf"MCP tool '{function.__name__}' in '.*': a type in its signature has no JSON schema"):
+                    registry.catalog([__name__])
 
     def test_a_definition_a_revision_cannot_list_stops_the_server_and_is_named(self) -> None:
         """Checked when the server is built, so one bad definition never turns a whole list into an error."""

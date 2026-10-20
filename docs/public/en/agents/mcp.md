@@ -87,9 +87,9 @@ async def weekly_summary(week: str) -> str:
 - Raise `ToolError("…")` for a failure the model should read; anything else is logged and the model only sees
   "The tool failed".
 - Return plain data (a model, a dict, a number): structured output is generated from the return annotation, and the
-  value is checked against it before it is sent. A value that does not match is logged and the call fails. A
-  container of msgspec Structs (`list[Struct]`) has no schema and stops `install_mcp`; return a Struct that holds the
-  list instead.
+  value is checked against it before it is sent. A value that does not match is logged and the call fails.
+  msgspec Structs work anywhere in a return type (`Struct | None`, `list[Struct]`); do not mix them with pydantic
+  models in one return type, and do not use a Struct as a parameter type.
 - `permission=` hides the item from, and refuses it to, users without that permission. API-key callers and anonymous
   callers have no permissions: give them only items without `permission=`. Declare permissions in `permissions.py`
   (`docs/public/zh/developers/permissions.md`).

@@ -119,6 +119,10 @@ class Tool:
         return types.CallToolResult(content=[types.TextContent(text=text)], structured_content=structured)
 
 
+class _NoSchema(Exception):
+    """msgspec cannot describe a return type as JSON Schema; the message says why."""
+
+
 class ResourceNotFound(Exception):
     """The URI names no resource this service offers (or none this caller may read)."""
 
@@ -405,10 +409,11 @@ def _build_tool(declaration: _ToolDeclaration) -> Tool:
         arguments = create_model(f"{declaration.name}_arguments", __config__=ConfigDict(extra="forbid"), **fields)
         input_schema = arguments.model_json_schema()
         output = _output(function, hints)
-    except PydanticSchemaGenerationError as exc:
+    except (PydanticSchemaGenerationError, _NoSchema) as exc:
         raise TypeError(
             f"MCP tool {declaration.name!r} in {function.__module__!r}: a type in its signature has no JSON schema "
-            f"({str(exc).splitlines()[0]}). Use a type pydantic knows, or return a pydantic model or msgspec Struct that holds it."
+            f"({str(exc).splitlines()[0]}). Parameters take types pydantic knows; a return type is described by pydantic, "
+            "or by msgspec when it contains a msgspec Struct, and one return type cannot mix pydantic models with Structs."
         ) from exc
     wire = types.Tool(
         name=declaration.name,
@@ -526,7 +531,9 @@ def _output(function: Callable[..., Any], hints: dict[str, Any]) -> _Output | No
 
     No return annotation, or content blocks: content only. Pydantic models, TypedDicts, dataclasses,
     msgspec Structs and ``dict[str, …]`` are objects as they are. Everything else, ``str`` and ``None``
-    included, is wrapped as ``{"result": …}``.
+    included, is wrapped as ``{"result": …}``. A return type that contains a msgspec Struct anywhere
+    (``Struct | None``, ``list[Struct]``) is described and checked by msgspec, since pydantic has no
+    schema for a Struct; the same rules decide what is wrapped.
     """
     if "return" not in hints:
         return None
@@ -534,9 +541,8 @@ def _output(function: Callable[..., Any], hints: dict[str, Any]) -> _Output | No
     bare = _bare(annotation)
     if _is_content(bare):
         return None
-    if isinstance(bare, type) and issubclass(bare, msgspec.Struct):
-        struct = bare
-        return _Output(schema=_struct_schema(struct), dump=lambda value: msgspec.to_builtins(msgspec.convert(value, struct)), wrapped=False)
+    if _has_struct(bare):
+        return _msgspec_output(function, annotation)
     if _is_object(bare):
         adapter = TypeAdapter(annotation)
         return _Output(
@@ -551,18 +557,48 @@ def _output(function: Callable[..., Any], hints: dict[str, Any]) -> _Output | No
     )
 
 
-def _struct_schema(struct: type[msgspec.Struct]) -> dict[str, Any]:
-    """msgspec's schema for a Struct with the Struct's own definition at the root.
+def _msgspec_output(function: Callable[..., Any], annotation: Any) -> _Output:
+    """A return type with a msgspec Struct in it, described and checked by msgspec.
 
-    msgspec answers ``{"$ref": "#/$defs/Name", "$defs": ...}``; the handshake revisions require an object
-    schema (``"type": "object"``) at the root of ``outputSchema``. ``$defs`` stays whole, so nested and
-    recursive references still resolve.
+    msgspec answers a Struct (or a dataclass, a TypedDict) with ``{"$ref": "#/$defs/Name", "$defs": ...}``;
+    the handshake revisions require an object schema (``"type": "object"``) at the root of
+    ``outputSchema``, so the definition the root refers to is put at the root. ``$defs`` stays whole at
+    the root, wrapped or not, so nested and recursive references still resolve.
     """
-    schema = msgspec.json.schema(struct)
+    try:
+        schema = msgspec.json.schema(annotation)
+    except TypeError as exc:  # a type msgspec does not know, such as a pydantic model beside a Struct
+        raise _NoSchema(str(exc)) from exc
+    definitions = schema.pop("$defs", None)
     reference = schema.pop("$ref", None)
-    if isinstance(reference, str):
-        schema.update(schema["$defs"][reference.rsplit("/", 1)[1]])
-    return schema
+    if isinstance(reference, str) and definitions is not None:
+        schema.update(definitions[reference.rsplit("/", 1)[1]])
+
+    def checked(value: Any) -> Any:
+        return msgspec.to_builtins(msgspec.convert(value, annotation))
+
+    bare = _bare(annotation)
+    if (isinstance(bare, type) and issubclass(bare, msgspec.Struct)) or _is_object(bare):
+        root, dump, wrapped = schema, checked, False
+    else:
+        root = {
+            "title": f"{function.__name__}_output",
+            "type": "object",
+            "properties": {"result": {**schema, "title": "Result"}},
+            "required": ["result"],
+        }
+        dump, wrapped = (lambda value: {"result": checked(value)}), True
+    if definitions:
+        root["$defs"] = definitions
+    return _Output(schema=root, dump=dump, wrapped=wrapped)
+
+
+def _has_struct(annotation: Any) -> bool:
+    """Whether a msgspec Struct appears anywhere in the annotation."""
+    annotation = _bare(annotation)
+    if isinstance(annotation, type) and issubclass(annotation, msgspec.Struct):
+        return True
+    return any(_has_struct(argument) for argument in get_args(annotation))
 
 
 def _is_object(annotation: Any) -> bool:

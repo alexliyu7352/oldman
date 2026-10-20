@@ -66,7 +66,7 @@ async def weekly_summary(week: str) -> str:
 
 - 参数及其注解生成输入 schema，有默认值的可选，多余的参数一律拒绝；参数由 pydantic 校验，校验不过回工具错误（`isError`），模型能据此改正。
 - 名字限 1–128 个 `A-Z a-z 0-9 _ - .`（规范的建议），不符合在声明时报错。
-- 返回值照官方 SDK 的规则：有返回注解时生成输出 schema，结果里同时有 `structuredContent` 和同一内容的 JSON 文本；`str`、`int`、`list[...]` 这类包成 `{"result": ...}`，pydantic 模型、TypedDict、dataclass、msgspec Struct、`dict[str, ...]` 直接作为对象；没有返回注解、或返回协议的内容块（`TextContent` 等）时只有内容块。返回值在发出前按返回注解校验（与 SDK 相同：匹配的 dict 也会按模型或 Struct 转换）；不匹配时记一条带调用栈的 ERROR，调用方得到 "The tool failed"，不会把不符合 schema 的结果当成功发出去。容器里的 msgspec Struct（`list[Struct]`、`dict[str, Struct]`）pydantic 生成不了 schema，`install_mcp` 报错；改为返回一个装着列表的 Struct。
+- 返回值照官方 SDK 的规则：有返回注解时生成输出 schema，结果里同时有 `structuredContent` 和同一内容的 JSON 文本；`str`、`int`、`list[...]` 这类包成 `{"result": ...}`，pydantic 模型、TypedDict、dataclass、msgspec Struct、`dict[str, ...]` 直接作为对象；没有返回注解、或返回协议的内容块（`TextContent` 等）时只有内容块。返回值在发出前按返回注解校验（与 SDK 相同：匹配的 dict 也会按模型或 Struct 转换）；不匹配时记一条带调用栈的 ERROR，调用方得到 "The tool failed"，不会把不符合 schema 的结果当成功发出去。返回类型里任何位置有 msgspec Struct（`Struct | None`、`list[Struct]`、`dict[str, Struct]`）时，整个返回类型由 msgspec 生成 schema 并校验，包裹规则相同；同一个返回类型里不能混用 pydantic 模型和 Struct，参数也只收 pydantic 认识的类型（不收 Struct），这些在 `install_mcp` 时报错并指出工具。
 - `oldman.mcp.ToolError("…")` 的消息原样给调用方；视图会抛的 Web 异常（`Forbidden`、`NotFound`、存储不可用的 503）回它们的消息；其他异常记一条带调用栈的 ERROR，调用方只看到 "The tool failed"，内部信息不外泄。
 - `annotations=ToolAnnotations(read_only_hint=True)` 之类的提示从 `oldman.mcp` 导入。
 
