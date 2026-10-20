@@ -7,6 +7,7 @@ test-owned server, never the developer's own.
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import json
 import socket
@@ -43,7 +44,7 @@ AGENT_KEY = "agent-key-0123456789abcdef0123456789"
 MONITOR_KEY = "monitor-key-0123456789abcdef012345678"
 MODERN = "2026-07-28"
 APP_FILES = {
-    "mcp_web_app/__init__.py": "",
+    "mcp_web_app/__init__.py": "events = []",
     "mcp_web_app/apps.py": """
         from oldman.apps import AppConfig
 
@@ -74,6 +75,19 @@ APP_FILES = {
         async def secret() -> str:
             '''Only for users who hold the permission.'''
             return "42"
+
+        @mcp.tool()
+        async def slow() -> str:
+            '''Waits, and records whether it was cancelled.'''
+            import asyncio
+            from mcp_web_app import events
+            events.append("started")
+            try:
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                events.append("cancelled")
+                raise
+            return "done"
 
         @mcp.resource("notes://{note_id}")
         async def note(note_id: int) -> dict:
@@ -250,10 +264,10 @@ class OfficialClientTest(EndpointTestCase):
         for mode in ("auto", "legacy", MODERN):
             with self.subTest(mode=mode, caller="jwt superuser"):
                 names, added, who = await self.connect(url, self.bearer(SUPERUSER), mode)
-                self.assertEqual((["whoami", "add", "secret"], {"result": 5}, {"result": "root"}), (names, added, who))
+                self.assertEqual((["whoami", "add", "secret", "slow"], {"result": 5}, {"result": "root"}), (names, added, who))
             with self.subTest(mode=mode, caller="api key"):
                 names, added, who = await self.connect(url, {"X-API-Key": AGENT_KEY}, mode)
-                self.assertEqual((["whoami", "add"], {"result": 5}, {"result": "agent"}), (names, added, who))
+                self.assertEqual((["whoami", "add", "slow"], {"result": 5}, {"result": "agent"}), (names, added, who))
 
     async def test_resources_and_prompts_through_the_client_in_every_mode(self) -> None:
         url = await self.serve(settings_for())
@@ -308,7 +322,7 @@ class CallerTest(EndpointTestCase):
         listing = await self.post(
             url, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, {"MCP-Protocol-Version": "2025-11-25", **self.bearer(PLAIN_USER)}
         )
-        self.assertEqual(["whoami", "add"], [tool["name"] for tool in listing.json()["result"]["tools"]])
+        self.assertEqual(["whoami", "add", "slow"], [tool["name"] for tool in listing.json()["result"]["tools"]])
 
     async def test_global_csrf_enforcement_does_not_block_token_or_key_calls(self) -> None:
         url = await self.serve(settings_for(), csrf=True)
@@ -374,6 +388,39 @@ class TransportTest(EndpointTestCase):
         response = await self.post(self.url, body, {"X-API-Key": AGENT_KEY, "MCP-Protocol-Version": MODERN, "Mcp-Method": "server/discover"})
         expected = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
         self.assertEqual({"name": "mcp-web-test", "version": expected}, response.json()["result"]["_meta"]["io.modelcontextprotocol/serverInfo"])
+
+
+class CancellationTest(EndpointTestCase):
+    async def test_a_client_that_disconnects_cancels_the_running_tool_in_both_eras(self) -> None:
+        """What developers/mcp.md says: Sanic cancels the handler, and nothing here could resume the request anyway."""
+        events: list[str] = importlib.import_module("mcp_web_app").events  # the fixture App, written at setUpModule
+        url = await self.serve(settings_for())
+        port = int(url.rsplit(":", 1)[1].split("/", 1)[0])
+        meta = {"io.modelcontextprotocol/protocolVersion": MODERN, "io.modelcontextprotocol/clientCapabilities": {}}
+        eras = {
+            MODERN: ({"MCP-Protocol-Version": MODERN, "Mcp-Method": "tools/call", "Mcp-Name": "slow"}, {"_meta": meta}),
+            "2025-11-25": ({"MCP-Protocol-Version": "2025-11-25"}, {}),
+        }
+        for version, (protocol, extra) in eras.items():
+            with self.subTest(version=version):
+                events.clear()
+                body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "slow", "arguments": {}, **extra}}).encode()
+                headers = {"Content-Type": "application/json", "Accept": "application/json", "X-API-Key": AGENT_KEY, **protocol}
+                head = "".join(f"{name}: {value}\r\n" for name, value in headers.items())
+                _reader, writer = await asyncio.open_connection("127.0.0.1", port)
+                writer.write(f"POST /mcp HTTP/1.1\r\nHost: test\r\n{head}Content-Length: {len(body)}\r\n\r\n".encode() + body)
+                await writer.drain()
+                for _ in range(50):
+                    if events:
+                        break
+                    await asyncio.sleep(0.05)
+                writer.close()
+                await writer.wait_closed()
+                for _ in range(60):
+                    if "cancelled" in events:
+                        break
+                    await asyncio.sleep(0.05)
+                self.assertEqual(["started", "cancelled"], events)
 
 
 class RateLimitTest(EndpointTestCase):

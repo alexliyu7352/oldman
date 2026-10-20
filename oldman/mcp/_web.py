@@ -88,6 +88,9 @@ def install_mcp(app: Any) -> McpServer | None:
         body = await _read_body(request, max_body)
         if body is None:
             return json_response({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Request body too large"}}, status=413)
+        # A client that disconnects cancels this handler (Sanic does), in both eras. 2025-11-25 transports says a
+        # disconnect SHOULD NOT count as cancelling, so that the client can resume and still get the result;
+        # nothing here can be resumed (no session, no event store), so the result could not reach it anyway.
         reply = await server.handle(request, request.headers.items(), body, request.headers.get("content-type"))
         # No Mcp-Session-Id is ever sent: the server keeps no session in either era.
         if reply.body is None:

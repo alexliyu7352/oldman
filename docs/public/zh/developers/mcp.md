@@ -120,7 +120,7 @@ claude mcp add --transport http reports https://reports.example.com/mcp --header
 
 - 只回 JSON，不回 SSE 流：没有进度通知、日志消息、订阅（`subscriptions/listen`）、参数补全（`completion/complete`）。
 - 不保存会话：不发 `Mcp-Session-Id`；握手代客户端的 GET 流与 DELETE 得到 405。
-- 取消：2026-07-28 的客户端关闭回应流即取消，Sanic 取消处理任务；握手代客户端 POST `notifications/cancelled` 取消，而断开在那一代不算取消，服务端回 202 不处理，正在跑的工具会跑完。
+- 取消：客户端断开连接时 Sanic 取消处理任务，正在跑的工具收到 `CancelledError`，两代都一样（2026-07-28 的客户端本来就靠关闭回应流取消）。2025-11-25 的传输规范说断开 SHOULD NOT 当作取消，那是为了客户端能续传拿回结果；这里不保存会话、没有续传，断开后结果送不到，所以照样取消。握手代客户端 POST 的 `notifications/cancelled` 回 202 不处理：连接还开着时，正在跑的工具会跑完。
 - 不接受 JSON-RPC 批量（2025-06-18 起已从规范删除；2025-03-26 的客户端若发批量会被拒）。
 - 没有 OAuth：网页版的 MCP 连接器通常只支持 OAuth，接它们需要另外的认证方式。
 - 请求超时沿用 `web.response_timeout`（默认 120 秒），更久的工具会被断开。
