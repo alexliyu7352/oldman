@@ -84,6 +84,8 @@ async def weekly_summary(week: str) -> str:
 - Annotate every parameter and the return type; the annotations become the JSON schemas. Import those types at run
   time, not under `if TYPE_CHECKING:`, or `install_mcp` stops with an error naming the type.
 - Take `request: Request` as the first parameter only when the code needs the caller (`request.ctx.user`).
+- Parameter names must not start with `_`, be `model_config`, or match a BaseModel method such as `model_dump`:
+  pydantic checks the arguments and does not take them, so `install_mcp` stops and names the parameter.
 - Raise `ToolError("…")` for a failure the model should read; anything else is logged and the model only sees
   "The tool failed".
 - Return plain data (a model, a dict, a number): structured output is generated from the return annotation, and the

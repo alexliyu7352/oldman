@@ -422,7 +422,7 @@ def _build_tool(declaration: _ToolDeclaration) -> Tool:
     # Extra arguments are refused, not dropped: the model learns from the error what the tool takes.
     # For a tool without parameters this gives the schema the spec recommends ("additionalProperties": false).
     try:
-        arguments = create_model(f"{declaration.name}_arguments", __config__=ConfigDict(extra="forbid"), **fields)
+        arguments = _arguments("tool", declaration.name, function, f"{declaration.name}_arguments", fields)
         input_schema = arguments.model_json_schema()
         output = _output(function, hints)
     except (PydanticSchemaGenerationError, _NoSchema) as exc:
@@ -481,9 +481,40 @@ def _build_resource(declaration: _ResourceDeclaration) -> Resource:
         takes_request=takes_request,
         mime_type=declaration.mime_type,
         pattern=re.compile(pattern),
-        variables={name: TypeAdapter(hints.get(name, str)) for name in variables},
+        variables={name: _variable(declaration.uri, function, name, hints.get(name, str)) for name in variables},
         wire=types.ResourceTemplate(uri_template=declaration.uri, **common),
     )
+
+
+def _arguments(kind: str, name: str, function: Callable[..., Any], model_name: str, fields: dict[str, Any]) -> type[BaseModel]:
+    """The model a tool's or prompt's arguments are checked with; every parameter must be one of its fields.
+
+    pydantic takes no field named with a leading ``_`` or ``model_config`` (it drops them without a word)
+    and refuses a name a BaseModel member has, such as ``model_dump``. Dropped, a parameter would vanish
+    from the schema, every call passing it would be refused, and a required one would fail every call.
+    """
+    try:
+        model = create_model(model_name, __config__=ConfigDict(extra="forbid"), **fields)
+    except ValueError as exc:  # pydantic: "Field 'model_dump' conflicts with member ..."
+        raise TypeError(f"MCP {kind} {name!r} in {function.__module__!r}: {str(exc).splitlines()[0]}; rename that parameter") from exc
+    dropped = sorted(set(fields) - set(model.model_fields))
+    if dropped:
+        raise TypeError(
+            f"MCP {kind} {name!r} in {function.__module__!r}: parameter(s) {', '.join(map(repr, dropped))} cannot be arguments, since "
+            "pydantic takes no field whose name starts with '_' or is 'model_config'; rename them"
+        )
+    return model
+
+
+def _variable(uri: str, function: Callable[..., Any], name: str, annotation: Any) -> TypeAdapter[Any]:
+    """How a URI variable is converted to its parameter's annotation."""
+    try:
+        return TypeAdapter(annotation)
+    except PydanticSchemaGenerationError as exc:
+        raise TypeError(
+            f"MCP resource {uri!r} in {function.__module__!r}: the variable {name!r} has a type pydantic cannot convert a URI part to "
+            f"({str(exc).splitlines()[0]})"
+        ) from exc
 
 
 def _template_variables(uri: str) -> list[str]:
@@ -518,7 +549,7 @@ def _build_prompt(declaration: _PromptDeclaration) -> Prompt:
         function=function,
         permission=declaration.permission,
         takes_request=takes_request,
-        arguments=create_model(f"{declaration.name}_prompt_arguments", __config__=ConfigDict(extra="forbid"), **fields),
+        arguments=_arguments("prompt", declaration.name, function, f"{declaration.name}_prompt_arguments", fields),
         wire=types.Prompt(name=declaration.name, title=declaration.title, description=declaration.description, arguments=arguments or None),
     )
 

@@ -26,6 +26,10 @@ SUPERUSER = RequestUser(id=1, username="root", display_name="Root", is_staff=Tru
 STAFF = RequestUser(id=2, username="ops", display_name="Ops", is_staff=True, is_superuser=False, role_ids=())
 
 
+class Opaque:
+    """A class pydantic cannot convert a URI part to."""
+
+
 class Item(BaseModel):
     id: int
     name: str
@@ -294,6 +298,24 @@ class DeclarationTest(unittest.TestCase):
                 exec(textwrap.dedent(f"registry.{kind}({other_key!r})(function)"), namespace)
                 with self.assertRaisesRegex(ValueError, f"declared twice: in '{__name__}' and in '{__name__}.other'"):
                     registry.catalog([__name__])
+
+    def test_a_prompt_argument_pydantic_will_not_take_and_an_unconvertible_uri_variable_are_named(self) -> None:
+        async def private(_topic: str = "") -> str:
+            """A leading underscore: dropped by pydantic, so it would never arrive."""
+            return _topic
+
+        async def opaque(item: Opaque) -> str:
+            """A URI variable of a type pydantic does not know."""
+            return ""
+
+        registry = McpRegistry()
+        registry.prompt()(private)
+        with self.assertRaisesRegex(TypeError, r"MCP prompt 'private' in '.*': parameter\(s\) '_topic' cannot be arguments"):
+            registry.catalog([__name__])
+        registry = McpRegistry()
+        registry.resource("things://{item}")(opaque)
+        with self.assertRaisesRegex(TypeError, r"MCP resource 'things://\{item\}' in '.*': the variable 'item' has a type pydantic cannot convert"):
+            registry.catalog([__name__])
 
     def test_prompt_arguments_must_be_strings(self) -> None:
         registry = McpRegistry()

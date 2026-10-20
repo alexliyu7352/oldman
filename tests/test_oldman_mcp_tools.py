@@ -476,6 +476,33 @@ class PermissionTest(unittest.TestCase):
 
 
 class DeclarationTest(unittest.TestCase):
+    def test_parameter_names_pydantic_will_not_take_stop_the_catalog_and_are_named(self) -> None:
+        """Dropped by pydantic without a word, such a parameter would vanish from the schema and never arrive."""
+
+        async def optional_private(_hidden: int = 0) -> int:
+            """A leading underscore."""
+            return _hidden
+
+        async def required_private(_needed: int) -> int:
+            """A required one would fail every call."""
+            return _needed
+
+        async def reserved(model_config: int = 0) -> int:
+            """A name pydantic keeps for itself."""
+            return model_config
+
+        async def member(model_dump: int = 0) -> int:
+            """A name a BaseModel method has."""
+            return model_dump
+
+        cases = {optional_private: "'_hidden'", required_private: "'_needed'", reserved: "'model_config'", member: "'model_dump'"}
+        for function, parameter in cases.items():
+            with self.subTest(tool=function.__name__):
+                registry = McpRegistry()
+                registry.tool()(function)
+                with self.assertRaisesRegex(TypeError, rf"MCP tool '{function.__name__}' in '.*': .*{parameter}"):
+                    registry.catalog([__name__])
+
     def test_a_signature_type_without_a_json_schema_names_the_tool(self) -> None:
         async def opaque() -> Opaque:
             """Returns a plain class."""
