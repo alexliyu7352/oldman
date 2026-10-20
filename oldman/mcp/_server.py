@@ -29,7 +29,7 @@ from oldman.mcp._protocol import (
     result_reply,
     validation_summary,
 )
-from oldman.mcp._registry import McpCatalog, Tool, ToolError
+from oldman.mcp._registry import McpCatalog, Prompt, Resource, ResourceNotFound, Tool, ToolError
 from oldman.web.auth.permissions import has_perm
 from oldman.web.request import client_ip
 from oldman.web.security.rate_limiter import RateLimiter, window_retry_after
@@ -56,7 +56,12 @@ class McpServer:
         self._rate_limit = rate_limit
         self._info = types.Implementation(name=name, version=version)
         self._instructions = instructions
-        self._capabilities = types.ServerCapabilities(tools=types.ToolsCapability())
+        # spec: servers that support resources or prompts MUST declare them; declared only when there are some.
+        self._capabilities = types.ServerCapabilities(
+            tools=types.ToolsCapability(),
+            resources=types.ResourcesCapability() if catalog.resources else None,
+            prompts=types.PromptsCapability() if catalog.prompts else None,
+        )
 
     async def handle(self, request: Any, headers: Iterable[tuple[str, str]], body: bytes, content_type: str | None) -> Reply:
         """Answer one POSTed message."""
@@ -92,6 +97,14 @@ class McpServer:
             return await self._list_tools(request, inbound)
         if method == "tools/call":
             return await self._call_tool(request, inbound)
+        if method in ("resources/list", "resources/templates/list") and self._catalog.resources:
+            return await self._list_resources(request, inbound)
+        if method == "resources/read" and self._catalog.resources:
+            return await self._read_resource(request, inbound)
+        if method == "prompts/list" and self._catalog.prompts:
+            return await self._list_prompts(request, inbound)
+        if method == "prompts/get" and self._catalog.prompts:
+            return await self._get_prompt(request, inbound)
         # Parsed for this revision but not offered here: completion, logging, subscriptions, and what
         # the capabilities above do not declare.
         return error_reply(inbound.era, inbound.id, jsonrpc.METHOD_NOT_FOUND, f"Method not found: {method}")
@@ -139,6 +152,95 @@ class McpServer:
             return result_reply(inbound, _tool_error("The tool failed"))
         return result_reply(inbound, result)
 
+    async def _list_resources(self, request: Any, inbound: Inbound) -> Reply:
+        try:
+            if inbound.method == "resources/templates/list":
+                templates = [
+                    resource.wire
+                    for resource in self._catalog.resources
+                    if isinstance(resource.wire, types.ResourceTemplate) and await _visible(resource, request)
+                ]
+                return result_reply(inbound, types.ListResourceTemplatesResult(resource_templates=templates))
+            fixed = [
+                resource.wire
+                for resource in self._catalog.resources
+                if isinstance(resource.wire, types.Resource) and await _visible(resource, request)
+            ]
+        except SanicException as exc:
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        return result_reply(inbound, types.ListResourcesResult(resources=fixed))
+
+    async def _read_resource(self, request: Any, inbound: Inbound) -> Reply:
+        uri = inbound.request.params.uri
+        not_found = error_reply(inbound.era, inbound.id, jsonrpc.INVALID_PARAMS, "Resource not found", data={"uri": uri})
+        try:
+            found = await self._find_resource(request, uri)
+        except SanicException as exc:
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        if found is None:
+            return not_found
+        resource, values = found
+        try:
+            value = await (resource.function(request, **values) if resource.takes_request else resource.function(**values))
+            contents = resource.contents(uri, value)
+        except ResourceNotFound:
+            return not_found
+        except SanicException as exc:
+            if exc.status_code in (403, 404):
+                # A record the function does not find, or does not let this caller read: the same answer, so
+                # that reading does not tell the two apart.
+                return not_found
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(f"MCP resource {uri!r} failed")
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, "Internal error")
+        return result_reply(inbound, types.ReadResourceResult(contents=contents))
+
+    async def _find_resource(self, request: Any, uri: str) -> tuple[Resource, dict[str, Any]] | None:
+        """The first visible resource that matches the URI; fixed ones were sorted before templates."""
+        for resource in self._catalog.resources:
+            values = resource.match(uri)
+            if values is not None and await _visible(resource, request):
+                return resource, values
+        return None
+
+    async def _list_prompts(self, request: Any, inbound: Inbound) -> Reply:
+        try:
+            visible = [prompt.wire for prompt in self._catalog.prompts.values() if await _visible(prompt, request)]
+        except SanicException as exc:
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        return result_reply(inbound, types.ListPromptsResult(prompts=visible))
+
+    async def _get_prompt(self, request: Any, inbound: Inbound) -> Reply:
+        params = inbound.request.params
+        prompt = self._catalog.prompts.get(params.name)
+        try:
+            usable = prompt is not None and await _visible(prompt, request)
+        except SanicException as exc:
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        if prompt is None or not usable:
+            # spec server/prompts: an invalid prompt name is -32602; one this caller cannot see is answered the same way.
+            return error_reply(inbound.era, inbound.id, jsonrpc.INVALID_PARAMS, f"Unknown prompt: {params.name}")
+        try:
+            arguments = prompt.arguments.model_validate(params.arguments or {})
+        except ValidationError as exc:
+            # spec server/prompts: missing required arguments are -32602 too.
+            return error_reply(inbound.era, inbound.id, jsonrpc.INVALID_PARAMS, f"Invalid arguments: {validation_summary(exc)}")
+        values = {name: getattr(arguments, name) for name in type(arguments).model_fields}
+        try:
+            value = await (prompt.function(request, **values) if prompt.takes_request else prompt.function(**values))
+            result = prompt.result(value)
+        except SanicException as exc:
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, str(exc))
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(f"MCP prompt {prompt.name!r} failed")
+            return error_reply(inbound.era, inbound.id, jsonrpc.INTERNAL_ERROR, "Internal error")
+        return result_reply(inbound, result)
+
     async def _over_limit(self, request: Any) -> str | None:
         """Why this call is refused by the rate limit, or None. A store that cannot count refuses too."""
         if self._rate_limit is None:
@@ -167,9 +269,9 @@ def _caller_key(request: Any) -> str:
     return f"ip:{client_ip(request)}"
 
 
-async def _visible(tool: Tool, request: Any) -> bool:
-    """Whether this caller may see and call the tool: one with a permission is for users who hold it."""
-    return tool.permission is None or await has_perm(request, tool.permission)
+async def _visible(item: Tool | Resource | Prompt, request: Any) -> bool:
+    """Whether this caller may see and use it: one with a permission is for the users who hold it."""
+    return item.permission is None or await has_perm(request, item.permission)
 
 
 def _tool_error(message: str) -> types.CallToolResult:

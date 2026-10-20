@@ -8,6 +8,7 @@ test-owned server, never the developer's own.
 from __future__ import annotations
 
 import importlib
+import json
 import socket
 import sys
 import tempfile
@@ -21,6 +22,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import httpx2
+import mcp_types
 from mcp.client.client import Client
 from mcp.client.streamable_http import streamable_http_client
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -72,6 +74,16 @@ APP_FILES = {
         async def secret() -> str:
             '''Only for users who hold the permission.'''
             return "42"
+
+        @mcp.resource("notes://{note_id}")
+        async def note(note_id: int) -> dict:
+            '''One note.'''
+            return {"id": note_id}
+
+        @mcp.prompt()
+        async def summarise(topic: str) -> str:
+            '''Ask for a summary.'''
+            return f"Summarise {topic}."
     """,
     "uninstalled_mcp_app/__init__.py": "",
     "uninstalled_mcp_app/mcp.py": "raise AssertionError('install_mcp imported an App that is not installed')",
@@ -237,6 +249,23 @@ class OfficialClientTest(EndpointTestCase):
             with self.subTest(mode=mode, caller="api key"):
                 names, added, who = await self.connect(url, {"X-API-Key": AGENT_KEY}, mode)
                 self.assertEqual((["whoami", "add"], {"result": 5}, {"result": "agent"}), (names, added, who))
+
+    async def test_resources_and_prompts_through_the_client_in_every_mode(self) -> None:
+        url = await self.serve(settings_for())
+        for mode in ("auto", "legacy", MODERN):
+            with self.subTest(mode=mode):
+                async with httpx2.AsyncClient(headers={"X-API-Key": AGENT_KEY}, trust_env=False) as http:
+                    async with Client(streamable_http_client(url, http_client=http), mode=mode) as client:
+                        templates = [template.uri_template for template in (await client.list_resource_templates()).resource_templates]
+                        contents = (await client.read_resource("notes://7")).contents
+                        prompts = [prompt.name for prompt in (await client.list_prompts()).prompts]
+                        messages = (await client.get_prompt("summarise", {"topic": "the week"})).messages
+                self.assertEqual(["notes://{note_id}"], templates)
+                assert isinstance(contents[0], mcp_types.TextResourceContents)
+                self.assertEqual({"id": 7}, json.loads(contents[0].text))
+                self.assertEqual(["summarise"], prompts)
+                assert isinstance(messages[0].content, mcp_types.TextContent)
+                self.assertEqual("Summarise the week.", messages[0].content.text)
 
 
 class CallerTest(EndpointTestCase):

@@ -2,7 +2,7 @@
 
 Generated from the source by `scripts/api_index.py`; do not edit by hand. [All packages](README.md)
 
-Offer the installed Apps' tools to agents over the Model Context Protocol.
+Offer the installed Apps' tools, resources and prompts to agents over the Model Context Protocol.
 
 Import with `from oldman.mcp import <name>`.
 
@@ -45,7 +45,29 @@ McpRegistry() -> None
 Members:
 
 - `def tool(name: str | None=None, *, title: str | None=None, description: str | None=None, annotations: types.ToolAnnotations | None=None, permission: Permission | None=None) -> Callable[[_Function], _Function]` — Offer an async function as a tool; the function is returned unchanged.
+- `def resource(uri: str, *, name: str | None=None, title: str | None=None, description: str | None=None, mime_type: str | None=None, permission: Permission | None=None) -> Callable[[_Function], _Function]` — Offer an async function as a resource; the function is returned unchanged.
+- `def prompt(name: str | None=None, *, title: str | None=None, description: str | None=None, permission: Permission | None=None) -> Callable[[_Function], _Function]` — Offer an async function as a prompt; the function is returned unchanged.
 - `def catalog(packages: Sequence[str]) -> McpCatalog` — Build what a service installing ``packages`` offers.
+
+## `PromptMessage`
+
+re-export · defined in `mcp_types`
+
+```python
+from mcp_types import PromptMessage
+```
+
+Re-exported unchanged from `mcp_types`; see that library's documentation.
+
+## `TextContent`
+
+re-export · defined in `mcp_types`
+
+```python
+from mcp_types import TextContent
+```
+
+Re-exported unchanged from `mcp_types`; see that library's documentation.
 
 ## `ToolAnnotations`
 
