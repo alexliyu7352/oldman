@@ -13,6 +13,7 @@ import dataclasses
 import inspect
 import json
 import re
+import sys
 import typing
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -52,6 +53,7 @@ class ToolError(Exception):
 @dataclass(frozen=True, slots=True)
 class _ToolDeclaration:
     function: Callable[..., Awaitable[Any]]
+    module: str
     name: str
     title: str | None
     description: str | None
@@ -62,6 +64,7 @@ class _ToolDeclaration:
 @dataclass(frozen=True, slots=True)
 class _ResourceDeclaration:
     function: Callable[..., Awaitable[Any]]
+    module: str
     uri: str
     name: str
     title: str | None
@@ -73,6 +76,7 @@ class _ResourceDeclaration:
 @dataclass(frozen=True, slots=True)
 class _PromptDeclaration:
     function: Callable[..., Awaitable[Any]]
+    module: str
     name: str
     title: str | None
     description: str | None
@@ -238,6 +242,7 @@ class McpRegistry:
             self._tools.append(
                 _ToolDeclaration(
                     function=function,
+                    module=_declaring_module(),
                     name=tool_name,
                     title=title,
                     description=inspect.getdoc(function) if description is None else description,
@@ -273,6 +278,7 @@ class McpRegistry:
             self._resources.append(
                 _ResourceDeclaration(
                     function=function,
+                    module=_declaring_module(),
                     uri=uri,
                     name=function.__name__ if name is None else name,
                     title=title,
@@ -307,6 +313,7 @@ class McpRegistry:
             self._prompts.append(
                 _PromptDeclaration(
                     function=function,
+                    module=_declaring_module(),
                     name=prompt_name,
                     title=title,
                     description=inspect.getdoc(function) if description is None else description,
@@ -320,44 +327,45 @@ class McpRegistry:
     def catalog(self, packages: Sequence[str]) -> McpCatalog:
         """Build what a service installing ``packages`` offers.
 
-        A declaration whose function lives outside those packages is left out with a WARNING: an App
-        that is not installed here must not have what it declares offered because some other module
-        imported it. Two tools or prompts with one name, two resources with one URI, or two templates of
-        the same shape stop here, naming both modules.
+        A declaration made outside those packages is left out with a WARNING: an App that is not
+        installed here must not have what it declares offered because some other module imported it.
+        What counts is the module that declared it (that called ``mcp.tool()`` and the like), not where
+        the function is defined, so an App may offer a function it imports. Two tools or prompts with one
+        name, two resources with one URI, or two templates of the same shape stop here, naming both modules.
         """
         tools: dict[str, Tool] = {}
+        tool_modules: dict[str, str] = {}
         for declaration in self._tools:
-            if not _installed("tool", declaration.name, declaration.function, packages):
+            if not _installed("tool", declaration.name, declaration.module, packages):
                 continue
-            existing = tools.get(declaration.name)
-            if existing is not None:
-                raise ValueError(_twice("tool", declaration.name, existing.function, declaration.function))
+            if declaration.name in tools:
+                raise ValueError(_twice("tool", declaration.name, tool_modules[declaration.name], declaration.module))
             tools[declaration.name] = _build_tool(declaration)
+            tool_modules[declaration.name] = declaration.module
 
         resources: list[Resource] = []
-        by_key: dict[str, Resource] = {}
+        resource_modules: dict[str, str] = {}
         for declaration in self._resources:
-            if not _installed("resource", declaration.uri, declaration.function, packages):
+            if not _installed("resource", declaration.uri, declaration.module, packages):
                 continue
             # A fixed URI is its own key; templates that differ only in their variable names match the same URIs.
             key = _TEMPLATE_VARIABLE.sub("{}", declaration.uri)
-            existing_resource = by_key.get(key)
-            if existing_resource is not None:
-                raise ValueError(_twice("resource", declaration.uri, existing_resource.function, declaration.function))
-            resource = _build_resource(declaration)
-            by_key[key] = resource
-            resources.append(resource)
+            if key in resource_modules:
+                raise ValueError(_twice("resource", declaration.uri, resource_modules[key], declaration.module))
+            resources.append(_build_resource(declaration))
+            resource_modules[key] = declaration.module
         # Fixed resources first: a URI that is fixed and also matches a template is the fixed one.
         resources.sort(key=lambda resource: resource.pattern is not None)
 
         prompts: dict[str, Prompt] = {}
+        prompt_modules: dict[str, str] = {}
         for declaration in self._prompts:
-            if not _installed("prompt", declaration.name, declaration.function, packages):
+            if not _installed("prompt", declaration.name, declaration.module, packages):
                 continue
-            existing_prompt = prompts.get(declaration.name)
-            if existing_prompt is not None:
-                raise ValueError(_twice("prompt", declaration.name, existing_prompt.function, declaration.function))
+            if declaration.name in prompts:
+                raise ValueError(_twice("prompt", declaration.name, prompt_modules[declaration.name], declaration.module))
             prompts[declaration.name] = _build_prompt(declaration)
+            prompt_modules[declaration.name] = declaration.module
         return McpCatalog(tools=tools, resources=tuple(resources), prompts=prompts)
 
 
@@ -369,16 +377,24 @@ def _check_declaration(kind: str, function: Callable[..., Any], permission: Perm
         raise TypeError("permission takes a declared Permission, not a name")
 
 
-def _installed(kind: str, name: str, function: Callable[..., Any], packages: Sequence[str]) -> bool:
-    module = function.__module__
+def _declaring_module() -> str:
+    """The module whose code called the decorator: frame 0 is this function, 1 the decorator, 2 its caller.
+
+    The function's own ``__module__`` names where it is defined, which differs when an App offers a
+    function it imports; only the calling frame knows which App declared it.
+    """
+    return sys._getframe(2).f_globals.get("__name__", "")
+
+
+def _installed(kind: str, name: str, module: str, packages: Sequence[str]) -> bool:
     if any(module == package or module.startswith(f"{package}.") for package in packages):
         return True
-    logger.warning(f"MCP {kind} {name!r} in {module!r} is not offered: its module belongs to no installed App")
+    logger.warning(f"MCP {kind} {name!r} declared in {module!r} is not offered: that module belongs to no installed App")
     return False
 
 
-def _twice(kind: str, name: str, first: Callable[..., Any], second: Callable[..., Any]) -> str:
-    return f"MCP {kind} {name!r} is declared twice: in {first.__module__!r} and in {second.__module__!r}"
+def _twice(kind: str, name: str, first: str, second: str) -> str:
+    return f"MCP {kind} {name!r} is declared twice: in {first!r} and in {second!r}"
 
 
 def _parameters(kind: str, function: Callable[..., Any], hints: dict[str, Any]) -> tuple[bool, list[inspect.Parameter]]:

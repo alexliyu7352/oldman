@@ -111,6 +111,13 @@ def listed_in(server: McpServer, request: Any, version: str) -> dict[str, dict[s
     return {tool["name"]: tool for tool in reply.body["result"]["tools"]}
 
 
+def declare_in(module: str, source: str, **names: Any) -> dict[str, Any]:
+    """Run declaration code as the module ``module``, which is then the declaring module; returns its namespace."""
+    namespace: dict[str, Any] = {"__name__": module, **names}
+    exec(compile(textwrap.dedent(source), f"{module}.py", "exec"), namespace)
+    return namespace
+
+
 def serve(registry: McpRegistry) -> McpServer:
     return McpServer(registry.catalog([__name__]), name="tools-test", version="0")
 
@@ -529,31 +536,54 @@ class DeclarationTest(unittest.TestCase):
         async def first() -> None:
             """One."""
 
-        async def second() -> None:
-            """Two."""
-
-        second.__module__ = f"{__name__}.other"
         registry.tool("same")(first)
-        registry.tool("same")(second)
-        with self.assertRaisesRegex(ValueError, f"'{__name__}'.*'{__name__}.other'"):
+        declare_in(
+            f"{__name__}.other",
+            """
+            @registry.tool("same")
+            async def second() -> None:
+                '''Two.'''
+            """,
+            registry=registry,
+        )
+        with self.assertRaisesRegex(ValueError, f"declared twice: in '{__name__}' and in '{__name__}.other'"):
             registry.catalog([__name__])
 
-    def test_tools_outside_the_installed_apps_are_not_offered(self) -> None:
+    def test_tools_declared_outside_the_installed_apps_are_not_offered(self) -> None:
         registry = McpRegistry()
-
-        async def foreign() -> None:
-            """From an App this service does not install."""
+        declare_in(
+            "apps.not_installed.mcp",
+            """
+            @registry.tool()
+            async def foreign() -> None:
+                '''From an App this service does not install.'''
+            """,
+            registry=registry,
+        )
 
         async def ours() -> None:
             """From an installed App."""
 
-        foreign.__module__ = "apps.not_installed.mcp"
-        registry.tool()(foreign)
         registry.tool()(ours)
         with self.assertLogs("default.mcp", level="WARNING") as logs:
             catalog = registry.catalog([__name__])
         self.assertEqual(["ours"], list(catalog.tools))
-        self.assertIn("apps.not_installed.mcp", logs.output[0])
+        self.assertIn("declared in 'apps.not_installed.mcp' is not offered", logs.output[0])
+
+    def test_an_installed_app_may_offer_a_function_it_imports(self) -> None:
+        """The declaring module decides, not where the function is defined (a shared helper, a library)."""
+        helpers = declare_in(
+            "shared.helpers",
+            """
+            async def lookup(code: str) -> str:
+                '''Defined outside every App.'''
+                return code
+            """,
+        )
+        registry = McpRegistry()
+        registry.tool("lookup")(helpers["lookup"])
+        self.assertEqual("shared.helpers", helpers["lookup"].__module__)
+        self.assertEqual(["lookup"], list(registry.catalog([__name__]).tools))
 
     def test_annotations_resolve_when_the_catalog_is_built_and_a_type_checking_import_is_reported(self) -> None:
         registry = McpRegistry()

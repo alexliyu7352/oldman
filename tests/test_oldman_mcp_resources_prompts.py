@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import textwrap
 import types as pytypes
 import unittest
 from typing import Annotated, Any
@@ -279,17 +280,19 @@ class DeclarationTest(unittest.TestCase):
             """Two."""
             return y
 
-        second.__module__ = f"{__name__}.other"
         cases = {
-            "same fixed URI": lambda registry: (registry.resource("a://b")(_async_text), registry.resource("a://b")(_fixed_elsewhere)),
-            "templates of one shape": lambda registry: (registry.resource("a://{x}")(first), registry.resource("a://{y}")(second)),
-            "same prompt name": lambda registry: (registry.prompt("p")(_async_text), registry.prompt("p")(_fixed_elsewhere)),
+            "same fixed URI": ("resource", "a://b", _async_text, "a://b", _async_text),
+            "templates of one shape": ("resource", "a://{x}", first, "a://{y}", second),
+            "same prompt name": ("prompt", "p", _async_text, "p", _async_text),
         }
-        for label, declare in cases.items():
+        for label, (kind, key, function, other_key, other_function) in cases.items():
             with self.subTest(case=label):
                 registry = McpRegistry()
-                declare(registry)
-                with self.assertRaisesRegex(ValueError, "declared twice"):
+                getattr(registry, kind)(key)(function)
+                # The second one is declared by another App's module: the message names both declaring modules.
+                namespace = {"__name__": f"{__name__}.other", "registry": registry, "function": other_function}
+                exec(textwrap.dedent(f"registry.{kind}({other_key!r})(function)"), namespace)
+                with self.assertRaisesRegex(ValueError, f"declared twice: in '{__name__}' and in '{__name__}.other'"):
                     registry.catalog([__name__])
 
     def test_prompt_arguments_must_be_strings(self) -> None:
@@ -312,14 +315,6 @@ class DeclarationTest(unittest.TestCase):
             registry.resource("a://b")(sync)  # type: ignore[arg-type]
         with self.assertRaisesRegex(TypeError, "async"):
             registry.prompt()(sync)  # type: ignore[arg-type]
-
-
-async def _fixed_elsewhere() -> str:
-    """Declared from another App's module."""
-    return ""
-
-
-_fixed_elsewhere.__module__ = f"{__name__}.other"
 
 
 if __name__ == "__main__":
