@@ -53,7 +53,7 @@ OLDMAN_ANSWER_STARTSERVICE_TYPE=taskiq_worker ./run.sh startservice worker
 | `startproject` | 项目类型 | `OLDMAN_ANSWER_STARTPROJECT_TYPE` | `cli`、`service`、`api`、`web`、`dashboard` |
 | `startproject` | 数据库（`cli` 不问） | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`、`sqlite`、`mysql`、`postgres`；`dashboard` 不能是 `none` |
 | `startproject` | 是否集成内置 Admin（`web` 有数据库时与 `dashboard` 才问） | `OLDMAN_ANSWER_STARTPROJECT_ADMIN` | `yes`、`no`（或 true/false、1/0）；不设、又不在终端里时为 `no` |
-| `startapp` | App 模板 | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`、`api`、`web`、`dashboard` |
+| `startapp` | App 模板 | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`、`api`、`web`、`dashboard`、`mcp`（只有 MCP 工具、resource、prompt，见 [MCP 服务端](mcp.md)） |
 | `startapp` | 显示名称 | `OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME` | 任意文字；不设时用由名字生成的默认值 |
 | `startservice` | 服务类型 | `OLDMAN_ANSWER_STARTSERVICE_TYPE` | `simple`、`web`、`taskiq_worker`、`taskiq_scheduler` |
 

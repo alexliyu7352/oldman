@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import contextlib
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -192,6 +194,39 @@ class StartAppScaffoldTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, result.output)
         for option in ("--type", "--force", "--project-root"):
             self.assertNotIn(option, result.output)
+
+    def test_an_mcp_app_offers_an_open_tool_a_permission_tool_a_resource_and_a_prompt(self) -> None:
+        """The generated mcp module builds a catalog as it is; one tool is open, so an API key sees something."""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            project = create_web_project(Path(temporary_directory))
+            result = invoke_startapp(project, "report_tools", AppType.MCP, "Report tools")
+            self.assertEqual(0, result.exit_code, result.output + repr(result.exception))
+            app_root = project / "apps" / "report_tools"
+            self.assertEqual(
+                {"__init__.py", "apps.py", "mcp.py", "permissions.py", "migrations/__init__.py"},
+                {str(path.relative_to(app_root)) for path in app_root.rglob("*.py")},
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import apps.report_tools.mcp\n"
+                    "from oldman.mcp import mcp\n"
+                    "catalog = mcp.catalog(['apps.report_tools'])\n"
+                    "print(list(catalog.tools), [resource.wire.uri for resource in catalog.resources], list(catalog.prompts),"
+                    " catalog.tools['report_tools_status'].permission, catalog.tools['report_tools_whoami'].permission.name)\n",
+                ],
+                cwd=project,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertEqual(
+                "['report_tools_status', 'report_tools_whoami'] ['app://report_tools/about'] ['report_tools_question'] None report_tools.use",
+                completed.stdout.strip(),
+            )
 
 
 if __name__ == "__main__":

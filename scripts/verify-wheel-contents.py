@@ -74,6 +74,7 @@ REQUIRED_SCAFFOLD_PREFIXES = (
     "oldman/scaffolds/app/api_app/",
     "oldman/scaffolds/app/web_app/",
     "oldman/scaffolds/app/dashboard_app/",
+    "oldman/scaffolds/app/mcp_app/",
 )
 FORBIDDEN_ADMIN_ASSET_TOKENS = (
     "epg",

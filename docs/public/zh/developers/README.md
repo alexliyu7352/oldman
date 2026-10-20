@@ -29,6 +29,7 @@
 | [Redis/NATS provider](providers.md) | 命名连接、锁、受管 bus、强类型事件/RPC、寻址与完整启停责任 |
 | [后端 HTTP 客户端](http-client.md) | 三种 backend、统一响应、重试、流、Cookie 与 TLS |
 | [流媒体中转](proxy.md) | 上游状态码转发、最终失败时播放器收到什么、路由处理函数要知道的、直播入口与浏览器指纹 |
+| [MCP 服务端](mcp.md) | 把 App 的工具、resource、prompt 提供给 AI agent：装上、谁能调用、限流、协议版本与已知限制 |
 | [进程与后台任务](background.md) | 协程、短期进程、受控外部命令、长期 Worker 与可靠性限制 |
 | [分布式 Taskiq 任务](distributed-tasks.md) | 原生任务 API、JetStream/Redis、Worker/Scheduler、结果与确认失败边界 |
 | [日志](logging.md) | 标准 Logger、初始化、文件轮转、子进程和关闭 |

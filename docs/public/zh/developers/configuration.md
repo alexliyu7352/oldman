@@ -301,7 +301,7 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 ### MCP 端点（web.mcp）
 
-只有服务在 `init()` 里调用 `oldman.mcp.install_mcp(app)` 时才用到；没有调用的服务 YAML 里也有这一段默认值，不改变任何行为。
+只有服务在 `init()` 里调用 `oldman.mcp.install_mcp(app)` 时才用到；没有调用的服务 YAML 里也有这一段默认值，不改变任何行为。用法见 [MCP 服务端](mcp.md)。
 
 | 字段 | 默认 |
 | --- | --- |

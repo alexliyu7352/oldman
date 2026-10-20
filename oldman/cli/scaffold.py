@@ -38,6 +38,7 @@ class AppType(StrEnum):
     API = "api"
     WEB = "web"
     DASHBOARD = "dashboard"
+    MCP = "mcp"
 
 
 class ServiceType(StrEnum):
@@ -91,6 +92,7 @@ APP_TEMPLATE_DIRS = {
     AppType.API: "api_app",
     AppType.WEB: "web_app",
     AppType.DASHBOARD: "dashboard_app",
+    AppType.MCP: "mcp_app",
 }
 
 SERVICE_TEMPLATE_DIRS = {

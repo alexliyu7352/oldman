@@ -52,6 +52,7 @@ GUIDES: tuple[tuple[Applies, str], ...] = (
     (services, "| Cache, Redis, outbound HTTP, NATS | `zh/agents/cache-and-network.md` |"),
     (services, "| Server-sent events, notifications | `zh/agents/realtime.md` |"),
     (types("dashboard"), "| A dashboard page: table, form, create/edit/delete | `en/agents/dashboard-crud.md` |"),
+    (http_services, "| Offer tools, resources or prompts to AI agents over MCP | `en/agents/mcp.md` |"),
     (with_admin, "| Show a model in the built-in Admin, or change how it does | `zh/agents/admin.md` |"),
 )
 

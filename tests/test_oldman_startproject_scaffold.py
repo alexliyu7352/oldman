@@ -640,7 +640,7 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         cases = (
             (ProjectType.CLI, DatabaseChoice.NONE, False, ()),
             (ProjectType.SERVICE, DatabaseChoice.SQLITE, False, (AppType.SERVICE,)),
-            (ProjectType.API, DatabaseChoice.SQLITE, False, (AppType.API,)),
+            (ProjectType.API, DatabaseChoice.SQLITE, False, (AppType.API, AppType.MCP)),
             (ProjectType.WEB, DatabaseChoice.SQLITE, False, (AppType.WEB, AppType.API)),
             (ProjectType.WEB, DatabaseChoice.SQLITE, True, ()),
             (ProjectType.DASHBOARD, DatabaseChoice.SQLITE, False, (AppType.DASHBOARD, AppType.API, AppType.SERVICE)),
