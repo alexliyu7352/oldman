@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from oldman.serializers import MsgspecModel
-from oldman.web import Request, router, json_response
+from oldman.web import Request, json_response, router
 from oldman.web.sse import SSEStream, sse
 from oldman.web.websocket import WebSocket, websocket
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from oldman.web import Request, router, render_template
+from oldman.web import Request, render_template, router
 
 
 @router.get("/{{ app_slug }}", name="{{ app_slug }}_index")

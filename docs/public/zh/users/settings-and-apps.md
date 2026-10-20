@@ -150,7 +150,8 @@ self.require_superuser = admin_settings.require_superuser
 
 from typing import cast
 
-import oldman.conf as conf
+from oldman import conf
+
 from config.schemas import Settings
 
 settings = cast(Settings, conf.settings)

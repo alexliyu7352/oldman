@@ -7,8 +7,6 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from apps.accounts.routes import install_account_pages
-from config.settings import settings
 {{ admin_import }}from oldman.apps.roles.permissions import VIEW_ROLES
 from oldman.auth.user_permissions import VIEW_USERS
 from oldman.i18n import gettext
@@ -25,6 +23,9 @@ from oldman.web.staticfiles import (
     register_project_bundle,
 )
 from oldman.web.template import install_template_loaders
+
+from apps.accounts.routes import install_account_pages
+from config.settings import settings
 
 if TYPE_CHECKING:
     from oldman.web.routing import WebApp

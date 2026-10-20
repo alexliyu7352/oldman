@@ -634,7 +634,8 @@ class StartProjectGeneratedSourceTests(unittest.TestCase):
         """Each project type, with the Apps startapp adds to it, passes ruff under the settings it ships with.
 
         The generated pyproject sets line-length 150, as Oldman's own does; without it ruff's 88 applied, and two
-        dashboard lines and every startapp `apps.py` (a single-quoted name) failed the format check.
+        dashboard lines and every startapp `apps.py` (a single-quoted name) failed the format check. Since ruff 0.17 the
+        default rules also sort imports: in a generated project `oldman` is third-party and `apps`, `config` are its own.
         """
         cases = (
             (ProjectType.CLI, DatabaseChoice.NONE, False, ()),

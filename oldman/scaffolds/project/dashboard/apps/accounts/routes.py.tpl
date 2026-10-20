@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from config.settings import settings
 from oldman.apps.roles.management import RoleManagementFlow
 from oldman.web.auth import AccountFlow, LoginFlow, UserManagementFlow
+
+from config.settings import settings
 
 if TYPE_CHECKING:
     from oldman.web.messages.notifications import NotificationRoutes

@@ -45,7 +45,8 @@ Demo 的 [config/settings.py](https://github.com/alexliyu7352/oldman-epg-dashboa
 ```python
 from typing import cast
 
-import oldman.conf as conf
+from oldman import conf
+
 from config.schemas import Settings
 
 settings = cast(Settings, conf.settings)

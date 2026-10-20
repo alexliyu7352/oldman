@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import Field
-
 from oldman.conf import DefaultSettings
 from oldman.conf.schemas import CoreConfig
+from pydantic import Field
 
 
 class CoreSettings(CoreConfig):

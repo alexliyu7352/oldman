@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from config.settings import settings
 {{ admin_import }}from oldman.runtime import WebApplication
 from oldman.web.template import install_template_loaders
+
+from config.settings import settings
 
 
 class {{ service_class }}(WebApplication):

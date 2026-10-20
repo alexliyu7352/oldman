@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
-import oldman.conf as conf
+from oldman import conf
+
 from config.schemas import Settings
 
 settings = cast(Settings, conf.settings)
