@@ -139,7 +139,13 @@ def result_reply(inbound: Inbound, result: types.Result) -> Reply:
 
 
 def serialize_result(method: str, version: str, result: types.Result) -> dict[str, Any]:
-    """One result as ``version`` sends it; raises ValidationError when that revision cannot carry it."""
+    """One result as ``version`` sends it; raises ValidationError when that revision cannot carry it.
+
+    Request results are not guarded against that: every revision takes every content block and result
+    this server builds (``ResultsInEveryRevisionTest`` walks them), and the one thing a revision refuses,
+    a list definition such as an outputSchema whose root is not an object, is checked for every revision
+    when the server is built (``_server._check_definitions``).
+    """
     return wire.serialize_server_result(method, version, result.model_dump(by_alias=True, mode="json", exclude_none=True))
 
 

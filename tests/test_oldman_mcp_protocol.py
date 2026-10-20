@@ -13,6 +13,7 @@ import unittest
 from types import SimpleNamespace
 from typing import Any
 
+import mcp_types as types
 from mcp_types import version as known_versions
 
 from oldman.mcp import McpRegistry
@@ -57,6 +58,57 @@ def modern_body(method: str, params: dict[str, Any] | None = None, meta: Any = M
 def error_of(reply: Reply) -> tuple[int, int]:
     assert reply.body is not None
     return reply.status, reply.body["error"]["code"]
+
+
+#: One of each content block a tool or a prompt can answer with.
+CONTENT = {
+    "text": types.TextContent(text="hi"),
+    "image": types.ImageContent(data="aGk=", mime_type="image/png"),
+    "audio": types.AudioContent(data="aGk=", mime_type="audio/wav"),
+    "resource_link": types.ResourceLink(uri="notes://1", name="note"),
+    "resource": types.EmbeddedResource(resource=types.TextResourceContents(uri="notes://1", text="x")),
+}
+results = McpRegistry()
+
+
+def _offer(kind: str, block: Any) -> None:
+    """A tool and a prompt that answer with this one content block."""
+
+    async def tool():  # no return annotation: content only, no structured output
+        """One content block, unstructured."""
+        return block
+
+    async def prompt() -> list[types.PromptMessage]:
+        """One message with one content block."""
+        return [types.PromptMessage(role="user", content=block)]
+
+    results.tool(f"tool_{kind}")(tool)
+    results.prompt(f"prompt_{kind}")(prompt)
+
+
+for _kind, _block in CONTENT.items():
+    _offer(_kind, _block)
+
+
+@results.tool()
+async def structured() -> dict[str, int]:
+    """Structured output."""
+    return {"total": 2}
+
+
+@results.resource("notes://text")
+async def text_note() -> str:
+    """Text contents."""
+    return "hello"
+
+
+@results.resource("notes://blob")
+async def blob_note() -> bytes:
+    """Binary contents."""
+    return b"hello"
+
+
+RESULTS_SERVER = McpServer(results.catalog([__name__]), name="results-test", version="0")
 
 
 class VersionListTest(unittest.TestCase):
@@ -158,6 +210,36 @@ class ModernLadderTest(unittest.TestCase):
     def test_session_and_resumption_headers_from_older_clients_are_ignored(self) -> None:
         headers = [*modern_headers("tools/list"), ("Mcp-Session-Id", "abc"), ("Last-Event-ID", "7")]
         self.assertEqual(200, post(headers, modern_body("tools/list")).status)
+
+
+class ResultsInEveryRevisionTest(unittest.TestCase):
+    """Results are serialized for the client's revision when it asks: each revision must take each one."""
+
+    def ask(self, version: str, method: str, params: dict[str, Any], name: str) -> dict[str, Any]:
+        body: dict[str, Any] = {"jsonrpc": "2.0", "id": 1, "method": method, "params": dict(params)}
+        headers = [("MCP-Protocol-Version", version)]
+        if version in MODERN_VERSIONS:
+            body["params"]["_meta"] = META
+            headers += [("Mcp-Method", method), ("Mcp-Name", name)]
+        reply = asyncio.run(RESULTS_SERVER.handle(REQUEST, headers, json.dumps(body).encode(), "application/json"))
+        assert reply.body is not None
+        self.assertEqual(200, reply.status, reply.body)
+        return reply.body["result"]
+
+    def test_every_content_block_tool_result_and_resource_reaches_every_revision(self) -> None:
+        for version in (*HANDSHAKE_VERSIONS, *MODERN_VERSIONS):
+            for kind in CONTENT:
+                with self.subTest(version=version, kind=kind):
+                    tool = self.ask(version, "tools/call", {"name": f"tool_{kind}", "arguments": {}}, f"tool_{kind}")
+                    self.assertEqual([kind], [block["type"] for block in tool["content"]])
+                    prompt = self.ask(version, "prompts/get", {"name": f"prompt_{kind}", "arguments": {}}, f"prompt_{kind}")
+                    self.assertEqual(kind, prompt["messages"][0]["content"]["type"])
+            with self.subTest(version=version, kind="structured and resources"):
+                self.assertEqual(
+                    {"total": 2}, self.ask(version, "tools/call", {"name": "structured", "arguments": {}}, "structured")["structuredContent"]
+                )
+                self.assertEqual("hello", self.ask(version, "resources/read", {"uri": "notes://text"}, "notes://text")["contents"][0]["text"])
+                self.assertIn("blob", self.ask(version, "resources/read", {"uri": "notes://blob"}, "notes://blob")["contents"][0])
 
 
 class HandshakeEraTest(unittest.TestCase):
