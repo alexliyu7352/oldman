@@ -111,6 +111,7 @@ def settings_for(**mcp: Any) -> DefaultSettings:
     settings.web.auth.authenticators = ["jwt", "api_key"]
     settings.web.auth.jwt.secret = SECRET
     settings.web.auth.api_keys = {"agent": APIKeyConfig(secret=AGENT_KEY), "monitor": APIKeyConfig(secret=MONITOR_KEY)}
+    settings.web.mcp.enabled = True
     settings.web.mcp.callers = ["agent"]
     for name, value in mcp.items():
         if name == "rate_limit":
@@ -131,7 +132,11 @@ class InstalledApps:
 
     packages = ("mcp_web_app",)
 
+    def __init__(self) -> None:
+        self.loads = 0
+
     def load_mcp(self) -> None:
+        self.loads += 1
         importlib.import_module("mcp_web_app.mcp")
 
 
@@ -421,6 +426,23 @@ class StartupCheckTest(EndpointTestCase):
                         install_mcp(app)
                 finally:
                     Sanic.unregister_app(app)
+
+    async def test_while_disabled_nothing_is_loaded_checked_or_routed(self) -> None:
+        """The default: a service may call install_mcp with settings that would otherwise stop it."""
+        nobody = settings_for(enabled=False, callers=[])
+        nobody.web.auth.authenticators = ["session"]
+        app = Sanic("mcp_disabled")
+        apps = InstalledApps()
+        app.ctx.app_registry = apps
+        try:
+            with patch.dict(conf.__dict__, {"settings": nobody}), self.assertLogs("default.mcp", "INFO") as logs:
+                self.assertIsNone(install_mcp(app))
+            self.assertEqual(0, apps.loads)
+            self.assertNotIn("mcp_endpoint", {route.name.rsplit(".", 1)[-1] for route in app.router.routes})
+            self.assertIn("web.mcp.enabled is false", logs.output[0])
+        finally:
+            Sanic.unregister_app(app)
+        self.assertFalse(DefaultSettings().web.mcp.enabled)
 
     async def test_it_needs_the_service_app_registry(self) -> None:
         app = Sanic("mcp_startup_without_registry")

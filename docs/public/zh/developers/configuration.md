@@ -301,10 +301,11 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 
 ### MCP 端点（web.mcp）
 
-只有服务在 `init()` 里调用 `oldman.mcp.install_mcp(app)` 时才用到；没有调用的服务 YAML 里也有这一段默认值，不改变任何行为。用法见 [MCP 服务端](mcp.md)。
+只有服务在 `init()` 里调用 `oldman.mcp.install_mcp(app)`、并且 `web.mcp.enabled` 为 true 时才用到；其他服务的 YAML 里也有这一段默认值，不改变任何行为。用法见 [MCP 服务端](mcp.md)。
 
 | 字段 | 默认 |
 | --- | --- |
+| `web.mcp.enabled` | `False`：`install_mcp` 什么都不做（不加载 App 的 `mcp` 模块、不检查下面的设置、不注册路由），记一条 INFO。代码装上、设置决定开不开，部署方不改代码就能关掉 |
 | `web.mcp.path` | `/mcp` |
 | `web.mcp.allow_anonymous` | `False`：没有凭据的请求得到 401；打开后匿名只能调不带 `permission=` 的工具。浏览器自动带上的凭据（session、HTTP Basic、IP 白名单）不论怎么设都得到 403 |
 | `web.mcp.callers` | 空：不接受 API key。列出的名字必须在 `web.auth.api_keys` 里，`web.auth.authenticators` 也要列 `api_key` |
@@ -314,7 +315,7 @@ Core 事件/RPC 另由根 nats_bus 控制：enabled/consume 默认 false，nats_
 | `web.mcp.rate_limit.enabled` / `limit` / `period` | `True` / 60 / 60 秒：每个调用方（用户、API key、匿名地址）每个窗口最多调用这么多次工具，超出时工具返回错误并写明几秒后重试 |
 | `web.mcp.rate_limit.redis_alias` | 未设置，用 `web.session.redis_alias`，与登录限流相同 |
 
-`install_mcp` 在启动时检查：`web.auth.authenticators` 没有 `jwt`、`callers` 为空、又没打开 `allow_anonymous`（谁都连不上）时报错。
+打开后，`install_mcp` 在启动时检查：`web.auth.authenticators` 没有 `jwt`、`callers` 为空、又没打开 `allow_anonymous`（谁都连不上）时报错。
 
 `core.debug` 为 true 时，Web 服务的 Sanic 会对事件循环调用 `set_debug(True)`。在这个模式下，uvloop 回收没有关闭的 async generator 时可能报 `AttributeError`，也可能直接段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)；到 2026-10-01 为止，0.22.1 与 0.23.0 都没有修复）。两个条件同时满足才会出现：打开了调试模式，并且代码里有 async generator 没有关闭（`break` 跳出 `async for` 之类）、留给垃圾回收。换 Python 版本避不开：用上游 #715 的复现脚本实测，3.12 的各补丁版和 3.13.11、3.13.15、3.14.2 在调试模式下都会出现（段错误，或者只打印一条 `AttributeError` 的 "Exception ignored"），3.14.7 上这个脚本不出错、框架自己的测试却会崩；关掉调试就都正常。框架自己的测试在 3.13.11、3.14.2 上不触发，CI 因此固定这两个版本。默认关闭调试的生产运行不受影响。调试时遇到回收 async generator 的报错或段错误就是这个问题；把自己代码里的 async generator 显式关闭（`contextlib.aclosing`），不留给垃圾回收，就不会触发。
 

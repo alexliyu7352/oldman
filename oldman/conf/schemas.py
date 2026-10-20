@@ -1196,8 +1196,9 @@ class MCPRateLimitConfig(ConfigModel):
 
 
 class MCPConfig(ConfigModel):
-    """The MCP endpoint oldman.mcp.install_mcp() adds to this Web service; unused until it is called."""
+    """The MCP endpoint oldman.mcp.install_mcp() adds to this Web service: off until enabled here."""
 
+    enabled: bool = Field(default=False, description="Turn on the MCP endpoint of a service whose init() calls install_mcp(app)")
     path: str = Field(default="/mcp", pattern=r"^/\S*$", description="Path of the MCP endpoint")
     allow_anonymous: bool = Field(
         default=False,

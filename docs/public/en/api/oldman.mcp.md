@@ -11,10 +11,10 @@ Import with `from oldman.mcp import <name>`.
 function · defined in `oldman.mcp._web`
 
 ```python
-def install_mcp(app: Any) -> McpServer
+def install_mcp(app: Any) -> McpServer | None
 ```
 
-Offer the installed Apps' MCP tools at ``web.mcp.path`` on this Web service.
+Offer the installed Apps' MCP tools at ``web.mcp.path`` on this Web service, when ``web.mcp.enabled``.
 
 ## `mcp`
 

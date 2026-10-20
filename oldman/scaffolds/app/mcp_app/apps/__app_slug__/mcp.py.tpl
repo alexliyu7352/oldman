@@ -6,6 +6,8 @@ A Web service offers them once its ``init()`` calls ``install_mcp(app)`` after `
 
     install_mcp(app)
 
+and its settings turn the endpoint on with ``web.mcp.enabled: true`` (off by default).
+
 Users connect with a JWT access token; programs with an API key whose name is listed in
 ``web.mcp.callers``. A tool with ``permission=`` is listed for, and callable by, only the users
 who hold it.

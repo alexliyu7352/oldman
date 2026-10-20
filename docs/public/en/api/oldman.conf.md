@@ -602,10 +602,11 @@ class · defined in `oldman.conf.schemas`
 class MCPConfig(ConfigModel)
 ```
 
-The MCP endpoint oldman.mcp.install_mcp() adds to this Web service; unused until it is called.
+The MCP endpoint oldman.mcp.install_mcp() adds to this Web service: off until enabled here.
 
 Members:
 
+- `enabled: bool = Field(default=False, description='Turn on the MCP endpoint of a service whose init() calls install_…`
 - `path: str = Field(default='/mcp', pattern='^/\\S*$', description='Path of the MCP endpoint')`
 - `allow_anonymous: bool = Field(default=False, description='Let requests with no credential call the tools that need no permi…`
 - `callers: list[str] = Field(default_factory=list, description='Names in web.auth.api_keys that may use the endpoint; empt…`

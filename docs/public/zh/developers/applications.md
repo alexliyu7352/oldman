@@ -107,7 +107,7 @@ apps/examples/
 | `commands_module` | `"commands"` | 相对 App 包的命令模块 |
 | `tasks_module` | `"tasks"` | Worker/Scheduler 加载的任务模块；模型阶段之后 |
 | `events_module` | `"events"` | 启用 Core 接收的 Web/Simple 加载的 handler 声明；模型阶段之后 |
-| `mcp_module` | `"mcp"` | MCP 工具、resource、prompt 的声明（`from oldman.mcp import mcp`）；只有调用 `install_mcp(app)` 的 Web 服务加载，模型阶段之后 |
+| `mcp_module` | `"mcp"` | MCP 工具、resource、prompt 的声明（`from oldman.mcp import mcp`）；只有调用 `install_mcp(app)` 且 `web.mcp.enabled` 为 true 的 Web 服务加载，模型阶段之后 |
 
 模块路径必须是非空的相对 Python 模块路径，不能设置为 `None`。默认目录没有对应模块时，模型、视图或命令加载可正常跳过；模块存在但内部 import 失败时保留真正的异常，不伪装成“没有这个模块”。如果覆盖为嵌套模块，其父包需要实际存在。
 

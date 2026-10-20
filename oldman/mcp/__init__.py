@@ -1,6 +1,6 @@
 """Offer the installed Apps' tools, resources and prompts to agents over the Model Context Protocol.
 
-A Web service calls ``install_mcp(app)`` in its ``init()``; an App declares tools (and resources and
+A Web service calls ``install_mcp(app)`` in its ``init()`` and turns it on with ``web.mcp.enabled``; an App declares tools (and resources and
 prompts, with ``mcp.resource(uri)`` and ``mcp.prompt()``) in its ``mcp`` module with the process-wide registry::
 
     from oldman.mcp import mcp

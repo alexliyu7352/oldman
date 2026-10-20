@@ -30,17 +30,22 @@ ENDPOINT_ROUTE = "mcp_endpoint"
 _OTHER_METHODS_ROUTE = "mcp_endpoint_other_methods"
 
 
-def install_mcp(app: Any) -> McpServer:
-    """Offer the installed Apps' MCP tools at ``web.mcp.path`` on this Web service.
+def install_mcp(app: Any) -> McpServer | None:
+    """Offer the installed Apps' MCP tools at ``web.mcp.path`` on this Web service, when ``web.mcp.enabled``.
 
-    Call it in the service's ``init()`` after ``super().init()``, like ``install_admin(app)``. It loads each
-    installed App's ``mcp`` module, builds the catalog and checks the settings now, so a mistake stops
-    startup rather than the first request.
+    Call it in the service's ``init()`` after ``super().init()``, like ``install_admin(app)``. While
+    ``web.mcp.enabled`` is false (the default) it does nothing and returns None: the code can stay installed
+    and the settings decide, so a project whose settings name no MCP caller still starts. When enabled it
+    loads each installed App's ``mcp`` module, builds the catalog and checks the settings now, so a mistake
+    stops startup rather than the first request.
     """
     from oldman.mcp import mcp
 
     settings = conf.settings
     config = settings.web.mcp
+    if not config.enabled:
+        logger.info("MCP endpoint is off: web.mcp.enabled is false")
+        return None
     _check_callers(settings)
     app_registry = getattr(app.ctx, "app_registry", None)
     if app_registry is None:

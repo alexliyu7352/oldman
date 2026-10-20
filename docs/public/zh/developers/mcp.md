@@ -20,7 +20,7 @@ class WebService(WebApplication):
         install_mcp(app)
 ```
 
-`install_mcp` 加载每个已安装 App 的 `mcp` 模块（`AppConfig.mcp_module`，默认 `"mcp"`），建出这个服务提供的目录，检查设置，再注册 `POST <web.mcp.path>`（默认 `/mcp`）。设置有问题、两个 App 声明了同名的工具、签名里的类型解析不了，都在这里报错，服务起不来，不会等到第一个请求。没有调用 `install_mcp` 的服务不加载任何 MCP 代码。
+`web.mcp.enabled` 默认为 false，这时 `install_mcp` 什么都不做、返回 `None`，记一条 INFO：代码可以先装上，由各环境的设置决定开不开，没有配置调用方的项目照常启动。打开后，`install_mcp` 加载每个已安装 App 的 `mcp` 模块（`AppConfig.mcp_module`，默认 `"mcp"`），建出这个服务提供的目录，检查设置，再注册 `POST <web.mcp.path>`（默认 `/mcp`）。设置有问题、两个 App 声明了同名的工具、签名里的类型解析不了，都在这里报错，服务起不来，不会等到第一个请求。没有调用 `install_mcp` 或没有打开的服务不加载任何 App 的 `mcp` 模块。
 
 ## 在 App 里声明
 
@@ -100,7 +100,7 @@ async def weekly_summary(week: str) -> str:
 
 请求带 `Origin` 头（浏览器里的 MCP 客户端会带）时必须在 `web.mcp.allowed_origins` 里，否则 403；命令行与桌面客户端不发这个头。`Accept` 要接受 JSON（`application/json`、`application/*` 或 `*/*`），否则 406；请求体超过 `web.mcp.max_request_body_size`（默认 4 MiB）得到 413，读到超出就停，不会先读完。
 
-设置项及默认值见[配置](configuration.md)的"MCP 端点（web.mcp）"一节。`install_mcp` 在启动时检查：谁都连不上（没有 `jwt`、`callers` 为空、没开 `allow_anonymous`）、`callers` 非空却没列 `api_key` 认证方式、`callers` 里有 `web.auth.api_keys` 没定义的名字，都报错。
+设置项及默认值见[配置](configuration.md)的"MCP 端点（web.mcp）"一节。打开后，`install_mcp` 在启动时检查：谁都连不上（没有 `jwt`、`callers` 为空、没开 `allow_anonymous`）、`callers` 非空却没列 `api_key` 认证方式、`callers` 里有 `web.auth.api_keys` 没定义的名字，都报错。
 
 ## 限流
 

@@ -37,7 +37,9 @@ from oldman.mcp import install_mcp
 
 ## 3. Decide who may call, in the settings
 
-In `data/<service>_settings.yaml` under `web:`. `install_mcp` refuses to start when nobody could call.
+In `data/<service>_settings.yaml` under `web:`. Set `web.mcp.enabled: true`: while it is false (the default)
+`install_mcp` does nothing and logs `MCP endpoint is off`. Once enabled, `install_mcp` refuses to start when nobody
+could call.
 
 - Signed-in users: list `jwt` in `web.auth.authenticators` and set `web.auth.jwt.secret`. Clients send
   `Authorization: Bearer <access token>`; tokens come from a `TokenFlow` route (`docs/public/zh/developers/web.md`).
@@ -104,8 +106,8 @@ curl -s http://127.0.0.1:<port>/mcp \
 ```
 
   The answer lists the tools this caller may see. `{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params":
-  {"name": "<tool>", "arguments": {...}}}` calls one. A 401 means no credential was recognised, a 403 a credential this
-  route refuses (or an API key missing from `web.mcp.callers`).
+  {"name": "<tool>", "arguments": {...}}}` calls one. A 404 means the endpoint is off (`web.mcp.enabled`), a 401 that
+  no credential was recognised, a 403 a credential this route refuses (or an API key missing from `web.mcp.callers`).
 - To add the server to Claude Code: `claude mcp add --transport http <name> http://127.0.0.1:<port>/mcp --header "X-API-Key: <key>"`.
 
 The endpoint answers in JSON only: no progress notifications, no subscriptions, no sessions. A tool that needs more
