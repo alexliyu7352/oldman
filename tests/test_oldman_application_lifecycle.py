@@ -447,6 +447,7 @@ class OldmanApplicationLifecycleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             pid_path = os.path.join(tmp, "service_sync.pid")
             child_pid_file = os.path.join(tmp, "child.pid")
+            child_ready = os.path.join(tmp, "child.ready")
             script = textwrap.dedent(
                 f"""
                 import os, time
@@ -460,8 +461,14 @@ class OldmanApplicationLifecycleTest(unittest.TestCase):
                 Service.create_command_pid_file({pid_path!r}, "sync")
                 child = os.fork()
                 if child == 0:
+                    # os.fork() runs the after-fork hooks before it returns, so the marker means they ran.
+                    open({child_ready!r}, "w").close()
                     time.sleep(10)
                     os._exit(0)
+                # Exiting before the child is scheduled would leave the lock on the child's copy of the
+                # descriptor until its hooks run: the probe below would see a race, not the hook.
+                while not os.path.exists({child_ready!r}):
+                    time.sleep(0.01)
                 with open({child_pid_file!r}, "w") as f:
                     f.write(str(child))
                 os._exit(0)  # the command dies: no cleanup, no unlock
