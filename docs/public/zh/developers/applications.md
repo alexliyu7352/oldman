@@ -107,6 +107,7 @@ apps/examples/
 | `commands_module` | `"commands"` | 相对 App 包的命令模块 |
 | `tasks_module` | `"tasks"` | Worker/Scheduler 加载的任务模块；模型阶段之后 |
 | `events_module` | `"events"` | 启用 Core 接收的 Web/Simple 加载的 handler 声明；模型阶段之后 |
+| `mcp_module` | `"mcp"` | MCP 工具声明（`from oldman.mcp import mcp`）；只有调用 `install_mcp(app)` 的 Web 服务加载，模型阶段之后 |
 
 模块路径必须是非空的相对 Python 模块路径，不能设置为 `None`。默认目录没有对应模块时，模型、视图或命令加载可正常跳过；模块存在但内部 import 失败时保留真正的异常，不伪装成“没有这个模块”。如果覆盖为嵌套模块，其父包需要实际存在。
 
@@ -141,7 +142,7 @@ App 包根、`apps.py` 和配置模型模块应保持轻量：不读取尚未绑
 | `get_model_metadata(model)` | 模型对应的 Table、App label、展示名与 managed 状态 |
 | `commands`、`get_command(name)`、`get_app_commands(label)` | 命令阶段完成后查询已发现命令 |
 
-调用 `models` 或 `commands` 前对应阶段必须完成。`register_packages()`、`bind_settings()`、`load_models()`、`load_commands()`、`load_permissions()`、`load_views()`、`load_tasks()`、`load_events()` 是配置与运行时使用的阶段接口；应用不应建立第二个 Registry 与框架并行注册。每个加载阶段完成后重复调用不会重复导入，模型阶段开始后不能再追加 App。permissions、events 与 tasks 一样不能在加载时声明新的数据库表，也不应执行网络 I/O。
+调用 `models` 或 `commands` 前对应阶段必须完成。`register_packages()`、`bind_settings()`、`load_models()`、`load_commands()`、`load_permissions()`、`load_views()`、`load_tasks()`、`load_events()`、`load_mcp()` 是配置与运行时使用的阶段接口；应用不应建立第二个 Registry 与框架并行注册。每个加载阶段完成后重复调用不会重复导入，模型阶段开始后不能再追加 App。permissions、events、mcp 与 tasks 一样不能在加载时声明新的数据库表，也不应执行网络 I/O。
 
 所有模型共用 `Base.metadata`。Registry 根据已注册 App 的定义模块记录归属，关联表也需要处于相应模型模块中。`oldman_user` 的选定模型由 Auth 配置决定，不在每个 App 中创建一个具体 User。
 

@@ -50,6 +50,7 @@ class AppConfig[T_AppSettings]:
     commands_module = "commands"
     tasks_module = "tasks"
     events_module = "events"
+    mcp_module = "mcp"
 
     def __init__(self) -> None:
         """Validate static metadata without resolving settings or translations."""
@@ -80,6 +81,7 @@ class AppConfig[T_AppSettings]:
             "commands_module",
             "tasks_module",
             "events_module",
+            "mcp_module",
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str) or _MODULE_PATTERN.fullmatch(value) is None:

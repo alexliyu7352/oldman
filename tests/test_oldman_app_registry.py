@@ -137,6 +137,7 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(app.commands_module, "commands")
         self.assertEqual(app.tasks_module, "tasks")
         self.assertEqual(app.events_module, "events")
+        self.assertEqual(app.mcp_module, "mcp")
         with self.assertRaises(api.AppNotInstalledError):
             _ = app.settings
 
@@ -165,6 +166,8 @@ class AppConfigTests(unittest.TestCase):
             ("tasks_module", "../tasks", "tasks_module"),
             ("events_module", None, "events_module"),
             ("events_module", "../events", "events_module"),
+            ("mcp_module", None, "mcp_module"),
+            ("mcp_module", "../mcp", "mcp_module"),
         )
 
         for field, value, message in invalid_values:
@@ -555,6 +558,61 @@ class AppTaskLoadingTests(unittest.TestCase):
                 """,
                 )
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+
+class AppMcpLoadingTests(unittest.TestCase):
+    """MCP declarations load like events: installed Apps only, after models, once."""
+
+    def test_mcp_modules_load_once_after_models_from_installed_apps_only(self) -> None:
+        with _temporary_packages(
+            {
+                "tool_app/__init__.py": "order = []",
+                "tool_app/apps.py": """
+                from oldman.apps import AppConfig
+                class Config(AppConfig):
+                    label = "tool_app"
+                    display_name = "Tool app"
+                app = Config()
+            """,
+                "tool_app/models.py": "from tool_app import order; order.append('models')",
+                "tool_app/mcp.py": """
+                from tool_app import order
+                from oldman.mcp import mcp
+                order.append('mcp')
+                @mcp.tool()
+                async def ping() -> str:
+                    return "pong"
+            """,
+                "tool_app/views.py": "raise AssertionError('MCP must not import views')",
+                "uninstalled/__init__.py": "",
+                "uninstalled/mcp.py": "raise AssertionError('App is not installed')",
+            }
+        ) as root:
+            result = _run_python(
+                root,
+                """
+                import sys
+                from unittest.mock import patch
+                from oldman.apps import AppRegistry
+                from tool_app import order
+                with patch("socket.socket", side_effect=AssertionError("declaration connected")):
+                    registry = AppRegistry()
+                    registry.register_packages(("tool_app",))
+                    try:
+                        registry.load_mcp()
+                    except RuntimeError as error:
+                        assert "models must be loaded" in str(error)
+                    else:
+                        raise AssertionError("MCP declarations loaded before models")
+                    registry.load_models()
+                    registry.load_mcp()
+                    registry.load_mcp()
+                    assert order == ["models", "mcp"], order
+                    assert "uninstalled.mcp" not in sys.modules
+                    assert "tool_app.views" not in sys.modules
+            """,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
 class AppEventLoadingTests(unittest.TestCase):

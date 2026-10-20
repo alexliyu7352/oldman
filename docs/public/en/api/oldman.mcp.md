@@ -6,6 +6,16 @@ Offer the installed Apps' tools to agents over the Model Context Protocol.
 
 Import with `from oldman.mcp import <name>`.
 
+## `install_mcp`
+
+function · defined in `oldman.mcp._web`
+
+```python
+def install_mcp(app: Any) -> McpServer
+```
+
+Offer the installed Apps' MCP tools at ``web.mcp.path`` on this Web service.
+
 ## `mcp`
 
 value · defined in `oldman.mcp`

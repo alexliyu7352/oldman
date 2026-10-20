@@ -594,6 +594,44 @@ Members:
 - `smtp: SMTPMailConfig = Field(default_factory=SMTPMailConfig, description='SMTP transport settings')`
 - `classmethod def validate_backend_path(value: str) -> str` — Backends are imported lazily, so at least the path shape is checked here.
 
+### `MCPConfig`
+
+class · defined in `oldman.conf.schemas`
+
+```python
+class MCPConfig(ConfigModel)
+```
+
+The MCP endpoint oldman.mcp.install_mcp() adds to this Web service; unused until it is called.
+
+Members:
+
+- `path: str = Field(default='/mcp', pattern='^/\\S*$', description='Path of the MCP endpoint')`
+- `allow_anonymous: bool = Field(default=False, description='Let requests with no credential call the tools that need no permi…`
+- `callers: list[str] = Field(default_factory=list, description='Names in web.auth.api_keys that may use the endpoint; empt…`
+- `allowed_origins: list[str] = Field(default_factory=list, description='Origins a browser-based MCP client may call from; a reques…`
+- `max_request_body_size: int = Field(default=4 * 1024 * 1024, gt=0, description='Largest request body in bytes; larger gets 413')`
+- `name: str | None = Field(default=None, description='Name the server reports to clients; unset uses core.site_name, the…`
+- `instructions: str | None = Field(default=None, description='Guidance a client may give the model about using these tools')`
+- `rate_limit: MCPRateLimitConfig = Field(default_factory=MCPRateLimitConfig, description='Tool call rate limit')`
+
+### `MCPRateLimitConfig`
+
+class · defined in `oldman.conf.schemas`
+
+```python
+class MCPRateLimitConfig(ConfigModel)
+```
+
+How often one caller may call MCP tools: the MCP spec says servers MUST rate limit tool invocations.
+
+Members:
+
+- `enabled: bool = Field(default=True, description='Limit tools/call per caller (a signed-in user, an API key, or an a…`
+- `limit: int = Field(default=60, gt=0, description='Tool calls one caller may make per period')`
+- `period: int = Field(default=60, gt=0, description='Length of the counting window in seconds')`
+- `redis_alias: str | None = Field(default=None, min_length=1, description='Named Redis connection for the counters; unset uses …`
+
 ### `MediaConfig`
 
 class · defined in `oldman.conf.schemas`
@@ -975,6 +1013,7 @@ Members:
 - `static: StaticConfig = Field(default_factory=StaticConfig, description='Static asset settings')`
 - `media: MediaConfig = Field(default_factory=MediaConfig, description='Media asset settings')`
 - `frontend: FrontendConfig = Field(default_factory=FrontendConfig, description='Frontend build settings')`
+- `mcp: MCPConfig = Field(default_factory=MCPConfig, description='MCP endpoint settings, used by oldman.mcp.install_mcp…`
 
 ### `WebSecurityConfig`
 

@@ -58,6 +58,7 @@ class AppRegistry:
         self._permissions_loaded = False
         self._tasks_loaded = False
         self._events_loaded = False
+        self._mcp_loaded = False
         self._models: tuple[ModelMetadata, ...] = ()
         self._models_by_type: dict[type[Any], ModelMetadata] = {}
         self._commands: tuple[Command, ...] = ()
@@ -429,6 +430,13 @@ class AppRegistry:
             return
         self._load_runtime_modules("events", "events_module")
         self._events_loaded = True
+
+    def load_mcp(self) -> None:
+        """Import installed Apps' MCP declarations once; only ``oldman.mcp.install_mcp`` asks for them."""
+        if self._mcp_loaded:
+            return
+        self._load_runtime_modules("mcp", "mcp_module")
+        self._mcp_loaded = True
 
     def _load_runtime_modules(self, stage: str, module_field: str) -> None:
         """Runtime declarations share the existing post-model import boundary."""

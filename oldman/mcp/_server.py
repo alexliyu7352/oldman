@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 import mcp_types as types
 from mcp_types import jsonrpc
 from pydantic import ValidationError
+from redis.exceptions import RedisError
 from sanic.exceptions import SanicException
 
 from oldman.logging import get_logger
@@ -29,17 +31,29 @@ from oldman.mcp._protocol import (
 )
 from oldman.mcp._registry import McpCatalog, Tool, ToolError
 from oldman.web.auth.permissions import has_perm
+from oldman.web.request import client_ip
+from oldman.web.security.rate_limiter import RateLimiter, window_retry_after
 
 logger = get_logger("default.mcp")
+
+
+@dataclass(frozen=True, slots=True)
+class RateLimit:
+    """How often one caller may call tools (spec server/tools: servers MUST rate limit tool invocations)."""
+
+    limiter: RateLimiter
+    limit: int
+    period: int
 
 
 class McpServer:
     """One service's MCP answers: its catalog and the identity it reports."""
 
-    __slots__ = ("_capabilities", "_catalog", "_info", "_instructions")
+    __slots__ = ("_capabilities", "_catalog", "_info", "_instructions", "_rate_limit")
 
-    def __init__(self, catalog: McpCatalog, *, name: str, version: str, instructions: str | None = None) -> None:
+    def __init__(self, catalog: McpCatalog, *, name: str, version: str, instructions: str | None = None, rate_limit: RateLimit | None = None) -> None:
         self._catalog = catalog
+        self._rate_limit = rate_limit
         self._info = types.Implementation(name=name, version=version)
         self._instructions = instructions
         self._capabilities = types.ServerCapabilities(tools=types.ToolsCapability())
@@ -101,6 +115,9 @@ class McpServer:
         if tool is None or not usable:
             # A tool this caller cannot see is answered as unknown, so that calling does not reveal it.
             return error_reply(inbound.era, inbound.id, jsonrpc.INVALID_PARAMS, f"Unknown tool: {params.name}")
+        refused = await self._over_limit(request)
+        if refused is not None:
+            return result_reply(inbound, _tool_error(refused))
         try:
             arguments = tool.arguments.model_validate(params.arguments or {})
         except ValidationError as exc:
@@ -121,6 +138,33 @@ class McpServer:
             logger.exception(f"MCP tool {tool.name!r} failed")
             return result_reply(inbound, _tool_error("The tool failed"))
         return result_reply(inbound, result)
+
+    async def _over_limit(self, request: Any) -> str | None:
+        """Why this call is refused by the rate limit, or None. A store that cannot count refuses too."""
+        if self._rate_limit is None:
+            return None
+        limit = self._rate_limit
+        try:
+            limited = await limit.limiter.is_rate_limited(_caller_key(request), "tools/call", limit.limit, limit.period)
+        except RedisError:
+            # Not counted is not allowed: the limit would silently stop working while Redis is down.
+            logger.exception("MCP rate limit store is unavailable")
+            return "The rate limit store is unavailable. Try again later."
+        if limited:
+            # A tool error rather than an HTTP 429, so that the model reads how long to wait.
+            return f"Rate limit exceeded: at most {limit.limit} tool calls per {limit.period} seconds. Try again in {window_retry_after(limit.period)} seconds."
+        return None
+
+
+def _caller_key(request: Any) -> str:
+    """Whom a call counts against: the signed-in user, the API key, or the address of an anonymous caller."""
+    auth = getattr(request.ctx, "auth", None)
+    user = getattr(request.ctx, "user", None)
+    if user is not None and user.is_authenticated:
+        return f"user:{user.id}"
+    if auth is not None and auth.caller is not None:
+        return f"caller:{auth.caller}"
+    return f"ip:{client_ip(request)}"
 
 
 async def _visible(tool: Tool, request: Any) -> bool:

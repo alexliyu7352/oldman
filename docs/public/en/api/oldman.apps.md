@@ -74,6 +74,7 @@ Members:
 - `def load_permissions() -> None` — Import each installed App's permission declarations once, after models.
 - `def load_tasks() -> None` — Import only installed Apps' tasks once, without loading Web modules.
 - `def load_events() -> None` — Declare installed App handlers once; the caller owns network startup.
+- `def load_mcp() -> None` — Import installed Apps' MCP declarations once; only ``oldman.mcp.install_mcp`` asks for them.
 
 ## `AppSettingsNotDefinedError`
 

@@ -17,7 +17,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.cache.backends`](oldman.cache.backends.md) | 5 |  |
 | [`oldman.cli`](oldman.cli.md) | 35 | Lazy public entry point for the Oldman command line. |
 | [`oldman.cli.tui`](oldman.cli.tui.md) | 25 | Terminal interaction for Oldman commands and ops tools. |
-| [`oldman.conf`](oldman.conf.md) | 51 | Application settings bootstrap and public configuration API. |
+| [`oldman.conf`](oldman.conf.md) | 53 | Application settings bootstrap and public configuration API. |
 | [`oldman.contrib.http`](oldman.contrib.http.md) | 16 | @author:alex |
 | [`oldman.contrib.http.backends`](oldman.contrib.http.backends.md) | 3 | HTTP客户端后端实现 |
 | [`oldman.contrib.proxy`](oldman.contrib.proxy.md) | 7 | @author:alex |
@@ -27,7 +27,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.logging`](oldman.logging.md) | 19 | Stable public logging API for Oldman applications. |
 | [`oldman.mail`](oldman.mail.md) | 18 | Outgoing mail: django.core.mail's shape, async, on the stdlib email package and aiosmtplib. |
 | [`oldman.mail.backends`](oldman.mail.backends.md) | 6 | Built-in outgoing mail backends. |
-| [`oldman.mcp`](oldman.mcp.md) | 4 | Offer the installed Apps' tools to agents over the Model Context Protocol. |
+| [`oldman.mcp`](oldman.mcp.md) | 5 | Offer the installed Apps' tools to agents over the Model Context Protocol. |
 | [`oldman.ops`](oldman.ops.md) | 10 | Building blocks for server maintenance and deployment tools. |
 | [`oldman.processes`](oldman.processes.md) | 12 | Process execution primitives with explicit lifecycle ownership. |
 | [`oldman.providers.nats`](oldman.providers.nats.md) | 6 | @author:alex |
