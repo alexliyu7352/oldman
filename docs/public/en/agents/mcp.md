@@ -86,7 +86,9 @@ async def weekly_summary(week: str) -> str:
 - Take `request: Request` as the first parameter only when the code needs the caller (`request.ctx.user`).
 - Raise `ToolError("…")` for a failure the model should read; anything else is logged and the model only sees
   "The tool failed".
-- Return plain data (a model, a dict, a number): structured output is generated from the return annotation.
+- Return plain data (a model, a dict, a number): structured output is generated from the return annotation. A
+  container of msgspec Structs (`list[Struct]`) has no schema and stops `install_mcp`; return a Struct that holds the
+  list instead.
 - `permission=` hides the item from, and refuses it to, users without that permission. API-key callers and anonymous
   callers have no permissions: give them only items without `permission=`. Declare permissions in `permissions.py`
   (`docs/public/zh/developers/permissions.md`).

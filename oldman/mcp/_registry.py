@@ -22,7 +22,7 @@ from urllib.parse import unquote
 
 import mcp_types as types
 import msgspec
-from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError, create_model
+from pydantic import BaseModel, ConfigDict, PydanticSchemaGenerationError, TypeAdapter, ValidationError, create_model
 from pydantic.fields import FieldInfo
 
 from oldman.auth.permissions import Permission
@@ -393,13 +393,20 @@ def _build_tool(declaration: _ToolDeclaration) -> Tool:
         fields[parameter.name] = (annotation, default)
     # Extra arguments are refused, not dropped: the model learns from the error what the tool takes.
     # For a tool without parameters this gives the schema the spec recommends ("additionalProperties": false).
-    arguments = create_model(f"{declaration.name}_arguments", __config__=ConfigDict(extra="forbid"), **fields)
-    output = _output(function, hints)
+    try:
+        arguments = create_model(f"{declaration.name}_arguments", __config__=ConfigDict(extra="forbid"), **fields)
+        input_schema = arguments.model_json_schema()
+        output = _output(function, hints)
+    except PydanticSchemaGenerationError as exc:
+        raise TypeError(
+            f"MCP tool {declaration.name!r} in {function.__module__!r}: a type in its signature has no JSON schema "
+            f"({str(exc).splitlines()[0]}). Use a type pydantic knows, or return a pydantic model or msgspec Struct that holds it."
+        ) from exc
     wire = types.Tool(
         name=declaration.name,
         title=declaration.title,
         description=declaration.description,
-        input_schema=arguments.model_json_schema(),
+        input_schema=input_schema,
         output_schema=None if output is None else output.schema,
         annotations=declaration.annotations,
     )
@@ -520,13 +527,27 @@ def _output(function: Callable[..., Any], hints: dict[str, Any]) -> _Output | No
     if _is_content(bare):
         return None
     if isinstance(bare, type) and issubclass(bare, msgspec.Struct):
-        return _Output(schema=msgspec.json.schema(bare), dump=msgspec.to_builtins, wrapped=False)
+        return _Output(schema=_struct_schema(bare), dump=msgspec.to_builtins, wrapped=False)
     if _is_object(bare):
         adapter = TypeAdapter(annotation)
         return _Output(schema=adapter.json_schema(), dump=lambda value: adapter.dump_python(value, mode="json"), wrapped=False)
     wrapper = create_model(f"{function.__name__}_output", result=(annotation, ...))
     adapter = TypeAdapter(annotation)
     return _Output(schema=wrapper.model_json_schema(), dump=lambda value: {"result": adapter.dump_python(value, mode="json")}, wrapped=True)
+
+
+def _struct_schema(struct: type[msgspec.Struct]) -> dict[str, Any]:
+    """msgspec's schema for a Struct with the Struct's own definition at the root.
+
+    msgspec answers ``{"$ref": "#/$defs/Name", "$defs": ...}``; the handshake revisions require an object
+    schema (``"type": "object"``) at the root of ``outputSchema``. ``$defs`` stays whole, so nested and
+    recursive references still resolve.
+    """
+    schema = msgspec.json.schema(struct)
+    reference = schema.pop("$ref", None)
+    if isinstance(reference, str):
+        schema.update(schema["$defs"][reference.rsplit("/", 1)[1]])
+    return schema
 
 
 def _is_object(annotation: Any) -> bool:

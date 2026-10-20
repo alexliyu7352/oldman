@@ -27,6 +27,7 @@ from oldman.mcp._protocol import (
     error_reply,
     read_message,
     result_reply,
+    serialize_result,
     validation_summary,
 )
 from oldman.mcp._registry import McpCatalog, Prompt, Resource, ResourceNotFound, Tool, ToolError
@@ -46,12 +47,41 @@ class RateLimit:
     period: int
 
 
+def _check_definitions(catalog: McpCatalog) -> None:
+    """Fail now, naming it, when a definition cannot be listed in a revision this server answers.
+
+    Lists are serialized for the client's revision when it asks: one definition a revision refuses would
+    turn the whole list into an error for every caller of that revision.
+    """
+    lists: list[tuple[str, str, types.Result]] = [
+        *((f"tool {name!r}", "tools/list", types.ListToolsResult(tools=[tool.wire])) for name, tool in catalog.tools.items()),
+        *(
+            (f"resource {resource.wire.uri!r}", "resources/list", types.ListResourcesResult(resources=[resource.wire]))
+            if isinstance(resource.wire, types.Resource)
+            else (
+                f"resource template {resource.wire.uri_template!r}",
+                "resources/templates/list",
+                types.ListResourceTemplatesResult(resource_templates=[resource.wire]),
+            )
+            for resource in catalog.resources
+        ),
+        *((f"prompt {name!r}", "prompts/list", types.ListPromptsResult(prompts=[prompt.wire])) for name, prompt in catalog.prompts.items()),
+    ]
+    for label, method, result in lists:
+        for version in (*HANDSHAKE_VERSIONS, *MODERN_VERSIONS):
+            try:
+                serialize_result(method, version, result)
+            except ValidationError as exc:
+                raise TypeError(f"MCP {label} cannot be listed in protocol revision {version}: {validation_summary(exc)}") from exc
+
+
 class McpServer:
     """One service's MCP answers: its catalog and the identity it reports."""
 
     __slots__ = ("_capabilities", "_catalog", "_info", "_instructions", "_rate_limit")
 
     def __init__(self, catalog: McpCatalog, *, name: str, version: str, instructions: str | None = None, rate_limit: RateLimit | None = None) -> None:
+        _check_definitions(catalog)
         self._catalog = catalog
         self._rate_limit = rate_limit
         self._info = types.Implementation(name=name, version=version)

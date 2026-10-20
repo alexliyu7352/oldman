@@ -135,11 +135,12 @@ def result_reply(inbound: Inbound, result: types.Result) -> Reply:
     ``cacheScope``) with their defaults; ``serialize_server_result`` keeps them for 2026-07-28 and drops
     them for the handshake revisions.
     """
-    data = result.model_dump(by_alias=True, mode="json", exclude_none=True)
-    return Reply(
-        200,
-        {"jsonrpc": jsonrpc.JSONRPC_VERSION, "id": inbound.id, "result": wire.serialize_server_result(inbound.method, inbound.version, data)},
-    )
+    return Reply(200, {"jsonrpc": jsonrpc.JSONRPC_VERSION, "id": inbound.id, "result": serialize_result(inbound.method, inbound.version, result)})
+
+
+def serialize_result(method: str, version: str, result: types.Result) -> dict[str, Any]:
+    """One result as ``version`` sends it; raises ValidationError when that revision cannot carry it."""
+    return wire.serialize_server_result(method, version, result.model_dump(by_alias=True, mode="json", exclude_none=True))
 
 
 def read_message(header_pairs: Iterable[tuple[str, str]], body: bytes, content_type: str | None) -> Inbound | Reply:

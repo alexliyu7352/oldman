@@ -20,7 +20,7 @@ class WebService(WebApplication):
         install_mcp(app)
 ```
 
-`web.mcp.enabled` 默认为 false，这时 `install_mcp` 什么都不做、返回 `None`，记一条 INFO：代码可以先装上，由各环境的设置决定开不开，没有配置调用方的项目照常启动。打开后，`install_mcp` 加载每个已安装 App 的 `mcp` 模块（`AppConfig.mcp_module`，默认 `"mcp"`），建出这个服务提供的目录，检查设置，再注册 `POST <web.mcp.path>`（默认 `/mcp`）。设置有问题、两个 App 声明了同名的工具、签名里的类型解析不了，都在这里报错，服务起不来，不会等到第一个请求。没有调用 `install_mcp` 或没有打开的服务不加载任何 App 的 `mcp` 模块。
+`web.mcp.enabled` 默认为 false，这时 `install_mcp` 什么都不做、返回 `None`，记一条 INFO：代码可以先装上，由各环境的设置决定开不开，没有配置调用方的项目照常启动。打开后，`install_mcp` 加载每个已安装 App 的 `mcp` 模块（`AppConfig.mcp_module`，默认 `"mcp"`），建出这个服务提供的目录，检查设置，再注册 `POST <web.mcp.path>`（默认 `/mcp`）。每个工具、resource、prompt 的定义按每个支持的协议版本各检查一次能否列出。设置有问题、两个 App 声明了同名的工具、签名里的类型解析不了或生成不了 schema、某个定义有协议版本列不出来，都在这里报错并指出是哪一个，服务起不来，不会等到第一个请求。没有调用 `install_mcp` 或没有打开的服务不加载任何 App 的 `mcp` 模块。
 
 ## 在 App 里声明
 
@@ -66,7 +66,7 @@ async def weekly_summary(week: str) -> str:
 
 - 参数及其注解生成输入 schema，有默认值的可选，多余的参数一律拒绝；参数由 pydantic 校验，校验不过回工具错误（`isError`），模型能据此改正。
 - 名字限 1–128 个 `A-Z a-z 0-9 _ - .`（规范的建议），不符合在声明时报错。
-- 返回值照官方 SDK 的规则：有返回注解时生成输出 schema，结果里同时有 `structuredContent` 和同一内容的 JSON 文本；`str`、`int`、`list[...]` 这类包成 `{"result": ...}`，pydantic 模型、TypedDict、dataclass、msgspec Struct、`dict[str, ...]` 直接作为对象；没有返回注解、或返回协议的内容块（`TextContent` 等）时只有内容块。
+- 返回值照官方 SDK 的规则：有返回注解时生成输出 schema，结果里同时有 `structuredContent` 和同一内容的 JSON 文本；`str`、`int`、`list[...]` 这类包成 `{"result": ...}`，pydantic 模型、TypedDict、dataclass、msgspec Struct、`dict[str, ...]` 直接作为对象；没有返回注解、或返回协议的内容块（`TextContent` 等）时只有内容块。容器里的 msgspec Struct（`list[Struct]`、`dict[str, Struct]`）pydantic 生成不了 schema，`install_mcp` 报错；改为返回一个装着列表的 Struct。
 - `oldman.mcp.ToolError("…")` 的消息原样给调用方；视图会抛的 Web 异常（`Forbidden`、`NotFound`、存储不可用的 503）回它们的消息；其他异常记一条带调用栈的 ERROR，调用方只看到 "The tool failed"，内部信息不外泄。
 - `annotations=ToolAnnotations(read_only_hint=True)` 之类的提示从 `oldman.mcp` 导入。
 

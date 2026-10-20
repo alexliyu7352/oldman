@@ -25,6 +25,8 @@ from sanic.exceptions import Forbidden, ServiceUnavailable
 
 from oldman.auth.permissions import declare_permission
 from oldman.mcp import McpRegistry, ToolAnnotations, ToolError
+from oldman.mcp._protocol import HANDSHAKE_VERSIONS, MODERN_VERSIONS
+from oldman.mcp._registry import McpCatalog
 from oldman.mcp._server import McpServer
 from oldman.web import Request
 from oldman.web.authentication.base import Authentication, RequestUser, record_authentication
@@ -53,6 +55,13 @@ class Pair:
 class Size(msgspec.Struct):
     width: int
     height: int
+
+
+class Shelf(msgspec.Struct):
+    """Nested and recursive: its schema needs $defs beside the root."""
+
+    sizes: list[Size]
+    next: Shelf | None = None
 
 
 def a_request(user: RequestUser | None = None, *, method: str = "jwt", caller: str | None = None) -> Any:
@@ -84,6 +93,16 @@ def listed(server: McpServer, request: Any) -> dict[str, dict[str, Any]]:
     body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {"_meta": META}}
     headers = [("MCP-Protocol-Version", MODERN), ("Mcp-Method", "tools/list")]
     reply = asyncio.run(server.handle(request, headers, json.dumps(body).encode(), "application/json"))
+    assert reply.body is not None
+    return {tool["name"]: tool for tool in reply.body["result"]["tools"]}
+
+
+def listed_in(server: McpServer, request: Any, version: str) -> dict[str, dict[str, Any]]:
+    """tools/list as a client of ``version`` sends it."""
+    if version in MODERN_VERSIONS:
+        return listed(server, request)
+    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+    reply = asyncio.run(server.handle(request, [("MCP-Protocol-Version", version)], json.dumps(body).encode(), "application/json"))
     assert reply.body is not None
     return {tool["name"]: tool for tool in reply.body["result"]["tools"]}
 
@@ -172,6 +191,11 @@ class OutputTest(unittest.TestCase):
             return Size(width=3, height=4)
 
         @registry.tool()
+        async def shelf() -> Shelf:
+            """A msgspec Struct holding others."""
+            return Shelf(sizes=[Size(width=1, height=2)])
+
+        @registry.tool()
         async def mapping() -> dict[str, int]:
             """A str-keyed dict."""
             return {"a": 1}
@@ -205,6 +229,7 @@ class OutputTest(unittest.TestCase):
             "counts": {"total": 4},
             "pair": {"left": 1, "right": 2},
             "size": {"width": 3, "height": 4},
+            "shelf": {"sizes": [{"width": 1, "height": 2}], "next": None},
             "mapping": {"a": 1},
         }
         for name, value in expected.items():
@@ -213,6 +238,16 @@ class OutputTest(unittest.TestCase):
                 result = self.result(name)
                 self.assertEqual(value, result["structuredContent"])
                 self.assertEqual(value, json.loads(result["content"][0]["text"]))
+
+    def test_every_revision_lists_the_output_schemas_with_an_object_at_the_root(self) -> None:
+        """The handshake revisions refuse an outputSchema whose root is not ``"type": "object"``."""
+        for version in (*HANDSHAKE_VERSIONS, *MODERN_VERSIONS):
+            with self.subTest(version=version):
+                tools = listed_in(self.server, a_request(), version)
+                schemas = {name: tool["outputSchema"] for name, tool in tools.items() if "outputSchema" in tool}
+                self.assertEqual({"object"}, {schema["type"] for schema in schemas.values()})
+                self.assertEqual({"width", "height"}, set(schemas["size"]["properties"]))
+                self.assertEqual({"Shelf", "Size"}, set(schemas["shelf"]["$defs"]))
 
     def test_without_a_return_annotation_or_for_content_blocks_there_is_no_structured_output(self) -> None:
         for name, text in (("untyped", '{"free": true}'), ("picture", "drawn")):
@@ -332,6 +367,33 @@ class PermissionTest(unittest.TestCase):
 
 
 class DeclarationTest(unittest.TestCase):
+    def test_a_signature_type_without_a_json_schema_names_the_tool(self) -> None:
+        registry = McpRegistry()
+
+        @registry.tool()
+        async def sizes() -> list[Size]:
+            """Pydantic has no schema for a msgspec Struct inside a list."""
+            return []
+
+        with self.assertRaisesRegex(TypeError, r"MCP tool 'sizes' in '.*': a type in its signature has no JSON schema .*Size"):
+            registry.catalog([__name__])
+
+    def test_a_definition_a_revision_cannot_list_stops_the_server_and_is_named(self) -> None:
+        """Checked when the server is built, so one bad definition never turns a whole list into an error."""
+        registry = McpRegistry()
+
+        @registry.tool()
+        async def odd() -> int:
+            """Its schema is replaced below with one the handshake revisions refuse."""
+            return 1
+
+        tool = registry.catalog([__name__]).tools["odd"]
+        broken = dataclasses.replace(
+            tool, wire=tool.wire.model_copy(update={"output_schema": {"$ref": "#/$defs/X", "$defs": {"X": {"type": "object"}}}})
+        )
+        with self.assertRaisesRegex(TypeError, r"MCP tool 'odd' cannot be listed in protocol revision 2024-11-05: .*type"):
+            McpServer(McpCatalog(tools={"odd": broken}), name="tools-test", version="0")
+
     def test_only_async_functions_with_valid_names_are_accepted(self) -> None:
         registry = McpRegistry()
 
