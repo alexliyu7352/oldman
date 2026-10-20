@@ -81,7 +81,12 @@ class _PromptDeclaration:
 
 @dataclass(frozen=True, slots=True)
 class _Output:
-    """How a declared return type becomes ``structuredContent`` (spec: it MUST match ``outputSchema``)."""
+    """How a declared return type becomes ``structuredContent`` (spec: it MUST match ``outputSchema``).
+
+    ``dump`` checks the value against the declared type before turning it into JSON-ready data, as the
+    official SDK does, and raises when it does not match: a client checks ``structuredContent`` against
+    the schema, so a mismatch would otherwise fail there, with nothing in this server's log.
+    """
 
     schema: dict[str, Any]
     dump: Callable[[Any], Any]
@@ -104,7 +109,10 @@ class Tool:
         """The tool's return value as a result: structured when its return type has a schema."""
         if self.output is None:
             return types.CallToolResult(content=_content(value))
-        structured = self.output.dump(value)
+        try:
+            structured = self.output.dump(value)
+        except (ValidationError, msgspec.ValidationError) as exc:
+            raise TypeError(f"MCP tool {self.name!r} returned a value that does not match its return type: {exc}") from exc
         plain = structured["result"] if self.output.wrapped else structured
         text = plain if isinstance(plain, str) else json.dumps(plain, ensure_ascii=False)
         # spec: "a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block".
@@ -527,13 +535,20 @@ def _output(function: Callable[..., Any], hints: dict[str, Any]) -> _Output | No
     if _is_content(bare):
         return None
     if isinstance(bare, type) and issubclass(bare, msgspec.Struct):
-        return _Output(schema=_struct_schema(bare), dump=msgspec.to_builtins, wrapped=False)
+        struct = bare
+        return _Output(schema=_struct_schema(struct), dump=lambda value: msgspec.to_builtins(msgspec.convert(value, struct)), wrapped=False)
     if _is_object(bare):
         adapter = TypeAdapter(annotation)
-        return _Output(schema=adapter.json_schema(), dump=lambda value: adapter.dump_python(value, mode="json"), wrapped=False)
+        return _Output(
+            schema=adapter.json_schema(), dump=lambda value: adapter.dump_python(adapter.validate_python(value), mode="json"), wrapped=False
+        )
     wrapper = create_model(f"{function.__name__}_output", result=(annotation, ...))
     adapter = TypeAdapter(annotation)
-    return _Output(schema=wrapper.model_json_schema(), dump=lambda value: {"result": adapter.dump_python(value, mode="json")}, wrapped=True)
+    return _Output(
+        schema=wrapper.model_json_schema(),
+        dump=lambda value: {"result": adapter.dump_python(adapter.validate_python(value), mode="json")},
+        wrapped=True,
+    )
 
 
 def _struct_schema(struct: type[msgspec.Struct]) -> dict[str, Any]:

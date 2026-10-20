@@ -258,6 +258,59 @@ class OutputTest(unittest.TestCase):
                 self.assertEqual(text, result["content"][0]["text"])
 
 
+class ReturnValueTest(unittest.TestCase):
+    """A return value is checked against the declared type before it is sent, as the SDK does."""
+
+    def setUp(self) -> None:
+        registry = McpRegistry()
+
+        @registry.tool()
+        async def size_from_a_dict() -> Size:
+            """A dict that matches the Struct."""
+            return {"width": 1, "height": 2}  # type: ignore[return-value]
+
+        @registry.tool()
+        async def point_from_a_dict() -> Point:
+            """A dict that matches the model."""
+            return {"x": 1, "y": 2}  # type: ignore[return-value]
+
+        @registry.tool()
+        async def size_with_a_wrong_field() -> Size:
+            """Does not match."""
+            return {"width": "wide", "height": 2}  # type: ignore[return-value]
+
+        @registry.tool()
+        async def size_as_none() -> Size:
+            """Does not match."""
+            return None  # type: ignore[return-value]
+
+        @registry.tool()
+        async def point_with_a_wrong_field() -> Point:
+            """Does not match."""
+            return {"x": "left", "y": 2}  # type: ignore[return-value]
+
+        @registry.tool()
+        async def number_as_text() -> int:
+            """Does not match."""
+            return "three"  # type: ignore[return-value]
+
+        self.server = serve(registry)
+
+    def test_a_value_that_matches_the_declared_type_is_sent_as_that_type(self) -> None:
+        for name, value in (("size_from_a_dict", {"width": 1, "height": 2}), ("point_from_a_dict", {"x": 1, "y": 2})):
+            with self.subTest(name=name):
+                self.assertEqual(value, call(self.server, a_request(), name)["result"]["structuredContent"])
+
+    def test_a_value_that_does_not_match_is_logged_and_the_call_fails(self) -> None:
+        """Never sent as a success: a client checking structuredContent against the schema would reject it."""
+        for name in ("size_with_a_wrong_field", "size_as_none", "point_with_a_wrong_field", "number_as_text"):
+            with self.subTest(name=name), self.assertLogs("default.mcp", level="ERROR") as logs:
+                result = call(self.server, a_request(), name)["result"]
+                self.assertEqual((True, "The tool failed"), (result["isError"], result["content"][0]["text"]))
+                self.assertNotIn("structuredContent", result)
+                self.assertIn(f"MCP tool {name!r} returned a value that does not match its return type", "\n".join(logs.output))
+
+
 class CallTest(unittest.TestCase):
     def setUp(self) -> None:
         registry = McpRegistry()
