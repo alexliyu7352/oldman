@@ -61,7 +61,7 @@ async def weekly_summary(week: str) -> str:
 - 名字默认取函数名，说明默认取 docstring（模型读的就是它，写清楚这个工具做什么、什么时候用）。
 - 参数由 pydantic 校验，所以参数名不能以下划线开头、不能叫 `model_config`，也不能与 BaseModel 的方法同名（如 `model_dump`）：pydantic 不把前两种当字段（会让参数无声消失），后一种直接拒绝。`install_mcp` 遇到时报错并指出工具或 prompt 与参数；resource 的 URI 变量类型 pydantic 转换不了时同样报错并指出 URI。
 - `permission=` 收声明过的 `Permission`：列表里只给持有它的用户看，调用时同样检查；看不到的按"不存在"回答，调用方分不出是没有还是没权限。函数里仍可以自己 `require_perm`。
-- 只提供已安装 App 包里声明的东西；别的模块导入了未安装 App 的 `mcp.py` 时，那些声明不提供，启动时记一条 WARNING。看的是声明所在的模块（调用 `mcp.tool()` 等的那个），不是函数定义在哪里：App 的 `mcp.py` 把从别处导入的 async 函数声明成工具，照样提供。
+- 只提供已安装 App 包里声明的东西；别的模块导入了未安装 App 的 `mcp.py` 时，那些声明不提供，启动时记一条 WARNING。声明所在的模块（调用 `mcp.tool()` 等的那个）或函数定义所在的模块，任一属于已安装 App 就提供：App 的 `mcp.py` 把从别处导入的 async 函数声明成工具，或者 App 以外的辅助函数代为声明 App 自己的函数，都照样提供。
 
 ### 工具
 

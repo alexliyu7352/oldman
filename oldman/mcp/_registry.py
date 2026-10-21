@@ -329,14 +329,15 @@ class McpRegistry:
 
         A declaration made outside those packages is left out with a WARNING: an App that is not
         installed here must not have what it declares offered because some other module imported it.
-        What counts is the module that declared it (that called ``mcp.tool()`` and the like), not where
-        the function is defined, so an App may offer a function it imports. Two tools or prompts with one
+        Either the module that declared it (that called ``mcp.tool()`` and the like) or the module that
+        defines the function may belong to an installed App: an App may offer a function it imports, and
+        a helper outside the Apps may declare an App's function for it. Two tools or prompts with one
         name, two resources with one URI, or two templates of the same shape stop here, naming both modules.
         """
         tools: dict[str, Tool] = {}
         tool_modules: dict[str, str] = {}
         for declaration in self._tools:
-            if not _installed("tool", declaration.name, declaration.module, packages):
+            if not _installed("tool", declaration.name, declaration.module, declaration.function, packages):
                 continue
             if declaration.name in tools:
                 raise ValueError(_twice("tool", declaration.name, tool_modules[declaration.name], declaration.module))
@@ -346,7 +347,7 @@ class McpRegistry:
         resources: list[Resource] = []
         resource_modules: dict[str, str] = {}
         for declaration in self._resources:
-            if not _installed("resource", declaration.uri, declaration.module, packages):
+            if not _installed("resource", declaration.uri, declaration.module, declaration.function, packages):
                 continue
             # A fixed URI is its own key; templates that differ only in their variable names match the same URIs.
             key = _TEMPLATE_VARIABLE.sub("{}", declaration.uri)
@@ -360,7 +361,7 @@ class McpRegistry:
         prompts: dict[str, Prompt] = {}
         prompt_modules: dict[str, str] = {}
         for declaration in self._prompts:
-            if not _installed("prompt", declaration.name, declaration.module, packages):
+            if not _installed("prompt", declaration.name, declaration.module, declaration.function, packages):
                 continue
             if declaration.name in prompts:
                 raise ValueError(_twice("prompt", declaration.name, prompt_modules[declaration.name], declaration.module))
@@ -381,15 +382,23 @@ def _declaring_module() -> str:
     """The module whose code called the decorator: frame 0 is this function, 1 the decorator, 2 its caller.
 
     The function's own ``__module__`` names where it is defined, which differs when an App offers a
-    function it imports; only the calling frame knows which App declared it.
+    function it imports; only the calling frame knows which module declared it. Neither alone is
+    enough: a helper outside the Apps may be the one that calls the decorator, for an App's function.
     """
     return sys._getframe(2).f_globals.get("__name__", "")
 
 
-def _installed(kind: str, name: str, module: str, packages: Sequence[str]) -> bool:
-    if any(module == package or module.startswith(f"{package}.") for package in packages):
+def _installed(kind: str, name: str, module: str, function: Callable[..., Any], packages: Sequence[str]) -> bool:
+    """Whether the declaring module or the function's own module belongs to one of the installed Apps."""
+    defined_in = function.__module__
+    if any(candidate == package or candidate.startswith(f"{package}.") for candidate in (module, defined_in) for package in packages):
         return True
-    logger.warning(f"MCP {kind} {name!r} declared in {module!r} is not offered: that module belongs to no installed App")
+    if defined_in == module:
+        logger.warning(f"MCP {kind} {name!r} declared in {module!r} is not offered: that module belongs to no installed App")
+    else:
+        logger.warning(
+            f"MCP {kind} {name!r} declared in {module!r} and defined in {defined_in!r} is not offered: neither module belongs to an installed App"
+        )
     return False
 
 

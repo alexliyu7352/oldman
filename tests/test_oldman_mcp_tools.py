@@ -598,7 +598,7 @@ class DeclarationTest(unittest.TestCase):
         self.assertIn("declared in 'apps.not_installed.mcp' is not offered", logs.output[0])
 
     def test_an_installed_app_may_offer_a_function_it_imports(self) -> None:
-        """The declaring module decides, not where the function is defined (a shared helper, a library)."""
+        """Declared by an installed App, defined elsewhere (a shared helper, a library): offered."""
         helpers = declare_in(
             "shared.helpers",
             """
@@ -611,6 +611,47 @@ class DeclarationTest(unittest.TestCase):
         registry.tool("lookup")(helpers["lookup"])
         self.assertEqual("shared.helpers", helpers["lookup"].__module__)
         self.assertEqual(["lookup"], list(registry.catalog([__name__]).tools))
+
+    def test_a_helper_outside_the_apps_may_declare_an_apps_function(self) -> None:
+        """Defined by an installed App, declared by a helper elsewhere that calls the decorator for it: offered."""
+        registry = McpRegistry()
+        library = declare_in(
+            "project_lib.mcp_helpers",
+            """
+            def readonly_tool(function):
+                return registry.tool()(function)
+            """,
+            registry=registry,
+        )
+
+        async def report_count() -> int:
+            """Defined in an installed App."""
+            return 1
+
+        library["readonly_tool"](report_count)
+        self.assertEqual(["report_count"], list(registry.catalog([__name__]).tools))
+
+    def test_a_declaration_neither_declared_nor_defined_by_an_installed_app_names_both_modules(self) -> None:
+        registry = McpRegistry()
+        library = declare_in(
+            "project_lib.mcp_helpers",
+            """
+            def readonly_tool(function):
+                return registry.tool()(function)
+            """,
+            registry=registry,
+        )
+        foreign = declare_in(
+            "apps.not_installed.mcp",
+            """
+            async def foreign() -> None:
+                '''Defined by an App this service does not install.'''
+            """,
+        )
+        library["readonly_tool"](foreign["foreign"])
+        with self.assertLogs("default.mcp", level="WARNING") as logs:
+            self.assertEqual([], list(registry.catalog([__name__]).tools))
+        self.assertIn("declared in 'project_lib.mcp_helpers' and defined in 'apps.not_installed.mcp' is not offered", logs.output[0])
 
     def test_annotations_resolve_when_the_catalog_is_built_and_a_type_checking_import_is_reported(self) -> None:
         registry = McpRegistry()
