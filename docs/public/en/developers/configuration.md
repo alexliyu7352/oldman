@@ -260,7 +260,7 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 | `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [Caching](cache.md#cache-connection-pool) |
 | `i18n.use_i18n`、`use_i18n_path` | `False` |
 | `i18n.default_language` | `en` |
-| `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#请求用哪种语言) |
+| `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [Frontend assets, styles, icons, and translation](assets.md#which-language-a-request-uses) |
 | `cache.client` / `serializer` | `CACHE` / `pickle`; prefix `<core.namespace>:cache` |
 | `http_client.max_connections` | `300` |
 | `mail.backend` | `oldman.mail.backends.console.ConsoleEmailBackend`, printing to stdout; use smtp in production |

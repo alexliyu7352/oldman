@@ -14,12 +14,12 @@ A name is public when included in its exporting package/module's `__all__`; impo
 | [Remote files](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/remote.md) | Remote Python files/scripts in operations menus: base URLs, cache/refresh, conventions, credentials |
 | [Web requests, templates, and permissions](web.md) | Routes, template loading, Session, permissions, CSRF, error pages |
 | [Permissions](permissions.md) | Code declarations, naming/startup checks, roles, role cache |
-| [Forms and fields](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md) | WTForms responsibilities, binding/validation, ModelForm, layouts, remote choices |
-| [Table](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tables.md) | HTML/JSON data, queries, column paths, sorting, stable DOM |
-| [Chart](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/charts.md) | Data endpoints, shells, request allowlists, time windows, result objects |
-| [Response protocol](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) | JSON/Form/HTML boundaries, ordered actions, targets, errors |
-| [Browser lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) | Page, components, Modal, dynamic mounting, HTTP, navigation cleanup |
-| [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md) | Vite, bundles, fonts, icons, visual variables, shared translation |
+| [Forms, fields, and remote choices](forms.md) | WTForms responsibilities, binding/validation, ModelForm, layouts, remote choices |
+| [Static, HTML, and JSON Tables](tables.md) | HTML/JSON data, queries, column paths, sorting, stable DOM |
+| [Chart](charts.md) | Data endpoints, shells, request allowlists, time windows, result objects |
+| [Browser responses and ordered actions](responses.md) | JSON/Form/HTML boundaries, ordered actions, targets, errors |
+| [Pages, components, and dynamic content](frontend.md) | Page, components, Modal, dynamic mounting, HTTP, navigation cleanup |
+| [Frontend assets, styles, icons, and translation](assets.md) | Vite, bundles, fonts, icons, visual variables, shared translation |
 | [Models and database sessions](database.md) | Mapping, sessions, transactions, queries, User foreign keys, connection cleanup |
 | [Project database migrations](migrations.md) | Project scope, App branches, renaming, external tables, downgrade, state recovery |
 | [JSON data import and export](fixtures.md) | Service imports/exports, field types, foreign-key ordering, failure boundaries |
@@ -33,9 +33,9 @@ A name is public when included in its exporting package/module's `__all__`; impo
 | [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) | Coroutines, short-lived processes, controlled external commands, long-lived Workers, reliability limits |
 | [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md) | Native task API, JetStream/Redis, Worker/Scheduler, result/acknowledgment failure boundaries |
 | [Logging](logging.md) | Standard Logger, initialization, rotation, child processes, shutdown |
-| [Messages and notifications](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/messages.md) | Cookie messages, Form/Feedback, database notifications, shared top bar/center |
-| [SSE and WebSocket](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/sse.md) | Direct output, Redis publication, Session, translation, backpressure, browser connections |
-| [Admin](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/admin.md) | Explicit site installation, ModelAdmin, permissions, template/asset extensions |
+| [Page messages, feedback, and notifications](messages.md) | Cookie messages, Form/Feedback, database notifications, shared top bar/center |
+| [SSE and WebSocket](sse.md) | Direct output, Redis publication, Session, translation, backpressure, browser connections |
+| [Built-in Admin and extensions](admin.md) | Explicit site installation, ModelAdmin, permissions, template/asset extensions |
 | [Security boundaries and rate limiting](security.md) | Shared keys, trust boundaries, Redis rate limits, actual fingerprint-tool responsibilities |
 | [Source maintenance and releases](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md) | Builds, versions, sequential acceptance, installed artifacts, evidence cleanup |
 | [Test isolation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/testing.md) | Test boundaries for settings, Apps, models, processes, databases |

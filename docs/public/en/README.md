@@ -16,7 +16,7 @@ This documentation covers the current `oldman` and `oldman-web`: what they are, 
 - Where does the data on a page come from? Read [Real demo data, migrations, and queries](users/tutorial-tasks.md).
 - How do sign-in, tables, and edit modals connect? Follow the [Demo HTML/JSON tables and Modal forms](users/tutorial-dashboard.md).
 - Which files should I read to reuse an existing feature? See the [Demo page and source index](users/demo-examples.md).
-- How do I use the UI, icons, and interactions directly? Read [Dashboard UI and interactive components](users/components.md) and the [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md).
+- How do I use the UI, icons, and interactions directly? Read [Dashboard UI and interactive components](users/components.md) and the [Frontend assets, styles, icons, and translation](developers/assets.md).
 - What is the difference between `services`, Apps, and configuration files? Read [Settings, Apps, and services](users/settings-and-apps.md).
 - Why does importing `settings` too early raise an error? See the [Configuration reference](developers/configuration.md).
 - When are models, commands, and views loaded? See [Applications and lifecycle](developers/applications.md).

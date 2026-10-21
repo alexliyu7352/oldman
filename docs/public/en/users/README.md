@@ -23,8 +23,8 @@ The core tutorials use the standalone EPG demo directly, without creating anothe
 - Generating versus applying migrations: [Real demo data, migrations, and queries](tutorial-tasks.md#3-run-existing-migrations-on-the-first-run).
 - Custom and built-in commands: [CLI reference](../developers/cli.md).
 - Basic UI, dropdowns, Tabs, Slider, Carousel, and charts: [Dashboard UI and interactive components](components.md).
-- Form cleaning, dynamic JSON fields, tags, and remote selection: [Forms and fields](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md).
-- Choosing icons and building styles and translations: [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md).
+- Form cleaning, dynamic JSON fields, tags, and remote selection: [Forms, fields, and remote choices](../developers/forms.md).
+- Choosing icons and building styles and translations: [Frontend assets, styles, icons, and translation](../developers/assets.md).
 - Renaming, adopting external tables, or restoring migration state: [Project database migrations](../developers/migrations.md).
 - Uploading, replacing, and deleting model files: [File storage and model file fields](../developers/storage.md).
 - Shared caches, named Redis connections, and reading caches across Django and Oldman: [Caching](../developers/cache.md) and [Redis and NATS providers](../developers/providers.md).

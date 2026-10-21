@@ -21,7 +21,7 @@ Use a version matching the Python framework. A local source link requires valid 
 
 ## Minimal dashboard entry point
 
-This is a minimal single-page **API wiring reference**, not a source excerpt from the complete demo. For an actual entry point with translation catalogs and on-demand Page loaders, see [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts) and the [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md). The file here is the application's frontend/src/main.ts:
+This is a minimal single-page **API wiring reference**, not a source excerpt from the complete demo. For an actual entry point with translation catalogs and on-demand Page loaders, see [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts) and the [Pages, components, and dynamic content](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/frontend.md). The file here is the application's frontend/src/main.ts:
 
 ```typescript
 import "./app.css";
@@ -119,7 +119,7 @@ The Python CLI manages project-wide POT/PO/MO. Dashboard scaffold build scripts 
 
 ## Full documentation
 
-[Demo HTML/JSON tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md) · [Dashboard UI and interactive components](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/components.md) · [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [Response protocol](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
+[Demo HTML/JSON tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md) · [Dashboard UI and interactive components](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/components.md) · [Pages, components, and dynamic content](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/frontend.md) · [Browser responses and ordered actions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/responses.md) · [Frontend assets, styles, icons, and translation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/assets.md)
 
 The release includes dist, icon and translation CLIs, type declarations, README, and LICENSE. Applications build their own entry points; backend built-in Admin assets do not replace business frontend builds.
 

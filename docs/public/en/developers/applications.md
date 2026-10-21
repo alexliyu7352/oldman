@@ -164,7 +164,7 @@ def prepare_server(self, app: WebApp) -> None:
     super().prepare_server(app)
 ```
 
-`ensure_build_available()` checks assets by production/development mode. Production needs a built, collected manifest; development uses a Vite URL. `ensure_frontend_catalogs()` (`oldman.web.i18n`) verifies compiled frontend catalogs for every configured language. See [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md) for preparation; `prepare_server()` should not run builds implicitly.
+`ensure_build_available()` checks assets by production/development mode. Production needs a built, collected manifest; development uses a Vite URL. `ensure_frontend_catalogs()` (`oldman.web.i18n`) verifies compiled frontend catalogs for every configured language. See [Frontend assets, styles, icons, and translation](assets.md) for preparation; `prepare_server()` should not run builds implicitly.
 
 ### Wiring templates and base capabilities
 
@@ -207,7 +207,7 @@ These names come from the same service file:
 
 - `StatelessCSRFManager` is imported from `oldman.web.security.csrf`.
 - `install_notifications` is the import alias of `oldman.web.messages.notifications.init_app`, not another subscriber. Its returned routes let account pages install the notification center.
-- `install_dashboard_templates()` matches the scaffold: it installs shared/project template loaders, wires static bundles through `register_project_bundle()` and `registry.install_template_globals()` (see [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)), then registers `app_main_bundle`, menu checks `can_manage_users`/`can_manage_roles`, and demo business notifications in the top bar. Language menus, CSRF tokens, and account URLs `account_urls` are framework globals, not supplied here.
+- `install_dashboard_templates()` matches the scaffold: it installs shared/project template loaders, wires static bundles through `register_project_bundle()` and `registry.install_template_globals()` (see [Frontend assets, styles, icons, and translation](assets.md)), then registers `app_main_bundle`, menu checks `can_manage_users`/`can_manage_roles`, and demo business notifications in the top bar. Language menus, CSRF tokens, and account URLs `account_urls` are framework globals, not supplied here.
 - `install_account_pages()` (apps/accounts/routes.py) installs framework sign-in, profile, notification center, user management, role management, and password reset flows at `web.account` addresses. It also installs `/user-events` when SSE is enabled.
 - `install_token_routes()` (apps/accounts/tokens.py) adds token endpoints absent from the scaffold; `install_admin()` installs the built-in Admin.
 

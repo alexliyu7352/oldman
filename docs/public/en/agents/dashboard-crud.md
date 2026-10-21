@@ -1,7 +1,7 @@
 # Agent guide: a dashboard page with a table and create, edit, delete
 
 Use this guide to add a business page to an Oldman dashboard project: a list in a table, and create, edit and delete
-in a modal. Paths such as `docs/public/zh/developers/tables.md` are relative to the framework repository, which in a
+in a modal. Paths such as `docs/public/en/developers/tables.md` are relative to the framework repository, which in a
 generated project is your `.oldman-docs/` clone. Before using any `oldman` import, look it up in the
 [API index](../api/README.md).
 
@@ -198,7 +198,7 @@ class CustomerTable(SQLAlchemyTableView):
 - A callback may be `async def`, for a column that queries the database (`await self.require_db_session().execute(...)`)
   or renders a fragment (`await render_modal(kwargs["request"], ...)`). Cells are computed one after another in the
   request's read session. Data every row needs belongs in `build_row_contexts()`, one query per page; see
-  `docs/public/zh/developers/tables.md`.
+  `docs/public/en/developers/tables.md`.
 
 ### 6. The views
 
@@ -408,7 +408,7 @@ Stop the service with `./run.sh dashboard stop` only. Never use `killall`, `pkil
    flushes. Build the success response after the block. Reads use `db_manager.get_read_session()`.
 4. Sessions and CSRF are already set up in the skeleton's service. Do not add a second CSRF scheme; GETs that render a
    form use `add_csrf_token()`, POSTs use `csrf_protect()`.
-5. File fields: look at the existing storage and model-form upload support first (`docs/public/zh/developers/forms.md`).
+5. File fields: look at the existing storage and model-form upload support first (`docs/public/en/developers/forms.md`).
    Without a file field, add no file handling.
 
 ## Responses: one kind per consumer
@@ -429,7 +429,7 @@ Stop the service with `./run.sh dashboard stop` only. Never use `killall`, `pkil
 - Business error codes are not retried and do not block the actions. 401, 403, 5xx, network failures and timeouts go
   through the shared HTTP error handling; do not dress an exception up as a field error.
 
-The full response and action reference is `docs/public/zh/developers/responses.md`.
+The full response and action reference is `docs/public/en/developers/responses.md`.
 
 ## Browser rules
 
@@ -446,7 +446,7 @@ The full response and action reference is `docs/public/zh/developers/responses.m
 - Table cells carry `data-om-table-row-id` and `data-om-column` for targeted live updates; there is no `updateCell`
   API, and editing the DOM changes only what is shown. Add server-sent events only when the user needs live data.
 - A "confirm or prompt, then call the server" flow follows the full demo's `/examples/messages/feedback` page
-  (`docs/public/zh/developers/frontend.md`, section on Feedback): no new dialog system, no global feedback instance.
+  (`docs/public/en/developers/frontend.md`, section on Feedback): no new dialog system, no global feedback instance.
 
 ## Reference implementation
 

@@ -124,7 +124,7 @@ Sign in with the superuser you created and operate one of your own projects:
 - Accessing protected pages after signing out should require sign in.
 - CSRF 403 appears after leaving the page for a long time. You should refresh to obtain a new token; do not disable CSRF.
 
-See [Admin](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
+See [Built-in Admin and extensions](../developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
 
 ## 6. Retrieve password
 

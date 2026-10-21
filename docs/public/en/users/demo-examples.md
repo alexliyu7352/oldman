@@ -166,7 +166,7 @@ The specific HTML of the UI is in [templates/pages/examples/ui/](https://github.
 - Visual foundations: `/examples/ui/foundations`, `typography`, `buttons`, `badges-avatars`, `cards`, `lists`.
 - Status and content: `/examples/ui/alerts`, `progress-loading`, `timeline`, `images`, `system-states`.
 - Interaction: `/examples/ui/carousel`, `tabs-disclosure`, `dropdowns-overlays`, `countdown`, `gallery`, `video`, `navigation-shell`.
-- Icons: `/examples/ui/icons`, with source [icons.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/icons.html). See the [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标) for library links, usage, and collection rules. The page does not bundle every library icon into production CSS.
+- Icons: `/examples/ui/icons`, with source [icons.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/icons.html). See the [Frontend assets, styles, icons, and translation](../developers/assets.md#icons) for library links, usage, and collection rules. The page does not bundle every library icon into production CSS.
 - Plug-in index: `/examples/plugins`, not `/examples/plugins/index`.
 
 The short names in the same line above all use the `/examples/ui/` prefix at the beginning. These pages are used to validate shared components and visuals; static cards/buttons should not add database writes or shell components just to be "displayable".
