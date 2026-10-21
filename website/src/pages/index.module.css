@@ -1,0 +1,400 @@
+/* 首页版式。颜色、字体、圆角都用 src/css/custom.css 里的 --om-* token，亮暗两种自动跟随。
+   节奏：首屏两栏（文字 / 快速开始），其后每个区块之间一条发丝线；“框架提供什么”与“文档入口”标题在左、
+   内容在右，“两个包”与“示例”标题在上、内容铺满，避免每个区块一个样。 */
+
+.page {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+}
+
+/* ---- 首屏 ---- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 4rem;
+  align-items: center;
+  padding: 6rem 0 3.5rem;
+}
+
+.title {
+  margin: 0 0 1.25rem;
+  color: var(--om-text-strong);
+  font-size: clamp(2.25rem, 1.45rem + 2.3vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: 36rem;
+  margin: 0 0 2rem;
+  color: var(--om-text);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.requirements {
+  margin: 1.5rem 0 0;
+  color: var(--om-text-muted);
+  font-size: 0.875rem;
+}
+
+.heroCode {
+  min-width: 0;
+}
+
+.heroCode :global(.theme-code-block) {
+  margin-bottom: 0;
+}
+
+.caption {
+  max-width: 40rem;
+  margin: 0.875rem 0 0;
+  color: var(--om-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* 首屏进场：文字逐行上浮，代码块稍后淡入。默认就是可见的终态，动画只是从起点补过去。 */
+.heroText > * {
+  animation: rise 520ms var(--om-ease-enter) both;
+}
+
+.heroText > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.heroText > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.heroText > :nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.heroCode {
+  animation: settle 640ms var(--om-ease-enter) 140ms both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroText > *,
+  .heroCode {
+    animation: none;
+  }
+}
+
+/* 产品截图：整幅宽，一条边、12 圆角，不加阴影（borders-only）。 */
+.showcase {
+  margin: 0 0 4.5rem;
+  animation: settle 720ms var(--om-ease-enter) 220ms both;
+}
+
+.showcaseImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--om-border-strong);
+  border-radius: 12px;
+}
+
+.showcaseCaption {
+  margin-top: 0.875rem;
+  color: var(--om-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase {
+    animation: none;
+  }
+}
+
+/* ---- 区块 ---- */
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
+  gap: 1.5rem 4rem;
+  padding: 4.5rem 0;
+  border-top: 1px solid var(--om-border);
+}
+
+.sectionWide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sectionHead {
+  min-width: 0;
+}
+
+.sectionTitle {
+  margin: 0 0 0.75rem;
+  color: var(--om-text-strong);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.sectionText {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--om-text);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/* 框架提供什么：一张两栏的规格表，不是卡片墙。 */
+.capabilities {
+  margin: 0;
+  border-bottom: 1px solid var(--om-border);
+}
+
+.capability {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--om-border);
+}
+
+.capability dt {
+  color: var(--om-text-strong);
+  font-weight: 600;
+}
+
+.capability dt a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--om-border-strong);
+  text-underline-offset: 0.2em;
+}
+
+.capability dt a:hover {
+  text-decoration-color: currentColor;
+}
+
+.capability dd {
+  margin: 0;
+  color: var(--om-text);
+  line-height: 1.6;
+}
+
+/* 两个包。 */
+.packages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.package {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--om-border);
+  border-radius: 12px;
+}
+
+.packageName {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.packageName code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--om-text-strong);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.packageWhere {
+  font-size: 0.875rem;
+}
+
+.packageText {
+  margin: 0;
+  color: var(--om-text);
+  line-height: 1.6;
+}
+
+/* 文档入口：整行可点的列表。 */
+.guides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--om-border);
+}
+
+.guides li {
+  margin: 0;
+  border-bottom: 1px solid var(--om-border);
+}
+
+.guide {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: baseline;
+  padding: 1.125rem 0.75rem;
+  border-radius: 8px;
+  color: var(--om-text);
+  transition: background-color 150ms var(--om-ease-enter);
+}
+
+.guide:hover {
+  background: var(--om-hover);
+  color: var(--om-text);
+  text-decoration: none;
+}
+
+.guideTitle {
+  color: var(--om-text-strong);
+  font-weight: 600;
+}
+
+.guideText {
+  line-height: 1.6;
+}
+
+.guideArrow {
+  color: var(--om-text-muted);
+  transition: transform 150ms var(--om-ease-enter);
+}
+
+.guide:hover .guideArrow {
+  color: var(--om-text-strong);
+  transform: translateX(0.25rem);
+}
+
+/* 示例：三栏，每栏顶上一条发丝线。 */
+.demos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--om-border-strong);
+}
+
+.demoName {
+  margin: 0 0 0.5rem;
+  color: var(--om-text-strong);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.demoText {
+  flex: 1;
+  margin: 0 0 1rem;
+  color: var(--om-text);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.demoLink {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---- 窄屏 ---- */
+
+@media (max-width: 996px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    padding: 3.5rem 0 3rem;
+  }
+
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 3rem 0;
+  }
+
+  .demos {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 0 1rem 1.5rem;
+  }
+
+  .packages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .capability {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .guide {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 1rem;
+    padding-inline: 0.5rem;
+  }
+
+  .guideText {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .guideArrow {
+    grid-row: 1;
+    grid-column: 2;
+  }
+}
+
+/* 中文：标题不收字距，行高放宽。 */
+:global(html[lang="zh-Hans"]) .title,
+:global(html[lang="zh-Hans"]) .sectionTitle {
+  letter-spacing: 0;
+  /* 只在空格与标点处换行，"管理后台"这样的词不被拆到两行。 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+:global(html[lang="zh-Hans"]) .title {
+  line-height: 1.25;
+}
+
+:global(html[lang="zh-Hans"]) .lead,
+:global(html[lang="zh-Hans"]) .capability dd,
+:global(html[lang="zh-Hans"]) .sectionText {
+  line-height: 1.8;
+}

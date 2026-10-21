@@ -313,6 +313,14 @@ html[lang="zh-Hans"] .markdown h2 {
   font-size: 0.875rem;
 }
 
+/* 代码块标题：比正文小一号的次要文字，不用链接色。 */
+.theme-code-block [class*="codeBlockTitle"] {
+  border-bottom-color: var(--om-border);
+  color: var(--om-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
 [data-theme="dark"] .theme-code-block {
   border-color: var(--om-border-strong);
 }
@@ -491,6 +499,38 @@ div.theme-doc-toc-mobile {
 
 .button:active {
   transform: scale(0.97);
+}
+
+/* 主按钮：单色主色（亮 slate-900 / 暗 slate-50）；次按钮：描边，悬停只加一层浅底。 */
+.button--primary {
+  --ifm-button-background-color: var(--om-primary);
+  --ifm-button-border-color: var(--om-primary);
+  --ifm-button-color: var(--om-on-primary);
+}
+
+.button--primary:hover {
+  --ifm-button-background-color: var(--om-primary-hover);
+  --ifm-button-border-color: var(--om-primary-hover);
+  color: var(--om-on-primary);
+}
+
+.button--secondary.button--outline {
+  --ifm-button-border-color: var(--om-border-strong);
+  --ifm-button-color: var(--om-text-strong);
+  background: transparent;
+  color: var(--om-text-strong);
+}
+
+.button--secondary.button--outline:hover {
+  background: var(--om-hover);
+  color: var(--om-text-strong);
+}
+
+.button--lg {
+  --ifm-button-size-multiplier: 1;
+  min-height: 2.75rem;
+  padding: 0.6875rem 1.25rem;
+  font-size: 1rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

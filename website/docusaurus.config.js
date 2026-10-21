@@ -59,8 +59,8 @@ export default {
       {
         docs: {
           path: ".staging/en",
-          // 纯文档站：文档索引就是首页，不另做一个 React 落地页。
-          routeBasePath: "/",
+          // 首页是 src/pages/index.js，文档在 /docs/ 下。
+          routeBasePath: "docs",
           sidebarPath: "./sidebars.js",
           // 指回 docs/public/<语言>/ 的真实文件。暂存副本不在 git 里，链过去没有意义。
           editUrl: ({ locale, docPath }) =>
@@ -100,10 +100,10 @@ export default {
         {
           title: "Docs",
           items: [
-            { label: "User Guide", to: "/users" },
-            { label: "Developer Reference", to: "/developers" },
-            { label: "Agent Guide", to: "/agents" },
-            { label: "API Reference", to: "/api" },
+            { label: "User Guide", to: "/docs/users" },
+            { label: "Developer Reference", to: "/docs/developers" },
+            { label: "Agent Guide", to: "/docs/agents" },
+            { label: "API Reference", to: "/docs/api" },
           ],
         },
         {

@@ -13,19 +13,19 @@
   },
   "link.item.label.User Guide": {
     "message": "用户文档",
-    "description": "The label of footer link with label=User Guide linking to /users"
+    "description": "The label of footer link with label=User Guide linking to /docs/users"
   },
   "link.item.label.Developer Reference": {
     "message": "开发者参考",
-    "description": "The label of footer link with label=Developer Reference linking to /developers"
+    "description": "The label of footer link with label=Developer Reference linking to /docs/developers"
   },
   "link.item.label.Agent Guide": {
     "message": "Agent 应用开发指南",
-    "description": "The label of footer link with label=Agent Guide linking to /agents"
+    "description": "The label of footer link with label=Agent Guide linking to /docs/agents"
   },
   "link.item.label.API Reference": {
     "message": "API 参考",
-    "description": "The label of footer link with label=API Reference linking to /api"
+    "description": "The label of footer link with label=API Reference linking to /docs/api"
   },
   "link.item.label.EPG dashboard": {
     "message": "EPG Dashboard",

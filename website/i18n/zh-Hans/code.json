@@ -1,0 +1,143 @@
+{
+  "home.capabilities.structure.term": {
+    "message": "应用组织"
+  },
+  "home.capabilities.structure.text": {
+    "message": "一个项目可包含多个服务；每个服务读取自己的 YAML，并显式安装需要的 App。App 可提供模型、视图、自定义命令和强类型配置。"
+  },
+  "home.capabilities.web.term": {
+    "message": "Web 与数据"
+  },
+  "home.capabilities.web.text": {
+    "message": "基于 Sanic 的异步服务、Jinja HTML、SQLAlchemy 模型、项目级 Alembic 命令、Auth 与 Admin。"
+  },
+  "home.capabilities.pages.term": {
+    "message": "页面交互"
+  },
+  "home.capabilities.pages.text": {
+    "message": "后端 Form、HTML/JSON Table，前端 Form/Modal/Feedback/Select/Chart 等共享组件，以及有序的 JSON 响应动作。"
+  },
+  "home.capabilities.messages.term": {
+    "message": "消息"
+  },
+  "home.capabilities.messages.text": {
+    "message": "Cookie 一次性页面提示、数据库持久通知、临时实时推送、通用 SSE 浏览器投递；进程控制消息有独立职责。"
+  },
+  "home.capabilities.foundations.term": {
+    "message": "基础能力"
+  },
+  "home.capabilities.foundations.text": {
+    "message": "文件存储、HTTP Client、缓存、Redis/NATS provider、日志、短生命周期子进程和持久 Worker。"
+  },
+  "home.capabilities.tasks.term": {
+    "message": "持久任务"
+  },
+  "home.capabilities.tasks.text": {
+    "message": "Taskiq + NATS JetStream + Redis，支持异步函数投递、多个执行进程、结果、广播和定时计划；与固定本地 Worker、Core NATS 事件/RPC 分开使用。"
+  },
+  "home.capabilities.mcp.term": {
+    "message": "MCP 服务端"
+  },
+  "home.capabilities.mcp.text": {
+    "message": "App 声明 MCP 工具、resource 和 prompt，Web 服务在同一套认证与权限之后把它们提供给 AI agent。"
+  },
+  "home.packages.oldman": {
+    "message": "Application、App 注册、配置、数据库迁移、Web、Auth、Admin、表单、模板、存储和后台能力。"
+  },
+  "home.packages.oldmanWeb": {
+    "message": "Page/Component 生命周期、Dashboard 布局、共享样式、表单、Table、Modal 和浏览器交互。"
+  },
+  "home.guides.users.title": {
+    "message": "用户文档"
+  },
+  "home.guides.users.text": {
+    "message": "安装、创建项目和实际使用。"
+  },
+  "home.guides.developers.title": {
+    "message": "开发者参考"
+  },
+  "home.guides.developers.text": {
+    "message": "准确的接口、加载顺序和扩展方法。"
+  },
+  "home.guides.agents.title": {
+    "message": "Agent 应用开发指南"
+  },
+  "home.guides.agents.text": {
+    "message": "给编码 agent：按任务选择文件、完成接线与验证。"
+  },
+  "home.guides.api.title": {
+    "message": "API 参考"
+  },
+  "home.guides.api.text": {
+    "message": "每个公开名字的签名、摘要和定义它的模块。"
+  },
+  "home.demos.epg.name": {
+    "message": "EPG Dashboard"
+  },
+  "home.demos.epg.text": {
+    "message": "建立在 dashboard 骨架之上的完整业务 Dashboard：登录、个人页、通知、用户管理、找回密码和令牌接口，以及 UI 与功能示例。"
+  },
+  "home.demos.admin.name": {
+    "message": "内置 Admin"
+  },
+  "home.demos.admin.text": {
+    "message": "内置 Admin 的独立运行示例，使用 SQLite 和 Redis Session，前端仍是同一套 oldman-web 组件。"
+  },
+  "home.demos.ops.name": {
+    "message": "运维工具"
+  },
+  "home.demos.ops.text": {
+    "message": "一个服务器维护工具：终端里的编号菜单，改 sshd、sysctl、nginx 站点，重启服务，清理数据库里的操作记录。"
+  },
+  "home.hero.title": {
+    "message": "用 Python 构建 Dashboard、管理后台、API 与后台服务"
+  },
+  "home.hero.lead": {
+    "message": "后端渲染优先：Python 负责配置、应用生命周期、权限、数据和 HTML；浏览器端负责局部更新、表单提交、表格、弹窗和实时交互。可以只写后端，也可以为需要交互的页面增加 TypeScript。"
+  },
+  "home.hero.start": {
+    "message": "开始使用"
+  },
+  "home.hero.github": {
+    "message": "在 GitHub 上查看"
+  },
+  "home.hero.requirements": {
+    "message": "Linux · Python 3.12 到 3.14 · MIT 许可证"
+  },
+  "home.quickStart.title": {
+    "message": "新建一个 API 项目"
+  },
+  "home.quickStart.caption": {
+    "message": "startproject 询问项目类型和数据库时选择 api、none。服务的 / 不需要凭据；需要 API key 或密码的两个接口怎样调用，见生成项目的 README。"
+  },
+  "home.showcase.alt": {
+    "message": "EPG Dashboard 示例的频道列表：带搜索、列、密度与导出菜单、国家徽章和分页的表格，位于带侧栏的 Dashboard 外壳中。"
+  },
+  "home.showcase.caption": {
+    "message": "EPG Dashboard 示例的频道列表，用的是框架自带的 Dashboard 外壳和表格组件。"
+  },
+  "home.capabilities.title": {
+    "message": "框架提供什么"
+  },
+  "home.capabilities.text": {
+    "message": "基于 Sanic、SQLAlchemy、Alembic、Jinja、WTForms 等成熟实现，Oldman 补上它们之间的接线和应用能力，不另造一整套等价底层。"
+  },
+  "home.packages.title": {
+    "message": "两个包，一套协议"
+  },
+  "home.packages.text": {
+    "message": "内置 Admin 和业务 Dashboard 使用同一套组件、样式与响应协议，不需要分别维护两套前端。普通 API 只需要 Python 包。"
+  },
+  "home.guides.title": {
+    "message": "阅读文档"
+  },
+  "home.demos.title": {
+    "message": "完整示例"
+  },
+  "home.demos.text": {
+    "message": "示例是独立 Git 仓库，各有配置、虚拟环境、前端依赖和数据库。"
+  },
+  "home.meta.description": {
+    "message": "Oldman 是后端渲染优先的 Python 应用框架，适合构建 Dashboard、管理后台、Web/API 服务和后台任务服务。"
+  }
+}
