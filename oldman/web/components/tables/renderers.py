@@ -393,7 +393,7 @@ class TableRenderer:
 
 
 class TailwindTableRenderer(TableRenderer):
-    """Tailwind/Oldman Table renderer。"""
+    """Tailwind/Oldman Table renderer."""
 
     template_namespace = "oldman/tables/default"
 

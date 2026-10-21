@@ -29,6 +29,10 @@ class CommittedIndexTest(unittest.TestCase):
         stale = api_index.stale_pages(ROOT, api_index.render(ROOT))
         self.assertEqual([], stale, f"run `python {api_index.GENERATOR} --write` and commit the result")
 
+    def test_every_summary_in_the_index_is_english(self) -> None:
+        chinese = api_index.untranslated(api_index.collect(ROOT))
+        self.assertEqual([], chinese, "open each docstring with a one-line English summary; keep the Chinese after a blank line")
+
 
 def documented_imports(text: str) -> list[tuple[str, str]]:
     """Every (module, name) a Markdown page imports from oldman."""
@@ -187,6 +191,18 @@ class ResolverTest(unittest.TestCase):
 
         self.assertEqual("Rows as &lt;template&gt; elements -&gt; HTML; ``a < b`` and `<li>` stay code.", summary)
         self.assertIn(summary, api_index.render(self.root)[api_index.OUTPUT / "oldman.shop.md"])
+
+    def test_a_chinese_summary_is_reported_until_an_english_line_opens_the_docstring(self) -> None:
+        write(self.root, "oldman/shop/helpers.py", '"""小工具。"""\n')
+        write(
+            self.root,
+            "oldman/shop/_impl.py",
+            'async def checkout(cart_id: int) -> str:\n    """Pay for a cart.\n\n    为购物车付款。\n    """\n\n__all__ = ["checkout"]\n',
+        )
+        api_index.parse.cache_clear()
+
+        self.assertEqual(["oldman.shop.helpers: 小工具。"], api_index.untranslated(api_index.collect(self.root)))
+        self.assertEqual("Pay for a cart.", self.entries()["checkout"].summary)
 
     def test_a_name_in_all_without_a_definition_fails(self) -> None:
         write(self.root, "oldman/shop/services.py", "from ._impl import refund\n")

@@ -390,7 +390,7 @@ class · defined in `oldman.web.components.tables.renderers`
 class TailwindTableRenderer(TableRenderer)
 ```
 
-Tailwind/Oldman Table renderer。
+Tailwind/Oldman Table renderer.
 
 ## `truncated`
 

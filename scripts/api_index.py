@@ -14,8 +14,11 @@ it, and for a class its own public members.
 The source is read with ``ast`` and nothing is imported: some packages need configured settings
 at import time (``oldman.tasks.distributed``), and an index must not depend on that.
 
+Summaries must be English. A docstring written in Chinese opens with a one-line English summary,
+and its Chinese text follows unchanged after a blank line; the index takes only the first line.
+
 Run without arguments to check that the committed pages match the source (exit 1 when they do
-not); run with ``--write`` to regenerate them.
+not, or when a summary is Chinese); run with ``--write`` to regenerate them.
 """
 
 from __future__ import annotations
@@ -36,6 +39,9 @@ GENERATOR = "scripts/api_index.py"
 VALUE_LIMIT = 100
 #: A Markdown code span: a run of backticks, then text, then the same run.
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
+#: Chinese characters and the full-width punctuation written with them. The index is the English reference, so a
+#: public name's docstring opens with a one-line English summary and keeps its Chinese text after a blank line.
+CHINESE = re.compile(r"[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]")
 
 
 @dataclass(frozen=True)
@@ -434,6 +440,29 @@ def render_entry(entry: Entry, heading: str) -> list[str]:
     return lines
 
 
+def untranslated(packages: list[Package]) -> list[str]:
+    """Every summary written in Chinese, as ``<name>: <summary>``, in page order."""
+    found: list[str] = []
+
+    def check(name: str, summary: str) -> None:
+        if CHINESE.search(summary):
+            found.append(f"{name}: {summary}")
+
+    def check_entries(owner: str, entries: tuple[Entry, ...]) -> None:
+        for entry in entries:
+            check(f"{owner}.{entry.name}", entry.summary)
+            for member in entry.members:
+                check(f"{owner}.{entry.name}: {member.signature}", member.summary)
+
+    for package in packages:
+        check(package.name, package.summary)
+        check_entries(package.name, package.entries)
+        for section in package.sections:
+            check(section.module, section.summary)
+            check_entries(section.module, section.entries)
+    return found
+
+
 def render(root: Path) -> dict[Path, str]:
     """Every page of the index, keyed by its path relative to ``root``."""
     packages = collect(root)
@@ -459,6 +488,15 @@ def main() -> int:
     args = parser.parse_args()
     root: Path = args.root
     pages = render(root)
+    chinese = untranslated(collect(root))
+    if chinese:
+        print(
+            "Summaries must be English: open the docstring (or the #: comment) with a one-line English summary and "
+            "keep the Chinese text after a blank line (a plain # line for a comment):",
+            file=sys.stderr,
+        )
+        for item in chinese:
+            print(f"  {item}", file=sys.stderr)
     if args.write:
         directory = root / OUTPUT
         directory.mkdir(parents=True, exist_ok=True)
@@ -468,12 +506,13 @@ def main() -> int:
         for path, text in pages.items():
             (root / path).write_text(text, encoding="utf-8")
         print(f"API index written: {len(pages) - 1} packages under {OUTPUT}.")
-        return 0
+        return 1 if chinese else 0
     stale = stale_pages(root, pages)
     if stale:
         print(f"API index is out of date; run `python {GENERATOR} --write`:", file=sys.stderr)
         for path in stale:
             print(f"  {path}", file=sys.stderr)
+    if stale or chinese:
         return 1
     print(f"API index is current: {len(pages) - 1} packages.")
     return 0
