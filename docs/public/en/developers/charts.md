@@ -96,7 +96,7 @@ arranges results into series/labels. Multi-database services override `database_
 ## Permissions
 
 `require_authenticated` defaults to True: the framework baseline is sign-in. Put rules needing no data query (staff/role permissions) in `check_permission()`, using the same `oldman.web.HTTPMethodView`
-permission mechanism as other views. Rejection returns the JSON error protocol with 403 rather than redirecting to sign-in. Override `check_auth(chart_request)` for rules needing parameters/database reads; it runs after parameter validation. See [Permissions](permissions.md#permission-layers-in-data-components) for the division of responsibilities.
+permission mechanism as other views. Rejection returns the JSON error protocol with 403 rather than redirecting to sign-in. Override `check_auth(chart_request)` for rules needing parameters/database reads; it runs after parameter validation. See [permission layers in data components](permissions.md#permission-layers-in-data-components) for the division of responsibilities.
 
 ## What charts do not do
 

@@ -29,7 +29,7 @@ Tests may patch external I/O to trigger a specific exception precisely. However,
 
 Retain handles for test-created processes and stop and await them in finally. Close browser profiles and shut down databases, connection pools, and background tasks normally. Do not kill user services in bulk by process name.
 
-Use standard TemporaryDirectory or mktemp -d for temporary directories, track their ownership, and delete only directories owned by this task. Release tools retain evidence that requires explicit cleanup; see [Source development, verification, and releases](maintenance.md#full-verification-in-serial-stages).
+Use standard TemporaryDirectory or mktemp -d for temporary directories, track their ownership, and delete only directories owned by this task. Release tools retain evidence that requires explicit cleanup; see [the maintenance instructions](maintenance.md#full-verification-in-serial-stages).
 
 Failure tests should at least verify what did not happen: invalid input did not write data, rollback retained the original file, unauthorized requests did not read another user's data, or a failed action did not run later actions. Do not assert only an error message.
 

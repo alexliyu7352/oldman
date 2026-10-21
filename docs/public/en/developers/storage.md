@@ -2,7 +2,7 @@
 
 Storage holds file contents; the database stores only logical names, such as `examples/assets/...` in the demo. Do not store local absolute paths or a deployment-specific domain in file fields. Storage does not share a transaction with the database and is not a browser Form component.
 
-This chapter uses ExampleAsset in the EPG demo. Follow [Run EPG Dashboard Demo](../users/getting-started.md) to prepare configuration, the database, accounts, and static assets, then open `/examples/storage/upload`, `/examples/storage/lifecycle`, and `/examples/storage/api`. These pages create, replace, and delete real test files. Operate only on your own demo data; see [Demo data import and file upload](../users/data-and-files.md) for step-by-step instructions.
+This chapter uses ExampleAsset in the EPG demo. Follow [Run the EPG dashboard demo](../users/getting-started.md) to prepare configuration, the database, accounts, and static assets, then open `/examples/storage/upload`, `/examples/storage/lifecycle`, and `/examples/storage/api`. These pages create, replace, and delete real test files. Operate only on your own demo data; see [the file tutorial](../users/data-and-files.md) for step-by-step instructions.
 
 ## Configuration, objects, and initialization
 
@@ -121,7 +121,7 @@ Unless explicitly declared, ModelForm converts file columns to UploadField autom
 
 An UploadField on an ordinary `Form` (rather than `ModelForm`) only returns the upload object. It does not save it automatically and has no model column to determine requiredness, so implement that rule yourself. FileSize(max_bytes) and FileExtension(("pdf", "txt")) provide validation. An extension does not prove content authenticity, and no virus scan runs automatically. Do not apply DataRequired to every edit request and thereby reject requests that retain the existing file.
 
-Saving must follow successful form.validate. The demo's complete creation endpoint is in [Demo data import and file upload](../users/data-and-files.md#3-complete-save-entry-point). Below is the complete edit endpoint from the same views/storage.py, showing where instance comes from:
+Saving must follow successful form.validate. The demo's complete creation endpoint is in [the file tutorial](../users/data-and-files.md#3-complete-save-entry-point). Below is the complete edit endpoint from the same views/storage.py, showing where instance comes from:
 
 ```python
 @router.post("/examples/storage/assets/<asset_id:int>/update", name="example_asset_update")

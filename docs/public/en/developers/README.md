@@ -1,6 +1,6 @@
 # Developer reference
 
-This reference defines public entry points, loading order, and extension contracts. For your first project, start with [Run EPG Dashboard Demo](../users/getting-started.md); you need not read every reference first.
+This reference defines public entry points, loading order, and extension contracts. For your first project, start with [Run the EPG dashboard demo](../users/getting-started.md); you need not read every reference first.
 
 A name is public when included in its exporting package/module's `__all__`; import it there. Any module path segment starting with an underscore, such as `oldman.cli._main`, is internal. The source-generated API index `docs/public/en/api/README.md` lists public names, signatures, and import locations.
 

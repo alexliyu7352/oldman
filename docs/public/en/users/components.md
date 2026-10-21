@@ -1,6 +1,6 @@
 # Dashboard UI and interactive components
 
-This page helps you choose and integrate existing components. Examples come directly from the EPG demo, retaining actual class names, attributes, routes, and translation calls. Code blocks are excerpts from the corresponding templates or classes, rather than complete new pages. Prepare the demo following [Run EPG Dashboard Demo](getting-started.md), then open the paths below. The default address is `http://127.0.0.1:17997`.
+This page helps you choose and integrate existing components. Examples come directly from the EPG demo, retaining actual class names, attributes, routes, and translation calls. Code blocks are excerpts from the corresponding templates or classes, rather than complete new pages. Prepare the demo following [Run the EPG dashboard demo](getting-started.md), then open the paths below. The default address is `http://127.0.0.1:17997`.
 
 Static Cards and button appearance need only HTML/CSS; interactions such as Dropdown also require Page to mount components. Admin and business dashboards share components and visual variables, but page entry points determine enabled loaders. Copying HTML does not start every capability automatically. See the [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md) for complete Form/Modal/Table wiring and the [Demo page and source index](demo-examples.md) for all pages.
 
@@ -15,7 +15,7 @@ Template and browser wiring are:
 3. ExamplesPage also registers five Demo private components: navigation-probe, example-chart, realtime-table, icon-catalog, and feedback-workflow. Ordinary Tabs, Slider, and Alert are already in the shared loader and do not need to be registered as global components.
 4. Both initial visits and Turbo dynamic entry pages mount content through the Page lifecycle; old instances are cleaned up when leaving. The remote Modal insertion content is already dynamically mounted, so do not write another set of scripts to initialize the plug-in for it.
 
-See [Pages, components, and dynamic content](../developers/frontend.md#demo-dashboard-page-entry-point) for complete entry-point and lifecycle code and [Frontend assets, styles, icons, and translation](../developers/assets.md) for builds and CSS wiring. `{{ _("...") }}` below is a Jinja translation call requiring backend rendering; do not save it as static browser HTML. data-example-* marks demo locations or private interactions, rather than framework component APIs. Preserve its attributes and consumers when reusing private behavior.
+See [frontend entry points and lifecycle](../developers/frontend.md#demo-dashboard-page-entry-point) for complete entry-point and lifecycle code and [Frontend assets, styles, icons, and translation](../developers/assets.md) for builds and CSS wiring. `{{ _("...") }}` below is a Jinja translation call requiring backend rendering; do not save it as static browser HTML. data-example-* marks demo locations or private interactions, rather than framework component APIs. Preserve its attributes and consumers when reusing private behavior.
 
 ## Distinguish three capabilities
 
@@ -171,7 +171,7 @@ The interactive content container on the same page is as follows:
 
 Popover can contain links and buttons, but neither traps focus nor creates a Modal backdrop. This remains a UI demonstration: View team's #popover and Request review have no corresponding business handlers and do not form a review workflow.
 
-Use an [Pages, components, and dynamic content](../developers/frontend.md#modal-is-only-a-container) for a backdrop, focus trapping, or remote content container. Drawer on the same page imports modal from `oldman/dashboard/components/modal.html`, passing om-drawer and om-drawer-start/end/top/bottom through root_class. Its trigger's data-om-modal-target matches the macro-generated ID. Copy the trigger, macro import, and macro call together; a direction class alone cannot open the panel. Drawer reuses Modal loading, closing, and cleanup, without a separate submission protocol.
+Use [an ordinary Modal](../developers/frontend.md#modal-is-only-a-container) for a backdrop, focus trapping, or remote content container. Drawer on the same page imports modal from `oldman/dashboard/components/modal.html`, passing om-drawer and om-drawer-start/end/top/bottom through root_class. Its trigger's data-om-modal-target matches the macro-generated ID. Copy the trigger, macro import, and macro call together; a direction class alone cannot open the panel. Drawer reuses Modal loading, closing, and cleanup, without a separate submission protocol.
 
 ## Tabs
 
@@ -232,7 +232,7 @@ Accordion details share a name. Shared CSS such as om-disclosure supplies their 
 
 ## Form enhancement
 
-Let [Forms, fields, and remote choices](../developers/forms.md) render DOM instead of hand-building a second submission protocol per page. Demo fields are in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), with ordinary submissions in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py). See [Demo page and source index](demo-examples.md#forms-and-input) for actual source and database-write boundaries.
+Let [backend fields and Widgets](../developers/forms.md) render DOM instead of hand-building a second submission protocol per page. Demo fields are in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), with ordinary submissions in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py). See [the form-example index](demo-examples.md#forms-and-input) for actual source and database-write boundaries.
 
 | Need | Backend/frontend capability | Actual page |
 | --- | --- | --- |
@@ -441,7 +441,7 @@ Toasts use Toastify and may appear together; alert/confirm/prompt use SweetAlert
 
 ### Confirmation and input: modify real projects
 
-First follow [Demo page and source index](demo-examples.md) to migrate, load fixtures, start the Web and sign in. Open "Confirm changes to a real project" in `/examples/messages/feedback`:
+First follow [the complete demo's preparation steps](demo-examples.md) to migrate, load fixtures, start the Web and sign in. Open "Confirm changes to a real project" in `/examples/messages/feedback`:
 
 1. Select an item and click "Move to review". Canceling the dialog box does not send a POST; only confirming will save the status of this project as `review`. The saved ID, name, status, and success prompt are displayed below.
 2. Submit the same project that is already under review again, and the server returns a business error; there are no new modifications and no successful actions. Buttons and loading masks are restored, and you can continue working.
@@ -454,7 +454,7 @@ After confirmation, the component is submitted through the existing `runAction(f
 
 Disconnection, timeout, or HTTP 403 uses existing visible errors, without pretending a successful save. Buttons and overlays recover afterward. Use browser developer tools to go offline, confirm to observe the error, then restore the network and retry. Leaving the page cancels old requests and remaining UI actions, preventing old messages from entering a new page. **This does not guarantee undoing changes already committed by the server**; the database is authoritative on return.
 
-`Feedback.confirm(options)` returns `Promise<boolean>`; explicitly pass `showCancelButton: true` for a cancel button. `prompt<string>(options)` returns results including `isConfirmed` and `value`; do not submit cancellation as an empty string. Page.feedback's public type guarantees only response presentation. The demo narrows it with `instanceof Feedback`. See the [Pages, components, and dynamic content](../developers/frontend.md#feedback-interactions-and-real-requests) for extension wiring and complete execution order.
+`Feedback.confirm(options)` returns `Promise<boolean>`; explicitly pass `showCancelButton: true` for a cancel button. `prompt<string>(options)` returns results including `isConfirmed` and `value`; do not submit cancellation as an empty string. Page.feedback's public type guarantees only response presentation. The demo narrows it with `instanceof Feedback`. See [the frontend reference](../developers/frontend.md#feedback-interactions-and-real-requests) for extension wiring and complete execution order.
 
 Other capabilities can be viewed further from these real pages:
 
@@ -471,7 +471,7 @@ Other capabilities can be viewed further from these real pages:
 | language-switcher | Shell language menu and /examples/i18n/browser, use the existing language translation catalog, do not automatically generate translation |
 | back-to-top, history-back, preloader | Return to top, history back and loading presentation; enabled by existing page wiring, does not require all pages to add placeholder components |
 
-[UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Demo page and source index](demo-examples.md) cover other typography, images, timelines, and system states. See [Frontend assets, styles, icons, and translation](../developers/assets.md#icons) for complete icon catalogs, addition steps, generation commands, and visual variables. Icons currently in use are only a subset of the library.
+[UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Demo page and source index](demo-examples.md) cover other typography, images, timelines, and system states. See [the assets reference](../developers/assets.md#icons) for complete icon catalogs, addition steps, generation commands, and visual variables. Icons currently in use are only a subset of the library.
 
 ## How to check wiring
 

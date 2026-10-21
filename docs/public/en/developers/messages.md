@@ -8,7 +8,7 @@
 | Personal notification with read state | `notifications.create()` | Database, then best-effort SSE delivery |
 | Temporary online toast/dialog | `notifications.push()` | SSE only, without persistence |
 
-Task-process control messages and NATS are outside this table; see [Processes and background tasks](background.md) and [Redis and NATS providers](providers.md). Browser Feedback does not automatically create database notifications.
+Task-process control messages and NATS are outside this table; see [background tasks](background.md) and [the provider reference](providers.md). Browser Feedback does not automatically create database notifications.
 
 ## Cookie page messages
 
@@ -118,7 +118,7 @@ The same function's temporary branch calls `notifications.push` and returns `dat
 
 title/body accept ordinary untranslated source strings or `LazyTranslation`. Ordinary strings are also wrapped for lazy translation. Explicitly use `_('literal')` for fixed extraction entries. Lazy parameters support JSON scalars only. `presentation` is NONE/TOAST/MODAL; NONE still enters the center without interrupting online users.
 
-**Titles are always text**. `format=HTML` only displays the body as trusted HTML. String variables in a lazy body are escaped, while developers own HTML-template-body safety. Do not use unchecked user input as an HTML source template or expect tags in ordinary TEXT to become HTML. `href` accepts only safe absolute same-site paths. icon is a single `ri-*`, `mdi-*`, `bx-*`, `bxs-*`, or `bxl-*` class and must also enter the application build; see [Frontend assets, styles, icons, and translation](assets.md).
+**Titles are always text**. `format=HTML` only displays the body as trusted HTML. String variables in a lazy body are escaped, while developers own HTML-template-body safety. Do not use unchecked user input as an HTML source template or expect tags in ordinary TEXT to become HTML. `href` accepts only safe absolute same-site paths. icon is a single `ri-*`, `mdi-*`, `bx-*`, `bxs-*`, or `bxl-*` class and must also enter the application build; see [the assets reference](assets.md).
 
 After database success, create publishes `oldman.notifications.created`. Redis unavailability retains the notification and logs network publishing failure. Oversized SSE envelopes also log without undoing the database. Offline browsers receive no replayed toast but can later read the center. Do not repeat create just because no toast appeared.
 
@@ -153,10 +153,10 @@ Business dashboards install **notification HTTP operations**, not generic SSE ro
 
 These endpoints require Sessions, CSRF, and the template environment. Writes use CSRF. Invalid requests currently return HTTP 400; authentication/authorization follow shared security handling rather than fabricated success.
 
-**Center shell page**: pass the `init_app()` result to `AccountFlow(notification_routes=...)`, which installs the center at `center_url` (page `user_notifications`, context `notification_center_content`); see [Web requests, templates, and permissions](web.md#ready-made-account-flows). Without `AccountFlow`, define it in the application: call `await render_center_content(request, user_id=user_id)` from a protected view and pass the result to a template inheriting your Dashboard base. `init_app()` does not choose business layouts. Shared `oldman/messages/notifications/center_content.html` already provides filtering, pagination, mark-selected/all-read, and deletion protocols. Do not duplicate controllers.
+**Center shell page**: pass the `init_app()` result to `AccountFlow(notification_routes=...)`, which installs the center at `center_url` (page `user_notifications`, context `notification_center_content`); see [ready-made account flows](web.md#ready-made-account-flows). Without `AccountFlow`, define it in the application: call `await render_center_content(request, user_id=user_id)` from a protected view and pass the result to a template inheriting your Dashboard base. `init_app()` does not choose business layouts. Shared `oldman/messages/notifications/center_content.html` already provides filtering, pagination, mark-selected/all-read, and deletion protocols. Do not duplicate controllers.
 
 The topbar uses shared `dashboard_topbar` with `user_notification_urls={"topbar": routes.topbar_url, "center": routes.center_url}`. DashboardPage requests the latest preview on initialization, then refreshes on SSE created/sync and reconnection open. Previews show at most five clickable entries without bulk checkboxes. Displaying a toast does not mark read; opening or explicit marking does.
 
-Wire user SSE routes and `<meta name="oldman-user-events-url">` according to [SSE and WebSocket](sse.md). Reuse DashboardPage notification/Feedback/connection handling rather than listening to Redis, parsing binary messages, copying notification DOM, or adding an independent subscriber.
+Wire user SSE routes and `<meta name="oldman-user-events-url">` according to [the SSE reference](sse.md). Reuse DashboardPage notification/Feedback/connection handling rather than listening to Redis, parsing binary messages, copying notification DOM, or adding an independent subscriber.
 
 <!-- source: zh/developers/messages.md @ c47d6711 -->

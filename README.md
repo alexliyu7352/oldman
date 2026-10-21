@@ -22,7 +22,7 @@ The built-in Admin and business dashboards share components, styles, and respons
 - [Agent guide: application development](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md): choose files by task, complete wiring, and verify results.
 - [Oldman documentation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/README.md): find documentation by question.
 
-Start by [Run EPG Dashboard Demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md), then follow its [Real demo data, migrations, and queries](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-tasks.md) and [Demo HTML/JSON tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md). Tutorials use actual demo code and specify source files, working directories, configuration, and expected results. See the [Demo page and source index](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/demo-examples.md) for more pages.
+Start by [running the EPG dashboard demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md), then follow its tutorials on [real data](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-tasks.md) and [tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md). Tutorials use actual demo code and specify source files, working directories, configuration, and expected results. See the [Demo page and source index](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/demo-examples.md) for more pages.
 
 ## The shortest path to a project
 
@@ -50,7 +50,7 @@ uv sync
 
 Generated projects include `.python-version` (3.13). `uv sync` selects that interpreter and downloads it if missing locally. The service includes three example endpoints: `/` is an unauthenticated health check; `/api/caller` and `/api/ops` demonstrate API key and HTTP Basic authentication. See the generated project's README for credentials and example commands. For API wiring, see [Creating a service](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md). To explore complete business pages directly, run the demo above.
 
-`run.sh` passes arguments unchanged to `oldman` in the project's `.venv`. It does not select a service, migrate databases, or start the frontend for you. `./run.sh api start` has the same meaning as `oldman api start` in the same virtual environment. These commands create an empty project; they are not demo startup instructions. See [Run EPG Dashboard Demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md#operating-environment-and-installation) for the demo's separate installation and debugging.
+`run.sh` passes arguments unchanged to `oldman` in the project's `.venv`. It does not select a service, migrate databases, or start the frontend for you. `./run.sh api start` has the same meaning as `oldman api start` in the same virtual environment. These commands create an empty project; they are not demo startup instructions. See [runtime requirements and installation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md#operating-environment-and-installation) for the demo's separate installation and debugging.
 
 ## What the framework provides
 

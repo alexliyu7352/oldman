@@ -1,4 +1,4 @@
-# Run and understand the Admin Demo
+# Run and understand the Admin demo
 
 The actual example of the built-in Admin is the standalone [Oldman Admin Demo](https://github.com/alexliyu7352/oldman-admin-demo). The EPG demo's user management page is a business dashboard. Installing the Admin App in EPG does not imply that it provides an automatically generated /admin site.
 
@@ -124,7 +124,7 @@ Sign in with the superuser you created and operate one of your own projects:
 - Accessing protected pages after signing out should require sign in.
 - CSRF 403 appears after leaving the page for a long time. You should refresh to obtain a new token; do not disable CSRF.
 
-See [Built-in Admin and extensions](../developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
+See [the ModelAdmin reference](../developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
 
 ## 6. Retrieve password
 
@@ -134,7 +134,7 @@ Use “Forgot password?” at the lower right of the sign-in card to open `/admi
 2. Open the email link (`web.domain` plus `/admin/password-reset/<user-id>/<token>`), set a new password, and confirm it. Rules match Admin password changes: 8 to 128 characters, including both letters and digits.
 3. After the change, all of that user's sign-in sessions in other browsers are invalidated, and the page asks them to sign in with the new password.
 
-Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [Configuration reference](../developers/configuration.md#app-settings).
+Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [the configuration reference](../developers/configuration.md#app-settings).
 
 Local development defaults to the console mail backend, which prints emails and links in service logs. For actual delivery, configure `mail.backend` as smtp; see [Mail](../developers/mail.md).
 
@@ -151,6 +151,6 @@ Local development defaults to the console mail backend, which prints emails and 
 | New database has no preset projects | Migrate, then explicitly run web loaddata demo; startup does not create demo data |
 | Name conflict during import | Check existing same-name records and fixture primary keys; do not clear the database or merge by name automatically |
 
-Read [Deployment and Operations](deployment.md) before deployment. Being able to run the demo does not mean production security configuration is complete.
+Read [Deployment and operation](deployment.md) before deployment. Being able to run the demo does not mean production security configuration is complete.
 
 <!-- source: zh/users/admin.md @ 25b7ec11 -->

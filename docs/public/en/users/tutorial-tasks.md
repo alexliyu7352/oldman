@@ -1,6 +1,6 @@
 # Real demo data, migrations, and queries
 
-First prepare the EPG Dashboard following the [Run EPG Dashboard Demo](getting-started.md). This chapter consistently uses the demo's actual models, including `ExampleTeam` and `ExampleProject`, without creating similar models with the same names.
+First prepare the EPG dashboard by following [the setup tutorial](getting-started.md). This chapter consistently uses the demo's actual models, including `ExampleTeam` and `ExampleProject`, without creating similar models with the same names.
 
 The data source is [apps/examples/models.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py); initial data is in [apps/examples/fixtures/demo.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/fixtures/demo.json). Browser operations and the source below use the same implementation.
 
@@ -53,7 +53,7 @@ Do not save this section as a separate simplified model. Complete declarations, 
 - `ExampleProject` represents a project; `team_id` is an actual foreign key to `example_team.id`. The `team` relationship supplies the displayed team name.
 - A project's `slug` is unique, `budget` cannot be negative, and `progress` must be between 0 and 100. Browser or Form validation does not replace these database constraints.
 - `ExampleTask` relates to projects through `project_id` and also supports the drag-and-drop review example. It is not a task model from another tutorial containing only a title and completion status.
-- `ExampleAsset` declares two file fields through `file_column()`; the database still stores logical file names. See [Demo data import and file upload](data-and-files.md) for uploads.
+- `ExampleAsset` declares two file fields through `file_column()`; the database still stores logical file names. See [data and files](data-and-files.md) for uploads.
 - `ExampleServer` and `ExampleServerMetric` store the server inventory and monitoring samples respectively, for realtime tables and charts.
 
 Ordinary SQLAlchemy columns still use `Mapped`, `mapped_column`, `ForeignKey`, and similar declarations. All models use the framework's shared metadata; do not create another Base for the same App to bypass registration.
@@ -150,7 +150,7 @@ It does four things:
 3. Eagerly loads the team relationship needed by the template, avoiding implicit queries after leaving the Session.
 4. Releases the Session on leaving the context, then lets the view render the page.
 
-Dynamic HTML/JSON tables use `ExampleProjectTable.get_queryset()`; Table handles pagination, searching, and sorting. See the [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md) for wiring.
+Dynamic HTML/JSON tables use `ExampleProjectTable.get_queryset()`; Table handles pagination, searching, and sorting. See [the next chapter](tutorial-dashboard.md) for wiring.
 
 ## 6. Writes, commits, and checks
 
@@ -167,7 +167,7 @@ To verify, use the next chapter's Modal to create your own test project. Inspect
 
 ## Close database connections owned by the service
 
-On service shutdown, the framework closes the process's database connection pool after business shutdown hooks. [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) needs no shutdown hook for this, and an individual list view must not close it either. See the [Applications and lifecycle](../developers/applications.md) for other lifecycle details, commands, and IDE initialization; see the [JSON data import and export](../developers/fixtures.md) for fixture type validation and transaction failure rules.
+On service shutdown, the framework closes the process's database connection pool after business shutdown hooks. [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) needs no shutdown hook for this, and an individual list view must not close it either. See [the Application reference](../developers/applications.md) for other lifecycle details, commands, and IDE initialization; see the [JSON data import and export](../developers/fixtures.md) for fixture type validation and transaction failure rules.
 
 The next chapter opens the demo's two dynamic table pages directly, following the same model to see how Form, Modal, response actions, and Page connect.
 

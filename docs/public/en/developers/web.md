@@ -1,6 +1,6 @@
 # Web requests, templates, and permissions
 
-This chapter covers services using `WebApplication`. Read [Applications and lifecycle](applications.md) for configuration/App loading and [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md) for complete wiring. Business excerpts come from EPG services/web.py, apps/dashboard/views.py, and apps/examples/session.py. Account pages use framework `oldman/web/auth`, without another tasks App.
+This chapter covers services using `WebApplication`. Read [the application lifecycle](applications.md) for configuration/App loading and [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md) for complete wiring. Business excerpts come from EPG services/web.py, apps/dashboard/views.py, and apps/examples/session.py. Account pages use framework `oldman/web/auth`, without another tasks App.
 
 ## Routes and request objects
 
@@ -22,7 +22,7 @@ Importing views does not fail without a Web server. If the process's Web applica
 
 ## Client addresses and proxies
 
-`request.ip` is the TCP peer. `request.client_ip` is Sanic's proxy-resolved client address, falling back to `request.ip` without trusted proxy headers. [Web requests, templates, and permissions](#ip-allowlist) requires both in one entry. Sign-in records and sign-in/reset rate limits use `oldman.web.request.client_ip(request)`: `request.client_ip`, then `request.ip` only if empty. Security decisions should use only these properties.
+`request.ip` is the TCP peer. `request.client_ip` is Sanic's proxy-resolved client address, falling back to `request.ip` without trusted proxy headers. [The IP allowlist](#ip-allowlist) requires both in one entry. Sign-in records and sign-in/reset rate limits use `oldman.web.request.client_ip(request)`: `request.client_ip`, then `request.ip` only if empty. Security decisions should use only these properties.
 
 Sanic trusts only the proxy topology you declare. WebApplication writes three `settings.web` fields into Sanic config during `init()`:
 
@@ -56,7 +56,7 @@ async def add_no_store(request: Request, response: Response) -> None:
     response.headers.setdefault("Cache-Control", "no-store")
 ```
 
-Register inside the service's `init()` override: call `super().init()`, then obtain Sanic through `self.runtime_app`. The demo's CSRF/notification [Applications and lifecycle](applications.md#wiring-templates-and-base-capabilities) uses this location:
+Register inside the service's `init()` override: call `super().init()`, then obtain Sanic through `self.runtime_app`. The demo's `init()` override that installs CSRF and notification routes in [the application lifecycle](applications.md#wiring-templates-and-base-capabilities) uses this location:
 
 ```python
 from oldman.runtime import WebApplication
@@ -76,7 +76,7 @@ When `super().init()` returns, configured messages, Session, Storage, SSE, and i
 
 Higher `priority` runs first. At equal priority, request middleware follows registration order; response middleware runs in reverse. Base Session/messages/i18n use `priority=0`, so default middleware registered in `init()` follows them. Explicitly raise priority to run before Session opens. Verified request registration first, second, high(priority=10) runs high, first, second; resp_a/resp_b responses run resp_b, resp_a.
 
-Framework middleware demonstrates this: `oldman/web/session/__init__.py` registers open/save middleware, returning 503 directly on Redis failure. WebApplication registers install_i18n/cleanup_i18n before Session/messages/authentication, so their rejections use request language. Language comes only from paths, queries, Cookies, and Accept-Language, not sign-in; see [Frontend assets, styles, icons, and translation](assets.md#which-language-a-request-uses). Reverse response ordering leaves cleanup_i18n last, keeping translations bound for other middleware. Configuration switches install them; do not register them again in service classes.
+Framework middleware demonstrates this: `oldman/web/session/__init__.py` registers open/save middleware, returning 503 directly on Redis failure. WebApplication registers install_i18n/cleanup_i18n before Session/messages/authentication, so their rejections use request language. Language comes only from paths, queries, Cookies, and Accept-Language, not sign-in; see [which language a request uses](assets.md#which-language-a-request-uses). Reverse response ordering leaves cleanup_i18n last, keeping translations bound for other middleware. Configuration switches install them; do not register them again in service classes.
 
 ## Enable templates
 
@@ -114,7 +114,7 @@ async def dashboard(request: Request):
     return await render_template("pages/dashboard.html", context=await dashboard_page_context(request, "dashboard_overview"))
 ```
 
-In contrast, public `oldman.web.template.render_component_template(owner, template_name, context)` returns `Markup`, using `owner.request` for the current environment. Form/Table renderers and custom components use it; it sends no HTTP response. Views render fragments with `await render_fragment(request, template_name, **context)`, returning `Markup` from the installed environment with `request` in context. Initial demo Modals build title/html JSON this way; see [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md#4-modal-only-loads-content). Views must not access `request.app.ext.environment` directly. All environments provide shell globals `current_language(request)`, `language_menu_items(request)` (`oldman.web.i18n`, for language menus/`<html lang>`), and `csrf_token_for(request)` (`oldman.web.security.csrf`, for `csrf-token` meta). `oldman/dashboard/partials/language_switcher.html` uses these when no arguments are supplied, hiding itself for one language. `site_name()` returns `core.site_name` or `core.app_name` for error/authentication pages and dashboard sidebar branding when `dashboard_sidebar` has no `brand_name`. Still supply required template context explicitly. Async Jinja may call `{{ form.render() }}`; Python requires `await form.render()`.
+In contrast, public `oldman.web.template.render_component_template(owner, template_name, context)` returns `Markup`, using `owner.request` for the current environment. Form/Table renderers and custom components use it; it sends no HTTP response. Views render fragments with `await render_fragment(request, template_name, **context)`, returning `Markup` from the installed environment with `request` in context. Initial demo Modals build title/html JSON this way; see [the Modal tutorial](../users/tutorial-dashboard.md#4-modal-only-loads-content). Views must not access `request.app.ext.environment` directly. All environments provide shell globals `current_language(request)`, `language_menu_items(request)` (`oldman.web.i18n`, for language menus/`<html lang>`), and `csrf_token_for(request)` (`oldman.web.security.csrf`, for `csrf-token` meta). `oldman/dashboard/partials/language_switcher.html` uses these when no arguments are supplied, hiding itself for one language. `site_name()` returns `core.site_name` or `core.app_name` for error/authentication pages and dashboard sidebar branding when `dashboard_sidebar` has no `brand_name`. Still supply required template context explicitly. Async Jinja may call `{{ form.render() }}`; Python requires `await form.render()`.
 
 ## Session and authentication are not automatic sign-in systems
 
@@ -189,7 +189,7 @@ async def login_submit(request: Any):
 
 ## Ready-made account flows
 
-Do not handwrite sign-in/out, profile, user, and role management for every site. `oldman.web.auth` provides three flows; roles adds `RoleManagementFlow` (`oldman.apps.roles.management`). Like [Security boundaries and rate limiting](security.md#password-reset-tokens)'s PasswordResetFlow, each dataclass accepts page paths and optional `auth_settings`/`db_manager` (installed Auth settings/process database manager by default). `register_routes(app=None, *, render=None, template_prefix=None, name_prefix="")` installs routes. Supply either `render=` (`async def render(request, page, /, **context)` returning a response) or `template_prefix=` rendering `<template_prefix>/<page>.html`; both or neither raise `ValueError`. Omitting app uses `oldman.web.router`; all route names use name_prefix.
+Do not handwrite sign-in/out, profile, user, and role management for every site. `oldman.web.auth` provides three flows; roles adds `RoleManagementFlow` (`oldman.apps.roles.management`). Like `PasswordResetFlow` described under [password reset](security.md#password-reset-tokens), each dataclass accepts page paths and optional `auth_settings`/`db_manager` (installed Auth settings/process database manager by default). `register_routes(app=None, *, render=None, template_prefix=None, name_prefix="")` installs routes. Supply either `render=` (`async def render(request, page, /, **context)` returning a response) or `template_prefix=` rendering `<template_prefix>/<page>.html`; both or neither raise `ValueError`. Omitting app uses `oldman.web.router`; all route names use name_prefix.
 
 | Flow | Routes | Pages and context | Access |
 | --- | --- | --- | --- |
@@ -198,7 +198,7 @@ Do not handwrite sign-in/out, profile, user, and role management for every site.
 | `UserManagementFlow(base_path, login_path, user_model=None, ...)` | List `base_path`, data `<base_path>/table`, new `<base_path>/new`; accounts `<base_path>/<id>/edit`, `/password`, `/status`, `/delete`; content `/password-modal`, `/status-modal`, `/delete-modal`; data route name `users_table` | `users/index`: `table`, `filter_form`, `users_url`, `new_url`; `users/form`: `form`, `user` (None on creation), `action`, `users_url` | View/add/change (edit/password/active)/delete require `auth.users.view`, `.add`, `.change`, `.delete`; superusers hold all. `can_manage_user` additionally applies |
 | `RoleManagementFlow(base_path, login_path, db_manager=None)` | List `base_path`, data `<base_path>/table`, new `<base_path>/new`; roles `<base_path>/<id>/edit`, `/delete`, content `/delete-modal`; data route name `roles_table` | `roles/index`: `table`, `roles_url`, `new_url`; `roles/form`: `form`, `role` (None on creation), `action`, `roles_url` | View/add/change/delete require `roles.view`, `.add`, `.change`, `.delete`; superusers hold all. `RoleForm` permits non-superusers to add only held permissions. Save/delete maintain role cache in Admin's order; unavailable Redis returns 503 with a permission-storage error, deleting nothing on failed deletion. Role deletion ends no sign-ins. register_routes rejects app instances without roles installed |
 
-All sign-ins require active accounts. Built-in Admin adds staff through `accept_user`; dashboards admit all active users by default. Use `staff_required` for staff-only pages or `require_perm` for individual permissions (see [Web requests, templates, and permissions](#permission-entry-points)).
+All sign-ins require active accounts. Built-in Admin adds staff through `accept_user`; dashboards admit all active users by default. Use `staff_required` for staff-only pages or `require_perm` for individual permissions (see [permission entry points](#permission-entry-points)).
 
 Built-in Admin, dashboard scaffolds, and the EPG demo use these flows. Admin ([oldman/apps/admin/site.py](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/site.py)) mounts beneath its own prefix and adds menu context through `render=`. Its original sign-in setup:
 
@@ -216,7 +216,7 @@ Built-in Admin, dashboard scaffolds, and the EPG demo use these flows. Admin ([o
         )
 ```
 
-Dashboard paths come from [Configuration reference](configuration.md#account-page-addresses):
+Dashboard paths come from [account-page addresses](configuration.md#account-page-addresses):
 
 | Parameter | Setting |
 | --- | --- |
@@ -225,11 +225,11 @@ Dashboard paths come from [Configuration reference](configuration.md#account-pag
 | `AccountFlow` `notification_routes` | Return from `oldman.web.messages.notifications.init_app(app)` when notifications are installed |
 | `UserManagementFlow` `base_path`, `login_path` | `web.account.users_url`, `login_url` |
 | `RoleManagementFlow` `base_path`, `login_path` | `web.account.roles_url`, `login_url` |
-| `PasswordResetFlow` `base_path`, `login_path`, `home_path` (see [Security boundaries and rate limiting](security.md#password-reset-tokens)) | `web.account.password_reset_url` (omit flow when unset), `login_url`, `login_redirect_url` |
+| `PasswordResetFlow` `base_path`, `login_path`, `home_path` (see [password reset](security.md#password-reset-tokens)) | `web.account.password_reset_url` (omit flow when unset), `login_url`, `login_redirect_url` |
 
-Dashboard `startproject` generates `apps/accounts/routes.py` wiring four flows according to this table: sign-in, profile/notifications, user management, and roles. Service init calls it. Restrict accounts by passing accept_user to LoginFlow; add PasswordResetFlow beside it for recovery. Demo [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) is this same source plus PasswordResetFlow at the end. See [Frontend assets, styles, icons, and translation](assets.md#dashboard-scaffold-scope) for the rest of the scaffold.
+Dashboard `startproject` generates `apps/accounts/routes.py` wiring four flows according to this table: sign-in, profile/notifications, user management, and roles. Service init calls it. Restrict accounts by passing accept_user to LoginFlow; add PasswordResetFlow beside it for recovery. Demo [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) is this same source plus PasswordResetFlow at the end. See [dashboard scaffold scope](assets.md#dashboard-scaffold-scope) for the rest of the scaffold.
 
-Install flows in service init after `super().init()`, alongside install_admin; `app` is `self.runtime_app`. `template_prefix="oldman/dashboard/account"` uses bundled dashboard account pages. Sign-in and reset pages (PasswordResetFlow uses `oldman/dashboard/account/password_reset`) inherit `oldman/dashboard/account/auth_base.html`, wrapping shared standalone `oldman/auth/base.html`: no sidebar/top bar, `data-om-page="login"`, project `app_main_bundle`. Profile, center, user, and role pages inherit project `base.html`. Override same-name templates or inherit `framework:` originals for partial changes (see [Web requests, templates, and permissions](#enable-templates)). Browser `startDashboard` uses AuthPage for authentication pages; see [Pages, components, and dynamic content](frontend.md#framework-startup-entry-point).
+Install flows in service init after `super().init()`, alongside install_admin; `app` is `self.runtime_app`. `template_prefix="oldman/dashboard/account"` uses bundled dashboard account pages. Sign-in and reset pages (PasswordResetFlow uses `oldman/dashboard/account/password_reset`) inherit `oldman/dashboard/account/auth_base.html`, wrapping shared standalone `oldman/auth/base.html`: no sidebar/top bar, `data-om-page="login"`, project `app_main_bundle`. Profile, center, user, and role pages inherit project `base.html`. Override same-name templates or inherit `framework:` originals for partial changes (see [enabling templates](#enable-templates)). Browser `startDashboard` uses AuthPage for authentication pages; see [the frontend reference](frontend.md#framework-startup-entry-point).
 
 Templates use `account_urls(request)` rather than hardcoded paths. It returns `home` (`web.account.login_redirect_url`), `login`, `logout`, `profile`, `users` (`web.account.users_url`), `roles` (`web.account.roles_url`), `password_reset`, `user_events` (only when SSE enabled), and `notifications` (`{"center": ..., "topbar": ...}` when installed, otherwise None). LoginFlow installs the earlier submission handler, including next validation, errors, rate limits, and remember-me; sites do not rewrite it.
 
@@ -293,7 +293,7 @@ TokenFlow(accept_user=has_staff_access).register_routes(
 ```
 
 - `accept_user` is required without a default. A staff-only site's token endpoint must not accidentally issue tokens to everyone. It runs at issuance and every refresh against the latest database user. Deactivated, deleted, or no-longer-eligible accounts receive no new token at next refresh and their family is revoked.
-- Obtain: pass request-body JSON/form `username` and `password` to [Web requests, templates, and permissions](#session-and-authentication-are-not-automatic-sign-in-systems). Change `credential_fields` for other credentials; extra client fields are not forwarded. Failures share sign-in-page limits; success updates last sign-in time.
+- Obtain: pass request-body JSON/form `username` and `password` to [the sign-in backend](#session-and-authentication-are-not-automatic-sign-in-systems). Change `credential_fields` for other credentials; extra client fields are not forwarded. Failures share sign-in-page limits; success updates last sign-in time.
 - Refresh: body `refresh_token` returns a new pair and invalidates the old refresh token.
 - Revoke: body `refresh_token` ends its family; any access token presented in the header is also revoked immediately. Already invalid refresh tokens still return success.
 - None writes Cookies or requires CSRF (all are `csrf_exempt`). Other sites can submit browser requests but cannot read returned tokens. Every response has `Cache-Control: no-store`.
@@ -312,7 +312,7 @@ Responses use the shared JSON envelope:
 | Sign-in failure rate limit exceeded | 429 with `Retry-After` | 1429 |
 | Token Redis unavailable | 503 | — |
 
-**Revocation.** Framework password changes, deactivation, deletion, and active/staff/superuser changes call `revoke_user_logins(request, user_id)` (see [Security boundaries and rate limiting](security.md#credentials-sessions-and-trusted-html)), ending all Sessions and invalidating earlier access/refresh tokens. Redis in Session's security store records a cutoff; access tokens with `iat` and refresh tokens with sign-in times at or before it are rejected, including the same second. JWT issuance has second precision, so even tokens issued after revocation within that second fail. The framework has no immediate reissue flow; custom flows must wait until the next second. Cutoffs remain for the longer token lifetime, after which older tokens would expire anyway. Single-client `revoke_access_token(claims)` revokes one presented access token by jti until its original expiry. CLI/background callers without requests use `end_user_logins(user_id)`. Services without `web.auth.jwt.secret` issue/consume no tokens but still write cutoffs, so Admin password/deactivation changes invalidate API-issued tokens too. Services sharing users must share both `web.auth.jwt` lifetimes, Redis, and `core.namespace`: cutoff retention uses local lifetimes. Changes in any service then apply everywhere. Different namespaces cannot see each other's revocations. Redis failure during validation returns 503, not acceptance as unrevoked.
+**Revocation.** Framework password changes, deactivation, deletion, and active/staff/superuser changes call `revoke_user_logins(request, user_id)` (see [security boundaries](security.md#credentials-sessions-and-trusted-html)), ending all Sessions and invalidating earlier access/refresh tokens. Redis in Session's security store records a cutoff; access tokens with `iat` and refresh tokens with sign-in times at or before it are rejected, including the same second. JWT issuance has second precision, so even tokens issued after revocation within that second fail. The framework has no immediate reissue flow; custom flows must wait until the next second. Cutoffs remain for the longer token lifetime, after which older tokens would expire anyway. Single-client `revoke_access_token(claims)` revokes one presented access token by jti until its original expiry. CLI/background callers without requests use `end_user_logins(user_id)`. Services without `web.auth.jwt.secret` issue/consume no tokens but still write cutoffs, so Admin password/deactivation changes invalidate API-issued tokens too. Services sharing users must share both `web.auth.jwt` lifetimes, Redis, and `core.namespace`: cutoff retention uses local lifetimes. Changes in any service then apply everywhere. Different namespaces cannot see each other's revocations. Redis failure during validation returns 503, not acceptance as unrevoked.
 
 ## Service and internal-tool caller authentication
 
@@ -374,7 +374,7 @@ web:
 - Callers are recognized by source networks; entry names become `request.ctx.auth.caller`. Entries contain individual addresses or CIDRs. Host bits such as `10.0.0.1/8`,
   invalid addresses, and empty entries fail configuration rather than silently broadening access. Listing ip_allowlist without entries fails startup.
 - Both addresses must belong to the **same entry**: TCP peer `request.ip` and proxy-resolved `request.client_ip`.
-  Any client can send proxy headers, and Sanic does not verify real_ip_header senders (see [Web requests, templates, and permissions](#client-addresses-and-proxies)). Requiring peer membership
+  Any client can send proxy headers, and Sanic does not verify real_ip_header senders (see [client addresses and proxies](#client-addresses-and-proxies)). Requiring peer membership
   prevents direct-port clients spoofing only headers. Behind a reverse proxy, include its address and permitted client networks together. The TCP peer is always the proxy there,
   so spoof resistance depends on it overwriting real_ip_header with the real address (or appending only to X-Forwarded-For when proxies_count is configured).
   It must not forward client headers unchanged or outside clients could claim allowlisted addresses. This deployment prerequisite cannot be verified by the framework.
@@ -410,7 +410,7 @@ Import from `oldman.web.auth`; all read only `request.ctx.user`:
 | `staff_required(login_url=None, response_mode="auto")` | Authenticated staff |
 | `superuser_required(login_url=None, response_mode="auto")` | Authenticated staff superuser |
 | `api_login_required()` | Authenticated; JSON unauthenticated responses |
-| `authenticated_by(*methods, callers=None)` | One listed authenticator; callers restricts caller names; see [Web requests, templates, and permissions](#service-and-internal-tool-caller-authentication) |
+| `authenticated_by(*methods, callers=None)` | One listed authenticator; callers restricts caller names; see [caller authentication](#service-and-internal-tool-caller-authentication) |
 
 Without explicit `login_url`, anonymous browsers use `web.account.login_url` (default `/login`). Only hosts with independent sign-in paths, such as prefixed Admin, need explicit values.
 
@@ -420,7 +420,7 @@ Anonymous browser HTML navigation redirects 302 to sign-in. JSON or `X-Requested
 
 Business queries still enforce object scope. Do not trust arbitrary URL IDs because users are signed in. The ExampleProject tutorial shares projects among signed-in users without implying user/tenant isolation. For private data, restrict list and save/delete lookups together, not only button visibility.
 
-`HTTPMethodView` from `oldman.web` extends Sanic with authentication and permission hooks. With require_authenticated true, anonymous requests follow 401/redirect protocol, then async `check_permission(request, *, method_name, route_kwargs)` returns `(allowed, message)`, rejecting with 403. Defaults disable authentication and allow permission checks, matching native Sanic behavior. Register with as_view(). check_permission precedes argument parsing and database sessions: put data-free rules there, such as request_user(request).is_staff or await has_perm(...). Table/Chart/Select default to sign-in only; endpoints add staff/permissions. See [Permissions](permissions.md#permission-layers-in-data-components) for remaining layers. Admin tables put admission/model permissions in check_permission. Calling instance get() directly bypasses dispatch_request authentication/check_permission. Use as_view() or dispatch_request as Admin does.
+`HTTPMethodView` from `oldman.web` extends Sanic with authentication and permission hooks. With require_authenticated true, anonymous requests follow 401/redirect protocol, then async `check_permission(request, *, method_name, route_kwargs)` returns `(allowed, message)`, rejecting with 403. Defaults disable authentication and allow permission checks, matching native Sanic behavior. Register with as_view(). check_permission precedes argument parsing and database sessions: put data-free rules there, such as request_user(request).is_staff or await has_perm(...). Table/Chart/Select default to sign-in only; endpoints add staff/permissions. See [permission layers in data components](permissions.md#permission-layers-in-data-components) for remaining layers. Admin tables put admission/model permissions in check_permission. Calling instance get() directly bypasses dispatch_request authentication/check_permission. Use as_view() or dispatch_request as Admin does.
 
 ## CSRF
 

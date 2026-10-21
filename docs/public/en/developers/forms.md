@@ -2,7 +2,7 @@
 
 The backend owns fields, validation, and HTML. The browser submits and enhances forms rather than generating an entire form from backend field schemas. Ordinary pages and Modals use the same Form. For complete CRUD wiring, see [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md).
 
-Business code in this chapter comes from the EPG demo's [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), without another example App. Follow [Run EPG Dashboard Demo](../users/getting-started.md) to load fixtures and sign in, then compare these pages:
+Business code in this chapter comes from the EPG demo's [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), without another example App. Follow [the getting-started instructions](../users/getting-started.md) to load fixtures and sign in, then compare these pages:
 
 | Page | Class and actual behavior |
 | --- | --- |
@@ -100,7 +100,7 @@ async def _form_error_response(request: Request, form: Any, *, action: str, mode
     )
 ```
 
-`form_invalid_response` comes from `oldman.web.api`, alongside `accepts_json_form_response`, `form_success_response`, and others; see [Browser responses and ordered actions](responses.md#backend-types). Request, Any, and translation functions are imported in that file. Whole-page forms also pass a `page=` callback so direct browser submissions receive a complete page with status 422. HTML success uses `_form_success_response()` for a success fragment; JSON success returns DefaultApiFormResponse and actions. Ordinary-field examples save no records; only `multi-step` calls ModelForm.save in a transaction. See [Browser responses and ordered actions](responses.md) for both paths and browser event order.
+`form_invalid_response` comes from `oldman.web.api`, alongside `accepts_json_form_response`, `form_success_response`, and others; see [the response protocol](responses.md#backend-types). Request, Any, and translation functions are imported in that file. Whole-page forms also pass a `page=` callback so direct browser submissions receive a complete page with status 422. HTML success uses `_form_success_response()` for a success fragment; JSON success returns DefaultApiFormResponse and actions. Ordinary-field examples save no records; only `multi-step` calls ModelForm.save in a transaction. See [the response protocol](responses.md) for both paths and browser event order.
 
 ## ModelForm save boundaries
 
@@ -147,7 +147,7 @@ async def example_project_create(request: Request):
     return modal_success_response(_("Project created."), table_target="#example-projects-table")
 ```
 
-GET `example_project_create_modal()` first gets a token through `@add_csrf_token()`, renders database choices in a read Session, and gives the complete Form HTML to an ordinary Modal. `modal_success_response()` runs only after successful transaction exit and returns feedback, close-Modal, and refresh-Table actions. See [Browser responses and ordered actions](responses.md#backend-types) for its payload.
+GET `example_project_create_modal()` first gets a token through `@add_csrf_token()`, renders database choices in a read Session, and gives the complete Form HTML to an ordinary Modal. `modal_success_response()` runs only after successful transaction exit and returns feedback, close-Modal, and refresh-Table actions. See [the response protocol](responses.md#backend-types) for its payload.
 
 `save()` defaults to commit=False and only prepares the model instance. commit=True adds/flushes with the supplied Session but **does not commit itself**. The outer scope owns the transaction. Saving without successful validation raises ValueError. The demo edit endpoint first queries through `get_object_or_404(session, ExampleProject, project_id, ...)` (`oldman.web.shortcuts`), then passes `instance=project`. The current demo shares data among all signed-in users. Business applications requiring user/tenant isolation must restrict the query too; a request primary key is not a trusted save target.
 
@@ -163,7 +163,7 @@ Maintain model-derived columns (created/updated times, lowercase lookup columns,
 
 Upload fields are an exception: save may write new files to Storage even with commit=False. Pass a framework-managed Session to participate in the existing file lifecycle. Do not interpret commit=False as an absolute guarantee of no external side effects.
 
-See [File storage and model file fields](storage.md#model-declarations-and-forms) for complete wiring of file_column, multiple file fields, replacement/rollback/deletion, and Storage initialization.
+See [file storage](storage.md#model-declarations-and-forms) for complete wiring of file_column, multiple file fields, replacement/rollback/deletion, and Storage initialization.
 
 ## Layout and multiple steps
 
@@ -253,7 +253,7 @@ router.add_route(
 )
 ```
 
-SelectProviderView requires only sign-in by default. Put endpoint-wide rules (staff/permissions) in its `check_permission()` and provider-specific rules in provider `check_auth(request, context)`; see [Permissions](permissions.md#permission-layers-in-data-components). `router` comes from `oldman.web`; WebSecurityPurpose and configured_web_security_key come from `oldman.web.security`. This initialization runs during view loading after service configuration is ready, not in an uninitialized bare Python process.
+SelectProviderView requires only sign-in by default. Put endpoint-wide rules (staff/permissions) in its `check_permission()` and provider-specific rules in provider `check_auth(request, context)`; see [permission layers in data components](permissions.md#permission-layers-in-data-components). `router` comes from `oldman.web`; WebSecurityPurpose and configured_web_security_key come from `oldman.web.security`. This initialization runs during view loading after service configuration is ready, not in an uninitialized bare Python process.
 
 ### Declaring fields and loading initial values
 

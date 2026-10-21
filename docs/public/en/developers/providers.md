@@ -4,7 +4,7 @@ Providers manage external infrastructure connections without defining business-m
 
 ## Redis connections
 
-The public object is `oldman.providers.redis.redis_client`. METRICS, read_metric, and the YAML below are **API reference examples** showing minimal named-connection wiring, not commands or services registered in the demo. For actual business use, compare the EPG [Caching](cache.md#actual-use-in-the-demo) and [retry_summary in tasks.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py). The former uses CACHE through RedisCache; the latter uses the task service's actual alias through `redis_client.using(settings.taskiq.redis_alias)`. Do not invent a METRICS alias as a new demo prerequisite.
+The public object is `oldman.providers.redis.redis_client`. METRICS, read_metric, and the YAML below are **API reference examples** showing minimal named-connection wiring, not commands or services registered in the demo. For actual business use, compare the EPG [cache example](cache.md#actual-use-in-the-demo) and [retry_summary in tasks.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py). The former uses CACHE through RedisCache; the latter uses the task service's actual alias through `redis_client.using(settings.taskiq.redis_alias)`. Do not invent a METRICS alias as a new demo prerequisite.
 
 ```python
 from oldman.providers.redis import redis_client
@@ -259,7 +259,7 @@ This does not guarantee the entire service exits in 10 seconds. Python cancellat
 | Invalid reply | msgspec decoding/validation exception, not an empty result |
 | Sending failure during shutdown | Connection cleanup is still attempted; closing resources is not called successful delivery |
 
-Core provides online events/RPC without durable offline messages, processing ACKs, retry queues, group RPC, node directories, or replay. publish returning means only that the local sending step completed. Use [Taskiq interfaces and runtime](distributed-tasks.md) for durable queuing, delayed/periodic execution, and task results; use [SSE and WebSocket](sse.md) for browser delivery.
+Core provides online events/RPC without durable offline messages, processing ACKs, retry queues, group RPC, node directories, or replay. publish returning means only that the local sending step completed. Use [Taskiq](distributed-tasks.md) for durable queuing, delayed/periodic execution, and task results; use [SSE](sse.md) for browser delivery.
 
 Native extensions were verified with FastStream 0.7.1, fast-depends 3.0.8, and nats-py 2.15.0; the nats-py dependency is pinned. Shutdown, request-Future cleanup, and TLS downgrade-prevention patches install only on Clients owned by Oldman, without modifying native classes or other clients. Upgrades must recheck the relevant private extension points and real-connection tests. Known native TLS-failure cleanup can still produce timeout/old StreamWriter warnings. Not every failed object is promised warning-free graceful reuse. These versions and limits define the actual acceptance scope.
 

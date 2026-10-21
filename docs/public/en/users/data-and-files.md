@@ -1,6 +1,6 @@
 # Demo data import and file upload
 
-This chapter continues with the EPG demo without adding attachment tables or another upload endpoint. See [Real demo data, migrations, and queries](tutorial-tasks.md#4-import-repeatable-real-data) for fixture preparation. Here you operate the existing `ExampleAsset` directly.
+This chapter continues with the EPG demo without adding attachment tables or another upload endpoint. See [the real-data tutorial](tutorial-tasks.md#4-import-repeatable-real-data) for fixture preparation. Here you operate the existing `ExampleAsset` directly.
 
 Complete database migration, accounts, Redis, static build and web launch first. Open:
 
@@ -106,7 +106,7 @@ The demo's /media URL displays its own test files. It is not a private download 
 7. Delete the record you created and check that the non-referenced files corresponding to the two fields are processed.
 8. Saving oversized files or unsupported extensions should fail. Check browser and backend restrictions separately.
 
-After a transaction ends, the framework checks file references before processing deletion candidates. Do not delete old files before database commit or duplicate this cleanup in demo forms. See [File storage and model file fields](../developers/storage.md#model-file-replacement-and-deletion) for raw SQL, bulk operations, concurrency, and exclusive-file constraints. This example does not establish an atomic transaction spanning the filesystem and database.
+After a transaction ends, the framework checks file references before processing deletion candidates. Do not delete old files before database commit or duplicate this cleanup in demo forms. See [the file-lifecycle reference](../developers/storage.md#model-file-replacement-and-deletion) for raw SQL, bulk operations, concurrency, and exclusive-file constraints. This example does not establish an atomic transaction spanning the filesystem and database.
 
 ## 6. Use Storage API directly
 

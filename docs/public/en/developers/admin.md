@@ -1,6 +1,6 @@
 # Built-in Admin and extensions
 
-Admin is the `oldman.apps.admin` App, depending on base Web, Auth, and Sessions. Its browser uses Dashboard, Form, Table, Modal, and Feedback from `oldman-web`. See [Run and understand the Admin Demo](../users/admin.md) for a complete application example.
+Admin is the `oldman.apps.admin` App, depending on base Web, Auth, and Sessions. Its browser uses Dashboard, Form, Table, Modal, and Feedback from `oldman-web`. See [Run and understand the Admin demo](../users/admin.md) for a complete application example.
 
 ## Entry point and registration
 
@@ -95,7 +95,7 @@ Main extension points:
 - `row_value(instance, field_name)`, `table_cell_value(instance, field_name, *, admin_prefix)`: customize display. Explicitly mark trusted HTML according to shared Table rules. Defaults render booleans as Yes/No badges, `datetime` as `YYYY-MM-DD HH:MM` with ISO 8601 raw values, and `date` as ISO dates. Other values retain their normalized original form.
 - `table_action_html(instance, *, admin_prefix)`, `get_edit_extra_buttons(instance, admin_prefix)`: customize controls while reusing shared DOM/actions protocols.
 
-Save hooks receive the current request transaction. Set business fields there, then call `await super().save_model(session, instance)`. Do not commit separately or assume flush means successful commit. File fields retain [File storage and model file fields](storage.md); Admin does not delete attachments independently.
+Save hooks receive the current request transaction. Set business fields there, then call `await super().save_model(session, instance)`. Do not commit separately or assume flush means successful commit. File fields follow [the model-file lifecycle](storage.md); Admin does not delete attachments independently.
 
 Display names default to model Meta and can be overridden by ModelAdmin `verbose_name` / `verbose_name_plural`. Top-level menus group Apps using App display_name/icon; second-level entries use model names. Models appear under their owning App by default. `menu_group = "<App-label>"` moves a ModelAdmin under that installed App's group, reusing its name/icon. Framework User/Role ModelAdmins both set `menu_group = "auth"`: project User belongs to its project App and Role to `oldman.apps.roles`, but both appear under Authentication. Unknown menu_group labels fail `install_admin` route installation. `model_path` defaults to the database table name; display-name changes affect neither URLs nor schemas.
 

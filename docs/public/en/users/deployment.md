@@ -1,4 +1,4 @@
-# Deployment and Operations
+# Deployment and operation
 
 This chapter deploys applications built with Oldman, rather than running the framework source repository as a business project. Complete the relevant tutorial first and prepare your own permission and data rules. Linux is the current runtime target. Drivers, software versions, and dependency locks follow the release obtained by the project.
 
@@ -13,7 +13,7 @@ This chapter deploys applications built with Oldman, rather than running the fra
 
 Use the application's own Python environment and lock files, installing an Oldman version matching the documentation. Editable source is suitable for development. For production, prefer verified release artifacts with fixed versions; symlinks to development directories are not a deployment strategy.
 
-The EPG demo's installer is `python3 scripts/bootstrap.py`; see [Run EPG Dashboard Demo](getting-started.md) for its local-source and published-package paths. The current demo commits neither uv.lock nor frontend pnpm-lock.yaml, so a frozen installation cannot be run directly and claimed to lock deployment dependencies. Pin and verify dependencies in the application's release process, rather than upgrading them ad hoc on a production host to bypass failures.
+The EPG demo's installer is `python3 scripts/bootstrap.py`; see [Run the EPG dashboard demo](getting-started.md) for its local-source and published-package paths. The current demo commits neither uv.lock nor frontend pnpm-lock.yaml, so a frozen installation cannot be run directly and claimed to lock deployment dependencies. Pin and verify dependencies in the application's release process, rather than upgrading them ad hoc on a production host to bypass failures.
 
 These two commands are **installation interfaces after the application prepares and commits the corresponding lock files**, rather than steps already supported by the current demo:
 
@@ -96,7 +96,7 @@ In production, a system process manager can supervise the same foreground comman
 
 ## Distributed task service
 
-See [Distributed background tasks](distributed-tasks.md#7-stopping-troubleshooting-and-scope) for Taskiq Worker/Scheduler. Run each with its own foreground command, with one Scheduler per namespace. Multiple Worker services can consume the same or different queues. JetStream file storage and Redis dynamic schedules need persistence policies; results expire automatically after 24 hours by default. Like ordinary services, Taskiq stop waits and then force-stops the entire verified process group after the total deadline (`taskiq.stop_timeout`); no second kill command is needed. systemd is an optional outer supervisor. Stop through it to prevent its Restart policy from starting the service again.
+See [task deployment and shutdown](distributed-tasks.md#7-stopping-troubleshooting-and-scope) for Taskiq Worker/Scheduler. Run each with its own foreground command, with one Scheduler per namespace. Multiple Worker services can consume the same or different queues. JetStream file storage and Redis dynamic schedules need persistence policies; results expire automatically after 24 hours by default. Like ordinary services, Taskiq stop waits and then force-stops the entire verified process group after the total deadline (`taskiq.stop_timeout`); no second kill command is needed. systemd is an optional outer supervisor. Stop through it to prevent its Restart policy from starting the service again.
 
 ## Reverse proxies and long-lived connections
 
@@ -110,7 +110,7 @@ The framework will not automatically verify your public network boundaries again
 
 ## Shutdown responsibilities and failure observation
 
-Resources are cleaned up by the service that owns them. The framework closes process-shared caches, Redis, and database engines on shutdown. The demo's WebService closes its HTTP example client in `after_server_stop()`. Cleanup runs in awaitable service lifecycle hooks, without destroying process-level pools after every request. SimpleApplication has its own before_stop/after_stop. Do not rely on the framework guessing how to close HTTP/NATS connections, scheduled tasks, or subscriptions. See [Backend HTTP client](../developers/http-client.md#creation-initialization-and-shutdown), [Applications and lifecycle](../developers/applications.md), and [Processes and background tasks](../developers/background.md) for actual methods and relationships.
+Resources are cleaned up by the service that owns them. The framework closes process-shared caches, Redis, and database engines on shutdown. The demo's WebService closes its HTTP example client in `after_server_stop()`. Cleanup runs in awaitable service lifecycle hooks, without destroying process-level pools after every request. SimpleApplication has its own before_stop/after_stop. Do not rely on the framework guessing how to close HTTP/NATS connections, scheduled tasks, or subscriptions. See [the HTTP client](../developers/http-client.md#creation-initialization-and-shutdown), [the lifecycle reference](../developers/applications.md), and [the background-work reference](../developers/background.md) for actual methods and relationships.
 
 The default health extension or an open port does not establish database, Redis, or third-party availability. According to application needs, deployment checks should perform a read-only database request, a sign-in/sign-out, and a representative business operation. Do not repeatedly write business data for probes.
 

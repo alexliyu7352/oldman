@@ -9,8 +9,8 @@ This directory helps agents develop applications with the current Oldman without
 | Create an API or background service | [Creating a service](create-service.md): complete configuration, Apps, entry points, and verification with actual requests or commands |
 | Add persistent data to a service | [Real demo data, migrations, and queries](../users/tutorial-tasks.md): follow ExampleProject's models, migrations, and transaction wiring |
 | Add settings to an App | [Configuration reference](../developers/configuration.md#app-settings): import the App's strongly typed instance directly |
-| Add project commands | [CLI reference](../developers/cli.md#custom-app-commands): use the Registry's existing discovery mechanism |
-| Handle initialization or import errors | [Applications and lifecycle](../developers/applications.md#actual-loading-order): distinguish configuration, model, and Web phases |
+| Add project commands | [the Command contract](../developers/cli.md#custom-app-commands): use the Registry's existing discovery mechanism |
+| Handle initialization or import errors | [the loading order](../developers/applications.md#actual-loading-order): distinguish configuration, model, and Web phases |
 | Develop dashboard CRUD/Modal Forms | [Wiring guide](dashboard-crud.md): cover permissions, the database, both Table formats, responses, and browser verification |
 | Add existing UI or field enhancements | [Dashboard UI and interactive components](../users/components.md) and the [Forms, fields, and remote choices](../developers/forms.md): reuse the current loader/Widget |
 | Build application styles, icons, and translations | [Frontend assets, styles, icons, and translation](../developers/assets.md): install and build in the application project, without copying framework release artifacts |
@@ -21,7 +21,7 @@ This directory helps agents develop applications with the current Oldman without
 | Hand asynchronous work to a durable queue or schedule it | [Taskiq wiring (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/distributed-tasks.md): follow the demo's configuration, tasks, services, permissions, and actual execution |
 | Update Tables with SSE or integrate notifications | [Realtime page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md): reuse stable DOM, request permissions, user connections, and persistent notification APIs |
 | Integrate an admin site or extend ModelAdmin | [Admin guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/admin.md): distinguish App registration, model administration, and route installation |
-| Prepare application deployment | [Deployment and Operations](../users/deployment.md) and [Security boundaries and rate limiting](../developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
+| Prepare application deployment | [Deployment and operation](../users/deployment.md) and [Security boundaries and rate limiting](../developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
 | Maintain the framework and verify release artifacts | [Source development, verification, and releases](../developers/maintenance.md) and [Test isolation requirements](../developers/testing.md): keep these separate from application development tasks |
 
 ## Establish only the necessary facts before starting

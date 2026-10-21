@@ -1,6 +1,6 @@
 # Source development, verification, and releases
 
-This chapter is for framework maintainers. Application developers do not need to run this repository's release verification just to use Admin or Forms. See [Deployment and Operations](../users/deployment.md) for application deployment.
+This chapter is for framework maintainers. Application developers do not need to run this repository's release verification just to use Admin or Forms. See [Deployment and operation](../users/deployment.md) for application deployment.
 
 ## Repository layout and environment
 
@@ -25,7 +25,7 @@ pnpm install --frozen-lockfile
 
 Current metadata requires Python 3.12 through 3.14 and Node 20 or later, with packageManager set to pnpm 9.12.3. Frontend dependency versions follow the repository's `pnpm-lock.yaml`. Python dependencies are constrained only by `pyproject.toml`; `uv.lock` is a local resolution and is not committed. Do not arbitrarily upgrade dependencies to bypass a failure. Dependency changes are separate, reviewable tasks. CI pins its 3.13 and 3.14 matrix to 3.13.11 and 3.14.2. In asyncio debug mode, which `IsolatedAsyncioTestCase` forces on, uvloop crashes when collecting unclosed async generators. Neither 0.22.1 nor 0.23.0 fixes this issue; see [uvloop#699](https://github.com/MagicStack/uvloop/issues/699) and [uvloop#715](https://github.com/MagicStack/uvloop/issues/715). Framework tests trigger it on 3.13.15 and 3.14.7 but not on the two pinned versions. Relax these pins after the upstream fix.
 
-Before editing, inspect Git status, the existing style, and all relevant callers. Use one commit for each defined task; see [Source development, verification, and releases](#commit-titles-and-release-notes) for title conventions. Release verification does not require committing unfinished user changes. When clean committed source is needed, establish ownership first rather than clearing the workspace with reset or add . commands.
+Before editing, inspect Git status, the existing style, and all relevant callers. Use one commit for each defined task; see [commit titles and release notes](#commit-titles-and-release-notes) for title conventions. Release verification does not require committing unfinished user changes. When clean committed source is needed, establish ownership first rather than clearing the workspace with reset or add . commands.
 
 ## Daily verification: relevant scope only
 
@@ -59,7 +59,7 @@ Run these commands in order. The oldman-web prebuild generates icons, frontend m
 
 These commands update generated files and clear their build targets. Preserve user changes before running them and inspect the diff afterwards. Do not edit minified JavaScript or CSS manually. Custom application styles and icons belong in that application's build; do not add business dependencies to the framework.
 
-Translation updates follow extraction of POT, updating PO, translation, and compilation of MO and frontend JSON. Do not edit generated catalogs directly. For application-side instructions, see [Frontend assets, styles, icons, and translation](assets.md#framework-translations).
+Translation updates follow extraction of POT, updating PO, translation, and compilation of MO and frontend JSON. Do not edit generated catalogs directly. For application-side instructions, see [the assets documentation](assets.md#framework-translations).
 
 The framework has one translation source, `oldman/locales`, containing text for Admin, account pages, tables, forms, notifications, roles, CLI commands, migration commands, and the `oldman-web` frontend. Maintain it through [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py). After adding, changing, or deleting framework text, including frontend text in `oldman-web` (first run `generate:i18n-messages`), run the following at the framework root:
 

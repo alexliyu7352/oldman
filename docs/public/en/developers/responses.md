@@ -2,7 +2,7 @@
 
 This protocol serves browsers with an active Oldman Page. Pure data APIs need not execute UI actions. See [Pages, components, and dynamic content](frontend.md) for page and object origins.
 
-Runnable examples are at `/examples/modals/actions` and `/examples/modals/workflows` in the EPG demo; project saving appears at `/examples/tables/html` and `/examples/tables/json`. Follow [Run EPG Dashboard Demo](../users/getting-started.md) to prepare data and sign in first. Do not copy functions below while omitting demo App, Page, component, or permission wiring.
+Runnable examples are at `/examples/modals/actions` and `/examples/modals/workflows` in the EPG demo; project saving appears at `/examples/tables/html` and `/examples/tables/json`. Follow [Run the EPG dashboard demo](../users/getting-started.md) to prepare data and sign in first. Do not copy functions below while omitting demo App, Page, component, or permission wiring.
 
 ## Backend types
 
@@ -97,7 +97,7 @@ JSON Form describes the **response** format, not a JSON request body. Forms stil
 
 HTML Form backends still return only HTML. At the receiving boundary, the browser converts it into an internal response: 2xx means business success, 422 means invalid form, and HTML becomes one replace_html action. The same Runner then handles it. This neither removes HTML HTTP interfaces nor requires backend JSON wrapping.
 
-Initial remote Table/Modal loads have their own formats; using JSON does not make them `DefaultApiResponse`. Build Modal payloads through `oldman.web.api` helpers `modal_response(title, html=)`, `modal_response(title, body=, footer=)`, or `modal_not_found_response(title, message)`, rather than separate dicts. See [Static, HTML, and JSON Tables](tables.md) and [Pages, components, and dynamic content](frontend.md#modal-is-only-a-container).
+Initial remote Table/Modal loads have their own formats; using JSON does not make them `DefaultApiResponse`. Build Modal payloads through `oldman.web.api` helpers `modal_response(title, html=)`, `modal_response(title, body=, footer=)`, or `modal_not_found_response(title, message)`, rather than separate dicts. See [Static, HTML, and JSON Tables](tables.md) and [Modal](frontend.md#modal-is-only-a-container).
 
 ## Form execution order
 
@@ -175,7 +175,7 @@ The complete corresponding browser method in [frontend/src/pages/examples.ts](ht
 
 Page overrides `async handleResponseAction(action, context): Promise<boolean>`, returning true when handled and delegating unknown actions to `super.handleResponseAction()`. A final false makes the Runner fail and stop. Framework enums manage only built-ins; third-party Apps need not modify them.
 
-This demo view passes `page_entry="examples"`; main.ts loads examples.ts, whose final `setupPage("examples", ExamplesPage)` registers the class. Private handlers receive actions only on the actually mounted Page. A method on a never-loaded class has no effect. See [Pages, components, and dynamic content](frontend.md#demo-dashboard-page-entry-point) for complete entry-point relationships.
+This demo view passes `page_entry="examples"`; main.ts loads examples.ts, whose final `setupPage("examples", ExamplesPage)` registers the class. Private handlers receive actions only on the actually mounted Page. A method on a never-loaded class has no effect. See [the frontend runtime](frontend.md#demo-dashboard-page-entry-point) for complete entry-point relationships.
 
 Do not execute arbitrary JavaScript through the protocol, call strings as function names, or write scripts in HTML attributes. Explicit Page methods still implement private actions and validate their required input fields.
 

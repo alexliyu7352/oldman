@@ -4,7 +4,7 @@ Taskiq hands an asynchronous function to background execution. Web requests publ
 
 The current combination is **Taskiq + NATS JetStream + Redis**: JetStream stores pending tasks; Redis stores results and dynamic schedules. No Celery, RabbitMQ, or additional Redis task broker is required. Python dependencies install with Oldman; deploy NATS and Redis separately.
 
-This chapter directly corresponds to [tasks.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py), [Task View](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tasks.py), [Worker Service](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/task_worker.py) and [Scheduler Service](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/task_scheduler.py) of EPG Demo. Complete [Run EPG Dashboard Demo](getting-started.md) first, and do not run these business commands in the framework repository.
+This chapter directly corresponds to [tasks.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py), [Task View](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tasks.py), [Worker Service](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/task_worker.py) and [Scheduler Service](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/task_scheduler.py) of EPG Demo. Complete [demo installation and data preparation](getting-started.md) first, and do not run these business commands in the framework repository.
 
 ## 1. Configure three independent services
 
@@ -62,7 +62,7 @@ After checking, start in three terminals:
 ./run.sh web start
 ```
 
-NATS must enable JetStream with a persistent directory and capacity for file storage. Configure production authentication/TLS for actual addresses; do not expose unauthenticated demo loopback settings publicly. With Taskiq enabled, services check required NATS and Redis connections during their own lifecycle, rather than discovering unreachable configuration at the first task. For other pages, explicitly disable Web Taskiq; task pages show enabling instructions. The demo also enables a separate nats_bus, so disabling Taskiq alone still requires NATS. Disable both if using neither. See [Let running services communicate with each other](service-communication.md#5-call-rpc-from-taskiq-task) for receiving services and RPC inside tasks.
+NATS must enable JetStream with a persistent directory and capacity for file storage. Configure production authentication/TLS for actual addresses; do not expose unauthenticated demo loopback settings publicly. With Taskiq enabled, services check required NATS and Redis connections during their own lifecycle, rather than discovering unreachable configuration at the first task. For other pages, explicitly disable Web Taskiq; task pages show enabling instructions. The demo also enables a separate nats_bus, so disabling Taskiq alone still requires NATS. Disable both if using neither. See [the communication tutorial](service-communication.md#5-call-rpc-from-taskiq-task) for receiving services and RPC inside tasks.
 
 `run.sh` is just a command entry, and the Web will not start the Worker/Scheduler for you. Only one Scheduler is deployed in the same namespace; adding more Workers does not require adding Schedulers.
 
@@ -180,6 +180,6 @@ Initial startup attempts each execution slot at most three times by default; exh
 
 Configuration conflicts fail explicitly, without changing existing Streams/consumers or clearing backlogs. Check namespace, queues, ack_wait, and capacity against existing resources, then handle changes through deployment procedures. A namespace isolates names; it is not a user permission boundary. Use trusted networks, credentials, and permissions for NATS/Redis. Do not let external users publish arbitrary task names or read arbitrary result IDs.
 
-Actual acceptance covered single-node JetStream, real Redis, two execution processes, one Scheduler, and demo Chrome operations. It did not fully validate deployment with 3/5-replica multi-node fault tolerance, production throughput, or power-loss recovery. The general NATS/FastStream RPC wrapper is a separate capability, outside this task API. See the [Taskiq interfaces and runtime](../developers/distributed-tasks.md) for exact configuration, lifecycle, and maintenance points.
+Actual acceptance covered single-node JetStream, real Redis, two execution processes, one Scheduler, and demo Chrome operations. It did not fully validate deployment with 3/5-replica multi-node fault tolerance, production throughput, or power-loss recovery. The general NATS/FastStream RPC wrapper is a separate capability, outside this task API. See [the developer reference](../developers/distributed-tasks.md) for exact configuration, lifecycle, and maintenance points.
 
 <!-- source: zh/users/distributed-tasks.md @ db5eb607 -->

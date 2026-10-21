@@ -1,4 +1,4 @@
-# Run EPG Dashboard Demo
+# Run the EPG dashboard demo
 
 This tutorial uses the [EPG Dashboard Demo](https://github.com/alexliyu7352/oldman-epg-dashboard) directly, without creating another tutorial project. Its repository contains all models, forms, tables, templates, and Pages used later; browser operations run that code too. The link points to the project repository. Use a demo commit compatible with the current framework; this text does not establish that unpushed local changes exist remotely.
 
@@ -14,7 +14,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python and depend
 corepack enable                                          # Provide pnpm, the version is specified by the packageManager of the repository package.json
 ```
 
-You also need an accessible Redis. The default example enables Taskiq and Core communication, so NATS with JetStream enabled is required too; see [Let running services communicate with each other](service-communication.md#1-prepare-and-start-the-demo). Actual dependencies are declared in the demo's [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) and [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json). This documentation does not maintain a second version list.
+You also need an accessible Redis. The default example enables Taskiq and Core communication, so NATS with JetStream enabled is required too; see [the communication tutorial](service-communication.md#1-prepare-and-start-the-demo). Actual dependencies are declared in the demo's [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) and [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json). This documentation does not maintain a second version list.
 
 If you do not have the demo yet, clone it from the directory where you want to keep the project:
 
@@ -86,7 +86,7 @@ Run in the order of Demo README:
 - `loaddata demo` reads `apps/examples/fixtures/demo.json`, imports examples and real records of EPG business pages.
 - `createsuperuser` comes from the Auth App (`oldman.auth`). Enter your account and password interactively. Do not assume a default account or password exists.
 
-Do not regenerate initial migrations for an existing database. Reimporting fixtures updates specified fields for the same primary keys and may overwrite edits to preset records; it does not only fill missing data. See [Real demo data, migrations, and queries](tutorial-tasks.md).
+Do not regenerate initial migrations for an existing database. Reimporting fixtures updates specified fields for the same primary keys and may overwrite edits to preset records; it does not only fill missing data. See [the data tutorial](tutorial-tasks.md).
 
 ## 3. Build and start
 
@@ -147,6 +147,6 @@ The template is at `templates/pages/examples/`, not `templates/examples/`. The f
 | CSRF 403 on an old page submission | Refresh to obtain a new token; do not disable CSRF |
 | Page displays but interactions do not respond | Inspect script requests, Console, and the current Page; an HTML 200 response alone is insufficient |
 
-Next read [Real demo data, migrations, and queries](tutorial-tasks.md), then read [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md). For other pages and source codes that have implemented functions, see [Demo page and source index](demo-examples.md).
+Next read [real data and migrations](tutorial-tasks.md), then read [tables and Modal forms](tutorial-dashboard.md). For other pages and source codes that have implemented functions, see [Demo page and source index](demo-examples.md).
 
 <!-- source: zh/users/getting-started.md @ 6a3c1971 -->

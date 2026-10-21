@@ -8,14 +8,14 @@
 | A one-off coroutine that a request or command starts without waiting, such as sending mail or writing an audit record | Use `BackgroundTaskManager().spawn()`. Web handlers use `request.app.ctx.tasks.spawn()`. |
 | Synchronous Python computation with limited concurrency | Use `AsyncProcessManager`. |
 | An external program without a person at the terminal, such as a Web service, a taskiq worker, or a command's machine job, requiring a timeout and process-group cleanup | Use `run_subprocess_exec` or `create_subprocess_exec`. |
-| An external program that may ask a person for input, such as `sudo` requesting a password or a script using `read` | Use `run_foreground`; see [Processes and background tasks](#foreground-commands). |
+| An external program that may ask a person for input, such as `sudo` requesting a password or a script using `read` | Use [`run_foreground`](#foreground-commands). |
 | Several long-lived Workers receiving instructions to start or stop tasks | Use `BaseManager`, `BaseWorker`, and `BaseTask`. |
-| Durable queuing of asynchronous functions, multiple execution processes, results, and scheduled delivery | Use [Taskiq interfaces and runtime](distributed-tasks.md). |
-| Messages or RPC between independent services | Use the [Redis and NATS providers](providers.md#nats-connections-and-publishing). |
+| Durable queuing of asynchronous functions, multiple execution processes, results, and scheduled delivery | Use [Taskiq](distributed-tasks.md). |
+| Messages or RPC between independent services | Use the [NATS provider](providers.md#nats-connections-and-publishing). |
 
 ## Same-process coroutines
 
-The actual EPG example is `BackgroundStats` and `sample_project_counts` in [background.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/background.py). See [Run jobs in the background](../users/background-work.md#run-a-local-background-coroutine) for execution instructions and errors. This is not a placeholder that only sleeps: every sample opens a read Session and counts ExampleProject records, optionally filtering by a real team.
+The actual EPG example is `BackgroundStats` and `sample_project_counts` in [background.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/background.py). See [the local-coroutine tutorial](../users/background-work.md#run-a-local-background-coroutine) for execution instructions and errors. This is not a placeholder that only sleeps: every sample opens a read Session and counts ExampleProject records, optionally filtering by a real team.
 
 The following registration comes from `BackgroundStats.handle()`. In this CLI invocation, manager is a `BackgroundTaskManager()` instance, counts holds results, ready and cleaned are asyncio.Event objects, and team_id has passed CLI type validation:
 
@@ -97,7 +97,7 @@ def inspect_projects(statuses: list[str], scenario: str, marker: str) -> dict:
     return {"pid": pid, "counts": dict(sorted(Counter(statuses).items()))}
 ```
 
-The caller is PythonProcessDemo in [process_examples.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/process_examples.py); no additional calculate.py or service is needed. When running the four paths described in [Run jobs in the background](../users/background-work.md#run-a-short-lived-python-subprocess), the CLI has already loaded configuration and models and prepared the asynchronous command lifecycle. The Command creates `AsyncProcessManager(workers=1)`. The parent reads statuses from the database, and TemporaryDirectory supplies this invocation's marker. The actual launch code is:
+The caller is PythonProcessDemo in [process_examples.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/process_examples.py); no additional calculate.py or service is needed. When running the [four paths](../users/background-work.md#run-a-short-lived-python-subprocess), the CLI has already loaded configuration and models and prepared the asynchronous command lifecycle. The Command creates `AsyncProcessManager(workers=1)`. The parent reads statuses from the database, and TemporaryDirectory supplies this invocation's marker. The actual launch code is:
 
 ```python
                 job = asyncio.create_task(manager.run_with_timeout(
@@ -119,9 +119,9 @@ Cancellation, timeout, and shutdown reap the child created for this call. Cancel
 Choose an entry point according to whether a person may need to answer:
 
 - `run_subprocess_exec` and `create_subprocess_exec` are for unattended programs launched by Web services, taskiq workers, or machine jobs in commands. A supervisor places the child in a separate session detached from the terminal. Timeout, task cancellation, and host-process exit clean up the whole group. Therefore Web worker restart, request cancellation, and taskiq worker exit do not leave running children. The tradeoff is that the child has no controlling terminal and cannot open `/dev/tty`. `sudo` cannot request a password, and terminal Ctrl-C reaches only the caller, after which the framework cleans up the group. Inherited stdin remains readable but is unsuitable for human interaction. This interface supports Linux only.
-- `run_foreground` is for commands that may ask a person for input. The child remains in the caller's session and process group and shares its terminal. `sudo` can prompt for a password, and terminal Ctrl-C reaches the child too. See [Processes and background tasks](#foreground-commands).
+- `run_foreground` is for commands that may ask a person for input. The child remains in the caller's session and process group and shares its terminal. `sudo` can prompt for a password, and terminal Ctrl-C reaches the child too. See [foreground commands](#foreground-commands).
 
-The actual EPG Command is [SubprocessDemo](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/process_examples.py); see [Run jobs in the background](../users/background-work.md#run-a-controlled-external-command) for execution instructions. The module imports sys, json, asyncio, the framework's create_subprocess_exec and run_subprocess_exec, and the result and exception types. program is fixed to sys.executable. Its arguments are `-m apps.examples.external_job` and a scenario checked against an enumeration. data contains bytes produced by json.dumps(...).encode("utf-8") from the parent's `_project_statuses()` query.
+The actual EPG Command is [SubprocessDemo](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/process_examples.py); see [the external-command tutorial](../users/background-work.md#run-a-controlled-external-command) for execution instructions. The module imports sys, json, asyncio, the framework's create_subprocess_exec and run_subprocess_exec, and the result and exception types. program is fixed to sys.executable. Its arguments are `-m apps.examples.external_job` and a scenario checked against an enumeration. data contains bytes produced by json.dumps(...).encode("utf-8") from the parent's `_project_statuses()` query.
 
 The success, error, and timeout branches use this actual call:
 
@@ -156,11 +156,11 @@ from oldman.processes import run_foreground
 completed = await run_foreground("sudo", "apt-get", "install", "-y", "nginx", check=True)
 ```
 
-This function does not clean up descendants. Timeout kills only the command itself, not other processes it launches. Cancelling this await does not stop the command: it keeps running, and `asyncio.run` waits for it before returning. Thus the tool exits only after the command finishes. For example, wrapping a five-minute command in `asyncio.timeout` still leaves the tool waiting until those five minutes have elapsed. If timeout must stop the command, use `run_foreground`'s own `timeout` parameter. Both the systemd operations in [Operations primitives](ops.md#systemd) and the scripts in [Remote files](remote.md) use this function.
+This function does not clean up descendants. Timeout kills only the command itself, not other processes it launches. Cancelling this await does not stop the command: it keeps running, and `asyncio.run` waits for it before returning. Thus the tool exits only after the command finishes. For example, wrapping a five-minute command in `asyncio.timeout` still leaves the tool waiting until those five minutes have elapsed. If timeout must stop the command, use `run_foreground`'s own `timeout` parameter. Both the systemd operations in [operations primitives](ops.md#systemd) and the scripts in [remote files](remote.md) use this function.
 
 ## Long-lived Workers: real project snapshots
 
-The actual entry point is EPG `./run.sh web worker-demo --scenario success|error|stop`, rather than another worker_example.py. [Run jobs in the background](../users/background-work.md#run-a-long-lived-worker) explains the three results and their cleanup. The actual [worker_jobs.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/worker_jobs.py) depends only on the standard library and oldman.tasks and defines ProjectSnapshotTask, its factory, and Worker:
+The actual entry point is EPG `./run.sh web worker-demo --scenario success|error|stop`, rather than another worker_example.py. [the user tutorial](../users/background-work.md#run-a-long-lived-worker) explains the three results and their cleanup. The actual [worker_jobs.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/worker_jobs.py) depends only on the standard library and oldman.tasks and defines ProjectSnapshotTask, its factory, and Worker:
 
 ```python
 def create_snapshot(task_id: str, data: dict[str, Any]) -> BaseTask:

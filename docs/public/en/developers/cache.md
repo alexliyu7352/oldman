@@ -1,8 +1,8 @@
 # Caching
 
-`oldman.cache` caches data that can be recomputed. It does not manage Sessions, task queues, or browser messages. Redis connections themselves belong to the [Redis and NATS providers](providers.md#redis-connections). A successful cache write does not mean business data has been durably stored.
+`oldman.cache` caches data that can be recomputed. It does not manage Sessions, task queues, or browser messages. Redis connections themselves belong to the [Redis provider](providers.md#redis-connections). A successful cache write does not mean business data has been durably stored.
 
-Database model rows and query results are cached by `oldman.db.sqlalchemy.cache`, with automatic invalidation after writes commit; see [Caching](#model-caching).
+Database model rows and query results are cached by `oldman.db.sqlalchemy.cache`, with automatic invalidation after writes commit; see [model caching](#model-caching).
 
 ## Choosing objects and settings
 
@@ -95,7 +95,7 @@ The returned `source` describes only this read and is not stored in Redis. The i
 
 After a successful POST, the view renders `_result.html` and calls `replace_html_response(html)`. The ordinary ExamplesPage executes the action; the target comes from the button's `data-om-target="#cache-result"`. The GET page does not query statistics. All three POST endpoints require sign-in and CSRF protection. All signed-in users share one key; this is not a private cache isolated by user.
 
-RedisCache's timeout=5 is an operation timeout, unrelated to TTL=30. Cache/database exceptions propagate rather than becoming misses or empty statistics; existing HTTP/Feedback handling displays the failure. Clearing calls only delete. CRUD does not invalidate this example's snapshot automatically; manual refresh demonstrates data changed through existing Table/Modal operations. See [Cache examples and external HTTP](../users/cache-and-http.md) for detailed instructions.
+RedisCache's timeout=5 is an operation timeout, unrelated to TTL=30. Cache/database exceptions propagate rather than becoming misses or empty statistics; existing HTTP/Feedback handling displays the failure. Clearing calls only delete. CRUD does not invalidate this example's snapshot automatically; manual refresh demonstrates data changed through existing Table/Modal operations. See [the user tutorial](../users/cache-and-http.md) for detailed instructions.
 
 A missing key returns default. A cached None also counts as a miss, whereas 0, False, empty strings, and empty lists are valid hits. To distinguish None from a missing cache entry, wrap it in a business object such as `{"value": None}`.
 
@@ -167,7 +167,7 @@ The actual Web consumer remains [views/cache.py](https://github.com/alexliyu7352
 
 POST on the same path uses router.post → csrf_protect → login_required → cache_response with the same key_prefix/use_pickle. After the handler returns an invalidation-result fragment, the decorator deletes all GET query/locale variants without duplicated handwritten deletion rules. The button targets #cache-response-result, separately from #cache-result, using data-om-action and the existing replacement lifecycle. Statistics HTML is escaped normally, translation happens during fragment generation, and the cache key preserves language isolation. The original 30-second RedisCache page and this 5-second HTTP cache do not invalidate one another.
 
-Both decorators use the root redis_cache, whose connection comes from settings.cache.client and whose keys live under `<core.namespace>:cache`. The public demo YAML does not override cache, whose default client is CACHE. use_pickle=False controls HTTP-response envelope encoding rather than changing providers. Web requests leave shared pools open for Application shutdown; CLI examples close their own connections in finally. Real hits/expiration, POST invalidation, language isolation at the same URL, anonymous 401, and invalid-CSRF 403 have been verified in an isolated demo. See [Cache examples and external HTTP](../users/cache-and-http.md#observe-function-results-and-the-entire-http-response-cache) for instructions.
+Both decorators use the root redis_cache, whose connection comes from settings.cache.client and whose keys live under `<core.namespace>:cache`. The public demo YAML does not override cache, whose default client is CACHE. use_pickle=False controls HTTP-response envelope encoding rather than changing providers. Web requests leave shared pools open for Application shutdown; CLI examples close their own connections in finally. Real hits/expiration, POST invalidation, language isolation at the same URL, anonymous 401, and invalid-CSRF 403 have been verified in an isolated demo. See [the user tutorial](../users/cache-and-http.md#observe-function-results-and-the-entire-http-response-cache) for instructions.
 
 `oldman.cache.utils` also supplies underscore-joined key helpers: set_cache/get_cache/get_cache_expiration/delete_cache/delete_cache_many. They use the native redis_cache namespace, not Django keys, and provide no distributed locks.
 
@@ -177,7 +177,7 @@ This is the specific purpose of `oldman.compat.django.cache`, not Oldman's nativ
 
 Oldman still uses the **binary** provider selected by settings.cache.client, but ignores its native namespace/serializer and reads/writes `:1:<key>`. Ordinary integers retain integer encoding; bool/None/other values use Pickle. Redis and its writers must be trusted.
 
-The actual entry point is DjangoCacheDemo in the demo's [django_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/django_cache.py). For execution and optional isolated installation, see [Cache examples and external HTTP](../users/cache-and-http.md#optional-exchange-cache-with-django). It calls importlib.import_module("django.core.cache.backends.redis") only during Command execution. Missing Django produces a clear module-import explanation rather than making all of commands.py unloadable because of an optional dependency.
+The actual entry point is DjangoCacheDemo in the demo's [django_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/django_cache.py). For execution and optional isolated installation, see [the user tutorial](../users/cache-and-http.md#optional-exchange-cache-with-django). It calls importlib.import_module("django.core.cache.backends.redis") only during Command execution. Missing Django produces a clear module-import explanation rather than making all of commands.py unloadable because of an optional dependency.
 
 It reads URL and protocol from settings.redis[settings.cache.client] and constructs a real backend.RedisCache(..., {"OPTIONS": {"protocol": config.protocol}}). Django's aget/aset/adelete use its native asynchronous entry points; this example does not call synchronous network methods directly on the event loop. Project statistics come from calculate_project_statistics. incoming/outgoing use UUID keys for this run, and missing is a distinct object sentinel. Excerpt from the actual loop:
 
@@ -212,7 +212,7 @@ ImageCache owns no connection pool and has no close interface. The command's fin
 
 ## Model caching
 
-`oldman.db.sqlalchemy.cache` caches model rows and query results in Redis using `settings.cache.client`, with keys under `<core.namespace>:model_cache`. Unlike the caches above, it does not require callers to delete keys: ORM writes automatically invalidate affected entries after commit. The EPG demo enables it for `ExampleTask`; `/examples/cache/models` demonstrates the invalidation rules below. See [Cache examples and external HTTP](../users/cache-and-http.md#observe-model-cache) for instructions. `Channel` / `Programme` in this section are illustrative models, not demo files.
+`oldman.db.sqlalchemy.cache` caches model rows and query results in Redis using `settings.cache.client`, with keys under `<core.namespace>:model_cache`. Unlike the caches above, it does not require callers to delete keys: ORM writes automatically invalidate affected entries after commit. The EPG demo enables it for `ExampleTask`; `/examples/cache/models` demonstrates the invalidation rules below. See [the user tutorial](../users/cache-and-http.md#observe-model-cache) for instructions. `Channel` / `Programme` in this section are illustrative models, not demo files.
 
 ### Enabling and calling
 
@@ -251,7 +251,7 @@ async def read_guide(day_start: datetime) -> None:
 | --- | --- | --- |
 | `instance_expire_seconds` | 3600 | Expiration in seconds for row and field-lookup entries |
 | `query_expire_seconds` | 300 | Expiration in seconds for query-result entries; `cached_filter(expire_seconds=...)` overrides it per call |
-| `partition_by` | `()` | Partition columns; see [Caching](#partitions) |
+| `partition_by` | `()` | Partition columns; see [partitions](#partitions) |
 | `invalidate_on` | `()` | ORM updates/deletions of these models invalidate all entries for this model |
 | `db_manager` | Process-wide `db_manager` | Supplies the cache connection pool on misses; the caller's session must connect to the same database |
 

@@ -4,7 +4,7 @@
 
 ## Actual use in the demo
 
-The `/examples/http/client` page offers four buttons: JSON, upstream 404, timeout, and byte stream. See [Cache examples and external HTTP](../users/cache-and-http.md#running-the-backend-http-example) for instructions. Below is the demo's complete [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py):
+The `/examples/http/client` page offers four buttons: JSON, upstream 404, timeout, and byte stream. See [the user tutorial](../users/cache-and-http.md#running-the-backend-http-example) for instructions. Below is the demo's complete [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py):
 
 ```python
 """Real upstream diagnostics using the framework's shared HTTP client API."""
@@ -203,7 +203,7 @@ Until buffered, a stream can be consumed only once. Calling aread/json after chu
 
 This page already includes a real streaming example: run_http_example's stream branch counts bytes and computes a digest in chunks inside the response context without loading the complete file. Success means only that this transfer completed. The page shows the actual byte count rather than hardcoding the expected 65536. Reading stops above 1 MiB, and partial content has no complete digest. This limit belongs only to the example's stream branch, not ordinary get responses.
 
-Saving downloads directly to Storage combines a different set of interfaces; the current demo has no complete example. Obtain an initialized named Storage, enter client.stream, check the status, pass response.aiter_bytes(...) as Storage.save's asynchronous byte-iterator input, await saving and retain Storage's actual logical name, then exit the response context. Do not close the stream before save or treat the logical name as a local absolute path. See [File storage and model file fields](storage.md) for input, naming, and save-failure contracts.
+Saving downloads directly to Storage combines a different set of interfaces; the current demo has no complete example. Obtain an initialized named Storage, enter client.stream, check the status, pass response.aiter_bytes(...) as Storage.save's asynchronous byte-iterator input, await saving and retain Storage's actual logical name, then exit the response context. Do not close the stream before save or treat the logical name as a local absolute path. See [Storage](storage.md) for input, naming, and save-failure contracts.
 
 The stream context closes the response stream; the client owner still closes its pool. stream mainly retries while establishing a response and does not promise transparent resumption during reading. Business code must not depend on it replaying an already partly delivered body.
 

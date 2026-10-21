@@ -90,9 +90,9 @@ apps/examples/
     └── a839bf3055f2_create_example_models.py
 ```
 
-It includes settings.py for HTTP examples, tasks.py for Taskiq, and commands.py exporting project-stats and coroutine/process/Worker/cache example commands. commands.py may import concrete Command classes from sibling modules rather than contain every implementation; see [CLI reference](cli.md#custom-app-commands). Default `views` may be a module or a package as here. A package imports concrete views through its own `__init__.py`; Registry does not scan directories for each feature. Apps lacking a capability omit its module instead of creating empty implementations.
+It includes settings.py for HTTP examples, tasks.py for Taskiq, and commands.py exporting project-stats and coroutine/process/Worker/cache example commands. commands.py may import concrete Command classes from sibling modules rather than contain every implementation; see [custom commands](cli.md#custom-app-commands). Default `views` may be a module or a package as here. A package imports concrete views through its own `__init__.py`; Registry does not scan directories for each feature. Apps lacking a capability omit its module instead of creating empty implementations.
 
-`apps.py` must export exactly one public `AppConfig` instance named `app`. Defining a class is not exporting an instance. See [Settings, Apps, and services](../users/settings-and-apps.md#install-apps) for the complete ExamplesAppConfig: label `examples`, display name `Dashboard Examples`, and icon `ri-flask-line`.
+`apps.py` must export exactly one public `AppConfig` instance named `app`. Defining a class is not exporting an instance. See [the user guide](../users/settings-and-apps.md#install-apps) for the complete ExamplesAppConfig: label `examples`, display name `Dashboard Examples`, and icon `ri-flask-line`.
 
 | Attribute | Default / constraint | Purpose |
 | --- | --- | --- |
@@ -111,7 +111,7 @@ It includes settings.py for HTTP examples, tasks.py for Taskiq, and commands.py 
 
 Module paths must be nonempty relative Python module paths, not `None`. Missing default model, view, or command modules are skipped normally. An existing module with a failing internal import retains the actual exception rather than pretending the module is absent. Custom nested paths require real parent packages.
 
-For App-specific settings, follow the demo's `ExamplesAppConfig(AppConfig[ExamplesSettings])`, whose settings_model points to ExamplesSettings for the HTTP upstream address, or the built-in AdminAppConfig it uses. The generic parameter determines app.settings static typing; settings_model controls runtime construction. Both should reference the same class. See [Configuration reference](configuration.md#app-settings) and [Backend HTTP client](http-client.md#actual-use-in-the-demo) for complete declarations and access paths.
+For App-specific settings, follow the demo's `ExamplesAppConfig(AppConfig[ExamplesSettings])`, whose settings_model points to ExamplesSettings for the HTTP upstream address, or the built-in AdminAppConfig it uses. The generic parameter determines app.settings static typing; settings_model controls runtime construction. Both should reference the same class. See [App Settings](configuration.md#app-settings) and [the HTTP example](http-client.md#actual-use-in-the-demo) for complete declarations and access paths.
 
 `settings.apps` already provides package paths; do not add a separate `name`. AppConfig has neither a `ready()` hook nor declarations to install dependencies automatically. Explicitly install required Apps in service configuration and wire their interfaces.
 
@@ -213,7 +213,7 @@ These names come from the same service file:
 
 Base `init()` creates Sanic and the extension environment, installs messages/Session according to switches, initializes Storage and the SSE output extension, then asks Registry to load models/views. Bootstrap already completed models, so this does not load them twice. The demo override adds its capabilities afterward; all wiring is complete before requests are handled. Do not assume project template globals/CSRF helpers exist while importing `apps.py`, models, or views. Register project globals with `template_globals(environment)["name"] = value` (`from oldman.web.template import template_globals`). Jinja does not annotate `environment.globals`; type checkers infer a narrow dictionary from its defaults, so direct `environment.globals[...]` assignment triggers Pyrefly errors despite identical runtime behavior.
 
-Register project request/response middleware in this `init()` override too. See [Web requests, templates, and permissions](web.md#custom-middleware) for signatures, short-circuit behavior, and ordering relative to base middleware.
+Register project request/response middleware in this `init()` override too. See [custom middleware](web.md#custom-middleware) for signatures, short-circuit behavior, and ordering relative to base middleware.
 
 The following extension points are framework reference interfaces; the demo does not override every method.
 
@@ -235,7 +235,7 @@ Listener methods receive only `app`; do not add `loop`. Retain required `super()
 
 Startup errors exit nonzero so process supervisors can restart the service. Sanic workers report startup after before_server_start, before after_server_start runs. In Sanic 25.12.1, a subsequent startup-failure report makes the main process treat it as a restart request and spin without exiting. The framework patches Sanic's `WorkerManager` until Sanic fixes this. Put connections and configuration checks in before_server_start wherever possible to fail early.
 
-With nats_bus enabled, the framework opens Core in the **actual Sanic worker**, then enabled Taskiq publication connections, then runs user before_server_start. Core consumption starts only after user after_server_start completes. Shutdown stops receiving and awaits handlers' finally blocks before user before_server_stop/after_server_stop, then closes Taskiq/Core, cache, Redis, and database engines. Cleanup still completes after business hook failures. If before_server_stop fails, Sanic skips after_server_stop and cleanup happens in that earlier step. The main process loads declarations only, without creating cross-process shared clients. Do not repeat bus start/stop in subclass hooks. See [Redis and NATS providers](providers.md#app-and-runtime-lifecycle) for budgets, exceptions, and separately owned resources.
+With nats_bus enabled, the framework opens Core in the **actual Sanic worker**, then enabled Taskiq publication connections, then runs user before_server_start. Core consumption starts only after user after_server_start completes. Shutdown stops receiving and awaits handlers' finally blocks before user before_server_stop/after_server_stop, then closes Taskiq/Core, cache, Redis, and database engines. Cleanup still completes after business hook failures. If before_server_stop fails, Sanic skips after_server_stop and cleanup happens in that earlier step. The main process loads declarations only, without creating cross-process shared clients. Do not repeat bus start/stop in subclass hooks. See [the NATS lifecycle](providers.md#app-and-runtime-lifecycle) for budgets, exceptions, and separately owned resources.
 
 `runtime_app` is `None` before initialization and a Sanic instance afterward. It stays `None` on non-Web services (SimpleApplication and Taskiq services). Registering AppConfig alone does not install all built-in routes: `install_admin(...)`, for example, is an extra wiring step, not replaced by the package list.
 
@@ -263,11 +263,11 @@ If `before_start`, `main`, or stop hooks raise, the framework still runs stop ho
 
 Overrides of `after_stop` need no super call (the base does nothing). Receiving handlers have already exited. Stop hooks may still send through Core to other online services, but must not expect stopped local subscriptions to reply. Signals cancel the managed main coroutine rather than interrupt cleanup with loop.stop. Cancellation remains cooperative and gives no hard deadline for unbounded blocking business code.
 
-App commands neither run `main()` nor start background services; they follow the [CLI reference](cli.md#command-lifecycle). Do not put all command initialization in `prepare()` and assume one-off commands call it.
+App commands neither run `main()` nor start background services; they follow [the command lifecycle](cli.md#command-lifecycle). Do not put all command initialization in `prepare()` and assume one-off commands call it.
 
 ## Dedicated Taskiq services
 
-The demo provides task_worker and task_scheduler. task_worker extends TaskiqWorkerApplication, using native ProcessManager for execution children. task_scheduler extends SimpleApplication through TaskiqSchedulerApplication and runs only the native scheduler. Neither loads Web views; both load installed App tasks after models. Ordinary Web/Simple/commands manage enabled publication connections without importing every task. See [Taskiq interfaces and runtime](distributed-tasks.md#app-and-service-loading) for exact ordering, explicit Shell connections, and ownership.
+The demo provides task_worker and task_scheduler. task_worker extends TaskiqWorkerApplication, using native ProcessManager for execution children. task_scheduler extends SimpleApplication through TaskiqSchedulerApplication and runs only the native scheduler. Neither loads Web views; both load installed App tasks after models. Ordinary Web/Simple/commands manage enabled publication connections without importing every task. See [the Taskiq runtime](distributed-tasks.md#app-and-service-loading) for exact ordering, explicit Shell connections, and ownership.
 
 ## Access services outside service classes
 

@@ -4,7 +4,7 @@ This guide is for people developing applications with Oldman. You do not need to
 
 ## Learn in order
 
-1. [Run EPG Dashboard Demo](getting-started.md): installation, a separate directory, configuration, migrations, data, accounts, and startup.
+1. [Run the EPG dashboard demo](getting-started.md): installation, a separate directory, configuration, migrations, data, accounts, and startup.
 2. [Real demo data, migrations, and queries](tutorial-tasks.md): follow actual models, fixtures, migrations, and database queries.
 3. [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md): operate existing HTML/JSON Tables and understand sign-in, forms, and create, update, and delete flows.
 4. [Settings, Apps, and services](settings-and-apps.md): use different settings for multiple services and register reusable Apps.
@@ -17,10 +17,10 @@ The core tutorials use the standalone EPG demo directly, without creating anothe
 
 ## Look up a problem
 
-- Missing configuration files, ungenerated keys, or uninstalled Apps: [Settings, Apps, and services](settings-and-apps.md#create-check-and-complete-configurations).
-- Different configurations for multiple services: [Settings, Apps, and services](settings-and-apps.md#services-and-configuration-files).
-- App-specific settings and IDE completion: [Settings, Apps, and services](settings-and-apps.md#an-apps-own-settings).
-- Generating versus applying migrations: [Real demo data, migrations, and queries](tutorial-tasks.md#3-run-existing-migrations-on-the-first-run).
+- Missing configuration files, ungenerated keys, or uninstalled Apps: [configuration operations](settings-and-apps.md#create-check-and-complete-configurations).
+- Different configurations for multiple services: [services and configuration files](settings-and-apps.md#services-and-configuration-files).
+- App-specific settings and IDE completion: [an App's own settings](settings-and-apps.md#an-apps-own-settings).
+- Generating versus applying migrations: [the tutorial's data-preparation steps](tutorial-tasks.md#3-run-existing-migrations-on-the-first-run).
 - Custom and built-in commands: [CLI reference](../developers/cli.md).
 - Basic UI, dropdowns, Tabs, Slider, Carousel, and charts: [Dashboard UI and interactive components](components.md).
 - Form cleaning, dynamic JSON fields, tags, and remote selection: [Forms, fields, and remote choices](../developers/forms.md).
@@ -28,12 +28,12 @@ The core tutorials use the standalone EPG demo directly, without creating anothe
 - Renaming, adopting external tables, or restoring migration state: [Project database migrations](../developers/migrations.md).
 - Uploading, replacing, and deleting model files: [File storage and model file fields](../developers/storage.md).
 - Shared caches, named Redis connections, and reading caches across Django and Oldman: [Caching](../developers/cache.md) and [Redis and NATS providers](../developers/providers.md).
-- Backend external API calls, stream downloads, or NATS RPC: [Backend HTTP client](../developers/http-client.md) and [Redis and NATS providers](../developers/providers.md#nats-connections-and-publishing).
+- Backend external API calls, stream downloads, or NATS RPC: [Backend HTTP client](../developers/http-client.md) and [NATS](../developers/providers.md#nats-connections-and-publishing).
 
 - Periodic work, computation processes, and long-lived Workers: [Run jobs in the background](background-work.md).
 - Page messages, the notification center, and realtime data: [User messages and realtime updates](messages-and-live-updates.md).
-- Installing the built-in admin site and creating administrators: [Run and understand the Admin Demo](admin.md).
-- Preparing production, static assets, and resource cleanup: [Deployment and Operations](deployment.md).
+- Installing the built-in admin site and creating administrators: [Run and understand the Admin demo](admin.md).
+- Preparing production, static assets, and resource cleanup: [Deployment and operation](deployment.md).
 
 Consult the [Developer reference](../developers/README.md) when you need exact signatures or extensions. Use the [Demo page and source index](demo-examples.md) to find specific pages, backends, and templates, avoiding copying only the UI while missing data or component initialization.
 

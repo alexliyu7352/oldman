@@ -1,6 +1,6 @@
 # Taskiq interfaces and runtime
 
-Start by running the EPG demo through [Distributed background tasks](../users/distributed-tasks.md). This page explains where objects come from, who opens and closes connections, and which boundaries maintenance must preserve. It does not introduce another execution engine.
+Start by running the EPG demo through [the user tutorial](../users/distributed-tasks.md). This page explains where objects come from, who opens and closes connections, and which boundaries maintenance must preserve. It does not introduce another execution engine.
 
 ## Public objects and import timing
 
@@ -37,7 +37,7 @@ Scheduler opens Core first, then enters native Taskiq startup, CLIENT_STARTUP, a
 
 Failure and cancellation still attempt shutdown. Dedicated services clean up framework database, cache, Redis, and Core resources after the original Taskiq shutdown. The existing shutdown_timeout and whole-group stop_timeout still apply. This is not a bus.stop business hook assumed to run last, nor a copy of the native Receiver or ProcessManager. Even if Taskiq and Core share nats_alias and namespace strings, they use separate Clients and distinct oldman.taskiq and oldman.bus subjects. Their acknowledgments, renewals, results, and buffers are not mixed.
 
-The actual demo is apps/examples/tasks.py::project_rpc. Its task calls nats_example.query_project_status and returns the real reply and worker_pid. Enable nats_bus in Web and Worker, start nats_a, then submit and query the task at /examples/tasks/results. No Scheduler or repeated bus startup within the task is needed. The task does not retry automatically. An offline remote becomes a task failure displayed through the existing result path. See [Let running services communicate with each other](../users/service-communication.md#5-call-rpc-from-taskiq-task) for complete preparation and source.
+The actual demo is apps/examples/tasks.py::project_rpc. Its task calls nats_example.query_project_status and returns the real reply and worker_pid. Enable nats_bus in Web and Worker, start nats_a, then submit and query the task at /examples/tasks/results. No Scheduler or repeated bus startup within the task is needed. The task does not retry automatically. An offline remote becomes a task failure displayed through the existing result path. See [the communication tutorial](../users/service-communication.md#5-call-rpc-from-taskiq-task) for complete preparation and source.
 
 You can use the demo's actual task interactively in a Shell; this is not another script file in the demo. At its root, first run `context = bootstrap_service("task_worker")`, then import `apps.examples.tasks.project_summary`. Enter the broker context in your own asynchronous function and call `.kiq()`. This only publishes, so another process must still run a Worker. Do not enter another `async with broker` inside an already-started Web lifecycle.
 
@@ -91,7 +91,7 @@ Completion uses native ack_sync, retrying once only on timeout. Final failure st
 
 For durable publication, Nats-Msg-Id is a stable digest of subject, task_name, task_id, and retry number. Only a native NATS timeout causes a resend, at most once, with identical bytes and identifier. Capacity errors, permission errors, missing Streams, and encoding failures are not retried as acknowledgment timeouts. Final failure surfaces through native SendTaskError with its cause retained. Losing an acknowledgment does not establish that the task was never sent.
 
-Ordinary JSON data, Chinese text, and native time schedules use Taskiq's native format and ORJSON. Arguments first pass through native model formatting. Unserializable arguments may raise PydanticSerializationError before reaching ORJSON, so not every encoding failure is TypeError. ignore_result skips results before encoding. Native result-save failure logs an exception but may still ACK; the framework does not change that behavior. See [Distributed background tasks](../users/distributed-tasks.md#6-under-what-circumstances-may-it-be-repeated-and-how-to-deal-with-it) for precise scenarios and business handling.
+Ordinary JSON data, Chinese text, and native time schedules use Taskiq's native format and ORJSON. Arguments first pass through native model formatting. Unserializable arguments may raise PydanticSerializationError before reaching ORJSON, so not every encoding failure is TypeError. ignore_result skips results before encoding. Native result-save failure logs an exception but may still ACK; the framework does not change that behavior. See [duplicate delivery and result boundaries](../users/distributed-tasks.md#6-under-what-circumstances-may-it-be-repeated-and-how-to-deal-with-it) for precise scenarios and business handling.
 
 ## Scheduling and runtime recovery
 

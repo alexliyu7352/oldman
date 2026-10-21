@@ -7,7 +7,7 @@ There are two kinds of remote files:
 - **Python files** load and run within the tool's own command. The database, Redis, and settings are already initialized with the tool's configuration, so these files can directly perform operations such as cleaning data or changing configuration. Each file exports `run()` for a task or `menu()` for its own submenu.
 - **Scripts**, such as shell or Python scripts, run as child processes and communicate with the tool only through arguments and environment variables.
 
-Both kinds appear in the [Terminal interaction](tui.md#menus), alongside local actions.
+Both kinds appear in the [tui menus](tui.md#menus), alongside local actions.
 
 ## Tool-side setup
 
@@ -66,7 +66,7 @@ app_settings:
     # Development: remote_base: ../ops-files/remote
 ```
 
-`remote_base` is a setting owned by this tool's App; see [Configuration reference](configuration.md#app-settings). The framework does not prescribe its name. `AccessLog` in `apps/ops/models.py` likewise belongs to the tool.
+`remote_base` is a setting owned by this tool's App; see [App Settings](configuration.md#app-settings). The framework does not prescribe its name. `AccessLog` in `apps/ops/models.py` likewise belongs to the tool.
 
 | Member | Behavior |
 | --- | --- |
@@ -120,12 +120,12 @@ async def menu() -> tui.Menu:
 - Remote files may use the tool's existing models but **must not declare models**. Tables and migrations belong to local Apps. Remote files also must not import one another. Put code shared by several files in the tool itself or in the framework.
 - Each file loads once per process under a unique name derived from its base location and path in `sys.modules`. Therefore files with the same name under different bases do not conflict, and features such as `@dataclass` that depend on module registration work normally. The framework compiles source directly without creating adjacent `__pycache__` files.
 - That module name exists only in the current process. Commands or ssh calls made by remote files are unaffected because their children run other programs. However, do not pass Python functions or classes defined in a remote file to another Python process. This includes spawn-based process pools (the macOS default, with the same issue for Linux's forkserver default from Python 3.14), pickled objects loaded elsewhere, and taskiq tasks. The receiving process must reimport the module by name and cannot find it. Put such code in the tool's own package and call it from the remote file.
-- Question keys are global variable names for [Terminal interaction](tui.md#preset-answers-for-unattended-use). By convention, prefix them with the filename: `cleanup.days` above is answered by `OLDMAN_ANSWER_CLEANUP_DAYS`.
+- Question keys are global variable names for [preset answers](tui.md#preset-answers-for-unattended-use). By convention, prefix them with the filename: `cleanup.days` above is answered by `OLDMAN_ANSWER_CLEANUP_DAYS`.
 
 ## Remote scripts
 
 - Selecting `script("hotfix.sh", "--dry-run", interpreter="bash")` runs `bash <local-file> --dry-run`. The interpreter must be explicit; the framework does not infer it from the extension.
-- Scripts run in the foreground using the tool's terminal and environment. Output appears immediately, `sudo` can ask for a password, `read` can accept input, and preset-answer environment variables reach the script. They run through `run_foreground`; see [Processes and background tasks](background.md#foreground-commands), not `run_subprocess_exec`, which detaches children from the terminal.
+- Scripts run in the foreground using the tool's terminal and environment. Output appears immediately, `sudo` can ask for a password, `read` can accept input, and preset-answer environment variables reach the script. They run through [`run_foreground`](background.md#foreground-commands), not `run_subprocess_exec`, which detaches children from the terminal.
 - A nonzero exit raises `subprocess.CalledProcessError`, with the relative command path rather than the cache path. The menu displays the error and returns to the original menu. `check=False` disables this check.
 - Pressing Ctrl-C during a script ends the entire tool, as it does in other menu actions.
 

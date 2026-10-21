@@ -1,10 +1,10 @@
 # JSON data import and export
 
-Fixtures are for example data, development/test data, and deliberate small data transfers. They are not database backups, schema migrations, Excel tools, or seed services that automatically populate business data. Prepare tables with [Project database migrations](migrations.md) before importing JSON.
+Fixtures are for example data, development/test data, and deliberate small data transfers. They are not database backups, schema migrations, Excel tools, or seed services that automatically populate business data. Prepare tables with [`db migrate`](migrations.md) before importing JSON.
 
 ## Commands belong to a service
 
-The following uses the [Real demo data, migrations, and queries](../users/tutorial-tasks.md#4-import-repeatable-real-data)'s services and models directly. Run it at the demo root. Before exporting, check that the output path will not overwrite a file you need to retain:
+The following uses the [EPG demo's](../users/tutorial-tasks.md#4-import-repeatable-real-data) services and models directly. Run it at the demo root. Before exporting, check that the output path will not overwrite a file you need to retain:
 
 ```sh
 ./run.sh web dumpdata examples.ExampleProject --output /tmp/projects.json
@@ -58,7 +58,7 @@ Export orders selected models by foreign-key dependencies and records within eac
 
 Import validates the file and foreign-key targets before ordering dependencies among new records. References can target records in the same file or existing database records. Missing references and unresolvable cycles among new records raise errors; foreign-key constraints are not temporarily disabled. After importing explicit integer primary keys, PostgreSQL sequences are advanced accordingly; SQLite/MySQL follow their native behavior. Sequence numbers need not be contiguous, and rollback does not guarantee restoration of their previous values.
 
-Import writes through an ORM Session without calling ModelForm cleaning, ModelAdmin.save_model, or password-creation commands. Password fields do not automatically hash plaintext. Prefer createsuperuser/changepassword for account creation. Changes to file columns may trigger model-file cleanup. Understand [File storage and model file fields](storage.md#model-file-replacement-and-deletion) first; importing is not a side-effect-free string copy.
+Import writes through an ORM Session without calling ModelForm cleaning, ModelAdmin.save_model, or password-creation commands. Password fields do not automatically hash plaintext. Prefer createsuperuser/changepassword for account creation. Changes to file columns may trigger model-file cleanup. Understand [Storage's exclusive-file requirements](storage.md#model-file-replacement-and-deletion) first; importing is not a side-effect-free string copy.
 
 The entire JSON document and all selected export records are held in memory. This is not a streaming backup tool for large datasets. Developers should limit model scope and protect export files containing personal data, password hashes, or private paths.
 

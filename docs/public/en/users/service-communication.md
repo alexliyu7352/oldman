@@ -6,7 +6,7 @@ Distinguish three capabilities: NATS/FastStream provides online events and RPC b
 
 ## 1. Prepare and start the Demo
 
-The working directory is an independent `oldman_epg_dashboard`, not the framework source code directory. See [Run EPG Dashboard Demo](getting-started.md) for complete installation. The following are the actual steps related to this example in its README.
+The working directory is an independent `oldman_epg_dashboard`, not the framework source code directory. See [the quick start](getting-started.md) for complete installation. The following are the actual steps related to this example in its README.
 
 ```sh
 python3 scripts/bootstrap.py
@@ -136,7 +136,7 @@ nats_bus:
 - The default codec is msgpack; when msgspec_json is selected, both communicating parties will change it together and restart. Both send bytes directly without generating a JSON string.
 - namespace is a name that isolates different projects/environments and cannot replace server ACLs. The source peer_id is also not an identity credential.
 
-When enabled, Application connects inside the actual asynchronous process; business code does not start/stop it for each page. Receiving handlers start only after business startup hooks finish. Shutdown ends receiving before closing database and other dependencies. See [Redis and NATS providers](../developers/providers.md#shell-ide-and-independent-connections) for explicit contexts in scripts and Shell.
+When enabled, Application connects inside the actual asynchronous process; business code does not start/stop it for each page. Receiving handlers start only after business startup hooks finish. Shutdown ends receiving before closing database and other dependencies. See [interfaces and lifecycle](../developers/providers.md#shell-ide-and-independent-connections) for explicit contexts in scripts and Shell.
 
 ## 5. Call RPC from Taskiq task
 
@@ -179,6 +179,6 @@ When stopping normally, first stop new task delivery, then let the Worker finish
 ./run.sh web stop
 ```
 
-If you also ran a Scheduler, stop it first with `./run.sh task_scheduler stop`. Do not clear an entire NATS or Redis instance to stop the demo. Handlers normally have 10 seconds to finish, followed by cooperative cancellation and waiting for finally. This does not guarantee forced termination of arbitrary blocking work within 10 seconds. See the [Redis and NATS providers](../developers/providers.md#shutdown-failures-and-guarantees) for native TLS failure cleanup and measured dependency limits.
+If you also ran a Scheduler, stop it first with `./run.sh task_scheduler stop`. Do not clear an entire NATS or Redis instance to stop the demo. Handlers normally have 10 seconds to finish, followed by cooperative cancellation and waiting for finally. This does not guarantee forced termination of arbitrary blocking work within 10 seconds. See [the developer reference](../developers/providers.md#shutdown-failures-and-guarantees) for native TLS failure cleanup and measured dependency limits.
 
 <!-- source: zh/users/service-communication.md @ d06f9281 -->

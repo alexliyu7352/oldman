@@ -101,7 +101,7 @@ The route therefore skips CSRF validation through `csrf_exempt`: admitted reques
 
 If a request carries an `Origin` header, as browser MCP clients do, it must appear in `web.mcp.allowed_origins` or the response is 403. Command-line and desktop clients do not send this header. `Accept` must allow JSON through `application/json`, `application/*`, or `*/*`; otherwise the response is 406. A body exceeding `web.mcp.max_request_body_size`, default 4 MiB, receives 413. Reading stops at the limit rather than buffering the whole body first.
 
-See the "MCP endpoint (web.mcp)" section in [Configuration reference](configuration.md) for settings and defaults. When enabled, `install_mcp` checks at startup for configurations that admit nobody: no `jwt`, empty `callers`, and disabled `allow_anonymous`. It also rejects nonempty `callers` without `api_key` authentication and names in `callers` that are absent from `web.auth.api_keys`.
+See the "MCP endpoint (web.mcp)" section in [the configuration reference](configuration.md) for settings and defaults. When enabled, `install_mcp` checks at startup for configurations that admit nobody: no `jwt`, empty `callers`, and disabled `allow_anonymous`. It also rejects nonempty `callers` without `api_key` authentication and names in `callers` that are absent from `web.auth.api_keys`.
 
 ## Rate limiting
 
@@ -109,7 +109,7 @@ The specification requires servers to limit tool-call frequency. `tools/call` co
 
 ## Connecting clients
 
-Clients connect to `https://<service-address><web.mcp.path>`. Users send `Authorization: Bearer <access-token>`, with tokens issued by `TokenFlow`; see [Web requests, templates, and permissions](web.md). Programs send `X-API-Key: <key>`. For example, Claude Code:
+Clients connect to `https://<service-address><web.mcp.path>`. Users send `Authorization: Bearer <access-token>`, with tokens issued by `TokenFlow`; see [the Web reference](web.md). Programs send `X-API-Key: <key>`. For example, Claude Code:
 
 ```sh
 claude mcp add --transport http reports https://reports.example.com/mcp --header "X-API-Key: <key>"

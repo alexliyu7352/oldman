@@ -12,7 +12,7 @@ Python templates output HTML, `oldman-web` supplies browser behavior/shared styl
 
 ## Installation and public imports
 
-Node.js 20 or later is required. Demo package.json already declares Vite, Tailwind, TypeScript, Sass, fonts, and required plugins. Do not replace it with an incomplete pnpm add list. At the demo root, follow [Run EPG Dashboard Demo](../users/getting-started.md) and run:
+Node.js 20 or later is required. Demo package.json already declares Vite, Tailwind, TypeScript, Sass, fonts, and required plugins. Do not replace it with an incomplete pnpm add list. At the demo root, follow [Run the EPG dashboard demo](../users/getting-started.md) and run:
 
 ```sh
 python3 scripts/bootstrap.py
@@ -129,7 +129,7 @@ Development uses StaticBundle dev_mode/dev_server_url for Vite; bundle_client ab
 
 Run `pnpm --dir frontend dev` and `./run.sh web dev` in separate terminals, or run `python3 scripts/dev.py` at the project root to start Vite/backend together through that standalone helper. Web defaults to 17997 and Vite to 5173; do not start duplicate services on the same ports. run.sh only forwards arguments to the demo environment's oldman. It neither chooses a service nor secretly starts Vite. Use demo example pages, which cover all frontend components, when adjusting styles/components. CSS updates without reload; TypeScript/template edits reload automatically; Python changes require backend restart.
 
-`./run.sh web static collect` collects framework static assets without compiling application TypeScript. Production order is build → static collect → web start; see getting-started instructions for full initialization. Admin's bundle ships with the Python package, while business bundles still require their own build. Collection targets `web.static.root`, defaulting to project `static/`. Existing project files remain; framework/Admin files copy to `static/oldman/`; Apps with `static/` copy names from those directories. The manifest is adjacent at `.static.oldman-static.json`. Copies/manifests are generated and must not be committed. Web/dashboard scaffold `.gitignore` already excludes `static/oldman/` and the manifest; add your own App copies yourself. See [Run and understand the Admin Demo](../users/admin.md) for the Admin demo's separate CSS bundle and extension_bundle_name, without a second Admin runtime.
+`./run.sh web static collect` collects framework static assets without compiling application TypeScript. Production order is build → static collect → web start; see getting-started instructions for full initialization. Admin's bundle ships with the Python package, while business bundles still require their own build. Collection targets `web.static.root`, defaulting to project `static/`. Existing project files remain; framework/Admin files copy to `static/oldman/`; Apps with `static/` copy names from those directories. The manifest is adjacent at `.static.oldman-static.json`. Copies/manifests are generated and must not be committed. Web/dashboard scaffold `.gitignore` already excludes `static/oldman/` and the manifest; add your own App copies yourself. See [Run and understand the Admin demo](../users/admin.md) for the Admin demo's separate CSS bundle and extension_bundle_name, without a second Admin runtime.
 
 ## Icons
 
@@ -189,7 +189,7 @@ Use current shared semantic variables rather than separate card/button colors pe
 
 Unless overridden, shared ApexChart applies a console-style theme: no toolbar, inherited font, dashed horizontal grids only, no axis lines/ticks, series colors from `--om-chart-1…6`, 22% → 0 area gradients, and no point labels. Explicit business options take precedence.
 
-Composite classes follow shell → surface → overlay → state. Shell: `oldman-sidebar`, `oldman-topbar`, `oldman-breadcrumb`, `om-page-header`, `om-page-progress`. Surface: `om-button`, `om-field`, `om-check`, `om-badge`, `om-card` (`om-table-card`, `om-form-card`, `om-stat-card`), `om-table`, `om-filter-toolbar`, `om-tabs`, `om-segmented`. Overlay: `om-dropdown-menu`, `om-tooltip-content`, `om-modal` (`om-modal-dialog-sm`, `om-confirm-*`), `om-toast`, `om-alert`. State: `om-empty`, `om-skeleton`, `om-table-empty-cell`. See [Dashboard UI and interactive components](../users/components.md) for usage syntax.
+Composite classes follow shell → surface → overlay → state. Shell: `oldman-sidebar`, `oldman-topbar`, `oldman-breadcrumb`, `om-page-header`, `om-page-progress`. Surface: `om-button`, `om-field`, `om-check`, `om-badge`, `om-card` (`om-table-card`, `om-form-card`, `om-stat-card`), `om-table`, `om-filter-toolbar`, `om-tabs`, `om-segmented`. Overlay: `om-dropdown-menu`, `om-tooltip-content`, `om-modal` (`om-modal-dialog-sm`, `om-confirm-*`), `om-toast`, `om-alert`. State: `om-empty`, `om-skeleton`, `om-table-empty-cell`. See [the user guide's component page](../users/components.md) for usage syntax.
 
 Shared CSS defines variables such as `--om-color-primary`, `--om-color-border`, and `--om-shadow-card`. Application themes can override them centrally for components to consume. Changing one page's border/success color alone is not a theme update. Dark mode follows framework data-theme conventions.
 
@@ -227,7 +227,7 @@ Web and CLI share this order (`oldman.i18n.catalogs.translation_roots`). With i1
 
 Browser catalogs use the same fallback. During `i18n compile-frontend`, framework browser messages untranslated in project PO use framework catalogs. Without a project PO for the language, all framework browser messages and plural rules come from the framework. The resulting catalog still contains only frontend messages, excluding backend text.
 
-See [Source development, verification, and releases](maintenance.md#browser-package-and-admin-builds) for maintaining framework translations.
+See [source development](maintenance.md#browser-package-and-admin-builds) for maintaining framework translations.
 
 The actual Jinja section of demo root babel.cfg:
 
@@ -284,7 +284,7 @@ Compilation filters catalogs through the framework frontend-message list and pro
 
 Low-level npm tools are `oldman-web-i18n extract --project-root . --source-root frontend/src` and `oldman-web-i18n compile-po --fallback-locale en` (reading PO from stdin). Ordinary projects should prefer Oldman CLI/scaffold scripts rather than another PO parser.
 
-Demo main.ts imports defaultLanguage, languageAliases, languageDefinitions, and languagePreferencePath from `./i18n/generated` and reads the asset base from page oldman-asset-base meta. It creates createI18n, passes it to createOldmanContext, and waits for i18n.init before startOldman. See [Pages, components, and dynamic content](frontend.md#demo-dashboard-page-entry-point) for complete code.
+Demo main.ts imports defaultLanguage, languageAliases, languageDefinitions, and languagePreferencePath from `./i18n/generated` and reads the asset base from page oldman-asset-base meta. It creates createI18n, passes it to createOldmanContext, and waits for i18n.init before startOldman. See [the frontend entry point](frontend.md#demo-dashboard-page-entry-point) for complete code.
 
 Catalog loading needs no custom implementation. `createFetchCatalogLoader` comes from oldman-web/core:
 
@@ -330,7 +330,7 @@ Change those two settings to customize Cookie name/lifetime; do not add another 
 
 Selecting dashboard in `startproject` generates a sign-in-ready scaffold:
 
-- Accounts: project User (`apps/accounts/models.py`); `apps/accounts/routes.py` installs `LoginFlow`, `AccountFlow`, `UserManagementFlow`, and `RoleManagementFlow` according to `web.account` (see [Web requests, templates, and permissions](web.md#ready-made-account-flows)). Every active account can sign in. User management requires `auth.users.*`; role management requires `roles.*`.
+- Accounts: project User (`apps/accounts/models.py`); `apps/accounts/routes.py` installs `LoginFlow`, `AccountFlow`, `UserManagementFlow`, and `RoleManagementFlow` according to `web.account` (see [ready-made account flows](web.md#ready-made-account-flows)). Every active account can sign in. User management requires `auth.users.*`; role management requires `roles.*`.
 - Home `apps/home` (`/`, requiring sign-in), shell `templates/base.html`, and menus only in `templates/partials/sidebar.html`. User management appears only with `auth.users.view`, roles only with `roles.view`, through registered `can_manage_users`/`can_manage_roles` template functions.
 - Services install CSRF, notifications, templates/frontend bundles, then account pages. Projects selecting built-in Admin additionally install `/admin` and show its sidebar link to staff.
 - The frontend starts with framework `startDashboard`; `frontend/src/pages/base-page.ts` is the shared page class.

@@ -10,7 +10,7 @@ The three approaches serve different situations without requiring three backend 
 
 JSON mode does not send every record to the browser or require a direct project dependency on TanStack. `oldman-web` declares the dependency and wraps it in its shared Table component.
 
-This chapter follows the EPG demo's `/examples/tables/static`, `/examples/tables/html`, and `/examples/tables/json`. Complete [Run EPG Dashboard Demo](../users/getting-started.md), load fixtures, and sign in first. Both dynamic pages use the same ExampleProjectTable, data endpoint, filter form, and CRUD Modal. Only Table response/rendering formats differ.
+This chapter follows the EPG demo's `/examples/tables/static`, `/examples/tables/html`, and `/examples/tables/json`. Complete [demo initialization](../users/getting-started.md), load fixtures, and sign in first. Both dynamic pages use the same ExampleProjectTable, data endpoint, filter form, and CRUD Modal. Only Table response/rendering formats differ.
 
 ## Backend definition
 
@@ -54,7 +54,7 @@ select comes from SQLAlchemy and selectinload from sqlalchemy.orm. Register the 
 router.add_route(ExampleProjectTable.as_view(), ExampleProjectTable.route_path, name=ExampleProjectTable.route_name)
 ```
 
-`router` comes from `oldman.web` and is used during this App's view loading. `as_view()` preserves base dispatch permission checks. Tables default to `require_authenticated=True`; the framework baseline is sign-in. Override `check_permission()` for checks requiring no data query (staff/role permissions), `check_auth(table_request)` for checks needing request parameters/database reads, and `apply_base_filters()` for visible-row scope; see [Permissions](permissions.md#permission-layers-in-data-components). The demo's business tables require sign-in and share data among signed-in users. The example project table additionally requires role permission `examples.view_projects` in `check_permission` to demonstrate that layer. For tenant/user isolation, put fixed scope in get_queryset/apply_base_filters rather than user-editable filter parameters.
+`router` comes from `oldman.web` and is used during this App's view loading. `as_view()` preserves base dispatch permission checks. Tables default to `require_authenticated=True`; the framework baseline is sign-in. Override `check_permission()` for checks requiring no data query (staff/role permissions), `check_auth(table_request)` for checks needing request parameters/database reads, and `apply_base_filters()` for visible-row scope; see [permission layers in data components](permissions.md#permission-layers-in-data-components). The demo's business tables require sign-in and share data among signed-in users. The example project table additionally requires role permission `examples.view_projects` in `check_permission` to demonstrate that layer. For tenant/user isolation, put fixed scope in get_queryset/apply_base_filters rather than user-editable filter parameters.
 
 The same views/tables.py creates a request-scoped Table with this helper. FILTER_NAMES lists team_id, status, priority, and is_active in that file:
 
@@ -80,7 +80,7 @@ Whole-page views create ExampleProjectFilterForm.from_query inside a read Sessio
       ) }}
 ```
 
-Jinja enables asynchronous rendering, so templates do not write await explicitly. Both modes need the browser `table` loader, supplied through the application BasePage's Dashboard loaders in the demo; see [Pages, components, and dynamic content](frontend.md#demo-dashboard-page-entry-point). The shell includes the data endpoint, pagination, and initial parameters. Only afterwards does the browser request actual data. An initial HTML shell does not prove database data has loaded.
+Jinja enables asynchronous rendering, so templates do not write await explicitly. Both modes need the browser `table` loader, supplied through the application BasePage's Dashboard loaders in the demo; see [the frontend entry point](frontend.md#demo-dashboard-page-entry-point). The shell includes the data endpoint, pagination, and initial parameters. Only afterwards does the browser request actual data. An initial HTML shell does not prove database data has loaded.
 
 ## Query parameters and lifecycle
 
@@ -134,7 +134,7 @@ Use `async def` for callbacks that query the database or render fragments. SQLAl
         return badge(str(count), tone="primary"), count
 ```
 
-One query per cell means 50 queries for 50 rows. Fetch data needed by every row in `build_row_contexts()` once, then read `row_context` in callbacks. Callback queries suit small, on-demand cases. To include a Modal in a cell, likewise call `await render_modal(request, ...)` in an asynchronous callback; request is among its keyword arguments. See [Pages, components, and dynamic content](frontend.md#modal-is-only-a-container).
+One query per cell means 50 queries for 50 rows. Fetch data needed by every row in `build_row_contexts()` once, then read `row_context` in callbacks. Callback queries suit small, on-demand cases. To include a Modal in a cell, likewise call `await render_modal(request, ...)` in an asynchronous callback; request is among its keyword arguments. See [the frontend Modal section](frontend.md#modal-is-only-a-container).
 
 ExampleProjectTable's name column demonstrates this boundary. Markup and escape both come from markupsafe:
 
@@ -171,7 +171,7 @@ Both HTML and JSON Tables emit `tr[data-om-table-row][data-om-table-row-id]`. Ce
 
 SQLAlchemyTableView defaults to the model's unique primary key; its name need not be id. Set `row_id_field="external_id"` for an existing field or override `get_row_id(row)`. Missing IDs and unhandled composite keys raise errors. Row numbers must not stand in for stable record identity. BaseTableView defaults to `row_id_field="id"`.
 
-Column DOM uses Column.name rather than translated headings. For SSE partial updates, the business Page locates nodes by row ID/column name and updates dynamic values, without a new Table message bus. There is currently no public `updateCell()` API. Direct DOM edits change only current display, not JSON Table internal data; a new query rerenders server data. Persist changes to the database, and use [Pages, components, and dynamic content](frontend.md#table-operations) when the whole table needs synchronization.
+Column DOM uses Column.name rather than translated headings. For SSE partial updates, the business Page locates nodes by row ID/column name and updates dynamic values, without a new Table message bus. There is currently no public `updateCell()` API. Direct DOM edits change only current display, not JSON Table internal data; a new query rerenders server data. Persist changes to the database, and use [Table reload](frontend.md#table-operations) when the whole table needs synchronization.
 
 The demo's `/examples/tables/realtime` combines handwritten HTML tables with a page-private RealtimeTable component, not a TanStack real-time plugin. [realtime.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/tables/realtime.html) uses this unchanged row structure inside `for server, metric in metric_rows`:
 
@@ -233,7 +233,7 @@ cells contains display-renderer HTML. Do not infer raw_values from display conte
 
 Ordinary Forms and Modals handle creation/editing. Demo success emits feedback, closes the Modal, then runs `ReloadTableAction(target="#example-projects-table")`. Both Table modes share an ID, so save endpoints need not guess the page mode. Multiple Tables on one page need different IDs and explicit action targets. HTML Table format does not imply HTML Form responses inside Modals; CRUD Forms use JSON on both demo pages.
 
-`selectable=True` only adds selection controls and toolbar counts. It neither implements bulk deletion nor authorizes arbitrary-ID operations; see [Static, HTML, and JSON Tables](#toolbar) for bulk actions. Pagination/search/sorting do not replace backend access scope. The demo's `/examples/tables/advanced` explicitly displays missing features and does not establish implemented frozen columns or bulk actions.
+`selectable=True` only adds selection controls and toolbar counts. It neither implements bulk deletion nor authorizes arbitrary-ID operations; see [the toolbar](#toolbar) for bulk actions. Pagination/search/sorting do not replace backend access scope. The demo's `/examples/tables/advanced` explicitly displays missing features and does not establish implemented frozen columns or bulk actions.
 
 Actually verify search, ascending/descending sorting, pagination, refresh after editing, empty data, and request failure in both HTML/JSON modes. Checking only initial shells or rows arrays is insufficient. Complete runnable wiring is in [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md). These are developer verification steps, not a claim that this documentation change reran browser acceptance tests.
 

@@ -121,7 +121,7 @@ Templates use the framework's Jinja environment. Matching files in the project's
 
 ## When to send
 
-`send_mail` is a coroutine: `await` it directly in request handling. SMTP has a timeout (10 seconds by default), and failures raise exceptions. To avoid waiting for mail in the response, use the in-process background task manager (the Web service's `task_manager`). For actual queuing/retries, wrap `send_mail` in a [Taskiq interfaces and runtime](distributed-tasks.md) task. The mail layer does not create its own queue.
+`send_mail` is a coroutine: `await` it directly in request handling. SMTP has a timeout (10 seconds by default), and failures raise exceptions. To avoid waiting for mail in the response, use the in-process background task manager (the Web service's `task_manager`). For actual queuing/retries, wrap `send_mail` in a [Taskiq](distributed-tasks.md) task. The mail layer does not create its own queue.
 
 ## Testing
 

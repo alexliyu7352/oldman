@@ -2,7 +2,7 @@
 
 `oldman` is the command entry point supplied by the Python package. Its first two levels distinguish **project operations** from **operations on a selected service**, rather than putting every capability in one service.
 
-The EPG demo's [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/run.sh) only enters its project directory, executes that project's `.venv/bin/oldman`, and forwards arguments unchanged. Service examples below use its actual `web` service; `oldman` in the same environment behaves identically. See [Run EPG Dashboard Demo](../users/getting-started.md) for installation, data, and asset preparation. Invoking `run.sh` does not chain these steps automatically.
+The EPG demo's [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/run.sh) only enters its project directory, executes that project's `.venv/bin/oldman`, and forwards arguments unchanged. Service examples below use its actual `web` service; `oldman` in the same environment behaves identically. See [Run the EPG dashboard demo](../users/getting-started.md) for installation, data, and asset preparation. Invoking `run.sh` does not chain these steps automatically.
 
 ## Project-level commands
 
@@ -32,7 +32,7 @@ Read command-specific help:
 | `service` | SimpleApplication in `services/service.py`; example `main()` logs every 10 seconds until `stop` |
 | `api` | WebApplication in `services/api.py`, without frontend installation. Project App `apps.home` provides `/` health, `/api/caller` accepting only API keys, and `/api/ops` accepting only HTTP Basic. Both credentials are generated randomly into service `web.auth` settings, without database or Session requirements |
 | `web` | WebApplication in `services/web.py` with asynchronous templates. `/` is an editable/removable welcome page in project App `apps.home`; `<html lang>` in `templates/base.html` follows request language |
-| `dashboard` | Sign-in-ready scaffold with sign-in, home, profile, notifications, user/role management, a project User model, and Vite/Tailwind frontend; see [Frontend assets, styles, icons, and translation](assets.md#dashboard-scaffold-scope) |
+| `dashboard` | Sign-in-ready scaffold with sign-in, home, profile, notifications, user/role management, a project User model, and Vite/Tailwind frontend; see [the assets reference](assets.md#dashboard-scaffold-scope) |
 
 Every project includes `AGENTS.md` with coding-agent instructions: clone documentation for the installed version into `.oldman-docs/`, task-specific required guides, rules, and facts varying by project type/Admin integration. `CLAUDE.md` contains only `@AGENTS.md`; `.gitignore` excludes `.oldman-docs/`. These files are generated at project creation, not updated on framework upgrades. Generated `pyproject.toml` sets `[tool.ruff] line-length = 150`, matching framework code (ruff defaults to 88 otherwise). Generated code and `startapp` Apps pass `ruff format --check` and `ruff check` with that width. Change that setting for your team's preference.
 
@@ -40,7 +40,7 @@ Database choices are `none`, `sqlite`, `mysql`, and `postgres`. CLI scripts do n
 
 Database-enabled `web` and `dashboard` projects next ask whether to integrate the built-in Admin (default no). Choosing it installs `oldman.auth`, `oldman.apps.roles`, and `oldman.apps.admin`, generates a project User in `apps/accounts` like dashboard (`app_settings.auth.user_model` selects it), enables Session, and calls `install_admin(app)` in service `init()`. Admin mounts at `app_settings.admin.prefix` (default `/admin`) and shares sign-in state. Web without a database does not ask, since Admin users require storage. You can add it later by installing those Apps, enabling Session, and calling `install_admin`. Dashboards install user and role Apps regardless of this choice.
 
-These choices use questions, not `startproject --type` or `--db`. For unattended CI/scripts/agents, use environment [Terminal interaction](tui.md#preset-answers-for-unattended-use); configured questions are not asked again:
+These choices use questions, not `startproject --type` or `--db`. For unattended CI/scripts/agents, use environment [preset answers](tui.md#preset-answers-for-unattended-use); configured questions are not asked again:
 
 ```sh
 OLDMAN_ANSWER_STARTPROJECT_TYPE=web OLDMAN_ANSWER_STARTPROJECT_DATABASE=sqlite oldman startproject my_site
@@ -91,11 +91,11 @@ Static collection copies incrementally by default. `--clear` removes tracked out
 ./run.sh web templates copy
 ```
 
-Copy framework templates into `web.template.dir` (default `templates/`) with original relative paths, then edit project copies. Sources are shared `oldman/web/templates` plus installed framework Apps' `templates` directories (Admin templates only when installed). Missing files copy directly; identical files are skipped. Different existing files are listed before one overwrite-all confirmation (default no; unattended variable `OLDMAN_ANSWER_TEMPLATES_COPY_OVERWRITE`). Copies do not follow future framework upgrades. For one or two pages, same-name overrides or `framework:` inheritance are simpler; see [Web requests, templates, and permissions](web.md#enable-templates).
+Copy framework templates into `web.template.dir` (default `templates/`) with original relative paths, then edit project copies. Sources are shared `oldman/web/templates` plus installed framework Apps' `templates` directories (Admin templates only when installed). Missing files copy directly; identical files are skipped. Different existing files are listed before one overwrite-all confirmation (default no; unattended variable `OLDMAN_ANSWER_TEMPLATES_COPY_OVERWRITE`). Copies do not follow future framework upgrades. For one or two pages, same-name overrides or `framework:` inheritance are simpler; see [enabling templates](web.md#enable-templates).
 
-The demo's `WebService.get_default_commands()` retains parent commands and adds `dev`. `dev()` selects Vite assets then calls `start()`; it does not start Vite. Demo [scripts/dev.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/scripts/dev.py) manages both development processes; see [Frontend assets, styles, icons, and translation](assets.md) for wiring. Frontend dashboard scaffolds also provide dev; ordinary API/Web and Simple services do not acquire it automatically.
+The demo's `WebService.get_default_commands()` retains parent commands and adds `dev`. `dev()` selects Vite assets then calls `start()`; it does not start Vite. Demo [scripts/dev.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/scripts/dev.py) manages both development processes; see [the asset-development workflow](assets.md) for wiring. Frontend dashboard scaffolds also provide dev; ordinary API/Web and Simple services do not acquire it automatically.
 
-See [Configuration reference](configuration.md#configuration-file-selection) for `--config` scope and path behavior. Do not assume it is a global option shared by all commands.
+See [configuration-file selection](configuration.md#configuration-file-selection) for `--config` scope and path behavior. Do not assume it is a global option shared by all commands.
 
 ### Data fixtures and user management
 
@@ -107,7 +107,7 @@ Runtime services provide two JSON data tools. The demo's [README](https://github
 ./run.sh web loaddata data/examples-export.json
 ```
 
-These demonstrate import/export, not instructions to reload your database immediately. Inspect existing files before overwriting exports. Initial demo data comes from `./run.sh web loaddata demo`, reading [apps/examples/fixtures/demo.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/fixtures/demo.json). See [Real demo data, migrations, and queries](../users/tutorial-tasks.md#4-import-repeatable-real-data) for primary keys, relationships, and repeat-import rules.
+These demonstrate import/export, not instructions to reload your database immediately. Inspect existing files before overwriting exports. Initial demo data comes from `./run.sh web loaddata demo`, reading [apps/examples/fixtures/demo.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/fixtures/demo.json). See [the data tutorial](../users/tutorial-tasks.md#4-import-repeatable-real-data) for primary keys, relationships, and repeat-import rules.
 
 `dumpdata` selectors choose Apps/models registered by the current service; without `--output`, JSON goes to stdout. `loaddata` writes database rows; it is neither backup restoration nor schema migration. Verify target databases and conflict rules first. Do not use production tables for tutorials.
 
@@ -118,7 +118,7 @@ All services installing Auth (`oldman.auth`) have these two account commands, wh
 ./run.sh web changepassword admin
 ```
 
-Migrate before creating accounts. Replace admin in `changepassword admin` with an existing username. Missing users fail without creation; password changes end all existing sign-ins for that user. Duplicate `createsuperuser` names also fail without modifying accounts. Passwords use hidden input and confirmation, not plaintext command arguments. Database creation does not create a default administrator. Scripts provide passwords through environment variables: `createsuperuser --noinput --username … [--email …]` reads `OLDMAN_SUPERUSER_PASSWORD`; `changepassword` reads preset `OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD` ([Terminal interaction](tui.md#preset-answers-for-unattended-use)). Neither reads passwords from pipes. These commands need App registration and a database, not mounted/running `/admin` pages.
+Migrate before creating accounts. Replace admin in `changepassword admin` with an existing username. Missing users fail without creation; password changes end all existing sign-ins for that user. Duplicate `createsuperuser` names also fail without modifying accounts. Passwords use hidden input and confirmation, not plaintext command arguments. Database creation does not create a default administrator. Scripts provide passwords through environment variables: `createsuperuser --noinput --username … [--email …]` reads `OLDMAN_SUPERUSER_PASSWORD`; `changepassword` reads preset `OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD` ([preset answers](tui.md#preset-answers-for-unattended-use)). Neither reads passwords from pipes. These commands need App registration and a database, not mounted/running `/admin` pages.
 
 ## Custom App commands
 
@@ -186,15 +186,15 @@ class ProjectStats(Command):
 ./run.sh web project-stats --team-id 1
 ```
 
-Prepare settings/database first; see [Demo page and source index](../users/demo-examples.md#custom-app-commands) for steps and results. Here `web` selects service settings without opening a Web port. Default demo NATS/Taskiq settings make the command lifecycle connect to infrastructure, without starting receivers, Workers, or Scheduler. Disable `nats_bus.enabled`/`taskiq.enabled` when not trying those features; the command itself uses neither them nor Redis cache.
+Prepare settings/database first; see [command examples](../users/demo-examples.md#custom-app-commands) for steps and results. Here `web` selects service settings without opening a Web port. Default demo NATS/Taskiq settings make the command lifecycle connect to infrastructure, without starting receivers, Workers, or Scheduler. Disable `nats_bus.enabled`/`taskiq.enabled` when not trying those features; the command itself uses neither them nor Redis cache.
 
 Typer checks `--team-id` type/minimum, returning exit 2 for invalid arguments. A missing team raises ValueError, displayed with exit 1; an existing empty team prints zero and exits 0. Missing tables or inaccessible databases also exit 1 without creating tables/importing fixtures. Status groups use actual database values, sorted and displayed only when present. Every run queries anew, not the cache-page snapshot.
 
-Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [Terminal interaction](tui.md) (`tui.ask`, `tui.confirm`, etc.); built-in [Admin commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py) provide examples.
+Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [tui](tui.md) (`tui.ask`, `tui.confirm`, etc.); built-in [Admin commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py) provide examples.
 
 `name` matches `[a-z][a-z0-9-]*`; use hyphens for command names and underscores for Python parameters. `help` must be nonempty text or `LazyTranslation`. Classes must construct without arguments; `handle()` must be `async def`, returning a result for CLI printing or writing output itself and returning None.
 
-Parameters follow Typer: no default usually means positional; a default usually means option. Set explicit constraints through `Annotated[..., typer.Option(...)]` or `typer.Argument(...)`. Ask through [Terminal interaction](tui.md) instead of custom input parsing. Give questions keys for unattended use.
+Parameters follow Typer: no default usually means positional; a default usually means option. Set explicit constraints through `Annotated[..., typer.Option(...)]` or `typer.Argument(...)`. Ask through [tui](tui.md) instead of custom input parsing. Give questions keys for unattended use.
 
 App command names must be unique within a service and not conflict with existing service, settings/static/Shell, or fixture commands. App display names group help without adding command levels. Use `web changepassword`, not `web admin changepassword`.
 
@@ -224,16 +224,16 @@ Construct the selected service Application
 
 This does not run service `init()`, `prepare()`, `main()`, `prepare_server()`, or Web start/stop listeners, so executing commands does not bind HTTP ports. Override `before_command()` for service-level command initialization; close related resources in `after_command()`. Business `handle()` may also use context managers/finally for its own resources.
 
-Core sends/RPC only: consume=true neither loads App events nor starts subscribers. Ordinary commands do not load all tasks automatically. Disabled capabilities create no corresponding connections. Initialization/handle/after_command failures still enter communication finally, retaining original errors and separately logging cleanup failures. DB/HTTP resources retain their ownership rules. Import bus directly in commands without another manual async with. Settings/help, database commands, and bootstrap/Shell do not run this async command chain; see [Redis and NATS providers](providers.md#shell-ide-and-independent-connections) for explicit Shell communication.
+Core sends/RPC only: consume=true neither loads App events nor starts subscribers. Ordinary commands do not load all tasks automatically. Disabled capabilities create no corresponding connections. Initialization/handle/after_command failures still enter communication finally, retaining original errors and separately logging cleanup failures. DB/HTTP resources retain their ownership rules. Import bus directly in commands without another manual async with. Settings/help, database commands, and bootstrap/Shell do not run this async command chain; see [the provider reference](providers.md#shell-ide-and-independent-connections) for explicit Shell communication.
 
-Command files under `logging.dir` are named by command and contain INFO and above. Terminals normally show warnings/errors only. Return results or use [Terminal interaction](tui.md) for user output, not `logger.info()`. DEBUG (`core.debug` or `logging.level: DEBUG`) shows all terminal logs. Service `start` is unaffected.
+Command files under `logging.dir` are named by command and contain INFO and above. Terminals normally show warnings/errors only. Return results or use [tui](tui.md) for user output, not `logger.info()`. DEBUG (`core.debug` or `logging.level: DEBUG`) shows all terminal logs. Service `start` is unaffected.
 
 Do not connect databases, read requests, or start tasks in Command constructors. CLI displays errors and exits with failure. Do not swallow exceptions and return success text.
 
 Two optional class attributes:
 
 - `check_pid = True`: serialize same-name commands for one service using `<service>.<command>.pid` under `process.pid_dir`. Default false; this is not distributed or cross-machine locking.
-- `raw_stdout = True`: send command logs to stderr for machine-readable stdout. Default false. Commands must also avoid explanatory text in data streams. With [Terminal interaction](tui.md), all explanatory output, tables, and waiting indicators except `echo` automatically use stderr.
+- `raw_stdout = True`: send command logs to stderr for machine-readable stdout. Default false. Commands must also avoid explanatory text in data streams. With [tui](tui.md), all explanatory output, tables, and waiting indicators except `echo` automatically use stderr.
 
 ## Database command scope
 

@@ -38,7 +38,7 @@ def default_web_config() -> WebConfig:
     )
 ```
 
-`BASE_DIR = Path(__file__).resolve().parents[1]` in that file generates project paths. The referenced `default_template_config()` and `default_static_config()` are also there; retain these dependencies when copying factories. Example YAML explicitly sets messages and SSE too; see [Settings, Apps, and services](../users/settings-and-apps.md#web-switches). Do not infer final settings from this default factory alone.
+`BASE_DIR = Path(__file__).resolve().parents[1]` in that file generates project paths. The referenced `default_template_config()` and `default_static_config()` are also there; retain these dependencies when copying factories. Example YAML explicitly sets messages and SSE too; see [the demo's settings and switches](../users/settings-and-apps.md#web-switches). Do not infer final settings from this default factory alone.
 
 The demo's [config/settings.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/settings.py) only adds the project type to an initialized object. Its imports and binding are:
 
@@ -58,7 +58,7 @@ Generic framework code may import `settings` from `oldman.conf`, where its stati
 
 Web services use this same instance without attaching another copy to `app.ctx.settings`. Admin assets, language menus, sign-in expiry, language preference Cookies, and CSRF read global settings. `app.ctx` stores installed runtime objects, not another configuration source.
 
-Reading `conf.settings` before initialization raises `RuntimeError`. It is neither an always-available default object nor a lazy proxy. Normal CLI bootstrap precedes business imports; IDEs use [Applications and lifecycle](applications.md#python-shell-and-ide).
+Reading `conf.settings` before initialization raises `RuntimeError`. It is neither an always-available default object nor a lazy proxy. Normal CLI bootstrap precedes business imports; IDEs use [the public bootstrap entry point](applications.md#python-shell-and-ide).
 
 Root values come from YAML and model defaults, without layering `.env`, environment variables, or secrets directories as business configuration sources. This does not restrict independent environment parameters for CLI language or runtime tools.
 
@@ -167,7 +167,7 @@ app = AdminAppConfig()
 
 `AppConfig[AdminSettings]` defines the static type of `app.settings`; `settings_model = AdminSettings` defines its runtime type. Custom Apps use the same interface with their own class and label, without changing root Settings.
 
-The demo's sign-in service reads `admin_app.settings.require_superuser`; see [Settings, Apps, and services](../users/settings-and-apps.md#an-apps-own-settings) for consumers and initialization requirements. Its Examples App also binds a real ExamplesSettings through the same generic/settings_model mechanism. run_http_example reads http_base_url at runtime. This satisfies a configurable HTTP upstream requirement rather than adding an empty model for consistency. Apps without settings requirements may omit settings models.
+The demo's sign-in service reads `admin_app.settings.require_superuser`; see [the user guide](../users/settings-and-apps.md#an-apps-own-settings) for consumers and initialization requirements. Its Examples App also binds a real ExamplesSettings through the same generic/settings_model mechanism. run_http_example reads http_base_url at runtime. This satisfies a configurable HTTP upstream requirement rather than adding an empty model for consistency. Apps without settings requirements may omit settings models.
 
 Binding rules:
 
@@ -257,10 +257,10 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 | `database.url` | `None`; configure before database use |
 | `database.echo` | `None`, following `core.debug` |
 | `database.enable_sql_logging` | `False` |
-| `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [Caching](cache.md#cache-connection-pool) |
+| `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [model caching](cache.md#cache-connection-pool) |
 | `i18n.use_i18n`、`use_i18n_path` | `False` |
 | `i18n.default_language` | `en` |
-| `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [Frontend assets, styles, icons, and translation](assets.md#which-language-a-request-uses) |
+| `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [which language a request uses](assets.md#which-language-a-request-uses) |
 | `cache.client` / `serializer` | `CACHE` / `pickle`; prefix `<core.namespace>:cache` |
 | `http_client.max_connections` | `300` |
 | `mail.backend` | `oldman.mail.backends.console.ConsoleEmailBackend`, printing to stdout; use smtp in production |
@@ -269,9 +269,9 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 
 Built-in Redis aliases `DEFAULT`, `CACHE`, and `SESSION` default to TCP `localhost:6379`, databases 3, 2, and 5. `redis_url` also accepts `rediss://` for TLS and `unix:///path/to/redis.sock?db=N` for an enabled Unix socket. Add aliases such as `SSE` with real `redis_url` values; do not assume they exist automatically. Check generated URLs, database numbers, and `decode_responses` before enabling dependent capabilities.
 
-NATS DEFAULT defaults to nats://localhost:4222. Taskiq is disabled by default; enabling requires a namespace and existing NATS/Redis aliases. Non-Web services do not generate web automatically but still generate these root groups. See [Taskiq interfaces and runtime](distributed-tasks.md#configuration-and-defaults) for all Taskiq defaults, security parameter conversion, and lifecycle.
+NATS DEFAULT defaults to nats://localhost:4222. Taskiq is disabled by default; enabling requires a namespace and existing NATS/Redis aliases. Non-Web services do not generate web automatically but still generate these root groups. See [distributed-task configuration](distributed-tasks.md#configuration-and-defaults) for all Taskiq defaults, security parameter conversion, and lifecycle.
 
-Root nats_bus separately controls Core events/RPC: enabled/consume default false, nats_alias defaults DEFAULT, and enabled buses require namespace. It may use the same named address as Taskiq without sharing connections/protocols. See [Redis and NATS providers](providers.md#configuration-and-defaults) for all defaults, peer_id, codec, and startup/shutdown budgets. init/sync/check neither connect to NATS nor read certificate files.
+Root nats_bus separately controls Core events/RPC: enabled/consume default false, nats_alias defaults DEFAULT, and enabled buses require namespace. It may use the same named address as Taskiq without sharing connections/protocols. See [NATS configuration](providers.md#configuration-and-defaults) for all defaults, peer_id, codec, and startup/shutdown budgets. init/sync/check neither connect to NATS nor read certificate files.
 
 See [Mail](mail.md) for mail fields and built-in backends. Explicit `storages` must include `default`; specify actual backend class import paths and options. Do not create backend connections during model import.
 
@@ -284,7 +284,7 @@ See [Mail](mail.md) for mail fields and built-in backends. Explicit `storages` m
 | `web.workers` / `access_log` | `1` / `False` |
 | `web.response_timeout` / `request_timeout` / `keep_alive_timeout` | 120 seconds each |
 | `web.real_ip_header` | `X-Real-IP`; Sanic directly uses its value as `request.client_ip` |
-| `web.proxies_count` / `forwarded_secret` | Both unset; only when configured does Sanic parse `X-Forwarded-For` or RFC 7239 `Forwarded`; see [Web requests, templates, and permissions](web.md#client-addresses-and-proxies) |
+| `web.proxies_count` / `forwarded_secret` | Both unset; only when configured does Sanic parse `X-Forwarded-For` or RFC 7239 `Forwarded`; see [client addresses and proxies](web.md#client-addresses-and-proxies) |
 | `web.fallback_error_format` | `auto`; also `html`, `json`, `text` |
 | `web.websocket_max_size` | `1048576` bytes |
 | `web.websocket_ping_interval` / `websocket_ping_timeout` | 5 / 20 seconds |
@@ -328,7 +328,7 @@ If `settings check` or service loading finds required keys empty, it requests co
 Other security fields:
 
 - `web.security.csrf.ttl`: 3600 seconds by default; `check_referer` true, `check_url` false.
-- `web.security.csrf.cookie_name`: `csrf_id`, storing the random anonymous visitor ID binding CSRF tokens (see [Web requests, templates, and permissions](web.md#csrf)). Do not use `csrftoken`; the frontend reads a Cookie with that name as the token if no hidden field exists.
+- `web.security.csrf.cookie_name`: `csrf_id`, storing the random anonymous visitor ID binding CSRF tokens (see [the Web reference](web.md#csrf)). Do not use `csrftoken`; the frontend reads a Cookie with that name as the token if no hidden field exists.
 - `web.security.csrf.enforce`: **false** by default. Enabling registers global middleware checking CSRF on every state-changing request (other than GET/HEAD/OPTIONS/TRACE), skipping handlers marked `@csrf_exempt`.
   It defaults off because enabling affects **currently unprotected routes**, such as webhooks/callbacks whose callers are not identified by the authentication pipeline.
   Mark these routes `@csrf_exempt` before enabling, or they start returning 403. Bearer access-token authentication is automatically exempt. With enforcement disabled, per-route `@csrf_protect` still applies.
@@ -348,14 +348,14 @@ Security token and Session expiry are separate settings. Do not substitute one f
 | `web.session.remember_expiry` | 2592000 seconds (30 days); session lifetime with “Remember me” checked |
 | `web.session.cookie_name` | `session_id` |
 | `web.session.cookie_httponly` / `cookie_secure` / `cookie_samesite` | true / false / `Lax`; adjust Secure for HTTPS |
-| `web.auth.authenticators` | Unset: `[session]` with Session enabled, otherwise empty. Try authenticators in order; the first recognizing credentials decides. Built-ins: `session`, `jwt`, `api_key`, `http_basic`, `ip_allowlist` (last only); project classes use import paths. See [Web requests, templates, and permissions](web.md#request-authentication-requestctxuser) |
+| `web.auth.authenticators` | Unset: `[session]` with Session enabled, otherwise empty. Try authenticators in order; the first recognizing credentials decides. Built-ins: `session`, `jwt`, `api_key`, `http_basic`, `ip_allowlist` (last only); project classes use import paths. See [request authentication](web.md#request-authentication-requestctxuser) |
 | `web.auth.jwt.secret` | Unset. Access-token signing key, separate from `web.security.secret_key`, at least 32 characters. Services sharing tokens share it. Listing `jwt` without it fails startup; settings sync does not generate it |
 | `web.auth.jwt.access_token_ttl` | 900 seconds. Access-token lifetime; validation rejects tokens signed for longer |
 | `web.auth.jwt.refresh_token_ttl` | 604800 seconds (7 days). Refresh-token lifetime restarts on each refresh: clients stay signed in while refreshing within this period |
 | `web.auth.jwt.issuer` / `audience` | Unset. If configured, written as `iss` / `aud` and required to match validation. Tokens with `aud` are rejected if no audience is configured |
 | `web.auth.api_keys` | Empty. Named keys accepted by `api_key`; names become `request.ctx.auth.caller`. Each requires `secret`; `query_param` is unset (when set, also reads that query parameter); `authorization` false (true also accepts `Authorization: Bearer <key>`). Names must not share a key. Listing `api_key` without keys fails startup |
 | `web.auth.http_basic.realm` / `accounts` | `oldman` / empty. `http_basic` realm shown in browser prompts (no quotes, backslashes, or control characters), and fixed accounts (username → plaintext password; usernames have no colon). Listing `http_basic` without accounts fails startup |
-| `web.auth.ip_allowlist` | Empty. Named address/CIDR lists accepted by `ip_allowlist`; names become `request.ctx.auth.caller`. TCP peer and proxy-resolved client addresses must match the same entry, so proxied deployments include the proxy address. Networks must have no host bits; entries must not be empty. Listing `ip_allowlist` without entries fails startup; see [Web requests, templates, and permissions](web.md#ip-allowlist) |
+| `web.auth.ip_allowlist` | Empty. Named address/CIDR lists accepted by `ip_allowlist`; names become `request.ctx.auth.caller`. TCP peer and proxy-resolved client addresses must match the same entry, so proxied deployments include the proxy address. Networks must have no host bits; entries must not be empty. Listing `ip_allowlist` without entries fails startup; see [the IP allowlist](web.md#ip-allowlist) |
 | `web.auth.login_backends` | `[users]`. Credential backends for sign-in/token issuance, tried in order with first recognition decisive. Built-in `users` queries the user table; project classes use import paths |
 | `web.messages.enabled` | false; Cookie flash messages |
 | `web.sse.enabled` | false; Redis-backed distributed SSE |
@@ -387,7 +387,7 @@ Configure site account page paths here once. Values must start with `/`, without
 | `web.account.roles_url` | `/roles`; role list, with individual role pages beneath it |
 | `i18n.preference_url` | `/preferences/language`; browser POSTs language choices here, signed in or not |
 
-Consumers: decorators such as `login_required`, table/chart/select data endpoints, SSE, and notification endpoints read `web.account.login_url` at request time unless explicitly passed `login_url`. Template global `account_urls(request)` supplies these paths to project templates. `i18n compile-frontend` writes `i18n.preference_url` into generated `generated.ts` (`languagePreferencePath`). Sign-in/profile/user-management/role-management flows receive these values from the service instead of reading settings themselves; see [Web requests, templates, and permissions](web.md#ready-made-account-flows). Built-in Admin pages live under `app_settings.admin.prefix` without reading this group.
+Consumers: decorators such as `login_required`, table/chart/select data endpoints, SSE, and notification endpoints read `web.account.login_url` at request time unless explicitly passed `login_url`. Template global `account_urls(request)` supplies these paths to project templates. `i18n compile-frontend` writes `i18n.preference_url` into generated `generated.ts` (`languagePreferencePath`). Sign-in/profile/user-management/role-management flows receive these values from the service instead of reading settings themselves; see [ready-made account flows](web.md#ready-made-account-flows). Built-in Admin pages live under `app_settings.admin.prefix` without reading this group.
 
 ## Boundaries when changing settings
 
