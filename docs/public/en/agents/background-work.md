@@ -206,7 +206,7 @@ poll the record until it is `done`; make the work raise once to see `failed`. St
 `./run.sh api stop`.
 
 Queues, schedules, retries, results kept in Redis (`broker.result_backend.get_result(task_id)`, 24 hours by default) and
-the EPG Demo's complete task pages are in `docs/public/zh/users/distributed-tasks.md`,
+the EPG Demo's complete task pages are in `docs/public/en/users/distributed-tasks.md`,
 `docs/public/en/developers/distributed-tasks.md` and `docs/public/zh/agents/distributed-tasks.md`.
 
 ## Other background work

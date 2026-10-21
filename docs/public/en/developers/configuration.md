@@ -258,7 +258,7 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 | `database.echo` | `None`, following `core.debug` |
 | `database.enable_sql_logging` | `False` |
 | `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [model caching](cache.md#cache-connection-pool) |
-| `i18n.use_i18n`、`use_i18n_path` | `False` |
+| `i18n.use_i18n`, `use_i18n_path` | `False` |
 | `i18n.default_language` | `en` |
 | `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [which language a request uses](assets.md#which-language-a-request-uses) |
 | `cache.client` / `serializer` | `CACHE` / `pickle`; prefix `<core.namespace>:cache` |
@@ -580,7 +580,7 @@ Both remain usable but emit `DeprecationWarning` on construction. New code shoul
 | `AsyncConfigDict` subclass, `get_empty_data()` | `YamlStore[Schema]`, with defaults on schema fields |
 | dict returned by `get_data()`, plus subclass caches decoding dicts to objects | `get()` returns decoded objects directly; remove those caches |
 | `on_file_changed(old_data, new_data)` | `on_file_changed(old, new)`, still only after external changes |
-| `save_data(data)` | `save(value)`、`update(**changes)` |
+| `save_data(data)` | `save(value)`, `update(**changes)` |
 | `get_data_sync()` | No equivalent; use `get()` in async code |
 | `RedisSettings` `get_value`, `set_value` | `RedisStore` fields, `get()`, `update()` |
 | `RedisSettings` set methods | `RedisSet` |

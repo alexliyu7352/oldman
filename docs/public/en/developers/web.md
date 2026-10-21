@@ -463,8 +463,8 @@ WebApplication installs `ErrorPageHandler` with default `settings.web.fallback_e
 
 1. `errors/<status>.html`, usually supplied by the project.
 2. `oldman/errors/<status>.html`, supplied for 403, 404, and 500.
-3. `errors/default.html`。
-4. `oldman/errors/default.html`。
+3. `errors/default.html`.
+4. `oldman/errors/default.html`.
 
 Bundled error pages contain only inline CSS and load no frontend build output, so both pure API services and websites can use them. Branding and titles use `site_name()`. Back links on site-level pages (`oldman/errors/*`) go to the site root `/`; dashboard error pages (`oldman/dashboard/errors/*`) use `account_urls(request).home`, the destination after sign-in. Colors and font fallbacks follow shared design tokens and the system's light or dark preference. To include the dashboard shell, provide project templates according to the lookup order above. Template context contains only the necessary `request`, `status_code`, and `description`; production pages receive no exception stacks or sensitive details. `description` is populated only when the exception provides `page_description`, currently only `CSRFFailure` with translated recovery advice. Other exception messages do not appear on the page. The framework's 403 template displays `description` when present, otherwise a permission-denied message. Custom 403 templates need the same conditional to show that advice. Projects can add `templates/errors/401.html` if needed. Dashboard scaffolds supply `errors/403.html`, `404.html`, `500.html`, and `default.html`, each independently inheriting a framework dashboard error template. Changing one does not require copying the entire handler.
 

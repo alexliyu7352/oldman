@@ -41,7 +41,7 @@ class ExampleTeam(DatabaseModel):
 
 Time columns store naive UTC values. For the current time, use `oldman.utils.date.naive_utcnow`: `default=naive_utcnow` and `onupdate=naive_utcnow` in declarations, and `naive_utcnow()` in code. Do not repeat `datetime.now(UTC).replace(tzinfo=None)` throughout the project or mix aware and naive values in one column.
 
-The App Registry loads models from the models modules of registered packages and records their owning App, Table, display name, and managed status. It does not scan every installed package. Do not import models early in an App metadata module. Each Table belongs to exactly one App; standalone association Tables must also be declared within that App's model module tree. When models are split into a package, its models/__init__.py must explicitly import the submodules.
+The App Registry loads models from the models modules of registered packages and records their owning App, Table, display name, and managed status. It does not scan every installed package. Do not import models early in an App metadata module. Each Table belongs to exactly one App; standalone association Tables must also be declared within that App's model module tree. When models are split into a package, its `models/__init__.py` must explicitly import the submodules.
 
 The demo service's YAML apps list includes `apps.examples`, whose [apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) declares the label `examples`. The package path, App label, Python class name ExampleTeam, and database table name example_team are distinct identifiers and must not be used interchangeably. Existing migrations are stored in [migrations](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/apps/examples/migrations); you do not need to regenerate them each time you examine the example.
 
@@ -156,7 +156,7 @@ Let business exceptions propagate through the write context to trigger rollback.
 | `execute_query(session, *conditions, page=None, page_size=None)` | A list without pagination, or PageResult with pagination |
 | `execute_query_with_select(session, query, page=None, page_size=None)` | As above, accepting a custom Select |
 | `add_to_session(session)` | Only adds the instance and returns it; does not commit |
-| `save(session)`, `update(session, **kwargs)`, `delete(session)` | ** Commit themselves**; unsuitable for the composite transactions above. `update()` raises `AttributeError` for a field absent from the model rather than silently skipping it |
+| `save(session)`, `update(session, **kwargs)`, `delete(session)` | **Commit themselves**; unsuitable for the composite transactions above. `update()` raises `AttributeError` for a field absent from the model rather than silently skipping it |
 
 ModelForm.save and DatabaseModel.save are different interfaces. The former only adds/flushes with commit=True; the latter commits. For composite operations, prefer session.add, session.delete, and flush so similar method names do not cause an early commit.
 

@@ -90,7 +90,7 @@ AES-GCM lives in `oldman.utils.crypto`; `AESGcmDecrypt` handles only the browser
 
 - `aes_gcm_encrypt(plaintext: bytes, key: bytes) -> bytes` returns `IV || ciphertext || tag` with a fresh random IV.
 - `aes_gcm_decrypt(payload: bytes, key: bytes) -> (ok, reason, plaintext)`. **Failures include reasons**:
-  `data_too_short`、`authentication_failed:…`、`decryption_error:…`。
+  `data_too_short`, `authentication_failed:…`, `decryption_error:…`.
   Callers need to distinguish encryption with a different key from truncated transmission; they imply different conclusions about senders.
 - `AESGcmDecrypt.decrypt(encrypted_b64, aes_secret_key)` adds a Base64 envelope and JSON parsing,
   with additional reasons `invalid_encoding:…` and `invalid_json`.

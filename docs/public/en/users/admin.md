@@ -126,7 +126,7 @@ Sign in with the superuser you created and operate one of your own projects:
 
 See [the ModelAdmin reference](../developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
 
-## 6. Retrieve password
+## 6. Reset a forgotten password
 
 Use “Forgot password?” at the lower right of the sign-in card to open `/admin/password-reset`. The flow matches Django:
 

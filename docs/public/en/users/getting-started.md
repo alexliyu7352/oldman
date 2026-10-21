@@ -128,7 +128,7 @@ This demo script manages Vite and the Web service. Access backend port 17997 in 
 | root configuration type, global configuration entry | [config/schemas.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/schemas.py), [config/settings.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/settings.py) |
 | Sign-in, sign-out, profile, user management, and role management (framework account flows) | [apps/accounts/routes.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/accounts/routes.py) |
 | Display name, icon and registration object of the sample App | [apps/examples/apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) |
-| Example classification and specific routing module loading | [apps/examples/views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) |
+| Example classification and specific routing module loading | [`apps/examples/views/__init__.py`](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) |
 | Single browser startup entry point | [frontend/src/main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts) |
 | Private components and actions of the example page | [frontend/src/pages/examples.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/examples.ts) |
 

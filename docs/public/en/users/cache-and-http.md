@@ -39,7 +39,7 @@ An empty project table displays and caches zero results, without filling in fixe
 | [cache_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_example.py) | holds RedisCache; read snapshot, database group query, write TTL, delete single key |
 | [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py) | GET page; three statistics POST; independent response cache GET/invalidation POST; sign in check and write operation CSRF |
 | [cache template directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/cache) | Buttons, descriptions, independent result areas and fragments for two cache partitions |
-| [views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | page list and specific routing module import; continue to use the existing Examples App to register |
+| [`views/__init__.py`](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | page list and specific routing module import; continue to use the existing Examples App to register |
 
 Business function `read_project_statistics(refresh=False)` returns the snapshot and current source; it does not write "hit" into the snapshot. `clear_project_statistics()` calls `delete(CACHE_KEY)` of the same instance. For complete function and type description, see [Caching](../developers/cache.md#actual-use-in-the-demo).
 

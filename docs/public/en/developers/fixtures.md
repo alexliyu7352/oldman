@@ -17,7 +17,7 @@ The framework supplies these commands; no App commands.py is needed. They load t
 
 A selector is an App label or an exact `label.ModelClassName`, not a database table name. Model class names are case-sensitive. Without --output, stdout contains pure JSON suitable for redirection; logs must not be mixed into fixtures. The --output parent directory must exist, and existing files are overwritten. Check the path before running the command.
 
-loaddata first treats its argument as an existing file path. If it does not exist and is a simple name without an extension, it searches installed Apps for fixtures/<name>.json. Matching names in multiple Apps cause an ambiguity error; use an explicit path. Passing `demo.json` does not trigger a search across all Apps.
+loaddata first treats its argument as an existing file path. If it does not exist and is a simple name without an extension, it searches installed Apps for `fixtures/<name>.json`. Matching names in multiple Apps cause an ambiguity error; use an explicit path. Passing `demo.json` does not trigger a search across all Apps.
 
 ## Format
 
