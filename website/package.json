@@ -15,6 +15,7 @@
     "@docusaurus/core": "3.10.2",
     "@docusaurus/plugin-client-redirects": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
+    "@easyops-cn/docusaurus-search-local": "0.55.3",
     "@fontsource/dm-sans": "^5.2.7",
     "prism-react-renderer": "^2.4.0",
     "react": "^19.0.0",

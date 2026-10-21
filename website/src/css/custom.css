@@ -380,6 +380,83 @@ html[lang="zh-Hans"] .markdown h2 {
   background: var(--om-hover);
 }
 
+/* ---- 搜索（@easyops-cn/docusaurus-search-local）---- */
+
+/* 输入框按框架的输入控件：36 高、strong 边、8 圆角，聚焦时边转焦点色加 3px 环。 */
+.navbar__search-input {
+  height: 2.25rem;
+  border: 1px solid var(--om-border-strong);
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--om-text-strong);
+  font-size: 0.875rem;
+  transition:
+    border-color 150ms var(--om-ease-enter),
+    box-shadow 150ms var(--om-ease-enter);
+}
+
+.navbar__search-input:focus {
+  border-color: var(--om-text-muted);
+  box-shadow: 0 0 0 3px var(--om-focus);
+  outline: none;
+}
+
+.navbar__search-input::placeholder {
+  color: var(--om-text-muted);
+}
+
+/* 下拉层是浮层：一条边加小阴影（规格的 shadow-popover）；结果项平铺，选中项用浅底，不铺主色。
+   插件自己的选中样式与下面的选择器权重相同、又排在后面，所以前面多一个 html。 */
+:root {
+  --search-local-modal-background: var(--om-surface);
+  --search-local-modal-shadow: 0 0 0 1px var(--om-border-strong), var(--ifm-global-shadow-md);
+  --search-local-hit-background: var(--om-surface);
+  --search-local-hit-shadow: none;
+  --search-local-hit-color: var(--om-text);
+  --search-local-hit-active-color: var(--om-text-strong);
+  --search-local-highlight-color: var(--om-link);
+  --search-local-muted-color: var(--om-text-muted);
+  --search-local-input-active-border-color: var(--om-text-muted);
+}
+
+.navbar [class*="dropdownMenu_"] [class*="suggestion_"] {
+  border-radius: 8px;
+}
+
+html .navbar [class*="dropdownMenu_"] [class*="suggestion_"][class*="cursor_"] {
+  background: var(--om-surface-muted);
+}
+
+/* 命中的关键字：淡淡的链接色底，不用浏览器默认的亮黄。 */
+mark {
+  padding: 0 0.125em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--om-link) 18%, transparent);
+  color: inherit;
+}
+
+/* 搜索结果页的输入框，与导航栏的同一套。 */
+[class*="searchQueryInput_"] {
+  height: 2.75rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--om-border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--om-text-strong);
+  font-size: 1rem;
+}
+
+/* 插件写死了 #dfe3e8 的分隔线，暗色下太亮。 */
+html [class*="searchResultItem_"] {
+  border-bottom-color: var(--om-border);
+}
+
+[class*="searchQueryInput_"]:focus {
+  border-color: var(--om-text-muted);
+  box-shadow: 0 0 0 3px var(--om-focus);
+  outline: none;
+}
+
 /* ---- 侧边栏与目录 ---- */
 
 .theme-doc-sidebar-container {

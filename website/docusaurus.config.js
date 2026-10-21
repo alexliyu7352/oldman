@@ -76,6 +76,23 @@ export default {
     ],
   ],
 
+  themes: [
+    [
+      // 本地搜索：构建时为两种语言各建一份索引，不依赖外部服务；中文用 jieba 分词。
+      "@easyops-cn/docusaurus-search-local",
+      {
+        hashed: true,
+        language: ["en", "zh"],
+        docsRouteBasePath: "docs",
+        indexBlog: false,
+        indexPages: false,
+        explicitSearchResultPath: true,
+        searchResultLimits: 8,
+        searchBarShortcutHint: true,
+      },
+    ],
+  ],
+
   themeConfig: {
     // 跟随系统的亮暗设置；用户切换后由 Docusaurus 记住。
     colorMode: { respectPrefersColorScheme: true },
@@ -86,6 +103,7 @@ export default {
       items: [
         { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
         { type: "docSidebar", sidebarId: "api", position: "left", label: "API" },
+        { type: "search", position: "right" },
         { type: "localeDropdown", position: "right" },
         { href: REPOSITORY, position: "right", className: "navbar-github-link", "aria-label": "GitHub repository" },
       ],
