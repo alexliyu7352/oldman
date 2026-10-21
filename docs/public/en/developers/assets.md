@@ -284,9 +284,9 @@ Compilation filters catalogs through the framework frontend-message list and pro
 
 Low-level npm tools are `oldman-web-i18n extract --project-root . --source-root frontend/src` and `oldman-web-i18n compile-po --fallback-locale en` (reading PO from stdin). Ordinary projects should prefer Oldman CLI/scaffold scripts rather than another PO parser.
 
-Demo main.ts imports defaultLanguage, languageAliases, languageDefinitions, and languagePreferencePath from `./i18n/generated` and reads the asset base from page oldman-asset-base meta. It creates createI18n, passes it to createOldmanContext, and waits for i18n.init before startOldman. See [the frontend entry point](frontend.md#demo-dashboard-page-entry-point) for complete code.
+The demo's main.ts imports defaultLanguage, languageAliases, languageDefinitions, and languagePreferencePath from `./i18n/generated` and passes them as the language contract to `startDashboard()`. See [the frontend entry point](frontend.md#demo-dashboard-page-entry-point) for the complete code. `startDashboard` reads the asset base from the page's oldman-asset-base meta, creates createI18n, passes it to createOldmanContext, and waits for i18n.init before calling startOldman; see [the framework startup entry point](frontend.md#framework-startup-entry-point).
 
-Catalog loading needs no custom implementation. `createFetchCatalogLoader` comes from oldman-web/core:
+Catalog loading needs no custom implementation: `startDashboard` creates i18n internally as follows. `createFetchCatalogLoader` comes from oldman-web/core:
 
 ```typescript
 const assetBaseUrl = readAssetBaseUrl();
@@ -340,4 +340,4 @@ Account templates live in the framework (`oldman/dashboard/account/*`). Replace 
 
 For new dashboard projects, follow the generated README. Existing API projects can add a minimal frontend entry following this chapter/tutorial without recreating the project, changing database identity, or copying the entire demo.
 
-<!-- source: zh/developers/assets.md @ 6a3c1971 -->
+<!-- source: zh/developers/assets.md @ e4ae4bd4 -->

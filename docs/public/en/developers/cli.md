@@ -190,7 +190,7 @@ Prepare settings/database first; see [command examples](../users/demo-examples.m
 
 Typer checks `--team-id` type/minimum, returning exit 2 for invalid arguments. A missing team raises ValueError, displayed with exit 1; an existing empty team prints zero and exits 0. Missing tables or inaccessible databases also exit 1 without creating tables/importing fixtures. Status groups use actual database values, sorted and displayed only when present. Every run queries anew, not the cache-page snapshot.
 
-Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [tui](tui.md) (`tui.ask`, `tui.confirm`, etc.); built-in [Admin commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py) provide examples.
+Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [tui](tui.md) (`tui.ask`, `tui.confirm`, etc.); the Auth App's [account commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/auth/commands.py), `createsuperuser` and `changepassword`, provide examples.
 
 `name` matches `[a-z][a-z0-9-]*`; use hyphens for command names and underscores for Python parameters. `help` must be nonempty text or `LazyTranslation`. Classes must construct without arguments; `handle()` must be `async def`, returning a result for CLI printing or writing output itself and returning None.
 
@@ -261,4 +261,4 @@ App command help uses `gettext_lazy()` and translates at runtime. Python, Jinja,
 
 Missing translations fall back to original text. After command-copy changes, extract, complete simplified/traditional Chinese translations, and compile. Framework CLI messages live in `oldman/locales`; see instructions at the start of [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py).
 
-<!-- source: zh/developers/cli.md @ f65caa13 -->
+<!-- source: zh/developers/cli.md @ e4ae4bd4 -->

@@ -537,7 +537,7 @@ async def write_banner_from_another_instance(banner: str) -> None:
     await other.update(banner=banner)
 ```
 
-- Without `client`, first read/write retrieves global `redis_client` (DEFAULT), permitting module-level `RedisStore(SiteFlags, "site_flags")`. `redis_client.using(alias)` reads Redis settings and validates the alias immediately, so call it after service bootstrap. The demo has no DEFAULT alias; its `@cache` function retrieves CACHE on first use. One instance per process also serializes `update`.
+- Without `client`, the first read or write retrieves the global `redis_client` (DEFAULT alias), so `RedisStore(SiteFlags, "site_flags")` can be declared at module level. `redis_client.using(alias)` reads Redis settings and validates the alias immediately, so it must be called after service bootstrap. The demo stores these values under the CACHE alias (`REDIS_ALIAS`) and must pass `client`. Its `@cache` function therefore retrieves the client only on first use, as shown above. This also gives each process a single instance, allowing calls to `update` to be serialized.
 - Keys are `<core.namespace>:store:<name>`; values are the whole schema as msgpack. Names must be nonempty strings or raise `ValueError`.
 - No local cache: every `get()` reads Redis and sees another process's writes on the next read. `write_banner_from_another_instance` demonstrates this with a second instance. Each returned object is freshly decoded; call `save` directly after edits.
 - Missing keys use defaults without writing. Stored values incompatible with schema, such as changed field types, raise `msgspec.ValidationError` rather than falling back. Removed fields are ignored; added fields use defaults.
@@ -586,4 +586,4 @@ Both remain usable but emit `DeprecationWarning` on construction. New code shoul
 | `RedisSettings` set methods | `RedisSet` |
 | `RedisSettings` list methods, `set_value(..., ttl=)` | Not provided |
 
-<!-- source: zh/developers/configuration.md @ 31aa114e -->
+<!-- source: zh/developers/configuration.md @ e4ae4bd4 -->

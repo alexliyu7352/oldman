@@ -138,7 +138,7 @@ async def example_asset_update(request: Request, asset_id: int):
     return form_saved_response(_("Asset saved."), url=f"/examples/storage/lifecycle?asset={asset_id}")
 ```
 
-The route is registered through `router` from `oldman.web`. db_manager comes from oldman.db; CSRF and `login_required` (`oldman.web.auth`) come from the framework. `get_object_or_404()` (`oldman.web.shortcuts`) reads ExampleAsset in the current Session and returns 404 if absent. `form_saved_response()` (`oldman.web.api`) emits Feedback and Redirect actions rather than returning a browser 302 directly. Demo test data is shared by staff; applications requiring user isolation must also restrict the object query by permissions.
+The route is registered through `router` from `oldman.web`. db_manager comes from oldman.db; CSRF and `login_required` (`oldman.web.auth`) come from the framework. `get_object_or_404()` (`oldman.web.shortcuts`) reads ExampleAsset in the current Session and returns 404 if absent. `form_saved_response()` (`oldman.web.api`) emits Feedback and Redirect actions rather than returning a browser 302 directly. The demo's example data is shared by all signed-in users; applications requiring user isolation must also restrict the object query by permissions.
 
 The Form writes the new file first, then assigns its actual name to the instance. commit=True only adds/flushes; the outer context commits. commit=False also writes files and does not mean "no external side effects." Even if business code will add/flush later, pass the current Session so new files participate in failure cleanup. Without a Session, this automatic cleanup guarantee does not apply.
 
@@ -176,4 +176,4 @@ Subclass `Storage` and implement five asynchronous methods: `_save(name, content
 
 Set the alias's backend to the full class path so the Registry can instantiate it. The current Registry has no universal close/aclose hook. If a custom backend holds a remote client, the application must explicitly manage its lifecycle. Configuring backend does not automatically close all connections.
 
-<!-- source: zh/developers/storage.md @ db5eb607 -->
+<!-- source: zh/developers/storage.md @ e4ae4bd4 -->
