@@ -1,98 +1,98 @@
 # Test isolation requirements
 
-This chapter constrains testing/verification environments without adding production APIs. Services still run with one process, one root configuration, and one set of Apps/models. Test convenience does not justify changing that model.
+This chapter sets requirements for test and verification environments without adding production APIs. A service still uses one process, one root configuration, and one set of Apps and models. Test convenience does not justify changing this model.
 
 ## Choose isolation by the tested boundary
 
 | Test target | Suitable environment |
 | --- | --- |
-| Pure functions, serialization, unconfigured objects | Ordinary unit tests with explicit inputs |
-| Functions reading current settings | Temporarily bind global settings within tests, restore afterwards, and check actual behavior |
-| Settings, App Registry, model loading, service discovery | Complete temporary project plus separate Python process |
-| Transactions, foreign keys, file cleanup | Separate database/Storage directories with actual flush/commit/rollback |
-| Redis/NATS cross-process semantics | Task-owned instances or explicitly isolated resources with actual publishing/reading |
-| UI, building, installation | Isolated application, actual artifacts, browser interaction, and data results |
+| Pure functions, serialization, or objects without configuration | Use ordinary unit tests with explicit inputs. |
+| Functions reading current settings | Bind global configuration temporarily within the test, check actual behavior, and restore it afterwards. |
+| Settings, App Registry, model loading, or service discovery | Use a complete temporary project and a separate Python process. |
+| Transactions, foreign keys, or file cleanup | Use an independent database and Storage directory with actual flush, commit, and rollback operations. |
+| Redis or NATS behavior across processes | Use task-owned instances or explicitly isolated resources, with actual publishing and reading. |
+| Page interaction, builds, or installation | Use an isolated application and verify actual artifacts, browser interaction, and data results. |
 
-Existing tests/test_oldman_service_bootstrap.py demonstrates temporary projects/subprocesses. Reuse this boundary rather than making it a new application-runtime configuration protocol.
+The existing `tests/test_oldman_service_bootstrap.py` demonstrates temporary projects and subprocesses. Reuse that isolation boundary without introducing a new application-runtime configuration protocol.
 
 ## Configuration and imports
 
-- Do not read conf.settings or unbound app.settings before bootstrap. Startup tests should verify actual-entry initialization.
-- One process must not switch between api/web service configurations. Compare services in separate processes without production reset/configuration proxies.
-- Narrow unit tests directly binding settings must automatically restore original values even after assertion failure. Do not attach fake settings to app.ctx.settings.
-- Actual App/model loading affects sys.modules and SQLAlchemy metadata. Clearing only registry dictionaries does not reset complete bootstrap state.
-- For independent project packages, service files, or model ownership, subprocess cwd must be the temporary project root. Do not write temporary config packages at framework root.
+- Do not read `conf.settings` or an unbound App's `app.settings` before bootstrap. Service-startup tests should verify that the actual entry point completes initialization.
+- Do not switch between api and web service configurations in one process. Start separate processes to compare services instead of adding production reset operations or configuration proxies.
+- Narrow unit tests that bind configuration directly must restore original values automatically, including after assertion failure. Do not attach fake configuration to `app.ctx.settings`.
+- Real App and model loading affects `sys.modules` and SQLAlchemy metadata. Clearing only a registry dictionary does not reset the complete bootstrap state.
+- When simulating independent project packages, service files, or model ownership, set the subprocess cwd to the temporary project root. Do not write temporary config packages into the framework root.
 
-Tests may patch external I/O to trigger precise exceptions, but patched database/Redis behavior does not establish correct cross-process/transaction semantics. Distinguish actual integration verification explicitly.
+Tests may patch external I/O to trigger a specific exception precisely. However, patched database or Redis behavior cannot establish correct cross-process or transaction semantics. Distinguish the corresponding real integration verification explicitly.
 
 ## Resources and failure paths
 
-Retain handles for test-created processes; stop/await them in finally. Close browser profiles and shut down databases, pools, and background tasks normally. Do not kill user services in bulk by process name.
+Retain handles for test-created processes and stop and await them in finally. Close browser profiles and shut down databases, connection pools, and background tasks normally. Do not kill user services in bulk by process name.
 
-Use TemporaryDirectory or mktemp -d for temporary directories, track ownership, and delete only this task's directories. Release tools' persistent evidence requires explicit cleanup; see [Source development, verification, and releases](maintenance.md#full-verification-in-serial-stages).
+Use standard TemporaryDirectory or mktemp -d for temporary directories, track their ownership, and delete only directories owned by this task. Release tools retain evidence that requires explicit cleanup; see [Source development, verification, and releases](maintenance.md#full-verification-in-serial-stages).
 
-Failure tests should at least verify what did not happen: invalid input wrote no data, rollback retained original files, unauthorized requests read no other users' data, failed actions stopped later actions, etc. An error-message assertion alone is insufficient.
+Failure tests should at least verify what did not happen: invalid input did not write data, rollback retained the original file, unauthorized requests did not read another user's data, or a failed action did not run later actions. Do not assert only an error message.
 
-Real UI changes require manual operation. DOM/source assertions assist protocol checks but cannot prove visible layouts, Modal dimensions, clicks, or loading-failure feedback. Dashboard/Admin must use the same public component protocols.
+Changes to actual UI require manual interaction. DOM and source assertions can assist protocol checks but cannot prove that layouts, Modal sizes, click responses, or loading-failure feedback are visible. Dashboards and Admin must use the same public component protocols.
 
 ## Limit verification scope
 
-After a small module, run only checks required to continue safely. Centralize remaining full release checks and execute serially. Do not create duplicated state, permanent screenshot caches, or elaborate test-only production branches just for green checks.
+After completing a small module, run only checks required to continue safely. Run remaining full release checks together and sequentially. Do not introduce duplicate state, permanent screenshot caches, or complex test-only production branches merely to make checks pass.
 
-For outdated expectations, check current contracts/behavior before correcting or deleting tests. Do not restore removed interfaces to satisfy old assertions or use historical internal wording as production-correctness gates.
+When a test expectation is outdated, examine the current contract and actual behavior before deciding whether to correct or remove it. Do not restore removed interfaces for old assertions or treat historical internal documents as requirements for production correctness.
 
 ## Real-service checks
 
-Redis/NATS/Taskiq checks in the Python gate (pnpm verify:python) start their own service processes and require two executables:
+The Redis, NATS, and Taskiq checks in the Python gate, `pnpm verify:python`, start their own service processes. They require two executables:
 
 | Program | Discovery | Requirement |
 | --- | --- | --- |
-| redis-server | REDIS_SERVER environment variable, otherwise PATH | 6.2 or newer; taskiq-redis uses GETDEL for results/schedules |
-| nats-server | NATS_SERVER environment variable, otherwise PATH | JetStream support (-js) |
+| `redis-server` | Use environment variable `REDIS_SERVER`, otherwise search PATH. | Version 6.2 or later is required because taskiq-redis uses `GETDEL` to read results and schedules. |
+| `nats-server` | Use environment variable `NATS_SERVER`, otherwise search PATH. | The server must support JetStream through `-js`. |
 
-Missing executables or Redis below 6.2 fail relevant checks with configuration instructions rather than skipping. Skips would appear successful without actual verification.
-Discovery lives in require_redis_server() in tests/redis_support.py and require_nats_server() in tests/nats_support.py. New real-service tests reuse them rather than skipUnless. They only locate executables; each check starts its own service on its own port/Unix socket, never connecting to running Redis/NATS.
-Only two checks still skip: NATS credentials require NATS_TEST_CREDS_DIR pointing to nats.py repository public nkeys examples; Django cache interoperability requires installed Django.
+Missing executables or Redis older than 6.2 make the corresponding checks fail with configuration instructions rather than skip. A skipped check would appear successful in the gate despite performing no verification.
+Discovery uses `require_redis_server()` in `tests/redis_support.py` and `require_nats_server()` in `tests/nats_support.py`. New real-service tests must use them too, rather than `skipUnless`. They only locate executables. Each check starts services on its own ports or Unix sockets and never connects to an already-running Redis or NATS.
+Only two checks still skip: the NATS credentials test requires `NATS_TEST_CREDS_DIR` pointing to the public nkeys examples in the nats.py repository, and Django cache interoperability requires Django to be installed.
 
 ## Browser and process gate tools
 
-Real-browser verification, process-tree cleanup, and PNG evidence checking live in oldman.testing, using only the standard library and reading no configuration/starting no services at import:
+`oldman.testing` provides real-browser verification, process-tree cleanup, and PNG evidence checks. It uses only the standard library and neither reads settings nor starts services on import:
 
 | Entry point | Purpose |
 | --- | --- |
-| ChromePage / CDPClient / navigate / configure_viewport / save_screenshot | Opens pages, screenshots, and client.evaluate(...) assertions through local Chrome DevTools Protocol |
-| BrowserResult | Collects console/page errors and bad responses separately from business assertions |
-| find_free_port | Finds an available temporary-service port |
-| tracked_popen / ProcessTreeTracker | Starts subprocesses and confirms whole-tree exit afterwards |
-| require_png | Confirms a screenshot is a sufficiently large PNG, not an empty file |
+| `ChromePage`, `CDPClient`, `navigate`, `configure_viewport`, and `save_screenshot` | These use local Chrome's DevTools Protocol to open pages, capture screenshots, and run `client.evaluate(...)` assertions. |
+| `BrowserResult` | This collects console errors, page errors, and bad responses separately from business assertions. |
+| `find_free_port` | This finds an available port for a temporary service. |
+| `tracked_popen` and `ProcessTreeTracker` | These start child processes and confirm that the entire process tree has exited afterwards. |
+| `require_png` | This confirms that a screenshot is a sufficiently large PNG rather than a zero-byte file. |
 
-Use oldman.testing.gates for completely owned temporary environments that avoid running development services/data:
+Use `oldman.testing.gates` when you need a fully owned temporary environment that does not touch active development services or data:
 
 | Entry point | Purpose |
 | --- | --- |
-| minimal_environment() | Keeps only local-tool startup environment, fixing TZ=UTC and PYTHONHASHSEED=0 |
-| owned_redis_server(state_root, environment=...) | Starts nonpersistent Redis and confirms group/port release on exit |
-| gate_settings(example, state_root, service_port=, redis_url=, namespace=, customize=) | Rewrites example configuration to owned temporary paths; namespace becomes core.namespace and contributes to Cookie names |
-| use_owned_redis(payload, redis_url) | Redirects **every** Redis alias in one configuration to owned Redis with separate DBs, retaining everything else. Adds omitted built-in DEFAULT/CACHE/SESSION too, preventing fallback to localhost:6379. Useful for real commands in temporary projects without complete gate settings |
-| migrate_gate_database(...) / ensure_gate_admin(...) | Applies migrations as first-time setup and creates gate administrators through public APIs |
-| owned_service(config_file, ...) + wait_for_service(...) | Starts services in foreground, waits for listening, confirms complete group reaping afterwards |
-| run_browser_child(command, ...) | Runs real-browser children and requires empty console/page/response errors |
+| `minimal_environment()` | This retains only variables needed to start local tools and fixes `TZ=UTC` and `PYTHONHASHSEED=0`. |
+| `owned_redis_server(state_root, environment=...)` | This starts nonpersistent Redis and confirms release of its process group and port on exit. |
+| `gate_settings(example, state_root, service_port=, redis_url=, namespace=, customize=)` | This rewrites project example configuration to use only temporary paths. `namespace` becomes the service's `core.namespace` and is used in Cookie names. |
+| `use_owned_redis(payload, redis_url)` | This redirects **every** Redis alias in one configuration to owned Redis, with a separate database per alias and everything else unchanged. It also adds omitted built-in DEFAULT, CACHE, and SESSION aliases so they cannot fall back to `localhost:6379`. Use it for real commands in temporary projects that do not need the full gate configuration. |
+| `migrate_gate_database(...)` and `ensure_gate_admin(...)` | These apply migrations as first-time setup and create the required administrator through public APIs. |
+| `owned_service(config_file, ...)` and `wait_for_service(...)` | These start a foreground service, wait for it to listen, and confirm that the whole group is reaped afterwards. |
+| `run_browser_child(command, ...)` | This runs a real-browser subprocess and requires no console errors, page errors, or bad responses. |
 
-Projects must not copy these scripts into scripts/: copies do not follow framework upgrades. Demo scripts/verify-*.py retain only page assertions/configuration differences and import the rest from oldman.testing.
+Projects must not copy these scripts into their own `scripts/`: copies do not follow framework upgrades. Demo `scripts/verify-*.py` files retain only their pages' assertions and configuration differences, importing the rest from `oldman.testing`.
 
 ## Preventing copied second implementations
 
-oldman.testing.duplication turns existing-code duplication into tests rather than relying on memory:
+`oldman.testing.duplication` tests whether code already exists elsewhere instead of relying on memory:
 
-| Entry point | Finds |
+| Entry point | What it finds |
 | --- | --- |
-| duplicate_functions(left, right, min_lines=6) | Same-named functions with identical body structure across source trees; copies usually retain names, limiting false positives |
-| identical_files(left, right, suffixes=...) | Byte-identical copied scripts, templates, and type declarations |
-| forbidden_imports(root, modules=..., allowed_names=...) | Imports bypassing public APIs, such as non-Admin business functionality from oldman.apps.admin |
-| forbidden_attributes(root, attributes=("app.ext.environment",)) | Attribute access bypassing public entry points |
+| `duplicate_functions(left, right, min_lines=6)` | This finds same-named functions with structurally identical bodies across two source trees. Copies usually retain names, so false positives are uncommon. |
+| `identical_files(left, right, suffixes=...)` | This finds byte-identical files, such as copied scripts, templates, and type declarations. |
+| `forbidden_imports(root, modules=..., allowed_names=...)` | This finds imports that bypass public APIs, such as importing functionality unrelated to Admin business from `oldman.apps.admin`. |
+| `forbidden_attributes(root, attributes=("app.ext.environment",))` | This finds attribute access that bypasses public entry points. |
 
-The framework compares Admin against oldman.web/oldman.auth; projects compare their code against framework packages. Checks read source without importing inspected modules.
+The framework compares Admin against `oldman.web` and `oldman.auth`; projects compare their own code against framework packages. Checks read source without importing the inspected modules.
 
-On finding duplication, **first determine who owns the capability**. Framework functionality moves into the framework with docs/tests, leaving project calls only. Retain genuinely project-specific logic. Making copies look different just to pass is precisely what this guard opposes.
+When duplication is found, **first determine who owns the capability**. Framework functionality belongs in the framework, with documentation and tests, leaving only calls in project code. Keep code in the project only when it is genuinely project-specific business logic. Changing duplicate implementations to look different merely to pass a test is exactly what this guard is intended to prevent.
 
 <!-- source: zh/developers/testing.md @ 60ab2b58 -->

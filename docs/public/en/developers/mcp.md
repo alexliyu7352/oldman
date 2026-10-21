@@ -1,10 +1,10 @@
 # MCP server
 
-`oldman.mcp` exposes installed Apps' tools, resources, and prompts to AI agents (Claude Code, Claude Desktop, Cursor, and other MCP clients) through [Model Context Protocol](https://modelcontextprotocol.io/). MCP is a Web-service route: Sanic remains the server, with ordinary authentication, middleware, logging, client_ip proxy settings, and multiple workers. Protocol models come from mcp-types. The official mcp SDK is not a runtime dependency and is not imported by the framework.
+`oldman.mcp` exposes tools, resources, and prompts from installed Apps to AI agents through the [Model Context Protocol](https://modelcontextprotocol.io/). Clients include Claude Code, Claude Desktop, and Cursor. MCP is a route within a Web service: Sanic remains the server, and requests still pass through authentication, middleware, logging, and proxy settings for `client_ip`. Multiple workers continue to work normally. Protocol data models come from `mcp-types`. The official `mcp` SDK is not a runtime dependency, and the framework does not import it.
 
 ## Installation
 
-Call this in Web-service init(), after super().init(), as explicit wiring like install_admin(app):
+Call this in the Web service's `init()`, after `super().init()`. Like `install_admin(app)`, it requires explicit wiring:
 
 ```python
 from oldman.mcp import install_mcp
@@ -20,11 +20,11 @@ class WebService(WebApplication):
         install_mcp(app)
 ```
 
-web.mcp.enabled defaults to false. Disabled install_mcp does nothing, returns None, and logs INFO: code can be wired in advance while environment settings choose whether to enable it, and projects without callers still start. When enabled, it loads installed Apps' mcp modules (AppConfig.mcp_module, default "mcp"), builds the service catalog, validates settings, and registers POST <web.mcp.path> (default /mcp). Every tool/resource/prompt is checked for listing under every supported protocol version. Bad settings, duplicate names, unresolved signature types, schema-generation failures, or definitions unlistable in any version fail here with specific identification, preventing startup rather than waiting for requests. Services without install_mcp or with MCP disabled load no App mcp modules.
+`web.mcp.enabled` defaults to false. When disabled, `install_mcp` does nothing, returns `None`, and logs an INFO message. The code can therefore be wired in advance while environment settings decide whether to enable it, and projects without configured callers still start normally. When enabled, `install_mcp` loads each installed App's `mcp` module, controlled by `AppConfig.mcp_module` with default `"mcp"`. It builds the service catalog, checks settings, and registers `POST <web.mcp.path>`, defaulting to `/mcp`. Every tool, resource, and prompt definition is checked for listing under every supported protocol version. Invalid settings, duplicate tool names across Apps, unresolved signature types, failed schema generation, and definitions that cannot be listed under a supported version all fail here with the specific entry identified. Startup fails rather than waiting for the first request. Services that do not call `install_mcp`, or leave it disabled, load no App `mcp` modules.
 
 ## App declarations
 
-Choose the mcp template in ./run.sh startapp <name> to generate an App containing only apps.py, permissions.py, and mcp.py. mcp.py has two example tools (one for all admitted callers, one requiring this App's user permission; API keys have no permissions and see only the former), one resource, and one prompt. startapp does not edit service App lists. Add apps.<name> to apps in data/<service>_settings.yaml or install_mcp will not load it and startup tool counts will exclude it. Existing Apps can directly add mcp.py:
+Select the `mcp` template in `./run.sh startapp <name>` to generate an App containing only `apps.py`, `permissions.py`, and `mcp.py`. Its `mcp.py` has two example tools, one available to all admitted callers and another restricted to users holding this App's permission. API keys have no permissions and see only the former. It also includes one resource and one prompt. `startapp` does not change the service's App list. Add `apps.<name>` to `apps` in the service settings, `data/<service>_settings.yaml`; otherwise `install_mcp` will not load it, and startup's tool count will exclude it. For an existing App, add `mcp.py` directly:
 
 ```python
 from oldman.db import db_manager
@@ -53,63 +53,63 @@ async def weekly_summary(week: str) -> str:
     return f"Summarise the reports of week {week}."
 ```
 
-Shared declaration rules:
+All three declaration types follow these rules:
 
-- Only async def is accepted. Synchronous functions raise TypeError at declaration because they would block worker event loops.
-- If the first parameter is annotated oldman.web.Request, the framework injects the current request and excludes it from schemas. request.ctx.user/request.ctx.auth mean the same as in views.
-- install_mcp resolves signatures with typing.get_type_hints, allowing types defined later in the same module. Types must be importable **at runtime**; definitions present only under if TYPE_CHECKING cause an error naming the function/type.
-- Names default to function names and descriptions to docstrings. Models read these, so clearly describe purpose and when to use the tool.
-- Pydantic validates arguments. Parameter names must not begin with underscores, equal model_config, or shadow BaseModel methods such as model_dump. The first two are not fields and would silently disappear; the latter is rejected directly. install_mcp identifies offending tool/prompt parameters. Unconvertible resource URI-variable types likewise fail with the URI identified.
-- permission= accepts a declared Permission. Only users holding it see/call the entry; invisible entries appear nonexistent so callers cannot distinguish absence from denial. Functions may still call require_perm themselves.
-- Only installed-App declarations are exposed. Importing an uninstalled App's mcp.py elsewhere does not expose its entries and logs WARNING at startup. An entry qualifies if either its declaration module (where mcp.tool() is called) or function-definition module belongs to an installed App. Thus App mcp.py can declare imported async functions, and external helpers can declare an App's own functions.
+- Only `async def` functions are accepted. Synchronous functions raise `TypeError` at declaration because they would block the worker's event loop.
+- When the first parameter is annotated `oldman.web.Request`, the framework supplies the current request and excludes it from the schema. `request.ctx.user` and `request.ctx.auth` have the same meanings as in views.
+- `install_mcp` resolves signatures through `typing.get_type_hints`, so types defined later in the same module work. Types must nevertheless be importable **at runtime**. A type defined only under `if TYPE_CHECKING:` makes `install_mcp` fail with the function and type name identified.
+- Names default to function names, and descriptions default to docstrings. These are what models read, so explain what the tool does and when to use it.
+- Pydantic validates arguments. Parameter names must not begin with an underscore, equal `model_config`, or shadow BaseModel methods such as `model_dump`. Pydantic does not treat the first two as fields, which would silently remove arguments; it rejects the last case directly. `install_mcp` reports the tool or prompt and the invalid parameter. If pydantic cannot convert a resource's URI-variable type, it likewise fails and identifies the URI.
+- `permission=` accepts a declared `Permission`. Only users holding it can see the entry in lists, and the same check applies on invocation. Invisible entries are reported as nonexistent, so callers cannot distinguish missing entries from denied access. Functions may still call `require_perm` themselves.
+- Only declarations belonging to installed App packages are exposed. If another module imports an uninstalled App's `mcp.py`, those declarations remain unavailable and startup logs a WARNING. An entry is included if either the declaration module, where `mcp.tool()` or a similar decorator is called, or the function's defining module belongs to an installed App. Thus an App's `mcp.py` can expose an imported async function as a tool, and a helper outside the App can declare the App's own function.
 
 ### Tools
 
-- Parameters/annotations generate input schemas; defaults make parameters optional. Extra arguments are rejected. Pydantic failures return isError tool results that models can correct.
-- Names allow 1–128 characters from A-Z, a-z, 0-9, _, -, and ., following specification recommendations. Invalid names fail at declaration.
-- Returns follow official SDK rules. Return annotations generate output schemas, with structuredContent plus equivalent JSON text. str/int/list[...] are wrapped as {"result": ...}; pydantic models, TypedDict, dataclass, msgspec Struct, and dict[str, ...] remain objects. Without return annotations, or when returning protocol blocks such as TextContent, only content blocks appear. Values are validated against annotations before sending, including converting matching dicts to models/Structs like the SDK. Mismatches log ERROR with tracebacks and return "The tool failed", never successful schema-invalid output. If any return-type position contains msgspec Struct (Struct | None, list[Struct], dict[str, Struct]), msgspec handles the entire schema/validation with the same wrappers. One return type must not mix pydantic models and Structs; arguments accept only pydantic-recognized types, excluding Struct. install_mcp identifies such errors by tool.
-- oldman.mcp.ToolError messages pass unchanged to callers. Web exceptions (Forbidden, NotFound, unavailable-store 503) return their messages. Other exceptions log ERROR with tracebacks while exposing only "The tool failed".
-- Import hints such as annotations=ToolAnnotations(read_only_hint=True) from oldman.mcp.
+- Parameters and their annotations generate the input schema. Defaults make arguments optional; extra arguments are always rejected. Pydantic validation failures return a tool error with `isError`, allowing the model to correct its input.
+- Names must contain 1–128 characters from `A-Z a-z 0-9 _ - .`, following the specification's recommendation. Invalid names fail at declaration.
+- Return values follow the official SDK's rules. A return annotation generates an output schema; results include both `structuredContent` and JSON text containing the same data. Types such as `str`, `int`, and `list[...]` are wrapped in `{"result": ...}`. Pydantic models, TypedDict, dataclass, msgspec Struct, and `dict[str, ...]` remain objects. Without a return annotation, or when returning protocol content blocks such as `TextContent`, only content blocks are returned. Values are checked against the return annotation before delivery, including converting matching dictionaries to models or Structs, as the SDK does. A mismatch logs an ERROR with a traceback and gives the caller "The tool failed"; invalid output is never reported as success. If msgspec Struct appears anywhere in the return type, such as `Struct | None`, `list[Struct]`, or `dict[str, Struct]`, msgspec generates and validates the entire schema with the same wrapping rules. A single return type must not mix pydantic models with Structs. Parameters accept only types recognized by pydantic, excluding Struct. `install_mcp` detects these errors and identifies the tool.
+- Messages from `oldman.mcp.ToolError("…")` are passed unchanged to callers. Web exceptions used by views, including `Forbidden`, `NotFound`, and 503 for unavailable storage, return their messages. Other exceptions log an ERROR with a traceback, while callers see only "The tool failed" to avoid disclosing internal details.
+- Import hints such as `annotations=ToolAnnotations(read_only_hint=True)` from `oldman.mcp`.
 
 ### Resource
 
-- URIs without variables are fixed resources (resources/list); {name} variables make templates (resources/templates/list). Only RFC 6570 simple variables are supported. Operators such as {+path}/{?q} and duplicate variables fail at declaration.
-- Each variable must exactly match a function parameter. Reads percent-decode then convert through annotations. One variable matches one slash-free path segment. Conversion failures appear nonexistent.
-- Fixed URIs precede templates: pages://about wins over pages://{slug} when both match. Duplicate fixed URIs and templates differing only in variable names fail install_mcp.
-- str returns text (default text/plain), bytes returns base64 binary (application/octet-stream), and models/dicts/etc. serialize as JSON (application/json). mime_type= overrides defaults.
-- None returns and NotFound/Forbidden exceptions produce -32602 Resource not found with data.uri; the specification disallows empty contents for nonexistent resources. Other Web exceptions return -32603 with their messages. Unexpected exceptions log ERROR and expose only "Internal error".
+- A URI without variables defines a fixed resource in `resources/list`. A URI containing `{name}` defines a template in `resources/templates/list`. Only RFC 6570 simple variables are supported. Operators such as `{+path}` and `{?q}`, and repeated variables, fail at declaration.
+- Each variable must correspond exactly to one function parameter. Reads first percent-decode it, then convert it through its annotation. A variable matches one path segment without `/`. Conversion failure is reported as nonexistent.
+- Fixed URIs take precedence over templates. If both `pages://about` and `pages://{slug}` match, the former wins. Two templates differing only in variable names, or duplicate fixed URIs, fail during `install_mcp`.
+- A returned `str` is text with default `text/plain`. A returned `bytes` value is base64 binary with default `application/octet-stream`. Models, dictionaries, and similar values serialize as JSON with default `application/json`. `mime_type=` overrides these defaults.
+- A return value of `None`, or a `NotFound` or `Forbidden` exception, produces `-32602 Resource not found` with `data.uri`. The specification disallows empty contents for nonexistent resources. Other Web exceptions return `-32603` with their messages. Unexpected exceptions log ERROR and expose only "Internal error".
 
 ### Prompt
 
-- All parameters must be str because the protocol transmits strings. Defaults make them optional; Annotated[str, Field(description="…")] descriptions appear in argument lists.
-- str returns one user message; multi-turn prompts return a PromptMessage list. Import PromptMessage/TextContent from oldman.mcp.
-- Unknown/invisible prompts, missing required arguments, and extra arguments return -32602. Function failures return -32603.
+- All parameters must be `str` because the protocol passes strings. Defaults make them optional. Descriptions from `Annotated[str, Field(description="…")]` appear in the argument list.
+- A returned `str` becomes one user message. For multiple turns, return a list of `PromptMessage`. Import `PromptMessage` and `TextContent` from `oldman.mcp`.
+- Unknown or invisible prompts, missing required arguments, and extra arguments return `-32602`. Function failures return `-32603`.
 
 ## Who can call
 
-The ordinary web.auth.authenticators pipeline authenticates requests; the MCP route then decides by the recognized method:
+The `web.auth.authenticators` pipeline authenticates requests normally. The MCP route then decides based on the recognized method:
 
 | Recognized authentication | Result |
 | --- | --- |
-| User recognized by jwt access token or another explicitly attached non-browser-ambient project token | Admitted; permission= entries require their permissions |
-| api_key named in web.mcp.callers | Admitted, but only entries without permission=; API keys identify callers rather than users and have no roles |
-| api_key absent from web.mcp.callers | 403 |
-| Browser/network-ambient credentials such as session, HTTP Basic, or IP allowlists (Authentication.ambient) | 403 regardless of allow_anonymous; forged cross-site/DNS-rebinding pages would carry them |
-| No recognized identity | Default 401 with WWW-Authenticate: Bearer; web.mcp.allow_anonymous: true admits anonymously to entries without permission= |
+| A user identified by a `jwt` access token or a project token that browsers do not attach automatically | Access is allowed. Entries with `permission=` require the corresponding permission. |
+| An `api_key` whose name appears in `web.mcp.callers` | Access is allowed only to entries without `permission=`. API keys identify callers rather than users and have no roles. |
+| An `api_key` whose name is absent from `web.mcp.callers` | The response is 403. |
+| Credentials attached automatically by browsers or network context, such as sessions, HTTP Basic, or IP allowlists (`Authentication.ambient`) | The response is 403 regardless of `allow_anonymous`. Forged cross-site requests and DNS-rebinding pages would carry these credentials. |
+| No recognized identity | The default response is 401 with `WWW-Authenticate: Bearer`. `web.mcp.allow_anonymous: true` admits anonymous callers to entries without `permission=` only. |
 
-Accordingly, the route is csrf_exempt: admitted credentials are explicitly attached by callers or genuinely anonymous. Even globally enforced CSRF does not affect it.
+The route therefore skips CSRF validation through `csrf_exempt`: admitted requests use explicitly supplied credentials or are genuinely anonymous. Globally enforced CSRF does not change this behavior.
 
-Requests carrying Origin, as browser MCP clients do, require it in web.mcp.allowed_origins or receive 403; CLI/desktop clients omit it. Accept must allow JSON (application/json, application/*, or */*) or receives 406. Bodies exceeding web.mcp.max_request_body_size (default 4 MiB) receive 413, stopping reading at the limit rather than buffering everything first.
+If a request carries an `Origin` header, as browser MCP clients do, it must appear in `web.mcp.allowed_origins` or the response is 403. Command-line and desktop clients do not send this header. `Accept` must allow JSON through `application/json`, `application/*`, or `*/*`; otherwise the response is 406. A body exceeding `web.mcp.max_request_body_size`, default 4 MiB, receives 413. Reading stops at the limit rather than buffering the whole body first.
 
-See the "MCP endpoint (web.mcp)" section in [Configuration reference](configuration.md) for defaults. Enabled install_mcp fails startup when nobody could connect (no jwt, empty callers, anonymous disabled), callers are configured without api_key authentication, or caller names are missing from web.auth.api_keys.
+See the "MCP endpoint (web.mcp)" section in [Configuration reference](configuration.md) for settings and defaults. When enabled, `install_mcp` checks at startup for configurations that admit nobody: no `jwt`, empty `callers`, and disabled `allow_anonymous`. It also rejects nonempty `callers` without `api_key` authentication and names in `callers` that are absent from `web.auth.api_keys`.
 
 ## Rate limiting
 
-The specification requires tool-call rate limits. tools/call counts by caller: user ID, API-key name, or anonymous client_ip. Default web.mcp.rate_limit is 60 calls per 60 seconds. Redis holds counters, defaulting to web.session.redis_alias like sign-in limits. Exceeded calls return tool errors with retry-after seconds visible to models. Redis failure rejects/logs ERROR rather than allowing uncounted calls. Only tool calls are limited, not lists/resources/prompts.
+The specification requires servers to limit tool-call frequency. `tools/call` counts per caller: by user ID, API-key name, or `client_ip` for anonymous requests. The default `web.mcp.rate_limit` allows 60 calls per 60 seconds. Counters live in Redis, defaulting to `web.session.redis_alias`, as sign-in limits do. An exceeded limit returns a tool error stating how many seconds to wait before retrying, which the model can read. If Redis fails, the call is rejected and an ERROR is logged; unavailable counters do not grant access. Only tool calls are limited, not lists, resources, or prompts.
 
 ## Connecting clients
 
-Clients connect to https://<service-address><web.mcp.path>. Users send Authorization: Bearer <access-token> issued by TokenFlow (see [Web requests, templates, and permissions](web.md)); programs send X-API-Key: <key>. For example, Claude Code:
+Clients connect to `https://<service-address><web.mcp.path>`. Users send `Authorization: Bearer <access-token>`, with tokens issued by `TokenFlow`; see [Web requests, templates, and permissions](web.md). Programs send `X-API-Key: <key>`. For example, Claude Code:
 
 ```sh
 claude mcp add --transport http reports https://reports.example.com/mcp --header "X-API-Key: <key>"
@@ -117,17 +117,17 @@ claude mcp add --transport http reports https://reports.example.com/mcp --header
 
 ## Protocol versions and known limits
 
-The server supports MCP 2026-07-28 (stateless requests carrying version/client capabilities, with server/discover replacing handshake) and handshake-generation 2024-11-05, 2025-03-26, 2025-06-18, and 2025-11-25 (ordinary requests after initialize). Only the framework's explicit version list applies; new mcp-types versions do not automatically expand claimed support.
+The server supports both MCP 2026-07-28 and the handshake generations 2024-11-05, 2025-03-26, 2025-06-18, and 2025-11-25. The former is stateless: each request carries its protocol version and client capabilities, and `server/discover` replaces the handshake. Handshake generations send ordinary requests after `initialize`. Supported versions come only from the framework's own list. An upgrade making `mcp-types` recognize another version does not make the server claim support automatically.
 
-- JSON responses only, without SSE, progress notifications, logging messages, subscriptions/listen, or completion/complete.
-- No stored sessions or Mcp-Session-Id; handshake clients' GET streams/DELETE receive 405.
-- Cancellation: Sanic cancels handlers on disconnect, delivering CancelledError to active tools in both generations (2026-07-28 clients already cancel by closing response streams). The 2025-11-25 transport says disconnection SHOULD NOT cancel so clients can resume results. Here there are no sessions/resumption, so disconnected results cannot be delivered and execution is cancelled. Handshake POST notifications/cancelled returns 202 without processing: while the connection stays open, active tools finish.
-- No JSON-RPC batches, removed from the specification in 2025-06-18; batches from 2025-03-26 clients are rejected too.
-- No OAuth. Web MCP connectors often support OAuth only and need another authentication approach to connect.
-- Requests use web.response_timeout (default 120 seconds); longer tools disconnect.
+- Responses use JSON, not SSE streams. There are no progress notifications, log messages, subscriptions through `subscriptions/listen`, or argument completion through `completion/complete`.
+- Sessions are not stored, and no `Mcp-Session-Id` is issued. Handshake clients receive 405 for GET streams and DELETE.
+- When a client disconnects, Sanic cancels the handler and running tools receive `CancelledError` in both generations. Clients using 2026-07-28 already cancel by closing the response stream. The 2025-11-25 transport specification says disconnection SHOULD NOT imply cancellation so clients can resume and retrieve results. This server stores no sessions and supports no resumption, so disconnected results cannot be delivered and tools are still cancelled. A handshake client's POST of `notifications/cancelled` returns 202 without processing it; a running tool finishes if its connection remains open.
+- JSON-RPC batches are not accepted. The specification removed them in 2025-06-18; batches from 2025-03-26 clients are rejected too.
+- OAuth is not supported. Browser-based MCP connectors often support only OAuth, so connecting them requires another authentication approach.
+- Requests use `web.response_timeout`, default 120 seconds. Longer-running tools are disconnected.
 
 ## Testing
 
-Tools/resources/prompts are ordinary async functions and can be called directly in unit tests, passing request objects with ctx.user. Framework tests connect official SDK clients (development dependencies only) to real Sanic services, covering both protocol generations. Handcrafted negative requests separately cover protocol validations; see tests/test_oldman_mcp_*.py.
+Tools, resources, and prompts are ordinary async functions that unit tests can call directly. Supply an object with `ctx.user` as the `request` argument. The framework's own tests use official SDK clients, available only in development dependencies, against real Sanic services for both protocol generations. Handcrafted negative requests additionally cover every protocol validation. See `tests/test_oldman_mcp_*.py`.
 
 <!-- source: zh/developers/mcp.md @ ca60929c -->

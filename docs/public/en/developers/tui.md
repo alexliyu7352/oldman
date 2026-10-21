@@ -1,6 +1,6 @@
 # Terminal interaction
 
-`oldman.cli.tui` provides terminal output, waiting indicators, and questions for App commands/operations tools. These are ordinary functions called directly in Command.handle, without creating a rich Console. Questions are synchronous: the event loop pauses while awaiting input because this is a command-line tool, not a public service.
+`oldman.cli.tui` provides terminal output, waiting indicators, and questions for App commands and operations tools. These are ordinary functions called directly from `Command.handle`; you do not need to create a rich Console. Questions are synchronous: the event loop pauses while a person enters an answer. This is a command-line interface, not a public service.
 
 ```python
 from oldman.cli import Command, tui
@@ -23,24 +23,24 @@ class CheckSites(Command):
         tui.success("Checked %d sites" % len(sites))
 ```
 
-probe is the command's own business function, omitted here.
+`probe` is the command's own business function and is omitted here.
 
 ## Output
 
-| Function | Destination | Appearance |
+| Function | Output destination | Appearance |
 | --- | --- | --- |
-| `echo(message="")` | stdout | One unchanged data line |
-| `info(message)` | stdout; stderr for raw_stdout commands | One explanatory line |
-| `success(message)` | As above | `✓ ` prefix, green in terminals |
-| `warning(message)` | As above | `⚠ ` prefix, yellow in terminals |
-| `error(message)` | Always stderr | `✗ ` prefix, red in terminals |
-| `table(rows, *, headers=None, title=None)` | Same as info | Table |
-| `rule(title="")` | Same as info | Separator, optionally titled |
+| `echo(message="")` | stdout | This outputs one data line unchanged. |
+| `info(message)` | stdout, or stderr in a `raw_stdout` command | This outputs one explanatory line. |
+| `success(message)` | This uses the same destination as info. | The line has a `✓ ` prefix and appears green in terminals. |
+| `warning(message)` | This uses the same destination as info. | The line has a `⚠ ` prefix and appears yellow in terminals. |
+| `error(message)` | This always uses stderr. | The line has a `✗ ` prefix and appears red in terminals. |
+| `table(rows, *, headers=None, title=None)` | This uses the same destination as `info`. | This displays a table. |
+| `rule(title="")` | This uses the same destination as `info`. | This displays a separator with an optional title. |
 
-- Everything is plain text without rich markup parsing: database `[red]` strings and bracketed paths display literally. message accepts strings or gettext_lazy results.
-- Colors appear only in terminals; redirects/pipes receive plain text. With non-UTF-8 streams such as latin-1 server locales, symbols become [ok], [!], and [x], and tables/rules use ASCII rather than raising encoding errors.
-- Table cells display as strings, with None empty. Rows with more cells than headers raise ValueError. Wide cells wrap rather than truncate. Outside terminals, rich lays out at 80 columns or $COLUMNS, so one record may occupy several lines. Use echo for line-oriented machine output.
-- Each call uses current sys.stdout/sys.stderr, so contextlib.redirect_stdout and test replacements capture it.
+- All content is plain text; rich markup is not parsed. Database values such as `[red]` and brackets in file paths display literally. `message` may be a string or the result of `gettext_lazy`.
+- Colors appear only in terminals. Redirected or piped output is plain text. If a stream's encoding is not UTF-8, for example with a latin-1 server locale, symbols become `[ok]`, `[!]`, and `[x]`, and tables and separators use ASCII characters instead of raising encoding errors.
+- `table` displays cells as strings and shows `None` as empty. A row with more cells than its headers raises `ValueError`. Wide cells wrap within their columns rather than being truncated. Outside a terminal, rich lays out at 80 columns or `$COLUMNS`, so one record may span several lines. Use `echo` for machine output that must be processed line by line.
+- Each call uses the current `sys.stdout` and `sys.stderr`, allowing `contextlib.redirect_stdout` and test replacements to capture output.
 
 ## Waiting indicators
 
@@ -54,11 +54,11 @@ with tui.progress("Copying files", total=len(files)) as bar:
         bar.advance()
 ```
 
-- spinner(label) suits work of unknown duration; progress(label, *, total=None) suits countable work, with None for unknown totals. Its ProgressBar exposes advance(amount=1) and update(*, completed=None, total=None, label=None).
-- In terminals, rich refreshes on its own thread, so indicators animate while the block awaits. It redirects print/echo above the indicator, displaying tabs as spaces. This affects terminal display only; nonterminal output has neither animation nor redirection. Indicators can nest, such as spinner within progress steps. spinner disappears on exit; progress retains its final line.
-- A stream not itself a terminal by isatty() has no animation, even with FORCE_COLOR. spinner prints label once; progress prints label at start and `label: completed/total` on normal completion. Block exceptions propagate without a completion line.
-- Logging handlers configured with ext://sys.stdout retain their original stream at startup. Logging during indicators can overwrite the indicator line; only display is affected.
-- Direct terminal writes bypass rich and can be erased at the next refresh, such as sudo password prompts: the prompt disappears while the process still waits. Do not run potentially interactive commands (sudo/read) inside indicators. Print the operation with info first and run it below, where prompts remain visible.
+- Use `spinner(label)` for work of unknown duration and `progress(label, *, total=None)` for countable work. Pass `None` when `total` is unknown. The context provides a `ProgressBar` with `advance(amount=1)` and `update(*, completed=None, total=None, label=None)`.
+- In terminals, rich refreshes from its own thread, so an indicator keeps animating while the block uses `await`. Calls to `print` and `echo` within the block appear above it, with tabs displayed as spaces. This affects only terminal display: nonterminal output has neither animation nor redirection. Indicators may nest, such as a `spinner` within each progress step. A `spinner` disappears on completion, whereas `progress` retains its final line.
+- A stream must report a terminal through its own `isatty()` to show animation; `FORCE_COLOR` does not make it interactive. Otherwise, `spinner` prints `label` once, and `progress` prints `label` at the start and `label: completed/total` on normal completion. Exceptions in the block propagate without a completion line.
+- A logging handler configured with `ext://sys.stdout` retains the original stream at initialization. Logs written while an indicator is active can overwrite its line. This affects display only.
+- Content written directly to the terminal bypasses rich and may be erased by the next refresh. For example, a `sudo` password prompt may disappear while the program waits for input. Do not run potentially interactive commands, such as password-prompting `sudo` or scripts using `read`, inside waiting indicators. Print the operation with `info` first, then run it so prompts remain below that line.
 
 ## Questions
 
@@ -81,41 +81,41 @@ class AddSite(Command):
             await reload_server(engine, domain, port, modules)
 ```
 
-unprivileged and reload_server are command-owned business functions. The former raises ValueError("Ports below 1024 need root.") for ports below 1024. key enables [Terminal interaction](#preset-answers-for-unattended-use); omit it when unattended operation is unnecessary.
+`unprivileged` and `reload_server` are business functions belonging to the command. The former uses `raise ValueError("Ports below 1024 need root.")` for ports below 1024. Supplying `key` enables preset answers for these questions; see [Terminal interaction](#preset-answers-for-unattended-use). Omit it when a question does not need unattended operation.
 
 | Function | Return value | Purpose |
 | --- | --- | --- |
-| `ask(label, *, default=None, type=str, choices=None, validate=None, required=True, secret=False, confirm_secret=False, help=None, key=None)` | Value converted by type | Reads one text line |
-| `confirm(label, *, default=False, assume_yes=False, help=None, key=None)` | bool | Yes/no |
-| `choose(label, options, *, default=None, match=None, invalid=None, validate=None, key=None)` | Selected value | Chooses one numbered option |
-| `choose_many(label, options, *, default=(), key=None)` | List of selected values | Chooses any number |
+| `ask(label, *, default=None, type=str, choices=None, validate=None, required=True, secret=False, confirm_secret=False, help=None, key=None)` | This returns the value converted by `type`. | This reads one text line. |
+| `confirm(label, *, default=False, assume_yes=False, help=None, key=None)` | This returns `bool`. | This asks a yes-or-no question. |
+| `choose(label, options, *, default=None, match=None, invalid=None, validate=None, key=None)` | This returns the selected value. | This selects one option from a numbered list. |
+| `choose_many(label, options, *, default=(), key=None)` | This returns a list of selected values. | This selects any number of options. |
 
-- Empty ask input returns an explicit default, including an empty string. Without a default, required=False returns None; otherwise it displays "This value is required." and asks again. type converts text; ValueError explains failure and reprompts (int/float have specific explanations). choices compares converted values; validate ValueError displays its message and asks again.
-- secret=True hides input without trimming whitespace and hides defaults. confirm_secret=True asks twice; mismatches restart both entries.
-- confirm accepts y/yes/n/no and localized yes/no. Commands with their own --yes can pass it as assume_yes to accept without prompting.
-- choose/choose_many accept plain values (displayed as text; Enum members show their values) or (value, label) pairs. Matching is case-insensitive. Manual answers match visible label first, then index, then value because paired values are hidden. For [(17, "alice"), (1, "carol")], manual 1 selects alice. [Terminal interaction](#preset-answers-for-unattended-use), supplied by people who know values, match value, label, then index. With ["3", "1"], answer 1 selects "1" in both cases because its label is 1. choose_many accepts comma/space-separated answers and deduplicates. match(answer) adds custom parsing, such as zh to zh-Hans; None means unrecognized. invalid replaces the numbered-range prompt. validate ValueError shows its message and reprompts. default must be an option or calls raise ValueError. choose displays the default index ([1]: ); choose_many displays all default indexes ([1,2]: ); Enter selects them.
-- Prompts/errors use the explanatory-output stream: normally stdout, stderr for raw_stdout commands.
+- For an empty answer, `ask` returns `default` if supplied, including an empty string. Without a default, `required=False` returns `None`; otherwise it shows "This value is required." and asks again. `type` converts the text to a value. A `ValueError` displays its reason and repeats the question; `int` and `float` have specific explanations. `choices` compares converted values. If `validate` raises `ValueError`, its message is shown before asking again.
+- `secret=True` hides entered text, preserves leading and trailing whitespace, and hides defaults. With `confirm_secret=True`, the user enters the value twice. A mismatch repeats both entries.
+- `confirm` accepts y, yes, n, no, and the current language's words for yes and no. A command with its own `--yes` can pass that flag to `assume_yes`; when true, confirmation succeeds without a question.
+- Options for `choose` and `choose_many` may be ordinary values, displayed as text with Enum members showing their values, or `(value, label)` pairs. Matching is case-insensitive. Manually entered answers match the display label first, then the index, then the value, because a `(value, label)` option does not display its value. For `[(17, "alice"), (1, "carol")]`, entering `1` selects the first item, alice. Preset answers are supplied by people who know the values, so they match value first, then label, then index; see [Terminal interaction](#preset-answers-for-unattended-use). For `["3", "1"]`, answering `1` selects `"1"` in both cases because its label is `1`. `choose_many` accepts comma-separated or space-separated answers and counts duplicates only once. `match(answer)` lets callers add parsing, such as mapping `zh` to `zh-Hans`; returning `None` means unrecognized. `invalid` replaces the "Enter a number from 1 to %(count)d." prompt. A `ValueError` from `validate` displays its message and repeats selection. `default` must be an option or the call raises `ValueError`. The `choose` prompt shows the default index (`[1]: `), while `choose_many` shows all selected default indexes (`[1,2]: `). Enter accepts them.
+- Prompts and error explanations use the explanatory-output stream: normally stdout, but stderr for `raw_stdout` commands.
 
 ### Cancellation and nonterminals
 
-- Ctrl-C or end-of-input (Ctrl-D/closed pipe) raises tui.Cancelled with reason "interrupt" or "end-of-input". One Ctrl-C also works inside asyncio.run, as used by App commands: tui temporarily restores Python's own handler during reads, then restores the event-loop handler. App commands need no handling; CLI writes "Aborted." to stderr and exits 1. Catch/check reason for different behavior, such as defaults at EOF but exit on Ctrl-C.
-- Questions require both stdin and the prompt stream (normally stdout, stderr for raw_stdout) to be terminals. Otherwise, including cron, CI, redirected input/output, pipes, or subprocess capture, stdin is not read. Use [Terminal interaction](#preset-answers-for-unattended-use) first; otherwise defaults apply and print question: default (secrets as ***), and confirm uses its default. Without either, tui.NotInteractive (a ValueError) is reported as an ordinary CLI error with exit 1, identifying the environment variable when a key exists.
-- Checking stdin alone is insufficient: subprocesses often inherit terminal stdin while capturing prompts, leaving invisible questions waiting. Thus ./run.sh ops menu 2>&1 | tee session.log does not prompt. Use preset answers or script -c "./run.sh ops menu" session.log to record a terminal session. raw_stdout prompts use stderr, so command > data.json still permits questions. Initially closed stdin (0<&-) is noninteractive. db migrate/makemigrations schema questions follow the same rule without preset answers: first use, lost state, rename, and deletion fail when human decisions cannot be requested. Merely selecting scope for pending migrations instead applies all pending migrations without prompting, as before.
-- Answers are not read line-by-line from pipes because positional correspondence is fragile. Conditional skips, reorderings, or new questions silently misalign later answers; an open unwritten stdin may also hang forever.
+- Ctrl-C or end-of-input, such as Ctrl-D or a closed pipe, raises `tui.Cancelled`. Its `reason` is `"interrupt"` or `"end-of-input"`, respectively. A single Ctrl-C also works inside `asyncio.run`, as used by App commands: tui temporarily restores Python's own Ctrl-C handling while reading, then restores the event-loop handler. App commands need no custom handling. The CLI prints "Aborted." on stderr and exits with code 1. To handle these cases differently, such as using defaults on end-of-input but exiting on Ctrl-C, catch the exception and inspect `reason`.
+- Questions require both stdin and the prompt stream to be terminals. The latter is normally stdout and is stderr for `raw_stdout` commands. Other situations, including cron, CI, `< /dev/null`, pipes, captured command output, and `> out.txt`, do not read stdin. Preset answers take priority if present; see [Terminal interaction](#preset-answers-for-unattended-use). Otherwise a question with a default uses it and prints one line as "question: default", with `secret` shown as `***`. `confirm` uses its `default`. Without either, the question raises `tui.NotInteractive`, a `ValueError` that the CLI reports as an ordinary error before exiting with code 1. If the question has a `key`, the message identifies the variable to set.
+- Checking stdin alone is insufficient. Programs invoking a command often inherit terminal stdin but capture its prompts, leaving the command waiting invisibly. Therefore `./run.sh ops menu 2>&1 | tee session.log` does not ask questions. Use preset answers to retain an operation record, or record the whole terminal session with `script -c "./run.sh ops menu" session.log`. A `raw_stdout` command prompts on stderr, so redirecting data with `command > data.json` still permits questions. Initially closed stdin (`0<&-`) is noninteractive. Schema questions from `db migrate` and `makemigrations` follow the same rule and have no preset answers. Decisions requiring a person, such as first use, lost state, renaming, or deletion, fail if prompting is unavailable. If only migration scope must be selected, all pending migrations run without prompting, as before.
+- Answers are not read sequentially from pipes because positional correspondence is fragile. Skipping a conditional question, changing its order, or adding one silently shifts every later answer. An open stdin with no writer may also wait forever.
 
 ### Preset answers for unattended use
 
-A question key enables advance answers through environment variables, similar to Debian installer preseeding:
+Give a question a `key` to supply its answer in advance through an environment variable, following the same idea as Debian installer preseeding:
 
 ```sh
 OLDMAN_ANSWER_ADD_SITE_DOMAIN=example.org OLDMAN_ANSWER_ADD_SITE_PORT=9000 ./run.sh ops add-site
 ```
 
-- tui.answer_variable(key) produces OLDMAN_ANSWER_ plus uppercased key, collapsing runs of other characters into _. For example, startproject.type becomes OLDMAN_ANSWER_STARTPROJECT_TYPE. Keys differing only in punctuation collide (add-site.port and add_site.port); keys used in one run must differ in letters/digits. Keys permit only letters, digits, ., _, and -, beginning with a letter/digit; invalid keys raise ValueError.
-- A supplied variable suppresses prompting even in terminals, printing question: answer (variable-name), with secrets shown as ***.
-- Presets undergo the same checks as typed answers: ask uses type/choices/validate; confirm accepts 1/true/yes/y and 0/false/no/n; choose/choose_many match value, label, then index (plus match forms), and choose runs validate. Invalid input raises ValueError naming the variable rather than reprompting unattended users. Empty strings count as empty answers: use defaults, or fail when required without one.
-- confirm assume_yes=True outranks presets because explicit command-line --yes is more specific than environment settings.
-- Menus have no keys and always require manual selection. Give keys only to questions needing unattended operation. See [CLI reference](cli.md#project-level-commands) for framework startproject/startapp/startservice variables.
+- The variable name comes from `tui.answer_variable(key)`: `OLDMAN_ANSWER_` plus the uppercased key, with consecutive other characters collapsed to one `_`. For example, `startproject.type` becomes `OLDMAN_ANSWER_STARTPROJECT_TYPE`. Keys differing only in punctuation map to the same variable, such as `add-site.port` and `add_site.port`. Keys asked during one invocation must differ in letters or digits. A key may contain letters, digits, `.`, `_`, and `-` and must start with a letter or digit; otherwise the call raises `ValueError`.
+- When a variable is set, its question does not prompt, even in a terminal. It prints only "question: answer (variable name)", with `secret` shown as `***`.
+- Preset answers receive the same validation as typed input. `ask` applies `type`, `choices`, and `validate`. `confirm` accepts 1, true, yes, or y, and 0, false, no, or n. `choose` and `choose_many` match value, display label, then index, along with forms recognized by `match`; `choose` then runs `validate`. Invalid input raises `ValueError` identifying the variable rather than returning to an interactive question, because unattended runs have nobody to answer. An empty string counts as an empty answer: use the default, or fail if required without a default.
+- `confirm` with `assume_yes=True` takes precedence over preset answers. An explicit command-line `--yes` is more specific than environment settings.
+- Menus have no key and always require a person to select an item. Assign keys only to questions that need unattended operation. See [CLI reference](cli.md#project-level-commands) for the framework commands' `startproject`, `startapp`, and `startservice` variables.
 
 ### Testing
 
@@ -135,13 +135,13 @@ class AddSiteQuestionsTest(unittest.TestCase):
         self.assertIn("Ports below 1024 need root.", terminal.stdout)
 ```
 
-apps.sites is an illustrative App name; substitute your command module. simulate_input(answers) supplies ordered answers and captures stdout/stderr inside the block as terminal.stdout/terminal.stderr, matching visible prompts followed by answers without secret values. KeyboardInterrupt/EOFError answers cancel that question. Every question behaves as interactive even with nonterminal test streams. Exhausted answers raise RuntimeError naming the prompt rather than waiting on a real terminal. terminal.remaining contains unused answers.
+`apps.sites` is an illustrative App name; replace it with the module containing the command above. `simulate_input(answers)` supplies answers in order and captures stdout and stderr as `terminal.stdout` and `terminal.stderr`. The output matches a terminal: prompts are followed by answers, but `secret` values remain hidden. An answer of `KeyboardInterrupt` or `EOFError` cancels that question. Questions inside the block behave as interactive even when the test's stdin and stdout are not terminals. If answers run out while another question is asked, it raises `RuntimeError` identifying the prompt rather than waiting on the real terminal. `terminal.remaining` holds unused answers.
 
-Presets outrank simulate_input answers intentionally, enabling preset tests. A developer-shell OLDMAN_ANSWER_* can therefore answer a same-key question and misalign test input. Remove such variables within a restoring context before testing, for example patch.dict(os.environ) with keys beginning tui.ANSWER_ENV_PREFIX deleted. CliRunner().invoke(..., env=...) adds variables; set values to None to remove them.
+Preset answers take priority over those supplied by `simulate_input`, as needed for testing presets themselves. An `OLDMAN_ANSWER_*` left in a developer's shell can therefore answer a question with that key and misalign the test. Remove these variables inside a restoring context before testing. For example, use `with patch.dict(os.environ):` and remove keys beginning with `tui.ANSWER_ENV_PREFIX`; they are restored after the block. `CliRunner().invoke(..., env=...)` only adds variables, so set a variable to `None` to remove it.
 
 ## Forms and menus
 
-A common operations-tool pattern is a menu whose chosen action gathers parameters before executing.
+A common operations tool presents a menu, then asks for a group of parameters before executing the selected action.
 
 ```python
 from oldman.cli import Command, tui
@@ -186,24 +186,24 @@ class Maintain(Command):
         await tui.run_menu(MAIN_MENU, after_action="exit")
 ```
 
-write_site, discover_checks, and reload_nginx are tool-owned asynchronous business functions.
+`write_site`, `discover_checks`, and `reload_nginx` are the tool's own asynchronous business functions.
 
 ### Forms
 
-- Field(key, label, ...) takes the same remaining parameters as ask. type=bool uses confirm. ask_form(fields, *, key_prefix=None, remember=None) asks in order and returns {key: value}; duplicate keys raise ValueError.
-- Each field has a question key `{key_prefix}.{field-key}`, or just field-key without a prefix, enabling [Terminal interaction](#preset-answers-for-unattended-use). In the example, OLDMAN_ANSWER_ADD_SITE_PORT=9000 supplies the port. Invalid combined question keys raise ValueError before prompting.
-- remember is a JSON file path supporting ~. Completed answers are saved as future defaults while unrelated keys remain. Remembered answers first pass the same type/choices/validate checks as manual input (type=bool requires true/false): rules or files may have changed. Invalid values warn once and use the field's own default; remembered empty strings for required fields are invalid too. Presets bypass reading/validating remembered answers. Secrets and values outside native JSON str/int/float/bool types are not written. Invalid JSON objects warn once, are unused this time, and are not overwritten.
+- `Field(key, label, ...)` accepts the same remaining parameters as `ask`. A `type=bool` field uses `confirm`. `ask_form(fields, *, key_prefix=None, remember=None)` asks questions in order and returns `{key: value}`. Duplicate `key` values raise `ValueError`.
+- Every field is a keyed question, with key `{key_prefix}.{field-key}`, or just the field key without `key_prefix`. Therefore it accepts presets like any other question; see [Terminal interaction](#preset-answers-for-unattended-use). In this example, `OLDMAN_ANSWER_ADD_SITE_PORT=9000` answers the port question. A field key that cannot form a valid question key raises `ValueError` before prompting.
+- `remember` is a JSON file path supporting `~`. When the form completes, it saves answers as defaults for later runs, retaining unrelated keys. Before use, remembered values pass through the field's `type`, `choices`, and `validate` checks just like manual input; `type=bool` requires `true` or `false`. Rules or files may have changed. An invalid value produces one warning and uses the field's own default this time. A remembered empty string for a required field is also invalid. A field with a preset uses that answer directly without reading or validating the remembered value. `secret` fields and values outside native JSON types (str, int, float, and bool) are not saved. If the file is not a valid JSON object, one warning is shown, and the file is neither used nor overwritten.
 
 ### Menus
 
-- Menu(title, items) contains Item(label, *, action=None, submenu=None, load=None), requiring exactly one: action is an awaited async function; submenu a fixed Menu; load an async submenu factory awaited on selection for plugin/remote content. See [Remote files](remote.md) for remote files. Wrong counts or empty menus raise ValueError during construction.
-- await run_menu(menu, *, after_action="return", back_label=None, quit_label=None) shows a title rule and numbered items. 0 leaves: "Quit" at root, "Back" in submenus, customizable through those labels. Answers match labels before indexes. Ctrl-C/EOF at menus acts as 0.
-- after_action="return" returns to the menu after actions; "exit" ends the entire menu, including parents. Action/load exceptions show their messages on stderr and return to the selecting menu. Tracebacks log at DEBUG under oldman.cli.tui.menus: DEBUG displays them in terminal/files; ordinarily only the message appears. logging.level controls this, falling back to core.debug when unset. Cancelled inside action/load, such as form Ctrl-C, returns to the menu without error.
-- Menus require interaction and raise NotInteractive under the rules above. For unattended use, create an argument-based command calling the same business functions.
+- `Menu(title, items)` contains `Item(label, *, action=None, submenu=None, load=None)`, which requires exactly one of its three choices. `action` is an async function awaited on selection, `submenu` is a fixed submenu, and `load` is an async function awaited on selection to generate a submenu, such as from plugins or remote listings. See [Remote files](remote.md) for remote menu items. Supplying the wrong number of choices or an empty menu raises `ValueError` at construction.
+- `await run_menu(menu, *, after_action="return", back_label=None, quit_label=None)` displays a titled separator and numbered items. `0` leaves the menu: "Quit" at the top level and "Back" in a submenu, replaceable through the two label parameters. Answers may use item text or an index, with text matched first. Ctrl-C or end-of-input at a menu is equivalent to selecting `0`.
+- With `after_action="return"`, the menu reappears after an action. `"exit"` ends the entire menu, including its parents, after one action. If an action or `load` raises an exception, its message appears on stderr and control returns to the menu where it was selected. The traceback is logged at DEBUG by `oldman.cli.tui.menus`. At DEBUG, it appears both on screen and in the log file; normally only the one-line message is visible. `logging.level` controls the level and follows `core.debug` when unset. A `Cancelled` raised within an action or `load`, for example by Ctrl-C in a form, returns directly to the menu without being treated as an error.
+- Menus require interaction. If the rules above prohibit questions, they raise `NotInteractive`. Provide a separate command with arguments for unattended execution, calling the same business functions.
 
 ## raw_stdout commands
 
-raw_stdout=True reserves stdout for data (see [CLI reference](cli.md#command-lifecycle)). Apart from echo, all tui explanatory text, status, tables, rules, and indicators move to stderr. Waiting indicators capture only stderr, leaving stdout data untouched.
+A command with `raw_stdout = True` reserves stdout for data; see [CLI reference](cli.md#command-lifecycle). In `raw_stdout` commands, every tui output except `echo` moves to stderr, including explanations, status lines, tables, separators, and waiting indicators. Indicators capture only stderr while active, leaving data written to stdout untouched.
 
 ```python
 import json
@@ -225,6 +225,6 @@ class DumpSites(Command):
         tui.info("Printed %d sites" % len(sites))
 ```
 
-read_sites is another command-owned business function. ./run.sh ops dump-sites > sites.json writes JSON only; "Reading the site list" and "Printed …" remain in the terminal.
+`read_sites` is another business function owned by the command. `./run.sh ops dump-sites > sites.json` produces a file containing only JSON; "Reading the site list" and "Printed …" remain in the terminal.
 
 <!-- source: zh/developers/tui.md @ 8c13fdcf -->
