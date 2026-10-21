@@ -1,0 +1,72 @@
+name: Documentation site
+
+# Publishes website/ (the documentation site) to GitHub Pages after each final release, from that
+# release's tag, so the published documentation always matches the version on PyPI and npm.
+#
+# It follows the Release workflow instead of being a job inside it: a deployment runs from this
+# repository's default branch, which the github-pages environment allows by default, whereas a job of
+# the tag-triggered Release run would deploy from the tag and be refused by that environment's rules.
+# Run it by hand (workflow_dispatch) to publish the documentation from the selected branch or tag.
+#
+# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer release waits for the running one instead of cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    # Prerelease tags carry a "-" (v0.6.0-rc.1): their documentation is not published.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && !contains(github.event.workflow_run.head_branch, '-'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # For a release, head_branch is the tag the Release run was started by.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
+
+      # pnpm/action-setup reads "packageManager" from package.json (pnpm 9.12.3).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      # website's build step assembles the pages with scripts/build-docs-site.py through uv.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the site
+        run: pnpm verify:docs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

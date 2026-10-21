@@ -84,6 +84,8 @@ pnpm --filter oldman-admin build
 
 `.github/workflows/release.yml` 依次执行：校验标签名等于 `pyproject.toml` 版本；按提交标题生成发行说明（见下一节）；`pnpm build:python` 与 `pnpm pack:web`；`verify-wheel-contents`、`verify-sdist-contents`、`verify-python-package-install`（Python 3.12、3.13 与 3.14）、`verify-oldman-web-package`；全部通过后通过 Trusted Publishing（OIDC 身份，不保存长期令牌）发布到 PyPI 与 npm，并创建 GitHub Release：正文是生成的发行说明，附带三个产物和 `SHA256SUMS`。任何一步失败都不会发布任何内容；修复后删除该标签并重新打在新的提交上即可。
 
+文档站（`website/`）由 `.github/workflows/docs.yml` 发布到 GitHub Pages（`https://alexliyu7352.github.io/oldman/`）：Release 运行成功、而且标签是正式版（不含 `-`）时，它检出那个标签、运行 `pnpm verify:docs` 并部署，所以线上文档与 PyPI、npm 上的版本一致；预发布不更新文档。它跟在 Release 之后单独运行、而不是作为 Release 里的一个 job，是因为 Pages 的部署环境默认只允许从默认分支部署，从标签部署会被拒绝。需要在两次发版之间更新文档时，在 Actions 里手动运行它并选分支或标签。首次使用前在仓库 Settings → Pages 把 Source 设为 GitHub Actions。
+
 ### 提交标题与发行说明
 
 仓库不维护 CHANGELOG 文件，每个版本的发行说明就是 GitHub Release 的正文，由发布工作流用 git-cliff 按根目录的 `cliff.toml` 从提交标题生成。所以提交标题就是发行说明里的一条，要写成给使用者看的一句英文：
