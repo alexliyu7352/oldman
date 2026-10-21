@@ -1,6 +1,6 @@
-# Real Demo Data, Migrations, and Queries
+# Real demo data, migrations, and queries
 
-First prepare the EPG Dashboard following the [Running guide](getting-started.md). This chapter consistently uses the demo's actual models, including `ExampleTeam` and `ExampleProject`, without creating similar models with the same names.
+First prepare the EPG Dashboard following the [Run EPG Dashboard Demo](getting-started.md). This chapter consistently uses the demo's actual models, including `ExampleTeam` and `ExampleProject`, without creating similar models with the same names.
 
 The data source is [apps/examples/models.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py); initial data is in [apps/examples/fixtures/demo.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/fixtures/demo.json). Browser operations and the source below use the same implementation.
 
@@ -53,7 +53,7 @@ Do not save this section as a separate simplified model. Complete declarations, 
 - `ExampleProject` represents a project; `team_id` is an actual foreign key to `example_team.id`. The `team` relationship supplies the displayed team name.
 - A project's `slug` is unique, `budget` cannot be negative, and `progress` must be between 0 and 100. Browser or Form validation does not replace these database constraints.
 - `ExampleTask` relates to projects through `project_id` and also supports the drag-and-drop review example. It is not a task model from another tutorial containing only a title and completion status.
-- `ExampleAsset` declares two file fields through `file_column()`; the database still stores logical file names. See [Data and files](data-and-files.md) for uploads.
+- `ExampleAsset` declares two file fields through `file_column()`; the database still stores logical file names. See [Demo data import and file upload](data-and-files.md) for uploads.
 - `ExampleServer` and `ExampleServerMetric` store the server inventory and monitoring samples respectively, for realtime tables and charts.
 
 Ordinary SQLAlchemy columns still use `Mapped`, `mapped_column`, `ForeignKey`, and similar declarations. All models use the framework's shared metadata; do not create another Base for the same App to bypass registration.
@@ -70,7 +70,7 @@ The demo includes standard Alembic revisions, including the [initial examples mi
 
 Follow the prompts to distinguish first use from lost state, rather than deleting the database to bypass the issue. Normally, status lists no pending migrations after migrate completes; history shows migration history from source.
 
-Run the following only when you**actually change model structure**:
+Run the following only when you **actually change model structure**:
 
 ```sh
 ./run.sh db makemigrations
@@ -122,7 +122,7 @@ Export using the existing commands in the demo README:
 ./run.sh web dumpdata examples.ExampleProject --output /tmp/projects.json
 ```
 
-First ensure the output paths contain no files you want to keep, or choose your own explicit paths. The first command selects the entire examples App; the second selects only the project model and**does not automatically export related teams**. Prepare foreign key dependencies before importing a single-model file into another database. Do not disable foreign keys to make it pass. The creator cleans up temporary exports after use.
+First ensure the output paths contain no files you want to keep, or choose your own explicit paths. The first command selects the entire examples App; the second selects only the project model and **does not automatically export related teams**. Prepare foreign key dependencies before importing a single-model file into another database. Do not disable foreign keys to make it pass. The creator cleans up temporary exports after use.
 
 ## 5. Static tables also read the database
 
@@ -150,7 +150,7 @@ It does four things:
 3. Eagerly loads the team relationship needed by the template, avoiding implicit queries after leaving the Session.
 4. Releases the Session on leaving the context, then lets the view render the page.
 
-Dynamic HTML/JSON tables use `ExampleProjectTable.get_queryset()`; Table handles pagination, searching, and sorting. See the [next chapter](tutorial-dashboard.md) for wiring.
+Dynamic HTML/JSON tables use `ExampleProjectTable.get_queryset()`; Table handles pagination, searching, and sorting. See the [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md) for wiring.
 
 ## 6. Writes, commits, and checks
 

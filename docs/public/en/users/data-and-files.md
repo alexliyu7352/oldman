@@ -1,6 +1,6 @@
 # Demo data import and file upload
 
-This chapter continues to use EPG Demo without adding an attachment table or writing another upload interface. For the Fixture preparation method, see [Real Data Tutorial](tutorial-tasks.md#4-import-repeatable-real-data). This chapter directly operates the existing `ExampleAsset`.
+This chapter continues with the EPG demo without adding attachment tables or another upload endpoint. See [Real demo data, migrations, and queries](tutorial-tasks.md#4-import-repeatable-real-data) for fixture preparation. Here you operate the existing `ExampleAsset` directly.
 
 Complete database migration, accounts, Redis, static build and web launch first. Open:
 
@@ -32,7 +32,7 @@ storages:
       location: media
 ```
 
-When running through run.sh in the Demo root directory, the relative directory here is the Demo media. Do not add additional attachments alias for this chapter. It is also not necessary to generate the initial migration of ExampleAsset when the migration is performed for the first time.
+When running through run.sh in the demo root, this relative directory resolves to the demo's media directory. Do not add another attachments alias for this chapter. If migrations already ran on first setup, do not generate another initial migration for ExampleAsset.
 
 ## 2. Form receives files through the ordinary submission flow
 
@@ -44,9 +44,9 @@ When running through run.sh in the Demo root directory, the relative directory h
 - `description` is optional.
 - Meta.fields exposes only these four fields, rather than exposing all model fields such as project_id to requests.
 
-These are the current field rules of the Demo and are not uniform upload restrictions for all businesses. The browser's accept attribute only helps select files, and the server's FileSize/FileExtension performs corresponding checks; extension verification is not equal to content security scanning.
+These are the demo's current field rules, not universal upload limits. Browser accept attributes help select files; server FileSize/FileExtension validators enforce the corresponding checks. Extension validation is not content security scanning.
 
-Rendering uses [storage/_asset_form.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/storage/_asset_form.html). It puts the upload interaction, fields, messages, and submission status in a normal Form, which is mounted by the shared loader, without writing a separate set of fetch upload logic.
+Rendering uses [storage/_asset_form.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/storage/_asset_form.html). It puts upload interactions, fields, messages, and submission state in an ordinary Form mounted by the shared loader, without a separate fetch upload implementation.
 
 ## 3. Complete save entry point
 
@@ -93,7 +93,7 @@ async def asset_file_states(asset: ExampleAsset) -> dict[str, dict[str, object]]
 
 This module imports storages from `oldman.storage`, quote from urllib.parse, and ExampleAsset from the current App. Paths, exists, and stat come from actual storage, rather than assuming file existence because an upload request succeeded.
 
-Demo's /media URL is used to display its own test files, not a private download interface with object authorization. If real business handles confidential attachments, download permissions need to be implemented separately; public media addresses cannot be directly copied as an authorization solution.
+The demo's /media URL displays its own test files. It is not a private download endpoint enforcing object authorization. Applications handling confidential attachments need download permission checks; do not copy public media URLs as an authorization scheme.
 
 ## 5. Test the lifecycle in sequence
 
@@ -106,7 +106,7 @@ Demo's /media URL is used to display its own test files, not a private download 
 7. Delete the record you created and check that the non-referenced files corresponding to the two fields are processed.
 8. Saving oversized files or unsupported extensions should fail. Check browser and backend restrictions separately.
 
-The framework checks file references after the transaction and then processes the deletion candidates. You cannot delete old files before committing the database, nor can you add a set of the same cleanup to the Demo form. Raw SQL, batch operations, concurrency, and exclusive file constraints are in [File Lifecycle Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md#模型文件的替换与删除); do not interpret this example as an atomic transaction across the file system and database.
+After a transaction ends, the framework checks file references before processing deletion candidates. Do not delete old files before database commit or duplicate this cleanup in demo forms. See [File Lifecycle Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md#模型文件的替换与删除) for raw SQL, bulk operations, concurrency, and exclusive-file constraints. This example does not establish an atomic transaction spanning the filesystem and database.
 
 ## 6. Use Storage API directly
 
@@ -116,6 +116,6 @@ Save → Saving under the same name produces another name → Explicit overwrite
 
 The function owns these demonstration files and cleans them up in finally. It neither scans the entire media directory nor acts as a production file cleanup task. Returned names and read contents come from actual calls, rather than fixed “call successful” placeholders.
 
-Fixture exports only include database fields, file columns are still just logical names; files are not copied. Before importing fixtures containing file columns into other environments, you need to prepare the corresponding storage contents and understand that replacement may trigger cleanup. See [Fixture Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/fixtures.md) for details.
+Fixture exports contain database fields only. File columns remain logical names; files are not copied. Before importing file-column fixtures elsewhere, prepare matching storage contents and understand that replacement can trigger cleanup. See [Fixture Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/fixtures.md).
 
 <!-- source: zh/users/data-and-files.md @ d2d7dd40 -->

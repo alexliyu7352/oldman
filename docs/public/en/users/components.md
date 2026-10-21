@@ -1,12 +1,12 @@
 # Dashboard UI and interactive components
 
-This page helps you choose and integrate existing components. Examples come directly from the EPG demo, retaining actual class names, attributes, routes, and translation calls. Code blocks are excerpts from the corresponding templates or classes, rather than complete new pages. Prepare the demo following [Getting started](getting-started.md), then open the paths below. The default address is `http://127.0.0.1:17997`.
+This page helps you choose and integrate existing components. Examples come directly from the EPG demo, retaining actual class names, attributes, routes, and translation calls. Code blocks are excerpts from the corresponding templates or classes, rather than complete new pages. Prepare the demo following [Run EPG Dashboard Demo](getting-started.md), then open the paths below. The default address is `http://127.0.0.1:17997`.
 
-Static Cards and button appearance need only HTML/CSS; interactions such as Dropdown also require Page to mount components. Admin and business dashboards share components and visual variables, but page entry points determine enabled loaders. Copying HTML does not start every capability automatically. See the [Demo tutorial](tutorial-dashboard.md) for complete Form/Modal/Table wiring and the [Example index](demo-examples.md) for all pages.
+Static Cards and button appearance need only HTML/CSS; interactions such as Dropdown also require Page to mount components. Admin and business dashboards share components and visual variables, but page entry points determine enabled loaders. Copying HTML does not start every capability automatically. See the [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md) for complete Form/Modal/Table wiring and the [Demo page and source index](demo-examples.md) for all pages.
 
 ## Why does the example work directly?
 
-Demo's [views/ui.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/ui.py) processes `/examples/ui/<page>`, verifies the page name and provides template context such as `page_entry="examples"`; the entrance only requires sign in.
+The demo's [views/ui.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/ui.py) handles `/examples/ui/<page>`, validates the page name, and supplies template context such as `page_entry="examples"`. This entry point requires only sign-in.
 
 Template and browser wiring are:
 
@@ -15,7 +15,7 @@ Template and browser wiring are:
 3. ExamplesPage also registers five Demo private components: navigation-probe, example-chart, realtime-table, icon-catalog, and feedback-workflow. Ordinary Tabs, Slider, and Alert are already in the shared loader and do not need to be registered as global components.
 4. Both initial visits and Turbo dynamic entry pages mount content through the Page lifecycle; old instances are cleaned up when leaving. The remote Modal insertion content is already dynamically mounted, so do not write another set of scripts to initialize the plug-in for it.
 
-The complete code of these steps can be found in [Front-end Entry and Lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md#demo-的-dashboard-页面入口), and the construction and CSS wiring can be found in [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md). The following `{{ _("...") }}` is a Jinja translation call and needs to be rendered by the backend; it cannot be saved as a browser static HTML. data-example-* is the positioning or private interaction tag of Demo, not the framework component API; the corresponding attributes and consumers must still be retained when copying private interactions.
+See [Front-end Entry and Lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md#demo-的-dashboard-页面入口) for complete entry-point and lifecycle code and [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md) for builds and CSS wiring. `{{ _("...") }}` below is a Jinja translation call requiring backend rendering; do not save it as static browser HTML. data-example-* marks demo locations or private interactions, rather than framework component APIs. Preserve its attributes and consumers when reusing private behavior.
 
 ## Distinguish three capabilities
 
@@ -50,9 +50,9 @@ This Card's Save/Cancel buttons demonstrate appearance and have no save interfac
       </div>
 ```
 
-aria-busy and spinner are static demonstrations here, not sending requests; real requests are managed by the existing loading process of the Form/Action. disabled uses the native button attribute. Check focus with Tab, icon-only buttons retain aria-label or sr-only text.
+Here aria-busy and spinner demonstrate static states; no request is running. Real requests use the existing Form/Action loading flow. disabled is a native button attribute. Check focus with Tab, and retain aria-label or sr-only text on icon-only buttons.
 
-Semantic colors include primary, success, info, warning, and danger; which variants are supported by specific components are subject to the corresponding page and shared style, and non-existent classes are not randomly spliced. Don’t substitute clicks on the entire card for explicit links within it. See `/examples/ui/badges-avatars` for Badge/avatar, and `/examples/ui/progress-loading` for progress and placeholder.
+Semantic colors include primary, success, info, warning, and danger. Check each example and shared styles for supported variants; do not invent class combinations. Use explicit links rather than making an entire Card clickable. See `/examples/ui/badges-avatars` for badges/avatars and `/examples/ui/progress-loading` for progress and placeholders.
 
 ### Usage syntax: which button goes where
 
@@ -71,7 +71,7 @@ The sizes are `om-button` (36px), `om-button-sm` (32px, filter bar and card head
 
 Boolean fields default to switch cards (`SwitchCardWidget`): a 14/500 label and 12px help text on the left, an 18×32 switch on the right, aligned to equal heights when side by side. For checkbox rows or borderless switch rows, pass `widget=CheckboxWidget()` / `widget=SwitchWidget()` to the field. Use layout `FieldGroup` for a heading over Boolean fields.
 
-Badges: `om-badge om-badge-success|info|warning|danger|primary` is a soft badge with 6px dots for status, boolean and role; `om-badge om-badge-default` is a stroked badge for count, label and version. There is only one set of check boxes and radio selections: `om-check` / `om-radio`; the selected state of the table row is derived from the `:checked` of the check box in the row, and no additional class is needed.
+Badges: `om-badge om-badge-success|info|warning|danger|primary` gives soft badges with 6px dots for states, Booleans, and roles. `om-badge om-badge-default` gives outlined badges for counts, tags, and versions. Checkboxes and radio buttons use `om-check` / `om-radio`. Table row selection derives from the row checkbox's `:checked`, without an additional class.
 
 ### Page headers, table cards, and states
 
@@ -87,9 +87,9 @@ On desktop the sidebar collapses to a 48px icon rail. Link-only menu items use `
 
 `page_head` outputs a 22px title, optional 14px description, and right-hand action slot. Breadcrumbs are automatic: after each Turbo frame switch and sidebar highlight update, the top bar builds “Sidebar group › Current menu item › Page title”, merging identical title/menu names. Pages need no extra markup. Special pages needing another record-name level pass `breadcrumbs=[{"label": ..., "href": ...}, ...]`. The macro outputs `<template data-om-breadcrumb>` with the page, and the top bar mirrors this explicit declaration first; pages may also output that `<template>` themselves. List pages follow this order: page header → filter toolbar (`om-filter-toolbar`, rendered by TableFilterForm; a single row by default, with gray prefix labels to the left of controls, search filling remaining width, `advanced=True` fields in a “More filters” panel, and “Reset / Filter” on the right; set `layout_style` to `grid` for labels above many fields) → `om-card om-table-card` (divided header, unpadded body; the table shell toolbar has search, selected count, and bulk actions on the left, with small outlined columns/density/export buttons on the right; fitting tables have headers sticky below the top bar, otherwise horizontal scrolling; empty bodies show an empty-state component with “Reset filters” for filtered no-results; the footer provides pagination). Form pages put forms inside `om-card om-form-card`, with a sticky save/cancel footer.
 
-The footer is `oldman/dashboard/partials/footer.html`, the Dashboard basic template includes it through the `dashboard_footer` block, and the same file is included below the sign-in card; the default output is "© Current Year Oldman" (template global `current_year()`), and the project can replace it with its own copyright information by placing the file with the same path in its own template directory.
+The footer is `oldman/dashboard/partials/footer.html`. The dashboard base template includes it through `dashboard_footer`, and sign-in cards include the same file below. It defaults to “© Current year Oldman” through template global `current_year()`. A same-path override in the project's template directory replaces it with project copyright text.
 
-Use `om-empty` in empty state (can add `om-empty-sm`): `om-empty-icon`, `om-empty-title`, `om-empty-description`, `om-empty-actions`. Skeleton screen uses `om-skeleton` (`om-skeleton-text` / `-title` / `-circle`). To switch the option group, use `om-segmented` (`om-segmented-sm`) plus `om-segment` to select the item label `aria-pressed="true"` or `aria-current="page"`. The statistics card uses `om-stat-card`: `om-stat-label` → `om-stat-value` → `om-stat-meta`, and `om-stat-icon` can be placed in the upper right corner.
+Empty states use `om-empty` (optionally `om-empty-sm`) with `om-empty-icon`, `om-empty-title`, `om-empty-description`, and `om-empty-actions`. Skeletons use `om-skeleton` (`om-skeleton-text` / `-title` / `-circle`). Segmented groups use `om-segmented` (`om-segmented-sm`) and `om-segment`, marking selection with `aria-pressed="true"` or `aria-current="page"`. Statistics cards use `om-stat-card`: `om-stat-label` → `om-stat-value` → `om-stat-meta`, with optional `om-stat-icon` at the top right.
 
 ## Alert: in-page messages
 
@@ -103,7 +103,7 @@ Use `om-empty` in empty state (can add `om-empty-sm`): `om-empty-icon`, `om-empt
       </div>
 ```
 
-Clicking Close only hides the current prompt and issues om:alert:dismiss. It does not write to the database or record that the user has "read". The review entrance here is the Demo business page; when copying it to your own business, you should replace the link and description, and you cannot use a non-existent review address.
+Dismissal only hides the current alert and emits om:alert:dismiss. It neither writes to the database nor records that the user has read it. The review link here opens a demo business page. Replace its link and description in your own application; do not retain a nonexistent review URL.
 
 Static Alert needs no data-om-component; declare alert only for dismiss behavior. Form server messages use Form's dedicated region. Cookie flash messages and persistent notifications have separate storage flows, outside the Alert component.
 
@@ -128,9 +128,9 @@ The first Dropdown on the page is as follows:
         </div>
 ```
 
-The component handles menu switches, external clicks, Escape, and positioning after scrolling/window size changes; do not add additional document click monitoring. Use `om-dropdown-item om-dropdown-item-danger` for dangerous items (`text-danger-600` in the example is the old way of writing), `om-dropdown-label` for group labels, and `om-dropdown-divider` for separators. Right-align and add om-dropdown-menu-end to the menu; the instance exposes toggleOpen(force?) and close().
+The component handles opening/closing, outside clicks, Escape, and repositioning after scroll/resize. Do not add another document click listener. Destructive items use `om-dropdown-item om-dropdown-item-danger` (`text-danger-600` in this example is the older form). Group labels use `om-dropdown-label`; dividers use `om-dropdown-divider`. Add om-dropdown-menu-end to right-align a menu. Instances expose toggleOpen(force?) and close().
 
-Here Edit/Duplicate/Archive is still the menu content style and there is no submission action. When you need to actually edit/delete, refer to [Table and Modal Tutorial](tutorial-dashboard.md). Do not infer that Dropdown will automatically process data according to the button text.
+Here Edit/Duplicate/Archive is still the menu content style and there is no submission action. When you need to actually edit/delete, refer to [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md). Do not infer that Dropdown will automatically process data according to the button text.
 
 ### Tooltip
 
@@ -228,17 +228,17 @@ Accordion/Collapse on the same page uses the browser's native details/summary an
       </details>
 ```
 
-Multiple details of Accordion share a name, and the folding appearance comes from shared CSS such as om-disclosure. The step bar is just a status style; for actual step-by-step filling, field verification and final saving, see `/examples/forms/multi-step`.
+Accordion details share a name. Shared CSS such as om-disclosure supplies their appearance. The step indicator is only a state style; see `/examples/forms/multi-step` for actual multi-step input, validation, and final saving.
 
 ## Form enhancement
 
-Prioritize the [Backend Fields and Widget](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md) to output the DOM, instead of hand-crafting a second set of submission protocols on each page. The field class of Demo is in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), and the general submission is in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py); for the specific source code and library boundaries, see [Form Example Index](demo-examples.md#forms-and-input).
+Let [Backend Fields and Widget](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md) render DOM instead of hand-building a second submission protocol per page. Demo fields are in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), with ordinary submissions in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py). See [Demo page and source index](demo-examples.md#forms-and-input) for actual source and database-write boundaries.
 
 | Need | Backend/frontend capability | Actual page |
 | --- | --- | --- |
 | Normal input, synchronous/asynchronous validation | WTForms field + TailwindForm + form / form-validator | /examples/forms/basics, validation |
 | Date and time, color, number addition and subtraction, input mask | DateTimePickerWidget, ColorPickerField, InputSpinnerWidget, form-mask | /examples/forms/date-time, color-picker, input-spinner, masks |
-| slug and delimiter tag | SlugField / slug-input; TagsField / tags-input; the two cannot be mixed | /examples/forms/slug, tags |
+| slug and delimiter-separated tags | SlugField / slug-input; TagsField / tags-input; do not interchange them | /examples/forms/slug, tags |
 | Fixed option multi-select tags | TagsSelectWidget; still submit the multi-select value list | /examples/forms/tags |
 | Search candidates, pictures and text, continue loading | AjaxSelectField / AjaxSelectMultipleField / AjaxAutocompleteWidget, reuse remote provider | /examples/forms/selects, autocomplete |
 | Variable number of source URLs | JSONListField + form-repeater; the backend encodes a JSON list in Text | /examples/forms/json-list |
@@ -247,7 +247,7 @@ Prioritize the [Backend Fields and Widget](https://github.com/alexliyu7352/oldma
 
 Short names following commas on the same line follow the path prefix of that line. The ordinary field page mainly verifies and displays submission feedback, and does not automatically save a database record; slug, input-spinner, and tags also display the cleaned values. Multi-step projects, JSON list, Logo selection and upload each have real saving paths. Validation currently only displays JSON submissions, and HTML/JSON comparison uses dual-mode pages such as basics.
 
-The front end can dynamically create HTML for the business, but it must go through Page's dynamic component lifecycle. The framework will not automatically generate an unknown form from the backend common schema. It is not mandatory to use enhanced plug-ins when the native input/select can meet the needs.
+Frontend code may create business HTML dynamically, but must use Page's dynamic component lifecycle. The framework does not automatically generate unknown forms from a generic backend schema. Native input/select controls need no enhancement plugin when they already meet the requirement.
 
 ## Slider is a range selection, not Carousel
 
@@ -291,11 +291,11 @@ It is called within the form_cards loop in the same file as the following code, 
         ) }}
 ```
 
-views/forms.py sets example_page=sliders and show_slider=True for this page, creates a SliderExampleForm with prefix=sliders, and provides a card in JSON mode. Therefore, the field name searched for by the macro is sliders-utilization, and the form selector points to example-form-sliders-json; it is not a random selection of the first input on the page. The commit address is `/examples/forms/sliders/submit/json` and the backend still checks for integers and the 0–100 range. After success, the form message and Feedback are displayed. The database is not written, and the cleaned values are not listed like the slug page. Check the passed values to view the bound input and actual request content.
+views/forms.py sets example_page=sliders and show_slider=True, creates SliderExampleForm with prefix=sliders, and supplies a JSON-mode card. The macro therefore looks for sliders-utilization and selects example-form-sliders-json, rather than the first input on the page. The submission URL is `/examples/forms/sliders/submit/json`; the backend still validates integers in the 0–100 range. Success displays Form messages and Feedback without database writes or a cleaned-value listing like the slug page. Inspect the bound input and actual request to verify values.
 
 Dragging updates the bound input. This example adds no listener to move the slider when input is edited manually. For complete business filtering, see the confidence_min/max dual slider in [catalog_channels/index.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/catalog_channels/index.html). It also uses slider and updates the table through table-filter-form; preserve the filter form and backend fields when copying.
 
-Slider is based on noUiSlider, exposing get, set, instance; the event is om:slider:update/change/slide/set. data-om-slider-min-input/max-input is used to bind input, and data-om-slider-form-selector specifies the form to which it belongs. Set data-om-slider-submit-on-change="true" only if automatic submission is explicitly required; the example page does not enable it. Formatting is available with data-om-slider-format-decimals, but backend numeric validation is always retained.
+Slider uses noUiSlider and exposes get, set, and instance. Events are om:slider:update/change/slide/set. data-om-slider-min-input/max-input binds inputs; data-om-slider-form-selector selects their form. Enable data-om-slider-submit-on-change="true" only when automatic submission is required; this page leaves it disabled. data-om-slider-format-decimals controls formatting without removing backend numeric validation.
 
 ### Carousel and Gallery
 
@@ -359,7 +359,7 @@ Use carousel to view images or cards horizontally. The following is the complete
 
 services contains five illustrative records inside the template; throughput does not update live. Carousel manages Swiper touch, keyboard, navigation, pagination, and destruction. slideTo(index, speed=0) uses zero-based indexes.
 
-Gallery `/examples/ui/gallery`'s [gallery.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/gallery.html) combination Gallery + ordinary Modal + Carousel: the data-om-gallery-index of the thumbnail corresponds to the slide serial number, the data-om-modal-target opens the same container, and the gallery switches to the target item after the Modal is opened. The combination and the data-om-gallery-carousel tag are retained when copying, you cannot just copy the thumbnail button. The last item intentionally does not have images, and is used to view fallback; it is not another set of Lightbox, nor is it a web image searcher.
+[gallery.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/gallery.html) at `/examples/ui/gallery` combines Gallery, an ordinary Modal, and Carousel. A thumbnail's data-om-gallery-index selects its slide, data-om-modal-target opens the shared container, and gallery switches to the target after opening. Preserve the combination and data-om-gallery-carousel marker; copying only thumbnail buttons is insufficient. The last item deliberately has no image to demonstrate fallback. This is neither another Lightbox implementation nor a network image search tool.
 
 ## Charts
 
@@ -375,7 +375,7 @@ async def _chart_shell(request: Request, key: str, html_id: str):
     return await chart.render_shell(html_id=html_id, chart_key=key)
 ```
 
-Request comes from oldman.web.request, and ExampleChartData is imported from chart_views in the same App. This class inherits SQLAlchemyChartView and uses TailwindChartRenderer; the view module registers it to `/examples/charts/data/<chart_key>` through as_view(). Ordinary page routing is checked by staff permissions, and then _chart_cards calls this function for each key to generate unique html_id; the auxiliary function cannot be regarded as an installed HTTP route.
+Request comes from oldman.web.request; ExampleChartData comes from the same App's chart_views. It extends SQLAlchemyChartView using TailwindChartRenderer. The view module registers it through as_view() at `/examples/charts/data/<chart_key>`. Ordinary page routes check staff permissions, then _chart_cards calls this helper for each key with a unique html_id. Do not treat the helper itself as an installed HTTP route.
 
 The template outputs each chart in the context containing charts like this. item.chart is the component HTML generated by the above backend renderer:
 
@@ -427,7 +427,7 @@ async def example_feedback_default(request: Request):
     )
 ```
 
-`router` comes from oldman.web, Request comes from oldman.web.request, login_required comes from oldman.web.auth; api_response comes from oldman.web.response, DefaultApiResponse/FeedbackAction comes from oldman.web.api, _ is gettext_lazy. The button requests the interface through the public data-om-action, and the response action is executed by the Runner of the current Page; when the target is not filled in, the existing Dashboard Page Feedback is used.
+`router` comes from oldman.web, Request from oldman.web.request, and login_required from oldman.web.auth. api_response comes from oldman.web.response; DefaultApiResponse/FeedbackAction come from oldman.web.api; _ is gettext_lazy. The button calls the endpoint through public data-om-action, then the current Page's Runner executes response actions. Omitting target uses existing Dashboard Page Feedback.
 
 Another button request on the same page is `/examples/messages/feedback/target`. The backend action explicitly specifies target="#example-target-feedback", mode=FeedbackMode.ALERT, and the template also declares the target component:
 
@@ -435,20 +435,20 @@ Another button request on the same page is `/examples/messages/feedback/target`.
       <div id="example-target-feedback" data-om-component="feedback"></div>
 ```
 
-Copy actions together with target DOM. A selector does not automatically create an instance. Other buttons return message-only, message + feedback action, and nonzero error_code, matching three actual endpoints in the same file. See the [Response reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) for message fallback and action order.
+Copy actions together with target DOM. Selectors do not create instances automatically. The other three endpoints in this file return message-only, message + feedback action, and nonzero error_code. See [Response reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) for message fallback and action order.
 
-toast uses Toastify, multiple messages can appear at the same time; alert/confirm/prompt uses SweetAlert2. Simply displaying the toast does not generate notification center records. When the confirmation result determines whether the business continues, the Page should call confirm or process a private action. A feedback action that does not need to return the selection result cannot be regarded as a confirmation protocol.
+Toasts use Toastify and may appear together; alert/confirm/prompt use SweetAlert2. A toast does not create a notification-center record. When confirmation determines whether work continues, Page should call confirm or handle a private action. Do not treat a display-only feedback action without a choice result as a confirmation protocol.
 
 ### Confirmation and input: modify real projects
 
-First follow [Complete Demo Preparation Steps](demo-examples.md) to migrate, load fixtures, start the Web and sign in. Open "Confirm changes to a real project" in `/examples/messages/feedback`:
+First follow [Demo page and source index](demo-examples.md) to migrate, load fixtures, start the Web and sign in. Open "Confirm changes to a real project" in `/examples/messages/feedback`:
 
 1. Select an item and click "Move to review". Canceling the dialog box does not send a POST; only confirming will save the status of this project as `review`. The saved ID, name, status, and success prompt are displayed below.
 2. Submit the same project that is already under review again, and the server returns a business error; there are no new modifications and no successful actions. Buttons and loading masks are restored, and you can continue working.
 3. Click “Rename project”. The prompt starts with the selected name. Whitespace-only input or a trimmed length over 150 characters displays an input error. Cancel sends no request; confirmation triggers server validation again and saves the trimmed name, **without changing slug**. The result also updates selection text, so reopening the prompt shows the new name.
 4. Open the Demo path `/examples/tables/json`, and you can see the modifications to the same database record; this is actual operation, not a static demonstration of just "save successfully". The test will change the demo data. Do not try it on a real business database.
 
-The page code is in [feedback-workflow.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/components/examples/feedback-workflow.ts), which is loaded on demand by the `feedback-workflow` loader of [ExamplesPage](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/examples.ts). Corresponding to the native parameter form statement `data-om-component="feedback-workflow"`, it is not an ordinary Form component; the button `type="button"`, the native submit is blocked to avoid bypassing confirmation. The full template and server POST are in the source link earlier in this section.
+[feedback-workflow.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/components/examples/feedback-workflow.ts) supplies the page code, loaded on demand by [ExamplesPage](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/pages/examples.ts)'s `feedback-workflow` loader. Its native parameter form declares `data-om-component="feedback-workflow"`; it is not an ordinary Form component. Buttons use `type="button"`, and native submit is prevented to avoid bypassing confirmation. Links above provide the full template and server POST handlers.
 
 After confirmation, the component is submitted through the existing `runAction(form, {params, signal})`, using the existing local Preloader, reusing CSRF, shared HTTP errors and ordered response actions. The result HTML and Feedback are returned only after the database transaction exits successfully. Project names are escaped properly in result templates and user input is not treated as HTML.
 
@@ -471,12 +471,12 @@ Other capabilities can be viewed further from these real pages:
 | language-switcher | Shell language menu and /examples/i18n/browser, use the existing language translation catalog, do not automatically generate translation |
 | back-to-top, history-back, preloader | Return to top, history back and loading presentation; enabled by existing page wiring, does not require all pages to add placeholder components |
 
-Corresponding to [UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Complete Page Index](demo-examples.md), other layouts, pictures, Timeline, system status, etc. are displayed. For the complete library address, adding steps, generation commands and visual variables of the icons, see [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标). The currently used icons are not regarded as the entire icon library.
+[UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Demo page and source index](demo-examples.md) cover other typography, images, timelines, and system states. See [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标) for complete icon catalogs, addition steps, generation commands, and visual variables. Icons currently in use are only a subset of the library.
 
 ## How to check wiring
 
-In the Demo, first open the page directly, then enter it dynamically from the sidebar, and finally leave and return. Operate according to the actual purpose of the component: menu switch/Escape, Tabs keyboard and disabled items, slider submission and out-of-bounds verification, Carousel navigation, chart failure/empty data, whether Feedback is repeated; do not just look at whether there are attributes in the source code.
+In the demo, open a page directly, enter it through sidebar navigation, then leave and return. Exercise each component's actual purpose: menu toggle/Escape, Tabs keyboard navigation and disabled tabs, slider submission and range validation, Carousel navigation, chart failure/empty states, and duplicate Feedback. Source attributes alone do not verify behavior.
 
-If you encounter "no effect", check the resource loading, Page entry, loader of the Page, DOM structure, request address and response format in order. The static presentation button originally has no business request; interactive mounting failure and backend data error should also be distinguished. Do not copy the plug-in, add a global listener or modify the shared lifecycle to fill the single page wiring first.
+If an interaction does nothing, check assets, Page entry point, its loader, DOM structure, request URL, and response format in that order. Static demonstration buttons intentionally make no business requests. Distinguish mount failures from backend data errors. Do not begin by copying plugins, adding global listeners, or changing shared lifecycles to repair one page.
 
 <!-- source: zh/users/components.md @ db5eb607 -->

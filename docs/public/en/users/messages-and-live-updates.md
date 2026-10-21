@@ -1,12 +1,12 @@
-# User Messages and Realtime Updates
+# User messages and realtime updates
 
 Don't put all messages in the notification center. The choice depends on whether the user still needs to find it later, not on whether it looks like a toast or page text.
 
-First follow [Running the EPG demo](getting-started.md) to prepare configuration, migrations, fixtures, an account, and the frontend, then sign in to your own demo. These pages already exist; no separate reporting service is needed for this chapter. See the [Messages reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/messages.md) for source and backend calls.
+First follow [Run EPG Dashboard Demo](getting-started.md) to prepare configuration, migrations, fixtures, an account, and the frontend, then sign in to your own demo. These pages already exist; no separate reporting service is needed for this chapter. See the [Messages reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/messages.md) for source and backend calls.
 
 ## Redirect after saving: flash messages
 
-Enable `web.messages.enabled`, call `messages.success(request, "保存完成")` after business success, then return a 303 redirect. Shared dashboard pages display messages automatically. Ordinary templates explicitly include `oldman/messages/flash_message.html` or iterate over `messages` themselves.
+Enable `web.messages.enabled`, call `messages.success(request, "Saved")` after business success, then return a 303 redirect. Shared dashboard pages display messages automatically. Ordinary templates explicitly include `oldman/messages/flash_message.html` or iterate over `messages` themselves.
 
 You can add multiple messages and render them all at once. They use signed Cookies, without Redis or a sign-in requirement. Capacity is limited, concurrent responses may overwrite them, and delivery is not acknowledged. Do not use them for long reports or important records. See [Page messages](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/messages.md#cookie-页面消息) for HTML, translation, and consumption rules.
 

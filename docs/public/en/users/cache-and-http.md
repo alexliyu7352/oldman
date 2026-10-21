@@ -1,18 +1,18 @@
-# Cache Examples and External HTTP
+# Cache examples and external HTTP
 
-Caching reduces repeated calculations; the backend HTTP Client accesses the upstream system; the Redis/NATS provider provides specific infrastructure. They do not replace database records that must be retained long-term.
+Caching reduces repeated computation; the backend HTTP Client calls upstream systems; Redis/NATS providers supply specific infrastructure. None replaces database records that need long-term persistence.
 
 ## What the demo currently uses
 
 The EPG demo's configuration, services, and Apps already integrate Redis Session, SSE, and user notifications. The realtime chart publishing entry point is in [views/charts.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/charts.py). It publishes through SSEPublisher, without business code directly operating Pub/Sub.
 
-The actual page of the general cache is `/examples/cache/redis`. Statistics are generated from the real project table, and then Redis is used to save short-term snapshots. The following can be operated directly in the Demo; it is not a Session or SSE cache.
+The general cache page is `/examples/cache/redis`. It derives statistics from actual projects and stores a short-lived snapshot in Redis. You can operate it directly in the demo as described below; it is not a Session or SSE cache.
 
-The backend HTTP page is `/examples/http/client`: Python requests the configured upstream, and the browser displays diagnostics. The browser HTTP Client is not the backend MultiHttpClient. Background NATS events/RPC have a separate [Communication tutorial](service-communication.md), outside this page's HTTP protocol.
+The backend HTTP page is `/examples/http/client`: Python requests the configured upstream, and the browser displays diagnostics. The browser HTTP Client is not the backend MultiHttpClient. Background NATS events/RPC have a separate [Let running services communicate with each other](service-communication.md), outside this page's HTTP protocol.
 
 ## Run project statistics cache example
 
-First follow [Running the demo](getting-started.md) to initialize, migrate, import the `demo` fixture, and create a staff account. The public [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) contains:
+First follow [Run EPG Dashboard Demo](getting-started.md) to initialize, migrate, import the `demo` fixture, and create a staff account. The public [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) contains:
 
 ```yaml
 redis:
@@ -51,7 +51,7 @@ The cache object does not own Redis's shared pool; do not close it after every r
 
 ## Observe in-memory cache and two-level cache
 
-The database configuration is the same as the previous Redis statistics page, but there is no need to sign in, build the front end, or start the web. After CACHE Redis has been configured and the migration is completed, run in the Demo root directory:
+Use the same database settings as the Redis statistics page above. No sign-in, frontend build, or running Web service is needed. Once CACHE Redis and migrations are ready, run in the demo root:
 
 ```bash
 ./run.sh web cache-levels
@@ -59,11 +59,11 @@ The database configuration is the same as the previous Redis statistics page, bu
 
 The App command will load the web configuration; if NATS/Taskiq is enabled, you must still prepare the corresponding facilities, or turn them off in your own test YAML. This example itself only requires the database and Redis, and does not start the Worker/Scheduler.
 
-The command automatically completes a limited demonstration:
+The command performs a finite demonstration automatically:
 
-1. Calculate statistics from the real project table and store them in the MemoryCache of this process; read the hits immediately and wait for a short TTL before disappearing.
+1. Compute statistics from actual projects and store them in this process's MemoryCache. Read immediately to observe a hit, then wait for a short TTL to expire.
 2. Create TwoLevelCache and save memory and Redis snapshots at the same time.
-3. A real child process recalculates and updates Redis. Its new MemoryCache is empty, and the old memory of the parent process will not be updated accordingly. Output the real computation time of `before/shared_updated` and `local_stale=true`, not fake item number changes.
+3. A real child process recomputes statistics and updates Redis. Its new MemoryCache starts empty, while the parent's existing memory remains unchanged. Output shows actual `before/shared_updated` computation times and `local_stale=true`, without fabricating changes in project counts.
 4. Deleting the local copy of the parent process and reading again will backfill the new value from Redis; then actually observe two levels of expiration and explicit deletion.
 5. Clean up this run's random namespace, memory timers, and both processes' connections without changing business data. Redis unavailability makes the command fail, without reporting false hits.
 
@@ -87,13 +87,13 @@ The command actually checks Django writes read by Oldman and the reverse: projec
 
 The source code is [django_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/django_cache.py). The command only reads the business database, only writes random keys and deletes them in finally, and never calls Django.clear (which will clear Redis DB). Both parties close their own connections; the framework's default cache encoding is not changed.
 
-Interop scope is the same Redis DB, Django default empty KEY_PREFIX, VERSION=1 and default codec. Custom prefixes, versions, KEY_FUNCTION or other Redis backends are not automatically adapted. Pickle can only read data written by trusted services; this command does not prove that any external Redis is safe. [Django Redis Configuration](https://docs.djangoproject.com/en/5.2/topics/cache/#redis) and [Framework Exact Contract](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#django-缓存互操作) describe the boundaries.
+Interoperability requires the same Redis DB, Django's default empty KEY_PREFIX, VERSION=1, and default codec. Custom prefixes, versions, KEY_FUNCTION, or other Redis backends are not adapted automatically. Read Pickle data only from trusted services; this command does not establish that arbitrary external Redis data is safe. See [Django Redis Configuration](https://docs.djangoproject.com/en/5.2/topics/cache/#redis) and [Framework Exact Contract](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#django-缓存互操作) for exact boundaries.
 
 ## Observe the real files of the image cache
 
-To run `./run.sh web image-cache`, only the current CACHE Redis is required; there is no need to query business tables, import images, or start the website. The App command itself still loads the selected service configuration and enabled facilities.
+Run `./run.sh web image-cache` with the current CACHE Redis. It does not query business tables, require imported images, or start a website. The App command still loads the selected service's settings and enabled infrastructure.
 
-Source code [image_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/image_cache.py) generates a 64×64 PNG of its own in the memory and hands the bytes to ImageCache. The result shows the Storage logical name and the actual WebP size (default 30% scaling, this image is 19×19). It doesn't tell the framework to download the image from the URL; `demo:first` is just a cache identifier.
+[image_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/image_cache.py) generates its own 64×64 PNG in memory and passes the bytes to ImageCache. Results show the Storage logical name and actual WebP dimensions (30% scaling by default, producing 19×19 here). The framework does not download an image from a URL; `demo:first` is just a cache identifier.
 
 The command checks original image bytes, WebP readability, and expiry extension on hits. After 1-second expiry, reads miss while the old file temporarily remains; the next write cleans up expired files. A deliberately corrupt image logs WebP conversion failed, but the current API preserves original bytes and returns only original. This demonstrates actual partial failure, rather than failure of the whole command. The cache is not an upload image validator.
 
@@ -101,7 +101,7 @@ Once all five checks output true, the command deletes its random Redis set and `
 
 ## Observe function results and the entire HTTP response cache
 
-After you have the database and CACHE Redis, run `./run.sh web cached-stats`. The real source code [cache_functions.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_functions.py) decorates the same statistical query with `cache_async_response(timeout=1, prefix=本次随机值)` in the command. Output first, cache_hit, after_expiry: The first two calculation times are exactly the same, the third time changes after waiting 1.1 seconds. The command reads only the database, finally deletes its prefix key, closes the database and Redis; there is no need to start the website first.
+With the database and CACHE Redis ready, run `./run.sh web cached-stats`. [cache_functions.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_functions.py) decorates the same statistics query inside the command with `cache_async_response(timeout=1, prefix=<random-per-run>)`. Output includes first, cache_hit, and after_expiry: the first two have identical computation times; the third changes after a 1.1-second wait. The command only reads the database. In finally it deletes keys under its own prefix and closes the database and Redis. No website needs to start first.
 
 Another example on the web page is in the "HTTP response cache" section below `/examples/cache/redis`. It caches the entire response, not the 30 second statistic above:
 
@@ -124,21 +124,21 @@ Model caching stores database rows per model and query, invalidating automatical
 3. Click “Rename a task of another project (ORM)” and read this project again: it still hits. The query fixes `project_id`, so only writes to this project's tasks invalidate it.
 4. Click “Rename its first task with an UPDATE statement” and read again: it still hits, with the old title. Bulk statements do not trigger ORM events, so the cache cannot see them. Click “Invalidate the task cache” and read: a miss now shows `(SQL)`. Production code writing this way must call `ExampleTask.invalidate_cache_on_commit(session)` in the same transaction, as the demo Worker task `complete_example_task` does.
 5. Click “Rename the project (ORM)” and read: a miss. The database cascades task deletion from projects and project deletion from teams (two levels of `ON DELETE CASCADE`). The cache can only learn this from project/team writes, so any update or deletion of either invalidates all task queries once.
-6. Click "Restore example data" to remove the mark added by the above operation. The ORM is also used for recovery, and the relevant cache becomes invalid.
+6. Click “Restore example data” to remove markers added by these operations. Restoration also uses ORM, invalidating the relevant cache.
 
 Concurrent staff operations may mix another user's reads into statistics deltas, displaying “Source unknown”. See the [Developer Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#模型缓存) for read/write rules, boundaries, and measured timings.
 
 ## When caching is needed
 
 - To share recalculable results among multiple workers, use [RedisCache/redis_cache](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md).
-- To cache database rows and query results and hope to automatically invalidate them after writing, use [Model Cache](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#模型缓存).
-- Only temporary results for this process can be used with MemoryCache; it does not provide cross-process Session or permission invalidation.
-- Use independent namespace and limited TTL to express data ownership and staleness; shared Redis cannot be cleared to reset an example.
-- The cache is updated or invalidated after the database modification is successful, and it does not claim that the two systems can commit atomically.
-- Whether a cache failure degrades is determined by the business; it cannot swallow real database or calculation errors.
-- For Django cache interoperability, see [Cache Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md). Its key/codec/TTL rules cannot be confused with the native Oldman Cache.
+- Use [Model Cache](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#模型缓存) to cache database rows and query results with automatic invalidation after writes.
+- Use MemoryCache for temporary results within one process. It provides neither cross-process sessions nor permission invalidation.
+- Use separate namespaces and finite TTLs to express ownership and acceptable staleness. Do not clear shared Redis to reset an example.
+- Update or invalidate caches after database changes succeed. Do not claim atomic commits across the two systems.
+- Business code decides whether to fall back after cache failure. Do not swallow actual database or computation errors.
+- See [Cache Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md) for Django cache interoperability. Do not confuse its key/codec/TTL rules with native Oldman Cache rules.
 
-Specific contracts for configuring operations with hits, expiration, None/False/0, multiprocessing, and resource shutdown are in the reference page. The CACHE connection is used to cache examples and does not change the original database query process of Table; TwoLevelCache is an independent CLI example and cannot be regarded as having access to all pages.
+The reference defines configuration, hits, expiry, None/False/0, multiple processes, and resource cleanup. CACHE serves the caching examples without changing Table's existing database queries. TwoLevelCache is a separate CLI example; do not assume it is integrated into every page.
 
 ## Running the backend HTTP example
 
@@ -152,19 +152,19 @@ app_settings:
     http_base_url: https://httpbin.org
 ```
 
-This is an excerpt of existing YAML and does not overwrite the entire app_settings. If the old configuration does not have this item, the default value of ExamplesSettings will be used, which can be completed by `./run.sh web settings sync`. When you need to build your own environment, change it to an httpbin-compatible instance deployed by yourself, and then restart the service; the base address can have a path prefix, but cannot have an account, password, query parameter or fragment.
+This excerpt belongs within the existing YAML; do not replace all app_settings with it. Older configuration without this setting uses ExamplesSettings defaults; `./run.sh web settings sync` fills it in. To use your own environment, set an httpbin-compatible instance you deploy, then restart. The base URL may include a path prefix but must not contain credentials, query parameters, or a fragment.
 
-Only by clicking the button can the upstream be accessed; page loading, service startup, and sidebar switching will not automatically request the external network. The public upstream will see the server exit address, Demo User-Agent, and fixed parameters, and will not receive browser sign in cookies, user input, or project database records. Public services may be unavailable, throttled, or return delayed requests early, and TLS verification cannot be turned off accordingly.
+Only button clicks call the upstream. Loading pages, starting services, and switching sidebar pages do not make external requests automatically. The public upstream sees the server's egress address, demo User-Agent, and fixed parameters, without browser sign-in Cookies, user input, or project records. Public services may be unavailable, rate-limit requests, or return delayed requests early. Do not disable TLS verification in response.
 
 Follow this sequence:
 
 1. Click "Read JSON". Python requests `/get` and carries fixed `example=oldman-epg-dashboard` parameters. The results area shows the actual HTTP status, Content-Type, elapsed time, and upstream JSON; not a set of demo numbers pre-populated by the page.
 2. Click "Observe upstream 404". The results should clearly show the upstream 404 and failure status. The Demo page is still retained and does not jump to the Demo 404 page.
 3. Click "Observe timeout". The upstream interface request is delayed for 10 seconds. In this example, the entire operation waits for about 5 seconds at most without retrying. If the upstream returns early, it should display the actual result returned; if it is indeed delayed, it should display a timeout, and it can still be operated after loading.
-4. Click "Read byte stream". Requests 65536 bytes; Python counts and calculates SHA-256 chunk by chunk, displaying the actual byte count and summary when finished. Files are not saved and browser progress is not sent over SSE. Exceeding the 1 MiB limit in this example turns off the response and does not give a false full summary.
+4. Click “Read byte stream” to request 65536 bytes. Python counts chunks and computes SHA-256, then displays the actual byte count and digest. It saves no file and sends no browser progress over SSE. Exceeding this example's 1 MiB limit closes the response without reporting a false complete digest.
 5. Read the JSON again to confirm that the previous error did not render the client unavailable. This page can be accessed from the cache page or other pages through the sidebar and checks that the same buttons still work.
 
-There are two layers of HTTP here, which cannot be confused: the browser requests Demo, and Demo then requests the upstream. Demo returns HTTP 200 and replace_html action, indicating that the diagnosis results are sent back successfully; the upstream 404, timeout, and connection failure in the result panel are still failures and do not become successes. Failure of sign in, insufficient permissions, CSRF failure, or Demo's own program exception will still be handled by the existing authentication/shared error process.
+There are two HTTP layers: the browser requests the demo, then the demo requests the upstream. Demo HTTP 200 with a replace_html action means diagnostics were delivered, not that an upstream 404, timeout, or connection failure succeeded. Authentication, permission, and CSRF failures, plus demo programming errors, still use existing authentication/shared error handling.
 
 ### Source code and resource ownership
 
@@ -188,10 +188,10 @@ Use [MultiHttpClient](https://github.com/alexliyu7352/oldman/blob/main/docs/publ
 
 - One-time commands use their own invocation lifecycle, eventually releasing the client.
 - The long-running service reuses the connection pool and does not close the global client at the end of each request.
-- Parsing the body after checking the HTTP status according to the upstream contract, exceptions cannot be converted to false success or empty objects.
+- Check HTTP status according to the upstream contract before parsing the body. Do not turn exceptions into false success or empty objects.
 - Write requests such as POST are not retried by default due to network failure; they may have been processed by the other party, and the business needs to clarify idempotent rules.
-- URLs, authentication, proxies, and TLS come from a trusted configuration and do not treat any user-submitted URL as a secure upstream.
-- Large files use streaming responses with existing Storage, without first unbounded reading into memory.
+- Take URLs, authentication, proxies, and TLS from trusted settings. Do not treat arbitrary user-submitted URLs as safe upstreams.
+- Use streaming responses and existing Storage for large files; do not read unbounded data into memory first.
 
 When the backend receives the business error code in JSON, it is interpreted by the backend business and is not handed over to the browser ResponseActionRunner.
 
@@ -199,6 +199,6 @@ When the backend receives the business error code in JSON, it is interpreted by 
 
 The [Provider reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md) explains named Redis connections, Pub/Sub, and NATS publishing/RPC. Worker control messages, browser user messages, and external infrastructure have different boundaries; do not wrap them in one ambiguous MessageBus.
 
-When supplementing the Demo, you should provide the real source, visible results, a failure path, and exit cleanup respectively; do not use a "fake upstream" that returns a fixed dictionary to pretend to complete the network wiring. For currently available operable pages, see [Demo Example Index](demo-examples.md).
+When adding demo coverage, provide an actual source, visible results, a failure path, and shutdown cleanup for each scenario. A fake upstream returning a fixed dictionary does not verify network wiring. See [Demo page and source index](demo-examples.md) for existing interactive pages.
 
 <!-- source: zh/users/cache-and-http.md @ db5eb607 -->

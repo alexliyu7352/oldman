@@ -11,10 +11,10 @@ Use Linux, Python 3.12 to 3.14 (3.13 recommended), uv, Node.js 20 or later, and 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python and dependency management
 # Install Node.js 20 or later using your distribution or nvm, then enable the bundled corepack:
-corepack enable                                          # Provide pnpm, the version is specified by the packageManager of the warehouse package.json
+corepack enable                                          # Provide pnpm, the version is specified by the packageManager of the repository package.json
 ```
 
-You also need an accessible Redis. The default example enables Taskiq and Core communication, so NATS with JetStream enabled is required too; see [Preparing communication](service-communication.md#1-prepare-and-start-the-demo). Actual dependencies are declared in the demo's [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) and [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json). This documentation does not maintain a second version list.
+You also need an accessible Redis. The default example enables Taskiq and Core communication, so NATS with JetStream enabled is required too; see [Let running services communicate with each other](service-communication.md#1-prepare-and-start-the-demo). Actual dependencies are declared in the demo's [pyproject.toml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/pyproject.toml) and [frontend/package.json](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/package.json). This documentation does not maintain a second version list.
 
 If you do not have the demo yet, clone it from the directory where you want to keep the project:
 
@@ -24,7 +24,7 @@ cd oldman_epg_dashboard
 python3 scripts/bootstrap.py
 ```
 
-When this repository already exists, enter the existing directory and run bootstrap without cloning again. Unless otherwise specified, subsequent commands are executed in the**Demo root directory**and not in the framework source code directory.
+When this repository already exists, enter the existing directory and run bootstrap without cloning again. Unless otherwise specified, subsequent commands are executed in the **Demo root directory** and not in the framework source code directory.
 
 [bootstrap.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/scripts/bootstrap.py) has two actual installation paths:
 
@@ -70,7 +70,7 @@ redis:
     redis_url: redis://127.0.0.1:6379/6
 ```
 
-SQLite saves business data, Redis' SESSION connection saves sessions, and SSE connection is used for realtime delivery. The complete example also includes CACHE (statistics cache), TASKIQ (task result/plan) aliases, and the framework's built-in DEFAULT alias (one each for Redis and NATS, use it for calls without specifying an alias); check each item according to your own environment, and you cannot only modify the two addresses extracted in this section. Demo will not start or manage external Redis for users. The demo commands/buttons modify their respective explicitly stated cache keys and do not clear the entire instance. When sharing Redis, set a different `core.namespace` for each environment (the first segment of all Redis keys and channels in this service, take `core.app_name` if not set), and check the Taskiq namespace; Pub/Sub is not isolated by Redis database number, and independent verification gives priority to using exclusive instances.
+SQLite stores business data. Redis SESSION stores sessions, while SSE provides realtime delivery. The complete example also includes CACHE for statistics, TASKIQ for task results/schedules, and framework DEFAULT aliases (one for Redis and one for NATS, used when no alias is specified). Check every connection for your environment; do not change only the two addresses excerpted above. The demo does not start or manage external Redis. Commands/buttons modify only their documented keys, without clearing an instance. With shared Redis, use a different `core.namespace` per environment (the first segment of this service's Redis keys/channels, falling back to `core.app_name`) and check the Taskiq namespace. Redis database numbers do not isolate Pub/Sub; prefer a dedicated instance for independent verification.
 
 ## 2. Create tables, then import data
 
@@ -86,7 +86,7 @@ Run in the order of Demo README:
 - `loaddata demo` reads `apps/examples/fixtures/demo.json`, imports examples and real records of EPG business pages.
 - `createsuperuser` comes from the Auth App (`oldman.auth`). Enter your account and password interactively. Do not assume a default account or password exists.
 
-Existing databases should not be regenerated for the initial migration. Repeatedly importing a fixture will update specified fields with the same primary key, potentially overwriting your edits to the default record; it is not a "just fill in missing data" operation. See [Data Tutorial](tutorial-tasks.md) for details.
+Do not regenerate initial migrations for an existing database. Reimporting fixtures updates specified fields for the same primary keys and may overwrite edits to preset records; it does not only fill missing data. See [Real demo data, migrations, and queries](tutorial-tasks.md).
 
 ## 3. Build and start
 
@@ -96,7 +96,7 @@ pnpm --dir frontend build
 ./run.sh web start
 ```
 
-The pre-steps of frontend build already include icon collection and browser translation generation; static collect collects frameworks and static resources of installed apps. The production mode web service reads the build manifest and does not connect to Vite.
+Frontend build prerequisites already collect icons and generate browser translations. static collect gathers static assets from the framework and installed Apps. Production Web reads the build manifest without connecting to Vite.
 
 Open [http://127.0.0.1:17997/](http://127.0.0.1:17997/). If signed out, you reach the sign-in page; sign in with the account you just created. Then open:
 
@@ -147,6 +147,6 @@ The template is at `templates/pages/examples/`, not `templates/examples/`. The f
 | CSRF 403 on an old page submission | Refresh to obtain a new token; do not disable CSRF |
 | Page displays but interactions do not respond | Inspect script requests, Console, and the current Page; an HTML 200 response alone is insufficient |
 
-Next read [Real Data and Migration](tutorial-tasks.md), then read [Tables and Modal Forms](tutorial-dashboard.md). For other pages and source codes that have implemented functions, see [Demo Example Index](demo-examples.md).
+Next read [Real demo data, migrations, and queries](tutorial-tasks.md), then read [Demo HTML/JSON tables and Modal forms](tutorial-dashboard.md). For other pages and source codes that have implemented functions, see [Demo page and source index](demo-examples.md).
 
 <!-- source: zh/users/getting-started.md @ 6a3c1971 -->

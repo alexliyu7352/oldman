@@ -6,7 +6,7 @@ Distinguish three capabilities: NATS/FastStream provides online events and RPC b
 
 ## 1. Prepare and start the Demo
 
-The working directory is an independent `oldman_epg_dashboard`, not the framework source code directory. See [Quick Start](getting-started.md) for complete installation. The following are the actual steps related to this example in its README.
+The working directory is an independent `oldman_epg_dashboard`, not the framework source code directory. See [Run EPG Dashboard Demo](getting-started.md) for complete installation. The following are the actual steps related to this example in its README.
 
 ```sh
 python3 scripts/bootstrap.py

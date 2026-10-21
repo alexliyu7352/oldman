@@ -13,7 +13,7 @@ This chapter deploys applications built with Oldman, rather than running the fra
 
 Use the application's own Python environment and lock files, installing an Oldman version matching the documentation. Editable source is suitable for development. For production, prefer verified release artifacts with fixed versions; symlinks to development directories are not a deployment strategy.
 
-The EPG demo's installer is `python3 scripts/bootstrap.py`; see [Getting started](getting-started.md) for its local-source and published-package paths. The current demo commits neither uv.lock nor frontend pnpm-lock.yaml, so a frozen installation cannot be run directly and claimed to lock deployment dependencies. Pin and verify dependencies in the application's release process, rather than upgrading them ad hoc on a production host to bypass failures.
+The EPG demo's installer is `python3 scripts/bootstrap.py`; see [Run EPG Dashboard Demo](getting-started.md) for its local-source and published-package paths. The current demo commits neither uv.lock nor frontend pnpm-lock.yaml, so a frozen installation cannot be run directly and claimed to lock deployment dependencies. Pin and verify dependencies in the application's release process, rather than upgrading them ad hoc on a production host to bypass failures.
 
 These two commands are **installation interfaces after the application prepares and commits the corresponding lock files**, rather than steps already supported by the current demo:
 
@@ -24,7 +24,7 @@ pnpm -C frontend install --frozen-lockfile
 
 Pure API or background applications need no frontend installation. Source-linked development projects without a pinned release source must finish dependency release preparation first; do not run these commands directly to switch dependency sources.
 
-When the new environment does not have actual YAML, initialize it from the reviewed `.example.yaml` with the same name, then edit the real connection and key, check and then start. Use sync when you need to add new fields to the existing YAML; back it up first and then check the differences. You cannot use init to overwrite it.
+In a new environment without YAML, initialize from a reviewed same-name `.example.yaml`, edit real connections and keys, then check before starting. Use sync to add fields to existing YAML. Back up and inspect differences first; do not overwrite it with init.
 
 ```sh
 ./run.sh web settings init
@@ -51,7 +51,7 @@ web:
     cookie_samesite: Lax
 ```
 
-This is a fragment that is merged into the existing configuration, and the domain name must be replaced; other fields such as session.enabled and Redis cannot be deleted. Do not enable Secure Cookie under HTTP on the development machine and then misjudge that sign in is invalid.
+Merge this excerpt into existing configuration and replace the domain. Do not remove other fields such as session.enabled or Redis settings. On a development machine using HTTP, do not enable Secure Cookies and then mistake the resulting behavior for failed sign-in.
 
 ## Databases and static resources
 
@@ -86,7 +86,7 @@ This is a foreground process. `run.sh` selects the project environment and passe
 
 In an ordinary terminal, use Ctrl+C. When launched by a script, the service takes foreground control only if stdin is a terminal, so Ctrl+C reaches it; this applies when the script runs it directly without redirecting input. With `&` or redirected input (`< /dev/null`, a pipe, or `nohup`), the script retains terminal control and you must use `stop`. From another terminal, `./run.sh web stop` first verifies `pids/web.identity.json` beside `pids/web.pid`, signals the main process to terminate, and waits for the entire process group, including Sanic workers and processes created during shutdown, to exit before returning and printing the main PID. If the group remains after `process.stop_timeout` (60 seconds by default), it receives SIGKILL. `restart` performs this stop before starting again.
 
-Running state comes from the PID file lock. The lock is released however the process ends, including `kill -9` or power loss. A leftover PID file does not block startup, and PID reuse does not cause an unrelated process to be stopped. The identity record is replaced as a whole. If it cannot be read (for example, after manual corruption or disk failure), `stop` removes it as stale when no instance holds the lock and treats the service as stopped. If an instance is running, `stop` sends no signal, reports an error, and provides the main PID for manual termination. Forked children close inherited locks (the framework's own children already use spawn), ensuring release after main process exit. If the main process is killed while its children survive, both `start` and `stop` list those processes and refuse to proceed. Terminate them first with `kill -TERM -<进程组号>`. Children moved into their own process groups through `setsid` or `setpgid` are outside the service group; `stop` neither waits for nor terminates them, so the service must handle them on exit. Do not delete a running service's PID file to force a fix: `start` still detects the running service and refuses to start. Use `stop` as usual; it finds the service through the identity record.
+Running state comes from the PID file lock. The lock is released however the process ends, including `kill -9` or power loss. A leftover PID file does not block startup, and PID reuse does not cause an unrelated process to be stopped. The identity record is replaced as a whole. If it cannot be read (for example, after manual corruption or disk failure), `stop` removes it as stale when no instance holds the lock and treats the service as stopped. If an instance is running, `stop` sends no signal, reports an error, and provides the main PID for manual termination. Forked children close inherited locks (the framework's own children already use spawn), ensuring release after main process exit. If the main process is killed while its children survive, both `start` and `stop` list those processes and refuse to proceed. Terminate them first with `kill -TERM -<process-group-id>`. Children moved into their own process groups through `setsid` or `setpgid` are outside the service group; `stop` neither waits for nor terminates them, so the service must handle them on exit. Do not delete a running service's PID file to force a fix: `start` still detects the running service and refuses to start. Use `stop` as usual; it finds the service through the identity record.
 
 When the service runs as a container's entry process (PID 1), let the container stop/restart it. `docker stop` and `docker restart` send SIGTERM, and the service exits normally. Running `stop`/`restart` inside the container is rejected without sending signals, because signaling process group 1 would affect every process in the container.
 
@@ -96,7 +96,7 @@ In production, a system process manager can supervise the same foreground comman
 
 ## Distributed task service
 
-See [Task deployment and shutdown](distributed-tasks.md#7-stopping-troubleshooting-and-scope) for Taskiq Worker/Scheduler. Run each with its own foreground command, with one Scheduler per namespace. Multiple Worker services can consume the same or different queues. JetStream file storage and Redis dynamic schedules need persistence policies; results expire automatically after 24 hours by default. Like ordinary services, Taskiq stop waits and then force-stops the entire verified process group after the total deadline (`taskiq.stop_timeout`); no second kill command is needed. systemd is an optional outer supervisor. Stop through it to prevent its Restart policy from starting the service again.
+See [Distributed background tasks](distributed-tasks.md#7-stopping-troubleshooting-and-scope) for Taskiq Worker/Scheduler. Run each with its own foreground command, with one Scheduler per namespace. Multiple Worker services can consume the same or different queues. JetStream file storage and Redis dynamic schedules need persistence policies; results expire automatically after 24 hours by default. Like ordinary services, Taskiq stop waits and then force-stops the entire verified process group after the total deadline (`taskiq.stop_timeout`); no second kill command is needed. systemd is an optional outer supervisor. Stop through it to prevent its Restart policy from starting the service again.
 
 ## Reverse proxies and long-lived connections
 
@@ -108,7 +108,7 @@ See [Task deployment and shutdown](distributed-tasks.md#7-stopping-troubleshooti
 
 The framework will not automatically verify your public network boundaries against a proxy sample. Before going online, verify sign in, cookies, uploads, and SSE/WS from the actual external network path, not just curl the loopback address on the server.
 
-## Shutdown Responsibility and Failure Observation
+## Shutdown responsibilities and failure observation
 
 Resources are cleaned up by the service that owns them. The framework closes process-shared caches, Redis, and database engines on shutdown. The demo's WebService closes its HTTP example client in `after_server_stop()`. Cleanup runs in awaitable service lifecycle hooks, without destroying process-level pools after every request. SimpleApplication has its own before_stop/after_stop. Do not rely on the framework guessing how to close HTTP/NATS connections, scheduled tasks, or subscriptions. See [HTTP client](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/http-client.md#创建初始化关闭), [Lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/applications.md), and [Background reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) for actual methods and relationships.
 

@@ -24,7 +24,7 @@ pnpm --dir frontend build
 
 init reads the demo's example YAML to create local configuration. Skip init if web_settings.yaml already exists; do not overwrite it. Follow the migration prompts to check first use or existing state. createsuperuser creates your own account using hidden password input; do not put passwords in command arguments or Git.
 
-Open [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin), rather than EPG's 17997. The example sets `web.domain` to `http://127.0.0.1:17999`, which builds links in password reset emails. Change it together with `web.listen_port` when changing ports or deploying to a domain. Use `./run.sh web changepassword <用户名>` to change passwords, replacing the placeholder with the username you created.
+Open [http://127.0.0.1:17999/admin](http://127.0.0.1:17999/admin), rather than EPG's 17997. The example sets `web.domain` to `http://127.0.0.1:17999`, which builds links in password reset emails. Change it together with `web.listen_port` when changing ports or deploying to a domain. Use `./run.sh web changepassword <username>` to change passwords, replacing the placeholder with the username you created.
 
 bootstrap selects local source or a release package in the same way as EPG: it links directly to source when a sibling oldman_framwork or oldman source directory exists; otherwise, it uses the release package in the manifest. Do not install either demo into the framework's own environment.
 
@@ -58,7 +58,7 @@ This model therefore requires a superuser. The site setting `require_superuser: 
 
 The first-level menu uses the App's display_name/icon, and the second-level menu uses the model display name; modifying the display text does not change the database table name and URL identifier.
 
-## 3. Registering an app does not mean installing the site
+## 3. Registering an App does not install the site
 
 The service YAML installs oldman.auth, oldman.apps.admin, the notifications App, and apps.demo. After models enter the Registry, Admin still needs explicit site wiring.
 
@@ -94,9 +94,9 @@ The original site installation in the same method:
         )
 ```
 
-This is not a standalone fragment: app comes from runtime_app, local_frontend is the source debugging switch for this Demo, ADMIN_EXTENSION_BUNDLE is a constant from the service module; the full build of StaticBundleRegistry is still in the same init method. Don't just copy the last call and miss the previous resource registration.
+This excerpt is not standalone: app comes from runtime_app, local_frontend is the demo's source-debugging switch, and ADMIN_EXTENSION_BUNDLE is a service-module constant. The complete StaticBundleRegistry build remains in the same init method. Do not copy only the last call and omit earlier asset registration.
 
-Both the framework and this Demo use global settings and the App's own strongly typed settings, and do not copy the configuration in app.ctx; the necessary prerequisites for install_admin are the loaded service/App configuration and site registration, not another settings object.
+Both the framework and demo use global settings and strongly typed App settings, without copying configuration to app.ctx. install_admin requires loaded service/App settings and registered site models, rather than another settings object.
 
 install_admin wires shared templates, CSRF, assets, and routes. Installing the Admin App, registering models, and installing the site are separate steps. The existence of a model file does not automatically authorize it to appear in the admin menu.
 
@@ -110,7 +110,7 @@ Production mode reads the built manifest. To debug local source, stop the produc
 python3 scripts/dev.py
 ```
 
-The Demo script manages the web with two Vite services: the built-in Admin uses 5173, and the Demo extension uses 5174. It does not change the semantics of run.sh. When resource loading fails, check [frontend build configuration](https://github.com/alexliyu7352/oldman-admin-demo/tree/main/frontend), static collection and service bundle, and do not copy the hashed script address to the template.
+The demo script manages Web and two Vite servers: port 5173 for the built-in Admin and 5174 for demo extensions. It does not change run.sh semantics. If assets fail to load, check [frontend build configuration](https://github.com/alexliyu7352/oldman-admin-demo/tree/main/frontend), static collection, and service bundles. Do not copy hashed script URLs into templates.
 
 ## 5. Practical inspection
 
@@ -124,19 +124,19 @@ Sign in with the superuser you created and operate one of your own projects:
 - Accessing protected pages after signing out should require sign in.
 - CSRF 403 appears after leaving the page for a long time. You should refresh to obtain a new token; do not disable CSRF.
 
-See [ModelAdmin Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/admin.md#modeladmin) when you need to customize forms, columns, save rules, or permissions. The project template is overwritten by the template of the same name in settings.web.template.dir, and the installation package resources are not directly modified. Use extension bundle for additional icons and CSS, do not create a separate Admin Form/Modal.
+See [ModelAdmin Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/admin.md#modeladmin) for custom forms, columns, save rules, and permissions. Override packaged templates with same-path files in settings.web.template.dir; do not edit installed package assets. Add icons and CSS through an extension bundle, without another Admin Form/Modal implementation.
 
 ## 6. Retrieve password
 
 Use “Forgot password?” at the lower right of the sign-in card to open `/admin/password-reset`. The flow matches Django:
 
 1. Enter your account email and submit. The page always opens “Check your email”, whether an account exists or not, without revealing account existence. If an active account exists, its inbox receives an email with a link.
-2. Open the email link (`web.domain` plus `/admin/password-reset/<用户标识>/<token>`), set a new password, and confirm it. Rules match Admin password changes: 8 to 128 characters, including both letters and digits.
+2. Open the email link (`web.domain` plus `/admin/password-reset/<user-id>/<token>`), set a new password, and confirm it. Rules match Admin password changes: 8 to 128 characters, including both letters and digits.
 3. After the change, all of that user's sign-in sessions in other browsers are invalidated, and the page asks them to sign in with the new password.
 
 Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [Configuration](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#app-settings).
 
-When developing locally, the default email backend is console, and the email and link will be printed in the service log; for actual sending of emails, you need to configure `mail.backend` as smtp, see [Mail](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mail.md).
+Local development defaults to the console mail backend, which prints emails and links in service logs. For actual delivery, configure `mail.backend` as smtp; see [Mail](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mail.md).
 
 ## FAQ
 
@@ -151,6 +151,6 @@ When developing locally, the default email backend is console, and the email and
 | New database has no preset projects | Migrate, then explicitly run web loaddata demo; startup does not create demo data |
 | Name conflict during import | Check existing same-name records and fixture primary keys; do not clear the database or merge by name automatically |
 
-Read [Deployment and operations](deployment.md) before deployment. Being able to run the demo does not mean production security configuration is complete.
+Read [Deployment and Operations](deployment.md) before deployment. Being able to run the demo does not mean production security configuration is complete.
 
 <!-- source: zh/users/admin.md @ 25b7ec11 -->
