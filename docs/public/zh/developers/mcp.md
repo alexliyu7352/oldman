@@ -24,7 +24,7 @@ class WebService(WebApplication):
 
 ## 在 App 里声明
 
-`./run.sh startapp <name>` 选 `mcp` 模板，生成只有 `apps.py`、`permissions.py`、`mcp.py` 的 App。`mcp.py` 里有两个示例工具（一个对所有放行的调用方开放，一个只给持有本 App 权限的用户——API key 没有权限，只看得到前者）、一个 resource 和一个 prompt。已有的 App 直接加一个 `mcp.py`：
+`./run.sh startapp <name>` 选 `mcp` 模板，生成只有 `apps.py`、`permissions.py`、`mcp.py` 的 App。`mcp.py` 里有两个示例工具（一个对所有放行的调用方开放，一个只给持有本 App 权限的用户——API key 没有权限，只看得到前者）、一个 resource 和一个 prompt。`startapp` 不改服务的 App 清单：要把 `apps.<name>` 加进服务设置（`data/<服务>_settings.yaml`）的 `apps`，否则 `install_mcp` 不加载它，启动日志里提供的工具数不含它的。已有的 App 直接加一个 `mcp.py`：
 
 ```python
 from oldman.db import db_manager
