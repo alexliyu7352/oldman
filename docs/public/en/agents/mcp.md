@@ -42,7 +42,7 @@ In `data/<service>_settings.yaml` under `web:`. Set `web.mcp.enabled: true`: whi
 could call.
 
 - Signed-in users: list `jwt` in `web.auth.authenticators` and set `web.auth.jwt.secret`. Clients send
-  `Authorization: Bearer <access token>`; tokens come from a `TokenFlow` route (`docs/public/zh/developers/web.md`).
+  `Authorization: Bearer <access token>`; tokens come from a `TokenFlow` route (`docs/public/en/developers/web.md`).
 - Programs: list `api_key` in `web.auth.authenticators`, define the key under `web.auth.api_keys`, and put its name in
   `web.mcp.callers`. Clients send `X-API-Key: <key>`. A key not named in `web.mcp.callers` gets 403.
 - Session cookies, HTTP Basic and IP allowlists are always refused on this route (a browser sends them by itself).
@@ -94,7 +94,7 @@ async def weekly_summary(week: str) -> str:
   models in one return type, and do not use a Struct as a parameter type.
 - `permission=` hides the item from, and refuses it to, users without that permission. API-key callers and anonymous
   callers have no permissions: give them only items without `permission=`. Declare permissions in `permissions.py`
-  (`docs/public/zh/developers/permissions.md`).
+  (`docs/public/en/developers/permissions.md`).
 - Tool names: up to 128 of `A-Z a-z 0-9 _ - .`; names, resource URIs and prompt names must be unique across all Apps.
 - Prompt parameters must be `str`. Resource URI variables are simple `{name}` placeholders, one per function parameter.
 

@@ -6,7 +6,7 @@ This dashboard includes a real database and sign-in, rather than a minimal API r
 
 ## Operating environment and installation
 
-Use Linux, Python 3.12 to 3.14 (3.13 recommended), uv, Node.js 20 or later, and pnpm. When enabling `core.debug`, note that uvloop (unfixed in both 0.22.1 and 0.23.0) may raise errors or segfault while collecting unclosed async generators in asyncio debug mode ([uvloop#699](https://github.com/MagicStack/uvloop/issues/699), [uvloop#715](https://github.com/MagicStack/uvloop/issues/715)). This requires both debug mode and an unclosed async generator in the code; see the [Configuration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#web-默认值与开关). The default, with debugging disabled, is unaffected. `bootstrap.py` calls `uv` and `pnpm` directly; both must already be on PATH:
+Use Linux, Python 3.12 to 3.14 (3.13 recommended), uv, Node.js 20 or later, and pnpm. When enabling `core.debug`, note that uvloop (unfixed in both 0.22.1 and 0.23.0) may raise errors or segfault while collecting unclosed async generators in asyncio debug mode ([uvloop#699](https://github.com/MagicStack/uvloop/issues/699), [uvloop#715](https://github.com/MagicStack/uvloop/issues/715)). This requires both debug mode and an unclosed async generator in the code; see the [Configuration reference](../developers/configuration.md#web-defaults-and-switches). The default, with debugging disabled, is unaffected. `bootstrap.py` calls `uv` and `pnpm` directly; both must already be on PATH:
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh          # uv: Python and dependency management

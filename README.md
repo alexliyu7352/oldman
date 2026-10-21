@@ -17,12 +17,12 @@ The built-in Admin and business dashboards share components, styles, and respons
 
 ## Where to start
 
-- [User Guide](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/README.md): installation, project creation, and practical usage.
-- [Developer Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/README.md): exact interfaces, loading order, and extension methods.
-- [Agent Guide](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md): choose files by task, complete wiring, and verify results.
+- [User guide](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/README.md): installation, project creation, and practical usage.
+- [Developer reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/README.md): exact interfaces, loading order, and extension methods.
+- [Agent guide: application development](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md): choose files by task, complete wiring, and verify results.
 - [Oldman documentation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/README.md): find documentation by question.
 
-Start by [running the EPG Dashboard demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md), then follow its [real data](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-tasks.md) and [tables and Modal Forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md). Tutorials use actual demo code and specify source files, working directories, configuration, and expected results. See the [Demo page and source index](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/demo-examples.md) for more pages.
+Start by [Run EPG Dashboard Demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md), then follow its [Real demo data, migrations, and queries](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-tasks.md) and [Demo HTML/JSON tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md). Tutorials use actual demo code and specify source files, working directories, configuration, and expected results. See the [Demo page and source index](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/demo-examples.md) for more pages.
 
 ## The shortest path to a project
 
@@ -50,7 +50,7 @@ uv sync
 
 Generated projects include `.python-version` (3.13). `uv sync` selects that interpreter and downloads it if missing locally. The service includes three example endpoints: `/` is an unauthenticated health check; `/api/caller` and `/api/ops` demonstrate API key and HTTP Basic authentication. See the generated project's README for credentials and example commands. For API wiring, see [Creating a service](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md). To explore complete business pages directly, run the demo above.
 
-`run.sh` passes arguments unchanged to `oldman` in the project's `.venv`. It does not select a service, migrate databases, or start the frontend for you. `./run.sh api start` has the same meaning as `oldman api start` in the same virtual environment. These commands create an empty project; they are not demo startup instructions. See [Operating environment and installation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md#operating-environment-and-installation) for the demo's separate installation and debugging.
+`run.sh` passes arguments unchanged to `oldman` in the project's `.venv`. It does not select a service, migrate databases, or start the frontend for you. `./run.sh api start` has the same meaning as `oldman api start` in the same virtual environment. These commands create an empty project; they are not demo startup instructions. See [Run EPG Dashboard Demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/getting-started.md#operating-environment-and-installation) for the demo's separate installation and debugging.
 
 ## What the framework provides
 
@@ -63,7 +63,7 @@ Generated projects include `.python-version` (3.13). `uv sync` selects that inte
 
 Ordinary APIs do not require the frontend package. Install `oldman-web` and its declared dependencies when you need the shared dashboard UI. Default browser assets for the built-in Admin ship with the Python package.
 
-The current runtime target is Linux. Supported Python versions are `>=3.12,<3.15`, with 3.13 recommended. Known limitation: with `core.debug` enabled (asyncio debug mode), uvloop (unfixed in 0.22.1 and 0.23.0) may raise errors or segfault while collecting unclosed async generators ([uvloop#699](https://github.com/MagicStack/uvloop/issues/699), [uvloop#715](https://github.com/MagicStack/uvloop/issues/715)). This requires both debug mode and an unclosed async generator; changing Python versions does not avoid it. See the [Configuration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#web-默认值与开关). Production with the default debugging disabled is unaffected. Dashboard projects and both demos also require Node.js 20 or later and pnpm (`corepack enable` enables it). The SQLite driver ships with the Python package; declare MySQL/PostgreSQL drivers according to project needs. Redis connection settings alone do not cause connections at startup; a reachable service is needed when the corresponding capability is enabled or called.
+The current runtime target is Linux. Supported Python versions are `>=3.12,<3.15`, with 3.13 recommended. Known limitation: with `core.debug` enabled (asyncio debug mode), uvloop (unfixed in 0.22.1 and 0.23.0) may raise errors or segfault while collecting unclosed async generators ([uvloop#699](https://github.com/MagicStack/uvloop/issues/699), [uvloop#715](https://github.com/MagicStack/uvloop/issues/715)). This requires both debug mode and an unclosed async generator; changing Python versions does not avoid it. See the [Configuration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/developers/configuration.md#web-defaults-and-switches). Production with the default debugging disabled is unaffected. Dashboard projects and both demos also require Node.js 20 or later and pnpm (`corepack enable` enables it). The SQLite driver ships with the Python package; declare MySQL/PostgreSQL drivers according to project needs. Redis connection settings alone do not cause connections at startup; a reachable service is needed when the corresponding capability is enabled or called.
 
 ## Complete examples
 

@@ -106,7 +106,7 @@ The demo's /media URL displays its own test files. It is not a private download 
 7. Delete the record you created and check that the non-referenced files corresponding to the two fields are processed.
 8. Saving oversized files or unsupported extensions should fail. Check browser and backend restrictions separately.
 
-After a transaction ends, the framework checks file references before processing deletion candidates. Do not delete old files before database commit or duplicate this cleanup in demo forms. See [File Lifecycle Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md#模型文件的替换与删除) for raw SQL, bulk operations, concurrency, and exclusive-file constraints. This example does not establish an atomic transaction spanning the filesystem and database.
+After a transaction ends, the framework checks file references before processing deletion candidates. Do not delete old files before database commit or duplicate this cleanup in demo forms. See [File storage](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md#模型文件的替换与删除) for raw SQL, bulk operations, concurrency, and exclusive-file constraints. This example does not establish an atomic transaction spanning the filesystem and database.
 
 ## 6. Use Storage API directly
 
@@ -116,6 +116,6 @@ Save → Saving under the same name produces another name → Explicit overwrite
 
 The function owns these demonstration files and cleans them up in finally. It neither scans the entire media directory nor acts as a production file cleanup task. Returned names and read contents come from actual calls, rather than fixed “call successful” placeholders.
 
-Fixture exports contain database fields only. File columns remain logical names; files are not copied. Before importing file-column fixtures elsewhere, prepare matching storage contents and understand that replacement can trigger cleanup. See [Fixture Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/fixtures.md).
+Fixture exports contain database fields only. File columns remain logical names; files are not copied. Before importing file-column fixtures elsewhere, prepare matching storage contents and understand that replacement can trigger cleanup. See [JSON fixtures](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/fixtures.md).
 
 <!-- source: zh/users/data-and-files.md @ d2d7dd40 -->

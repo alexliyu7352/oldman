@@ -32,7 +32,7 @@ Demo enables `nats_bus` and `taskiq` by default. The existing asynchronous comma
 
 Safely test argument failure with `./run.sh web project-stats --team-id 0`: it should report an invalid argument and exit 2, rather than display zero projects. A nonexistent team explicitly fails with exit 1; only an existing team with no projects displays zero and succeeds. Missing migrations or failed database connections also fail without silently creating tables. Do not delete a database in use to test failure.
 
-The source code is [commands.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/commands.py), and the model is shared with the web page [ExampleProject/ExampleTeam](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py). For registration and complete code description, please see [CLI reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cli.md#自定义-app-命令). Special inspection is in [test_examples_commands.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/tests/test_examples_commands.py). The test uses its own temporary database.
+The source code is [commands.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/commands.py), and the model is shared with the web page [ExampleProject/ExampleTeam](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/models.py). For registration and complete code description, please see [CLI reference](../developers/cli.md#custom-app-commands). Special inspection is in [test_examples_commands.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/tests/test_examples_commands.py). The test uses its own temporary database.
 
 ### Other terminal examples
 
@@ -65,7 +65,7 @@ For the complete operation sequence, shared data boundaries and failure prompts,
 
 `/examples/config/redis` demonstrates `RedisStore` and `RedisSet`. `SiteFlags` is stored as a whole at `<core.namespace>:store:example_site_flags`, and every read accesses Redis: after “Write the banner from another instance”, the next read sees it. `update()` rejects “Try to save text into the number field”, writing nothing and showing validation errors. The device list below is a Redis set: add, remove, membership, and random selection each use one set command; membership does not read the whole list. The example uses CACHE because the demo has no DEFAULT alias. Production runtime settings should use Redis without key eviction.
 
-Both pages require sign in and submit with CSRF. The source codes are [dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py), [views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) and [config template directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/config); for interface description, see [Developer Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#运行期可变配置).
+Both pages require sign in and submit with CSRF. The source codes are [dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py), [views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) and [config template directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/config); for interface description, see [Configuration reference](../developers/configuration.md#mutable-runtime-configuration).
 
 ## Backend HTTP
 
@@ -166,7 +166,7 @@ The specific HTML of the UI is in [templates/pages/examples/ui/](https://github.
 - Visual foundations: `/examples/ui/foundations`, `typography`, `buttons`, `badges-avatars`, `cards`, `lists`.
 - Status and content: `/examples/ui/alerts`, `progress-loading`, `timeline`, `images`, `system-states`.
 - Interaction: `/examples/ui/carousel`, `tabs-disclosure`, `dropdowns-overlays`, `countdown`, `gallery`, `video`, `navigation-shell`.
-- Icons: `/examples/ui/icons`, with source [icons.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/icons.html). See the [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标) for library links, usage, and collection rules. The page does not bundle every library icon into production CSS.
+- Icons: `/examples/ui/icons`, with source [icons.html](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/templates/pages/examples/ui/icons.html). See the [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标) for library links, usage, and collection rules. The page does not bundle every library icon into production CSS.
 - Plug-in index: `/examples/plugins`, not `/examples/plugins/index`.
 
 The short names in the same line above all use the `/examples/ui/` prefix at the beginning. These pages are used to validate shared components and visuals; static cards/buttons should not add database writes or shell components just to be "displayable".

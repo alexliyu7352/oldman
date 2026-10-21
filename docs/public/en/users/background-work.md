@@ -93,17 +93,17 @@ All three paths close the manager, reap the Worker, close the parent database, a
 
 - Asynchronous sampling of the same process: no additional processes or message middleware required.
 - CPU-intensive synchronous Python computation: use `AsyncProcessManager`; each call has concurrency and timeout limits.
-- External commands: pass an executable and argument list, rather than constructing shell strings. Use controlled `run_subprocess_exec` for unattended execution (Web services, taskiq workers, automated tasks). Use `run_foreground` when a person must answer in the terminal (`sudo` asking for a password); see [External commands](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md#外部命令).
+- External commands: pass an executable and argument list, rather than constructing shell strings. Use controlled `run_subprocess_exec` for unattended execution (Web services, taskiq workers, automated tasks). Use `run_foreground` when a person must answer in the terminal (`sudo` asking for a password); see [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md#外部命令).
 - Multiple long-lived Workers: use `BaseManager`. It sends only start/stop instructions and does not store reliable task results.
 - Durable asynchronous function queues, results, and schedules: use [Distributed background tasks](distributed-tasks.md).
 - Publishing or RPC between independent servers: Use NATS instead of exposing the Worker internal Queue to business services.
 
-See [Process and Task Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) for complete runnable examples, object origins, limitations, and shutdown methods. Computation examples without databases can run in a separate directory with Oldman installed. Workers depending on business Apps need the corresponding service configuration.
+See [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) for complete runnable examples, object origins, limitations, and shutdown methods. Computation examples without databases can run in a separate directory with Oldman installed. Workers depending on business Apps need the corresponding service configuration.
 
 ## Handle failure and shutdown
 
 Task timeout or Worker shutdown does not undo business writes. Database writes still follow their own transaction management, and external calls may already have succeeded. Applications requiring idempotency define their own operation identifiers.
 
-Use `try/finally` to close process managers, HTTP/NATS clients, and database pools you create. End tasks first, close connections they may still use next, and close logging last. Use `get_logger(__name__)` for ordinary business logging, without reinitializing logging for each task. See the [Logging reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/logging.md).
+Use `try/finally` to close process managers, HTTP/NATS clients, and database pools you create. End tasks first, close connections they may still use next, and close logging last. Use `get_logger(__name__)` for ordinary business logging, without reinitializing logging for each task. See the [Logging](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/logging.md).
 
 <!-- source: zh/users/background-work.md @ 8c13fdcf -->

@@ -1,7 +1,7 @@
 # Agent guide: services, Apps and API endpoints
 
 Use this guide to add an API endpoint (usually backed by a table) to an Oldman project, or to create the project itself.
-Paths such as `docs/public/zh/developers/cli.md` are relative to the framework repository, which in a generated project
+Paths such as `docs/public/en/developers/cli.md` are relative to the framework repository, which in a generated project
 is your `.oldman-docs/` clone. Before using any `oldman` import, look it up in the [API index](../api/README.md).
 
 ## The common path: an endpoint backed by a table
@@ -167,7 +167,7 @@ uv sync
 ```
 
 Project types are `cli`, `service`, `api`, `web`, `dashboard`; databases are `none`, `sqlite`, `mysql`, `postgres`
-(`dashboard` needs one). The full table of preset answers is in `docs/public/zh/developers/cli.md`. A new
+(`dashboard` needs one). The full table of preset answers is in `docs/public/en/developers/cli.md`. A new
 service has no business routes yet: `/` answers 404. If uv itself is missing, the user installs it
 (`curl -LsSf https://astral.sh/uv/install.sh | sh`); do not run installers on their machine without asking.
 
@@ -211,7 +211,7 @@ Work that continues after a request returns, and work that must survive a restar
 
 Commands live in an installed App's `commands.py` and are listed in its `__all__`; the App's display name groups them
 in `--help`, and they run as `./run.sh <service> <command>`. The full contract is in
-`docs/public/zh/developers/cli.md` (section "自定义 App 命令"). The EPG Demo's `ProjectStats`
+`docs/public/en/developers/cli.md` (section "Custom App commands"). The EPG Demo's `ProjectStats`
 (`apps/examples/commands.py`, run as `./run.sh web project-stats [--team-id 1]`) shows the shape:
 
 - The entry point is `async handle()`. Options are validated with `typing.Annotated` and `typer.Option`
@@ -250,5 +250,5 @@ are a dashboard's wiring: a plain API service does not need its session, Redis o
 5. Every process you started is stopped with the project's stop command; nothing of the user's is stopped.
 
 `AppNotInstalledError` or "settings are not configured" means the load order is wrong; see
-`docs/public/zh/developers/applications.md` (section "实际加载顺序"). Do not add default-settings fallbacks, aliases
+`docs/public/en/developers/applications.md` (section "Actual loading order"). Do not add default-settings fallbacks, aliases
 or resets to get past it.

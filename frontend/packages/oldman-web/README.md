@@ -119,7 +119,7 @@ The Python CLI manages project-wide POT/PO/MO. Dashboard scaffold build scripts 
 
 ## Full documentation
 
-[Demo HTML/JSON tables and Modal Forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md) · [Dashboard UI and interactive components](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/components.md) · [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [Response protocol](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
+[Demo HTML/JSON tables and Modal forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md) · [Dashboard UI and interactive components](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/components.md) · [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [Response protocol](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
 
 The release includes dist, icon and translation CLIs, type declarations, README, and LICENSE. Applications build their own entry points; backend built-in Admin assets do not replace business frontend builds.
 

@@ -136,7 +136,7 @@ nats_bus:
 - The default codec is msgpack; when msgspec_json is selected, both communicating parties will change it together and restart. Both send bytes directly without generating a JSON string.
 - namespace is a name that isolates different projects/environments and cannot replace server ACLs. The source peer_id is also not an identity credential.
 
-When enabled, Application connects inside the actual asynchronous process; business code does not start/stop it for each page. Receiving handlers start only after business startup hooks finish. Shutdown ends receiving before closing database and other dependencies. See [Interfaces and lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#shellide-与独立连接) for explicit contexts in scripts and Shell.
+When enabled, Application connects inside the actual asynchronous process; business code does not start/stop it for each page. Receiving handlers start only after business startup hooks finish. Shutdown ends receiving before closing database and other dependencies. See [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#shellide-与独立连接) for explicit contexts in scripts and Shell.
 
 ## 5. Call RPC from Taskiq task
 
@@ -179,6 +179,6 @@ When stopping normally, first stop new task delivery, then let the Worker finish
 ./run.sh web stop
 ```
 
-If you also ran a Scheduler, stop it first with `./run.sh task_scheduler stop`. Do not clear an entire NATS or Redis instance to stop the demo. Handlers normally have 10 seconds to finish, followed by cooperative cancellation and waiting for finally. This does not guarantee forced termination of arbitrary blocking work within 10 seconds. See the [Developer Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#停止失败与保证范围) for native TLS failure cleanup and measured dependency limits.
+If you also ran a Scheduler, stop it first with `./run.sh task_scheduler stop`. Do not clear an entire NATS or Redis instance to stop the demo. Handlers normally have 10 seconds to finish, followed by cooperative cancellation and waiting for finally. This does not guarantee forced termination of arbitrary blocking work within 10 seconds. See the [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#停止失败与保证范围) for native TLS failure cleanup and measured dependency limits.
 
 <!-- source: zh/users/service-communication.md @ db5eb607 -->
