@@ -139,5 +139,17 @@
   },
   "home.meta.description": {
     "message": "Oldman 是后端渲染优先的 Python 应用框架，适合构建 Dashboard、管理后台、Web/API 服务和后台任务服务。"
+  },
+  "notFound.title": {
+    "message": "页面不存在"
+  },
+  "notFound.text": {
+    "message": "这个地址上没有页面，可能是地址写错了，也可能页面挪了位置；顶部的搜索框可以搜全部页面。"
+  },
+  "notFound.docs": {
+    "message": "打开文档"
+  },
+  "notFound.api": {
+    "message": "打开 API 参考"
   }
 }
