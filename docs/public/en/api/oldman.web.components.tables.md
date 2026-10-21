@@ -317,7 +317,7 @@ Members:
 - `def template_name(name: str) -> str` — 返回当前 renderer 使用的模板路径。
 - `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None) -> Markup` — 渲染表格外壳。
 - `async def render_empty_state(*, filtered: bool) -> Markup` — Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything.
-- `async def render_empty_templates() -> Markup` — Both empty-state variants as <template> elements for the JSON mode, which builds rows in the browser.
+- `async def render_empty_templates() -> Markup` — Both empty-state variants as &lt;template&gt; elements for the JSON mode, which builds rows in the browser.
 - `async def render_toolbar(*, show_search: bool=True, bulk_actions_html: Markup | str | None=None) -> Markup` — Render the table toolbar; empty output when nothing would appear in it.
 - `def toolbar_tools() -> list[str]` — Return the enabled toolbar tools in declared order.
 - `def export_formats() -> list[str]` — Return the declared export formats as lowercase names.

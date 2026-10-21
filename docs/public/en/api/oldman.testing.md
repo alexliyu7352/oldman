@@ -215,7 +215,7 @@ function · defined in `oldman.testing.process_tree`
 def linux_process_table() -> dict[int, tuple[int, int, int, str]]
 ```
 
-Return PID -> (PPID, process group, start time, state) from procfs.
+Return PID -&gt; (PPID, process group, start time, state) from procfs.
 
 ## `minimal_environment`
 

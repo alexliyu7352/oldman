@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 import sys
 from dataclasses import dataclass
 from functools import cache
@@ -33,6 +34,8 @@ OUTPUT = Path("docs/public/en/api")
 SKIPPED_DIRECTORIES = frozenset({"scaffolds", "migrations", "locales", "static", "templates"})
 GENERATOR = "scripts/api_index.py"
 VALUE_LIMIT = 100
+#: A Markdown code span: a run of backticks, then text, then the same run.
+CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 
 
 @dataclass(frozen=True)
@@ -203,7 +206,27 @@ def resolve(root: Path, module: str, name: str) -> tuple[str, ast.AST | ThirdPar
 def first_line(text: str | None) -> str:
     if not text:
         return ""
-    return text.strip().splitlines()[0].strip()
+    return prose(text.strip().splitlines()[0].strip())
+
+
+def prose(text: str) -> str:
+    """Escape angle brackets outside code spans, so a summary's ``<template>`` reads as text.
+
+    Pages are Markdown, and outside a code span a ``<tag>`` is an HTML element: GitHub drops it, and the
+    documentation site renders it and fails (a ``<template>`` crashed its static build). Inside backticks
+    Markdown shows the characters as written, so code spans are left alone.
+    """
+    parts: list[str] = []
+    end = 0
+    for span in CODE_SPAN.finditer(text):
+        parts += [_escape_angles(text[end : span.start()]), span.group(0)]
+        end = span.end()
+    parts.append(_escape_angles(text[end:]))
+    return "".join(parts)
+
+
+def _escape_angles(text: str) -> str:
+    return text.replace("<", "&lt;").replace(">", "&gt;")
 
 
 def comment_summary(root: Path, module: str, node: ast.AST) -> str:

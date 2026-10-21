@@ -178,6 +178,16 @@ class ResolverTest(unittest.TestCase):
         self.assertEqual(("module", "Small helpers."), (entries["helpers"].kind, entries["helpers"].summary))
         self.assertEqual("lazy attribute", entries["registry"].kind)
 
+    def test_angle_brackets_in_a_summary_are_text_except_inside_code(self) -> None:
+        """A summary's <template> would be an HTML element on the page; the documentation site failed to build on one."""
+        write(self.root, "oldman/shop/helpers.py", '"""Rows as <template> elements -> HTML; ``a < b`` and `<li>` stay code."""\n')
+        api_index.parse.cache_clear()
+
+        summary = self.entries()["helpers"].summary
+
+        self.assertEqual("Rows as &lt;template&gt; elements -&gt; HTML; ``a < b`` and `<li>` stay code.", summary)
+        self.assertIn(summary, api_index.render(self.root)[api_index.OUTPUT / "oldman.shop.md"])
+
     def test_a_name_in_all_without_a_definition_fails(self) -> None:
         write(self.root, "oldman/shop/services.py", "from ._impl import refund\n")
         api_index.parse.cache_clear()
