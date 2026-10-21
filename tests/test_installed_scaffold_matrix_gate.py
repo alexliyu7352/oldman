@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import importlib.util
 import io
@@ -397,6 +398,8 @@ snapshots:
 
         self.assertIn('"startproject", name)', source)
         self.assertIn('"startapp", "matrix_probe"', source)
+        self.assertIn('"startapp", MCP_APP)', source)
+        self.assertIn('"OLDMAN_ANSWER_STARTAPP_TEMPLATE": "mcp"', source)
         self.assertIn('"startservice", "matrix_worker"', source)
         self.assertIn('service_name, "settings", "sync"', source)
         self.assertIn('"db", "history"', source)
@@ -948,6 +951,88 @@ esac
         self.assertTrue(errors(admin=False))
         self.assertTrue(errors(admin=True, page=welcome.replace(b'lang="en"', b'lang="zh"')))
         self.assertTrue(errors(admin=True, page=welcome.replace(b'<a href="/admin">Sign in to the Admin</a>', b"")))
+
+    def mcp_answers(self, **changes):
+        """What the generated MCP App answers the generated API key; `changes` replaces single answers."""
+        result = {"structuredContent": {"app": "matrix_mcp", "status": "ok"}, "isError": False}
+        answers = {
+            ("ping", None): (401, {"error": "Authentication required"}),
+            ("initialize", "the-key"): (200, {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-11-25"}}),
+            ("tools/list", "the-key"): (200, {"jsonrpc": "2.0", "id": 1, "result": {"tools": [{"name": "matrix_mcp_status"}]}}),
+            ("tools/call 2025-11-25", "the-key"): (200, {"jsonrpc": "2.0", "id": 1, "result": result}),
+            ("tools/call 2026-07-28", "the-key"): (200, {"jsonrpc": "2.0", "id": 1, "result": result}),
+        }
+        answers.update(changes.get("answers", {}))
+        sent = []
+
+        def post(body, headers):
+            method = body["method"]
+            label = f"tools/call {headers.get('MCP-Protocol-Version')}" if method == "tools/call" else method
+            sent.append((label, dict(headers), body))
+            return answers[(label, headers.get("X-API-Key"))]
+
+        return self.gate.mcp_http_errors(post=post, key="the-key"), sent
+
+    def test_the_mcp_check_wants_the_api_key_to_see_one_tool_answered_in_both_eras(self) -> None:
+        errors, sent = self.mcp_answers()
+        self.assertEqual([], errors)
+        modern = next((headers, body) for label, headers, body in sent if label == "tools/call 2026-07-28")
+        self.assertEqual(("tools/call", "matrix_mcp_status"), (modern[0]["Mcp-Method"], modern[0]["Mcp-Name"]))
+        self.assertEqual("2026-07-28", modern[1]["params"]["_meta"]["io.modelcontextprotocol/protocolVersion"])
+        failed = (401, {"error": "Authentication required"})
+        both_tools = [{"name": "matrix_mcp_status"}, {"name": "matrix_mcp_whoami"}]
+        right_but_failing = {"structuredContent": {"app": "matrix_mcp", "status": "ok"}, "isError": True}
+        for label, answers in (
+            ("open endpoint", {("ping", None): (200, {"jsonrpc": "2.0", "id": 1, "result": {}})}),
+            ("another version agreed", {("initialize", "the-key"): (200, {"result": {"protocolVersion": "2025-06-18"}})}),
+            ("the permission tool leaked", {("tools/list", "the-key"): (200, {"result": {"tools": both_tools}})}),
+            ("no tools", {("tools/list", "the-key"): (200, {"result": {"tools": []}})}),
+            ("key refused", {("tools/list", "the-key"): failed}),
+            ("tool error", {("tools/call 2025-11-25", "the-key"): (200, {"result": right_but_failing})}),
+            ("wrong result", {("tools/call 2026-07-28", "the-key"): (200, {"result": {"structuredContent": {"app": "other"}}})}),
+            ("modern era refused", {("tools/call 2026-07-28", "the-key"): (400, {"error": {"code": -32602}})}),
+            ("not JSON", {("tools/call 2026-07-28", "the-key"): (502, b"<html>")}),
+        ):
+            with self.subTest(label):
+                self.assertTrue(self.mcp_answers(answers=answers)[0])
+
+    def test_the_mcp_step_adds_the_documented_init_to_the_generated_api_service(self) -> None:
+        template = ROOT / "oldman" / "scaffolds" / "project" / "api_service" / "services" / "{{ service_name }}.py.tpl"
+        generated = template.read_text(encoding="utf-8").replace("{{ project_name }}", "api-postgres").replace("{{ service_class }}", "ApiService")
+        with tempfile.TemporaryDirectory() as tmp:
+            service = Path(tmp) / "api.py"
+            service.write_text(generated, encoding="utf-8")
+
+            self.gate.install_mcp_in_service(service)
+
+            tree = ast.parse(service.read_text(encoding="utf-8"))
+            imports = [(node.module, alias.name) for node in tree.body if isinstance(node, ast.ImportFrom) for alias in node.names]
+            self.assertIn(("oldman.mcp", "install_mcp"), imports)
+            service_class = next(node for node in tree.body if isinstance(node, ast.ClassDef))
+            init = next(node for node in service_class.body if isinstance(node, ast.FunctionDef) and node.name == "init")
+            statements = [ast.unparse(statement) for statement in init.body[1:]]  # after the docstring
+            self.assertEqual(("super().init()", "install_mcp(app)"), (statements[0], statements[-1]))
+            # The shape it edits is gone now; a second pass, or a service with its own init(), is refused.
+            with self.assertRaisesRegex(RuntimeError, "one-class shape"):
+                self.gate.install_mcp_in_service(service)
+            for changed in (generated + "\nVALUE = 1\n", generated + '\n    def init(self) -> None:\n        """Its own."""\n'):
+                service.write_text(changed, encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "one-class shape"):
+                    self.gate.install_mcp_in_service(service)
+
+    def test_the_api_case_turns_on_mcp_for_its_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "api_settings.yaml"
+            config.write_text("apps: []\nweb:\n  auth:\n    authenticators: [api_key]\n", encoding="utf-8")
+
+            self.gate.update_service_settings(config, install_app="apps.matrix_mcp", mcp_callers=("example",))
+
+            data = self.gate.YAML(typ="safe", pure=True).load(config.read_text(encoding="utf-8"))
+            self.assertEqual(["apps.matrix_mcp"], data["apps"])
+            self.assertEqual({"enabled": True, "callers": ["example"]}, data["web"]["mcp"])
+            self.assertEqual(["api_key"], data["web"]["auth"]["authenticators"])
+        offering = [project_type for project_type, _database, _admin in self.gate.matrix_cases() if self.gate.offers_mcp(project_type)]
+        self.assertEqual(["api"], offering)
 
     def test_a_dashboard_case_turns_on_a_second_language_in_its_settings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

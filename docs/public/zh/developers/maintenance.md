@@ -149,7 +149,7 @@ pnpm verify:scaffold-matrix
 - web-boundaries：已有前端边界检查。
 - web-package：当前版本 npm 产物及真实消费者验证。
 - python-package：当前版本 wheel/sdist 内容、Python 3.12 到 3.14 安装及内置 Admin Chrome 验证（Release 工作流运行其中不依赖浏览器的部分）。
-- scaffold-matrix：使用实际发行产物创建项目并验证生成服务，包含需要的浏览器环节。
+- scaffold-matrix：使用实际发行产物创建项目并验证生成服务，包含需要的浏览器环节。API 项目另用 `startapp` 的 mcp 模板加一个 App、照 [MCP 服务端](mcp.md) 接上 `install_mcp`，再用生成的 API key 按握手代与 2026-07-28 两代协议调用它的工具。
 
 包和脚手架阶段会建立隔离环境、下载依赖并构建，明显比普通单元测试消耗更多磁盘和内存。先检查可用空间、内存及已运行的服务，Chrome 一次只运行一个任务。不能给所有机器保证固定空间上限；环境和下载缓存会改变实际占用。
 

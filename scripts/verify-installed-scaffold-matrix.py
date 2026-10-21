@@ -74,6 +74,23 @@ DATA_REQUEST_INITIATORS = frozenset({"fetch", "xmlhttprequest"})
 SERVER_ERROR_PATTERN = re.compile(r"(?im)(?:\[ERROR\]|\bERROR\b|Traceback \(most recent call last\)|Unhandled exception)")
 # The generated background service's example loop logs this on its first round (services/service.py).
 SERVICE_LOOP_MARKER = "Example loop, round 1"
+# The API case also offers an MCP App the way developers/mcp.md tells a user to: startapp's mcp template,
+# install_mcp(app) in the service's init(), and web.mcp turned on for the API key startproject generated.
+MCP_APP = "matrix_mcp"
+MCP_PATH = "/mcp"
+MCP_HANDSHAKE_VERSION = "2025-11-25"
+MCP_MODERN_VERSION = "2026-07-28"
+# The generated API service has no init() of its own; this is the one developers/mcp.md shows.
+MCP_SERVICE_IMPORT = "from oldman.mcp import install_mcp\n"
+MCP_SERVICE_INIT = '''
+    def init(self) -> None:
+        """Offer the installed Apps' MCP tools."""
+        super().init()
+        app = self.runtime_app
+        if app is None:
+            raise RuntimeError("Sanic app was not initialized")
+        install_mcp(app)
+'''
 
 # (project type, database, include the built-in Admin). The Admin needs a database the gate can migrate.
 MATRIX_CASES = (
@@ -544,10 +561,12 @@ def update_service_settings(
     listen_port: int | None = None,
     redis_url: str | None = None,
     languages: Mapping[str, object] | None = None,
+    mcp_callers: Sequence[str] | None = None,
 ) -> None:
-    """Apply gate-only App, listener or Redis values to one generated YAML file.
+    """Apply gate-only App, listener, Redis, language or MCP values to one generated YAML file.
 
     `redis_url` points every Redis alias at the gate's own Redis, never the developer's `localhost:6379`.
+    `mcp_callers` turns the MCP endpoint on for those API key names.
     """
     yaml = YAML()
     data = yaml.load(config_file.read_text(encoding="utf-8")) or {}
@@ -583,6 +602,14 @@ def update_service_settings(
         if not isinstance(i18n, dict):
             raise RuntimeError(f"Generated settings.i18n is not a mapping: {config_file}")
         i18n.update({"use_i18n": True, "default_language": next(iter(languages)), "languages": dict(languages)})
+    if mcp_callers is not None:
+        web = data.setdefault("web", {})
+        if not isinstance(web, dict):
+            raise RuntimeError(f"Generated settings.web is not a mapping: {config_file}")
+        mcp = web.setdefault("mcp", {})
+        if not isinstance(mcp, dict):
+            raise RuntimeError(f"Generated settings.web.mcp is not a mapping: {config_file}")
+        mcp.update({"enabled": True, "callers": list(mcp_callers)})
     with config_file.open("w", encoding="utf-8") as stream:
         yaml.dump(data, stream)
 
@@ -903,6 +930,25 @@ def add_matrix_probe_menu_entry(project: Path) -> Path:
     lines.insert(home + 1, MATRIX_SIDEBAR_LINK)
     sidebar.write_text("".join(lines), encoding="utf-8")
     return sidebar
+
+
+def offers_mcp(project_type: str) -> bool:
+    """The API project is the one that also offers an MCP App: programs call both with its generated API key."""
+    return project_type == "api"
+
+
+def install_mcp_in_service(service_file: Path) -> Path:
+    """Give the generated service the init() that calls install_mcp(app), as developers/mcp.md tells a user to.
+
+    The generated API service is one class with no init() of its own and nothing after it; any other shape
+    fails here instead of being edited by guess.
+    """
+    source = service_file.read_text(encoding="utf-8")
+    anchor = "from oldman.runtime import WebApplication\n"
+    if source.count(anchor) != 1 or "def init(" in source or not source.rstrip().endswith('"""'):
+        raise RuntimeError(f"Generated service is not the one-class shape the MCP step edits: {service_file}")
+    service_file.write_text(source.replace(anchor, MCP_SERVICE_IMPORT + anchor).rstrip() + "\n" + MCP_SERVICE_INIT, encoding="utf-8")
+    return service_file
 
 
 def reserve_tcp_port() -> int:
@@ -1396,6 +1442,73 @@ def skeleton_http_errors(
     return errors
 
 
+# post(body, headers) -> (status, decoded JSON answer, or the raw start of a body that is not JSON).
+McpPost = Callable[[Mapping[str, object], Mapping[str, str]], tuple[int, object]]
+
+
+def mcp_poster(opener: urllib.request.OpenerDirector, url: str) -> McpPost:
+    """POST JSON-RPC to the running service's MCP endpoint through the gate's proxy-free opener."""
+
+    def post(body: Mapping[str, object], headers: Mapping[str, str]) -> tuple[int, object]:
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **headers},
+            method="POST",
+        )
+        try:
+            with opener.open(request, timeout=5) as response:
+                status, raw = int(response.status), response.read()
+        except urllib.error.HTTPError as exc:
+            status, raw = exc.code, exc.read()
+        try:
+            return status, json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return status, raw[:200]
+
+    return post
+
+
+def mcp_http_errors(*, post: McpPost, key: str) -> list[str]:
+    """The generated MCP App, called with the generated API key in both protocol eras, as a client would.
+
+    The key is a caller, not a user, so it must be offered only the tool that needs no permission.
+    """
+    errors: list[str] = []
+    status, answer = post({"jsonrpc": "2.0", "id": 1, "method": "ping"}, {})
+    if status != 401:
+        errors.append(f"MCP without credentials answered {status} {answer!r}, expected 401")
+
+    def result(label: str, method: str, params: Mapping[str, object], headers: Mapping[str, str]) -> dict[str, object]:
+        status, answer = post({"jsonrpc": "2.0", "id": 1, "method": method, "params": dict(params)}, {"X-API-Key": key, **headers})
+        found = answer.get("result") if isinstance(answer, dict) else None
+        if status != 200 or not isinstance(found, dict):
+            errors.append(f"MCP {label} answered {status} {answer!r}, expected 200 with a result")
+            return {}
+        return found
+
+    status_tool = f"{MCP_APP}_status"
+    expected = {"app": MCP_APP, "status": "ok"}
+    client = {"name": "oldman-scaffold-matrix", "version": "1"}
+    initialized = result("initialize", "initialize", {"protocolVersion": MCP_HANDSHAKE_VERSION, "capabilities": {}, "clientInfo": client}, {})
+    if initialized and initialized.get("protocolVersion") != MCP_HANDSHAKE_VERSION:
+        errors.append(f"MCP initialize agreed on {initialized.get('protocolVersion')!r}, expected {MCP_HANDSHAKE_VERSION}")
+    handshake = {"MCP-Protocol-Version": MCP_HANDSHAKE_VERSION}
+    listed = result(f"tools/list ({MCP_HANDSHAKE_VERSION})", "tools/list", {}, handshake)
+    if listed:
+        tools = listed.get("tools")
+        names = [tool.get("name") for tool in tools if isinstance(tool, dict)] if isinstance(tools, list) else tools
+        if names != [status_tool]:
+            errors.append(f"MCP tools/list offered the API key {names!r}, expected only {status_tool!r}")
+    meta = {"io.modelcontextprotocol/protocolVersion": MCP_MODERN_VERSION, "io.modelcontextprotocol/clientCapabilities": {}}
+    modern = {"MCP-Protocol-Version": MCP_MODERN_VERSION, "Mcp-Method": "tools/call", "Mcp-Name": status_tool}
+    for version, headers, extra in ((MCP_HANDSHAKE_VERSION, handshake, {}), (MCP_MODERN_VERSION, modern, {"_meta": meta})):
+        called = result(f"tools/call ({version})", "tools/call", {"name": status_tool, "arguments": {}, **extra}, headers)
+        if called and (called.get("isError") or called.get("structuredContent") != expected):
+            errors.append(f"MCP tools/call ({version}) answered {called!r}, expected the structured result {expected!r}")
+    return errors
+
+
 # A response's feedback is a toast at the top right (oldman-web Feedback.toast), toned by its icon. Matched by
 # tone, not text: the text follows the page's language.
 SUCCESS_TOAST_SHOWN = "document.querySelector('.toastify.om-toast.om-toast-success')"
@@ -1701,7 +1814,9 @@ def run_http_probe(
                     response_errors.extend(stable_errors)
                     error = "; ".join(stable_errors)
                     response_ready = False
+            credentials: tuple[str, str] | None = None
             if response_ready:
+                credentials = api_credentials(project, service_name) if project_type == "api" else None
                 skeleton_errors = skeleton_http_errors(
                     project_type,
                     fetch=http_fetcher(opener, f"http://127.0.0.1:{port}"),
@@ -1709,11 +1824,20 @@ def run_http_probe(
                     project_name=project.name,
                     service_name=service_name,
                     framework_version=framework_version,
-                    api_credentials=api_credentials(project, service_name) if project_type == "api" else None,
+                    api_credentials=credentials,
                 )
                 if skeleton_errors:
                     response_errors.extend(skeleton_errors)
                     error = "; ".join(skeleton_errors)
+                    response_ready = False
+            if response_ready and offers_mcp(project_type):
+                if credentials is None:
+                    mcp_errors = [f"the MCP check needs the API key of an API project, not a {project_type} one"]
+                else:
+                    mcp_errors = mcp_http_errors(post=mcp_poster(opener, f"http://127.0.0.1:{port}{MCP_PATH}"), key=credentials[0])
+                if mcp_errors:
+                    response_errors.extend(mcp_errors)
+                    error = "; ".join(mcp_errors)
                     response_ready = False
             if response_ready and project_type == "dashboard":
                 if browser_evidence_dir is None or browser_package_provenance is None:
@@ -2141,6 +2265,16 @@ def generate_case(
             preserve_evidence_file(fixture, case_evidence / "generated" / "templates-matrix_probe-index.html")
             menu = add_matrix_probe_menu_entry(project)
             preserve_evidence_file(menu, case_evidence / "generated" / "templates-partials-sidebar.html")
+        if offers_mcp(project_type):
+            run(
+                (str(oldman), "startapp", MCP_APP),
+                cwd=project,
+                environment={**environment, "OLDMAN_ANSWER_STARTAPP_TEMPLATE": "mcp"},
+                log_path=case_evidence / "startapp-mcp.log",
+            )
+            service_file = install_mcp_in_service(project / "services" / f"{service_name}.py")
+            preserve_evidence_file(project / "apps" / MCP_APP / "mcp.py", case_evidence / "generated" / "apps-matrix-mcp-mcp.py")
+            preserve_evidence_file(service_file, case_evidence / "generated" / f"services-{service_name}.py")
         run(
             (str(oldman), "matrix_worker", "settings", "init"),
             cwd=project,
@@ -2151,6 +2285,13 @@ def generate_case(
             project / "data" / f"{service_name}_settings.yaml",
             install_app="apps.matrix_probe",
         )
+        if offers_mcp(project_type):
+            # The caller is the API key startproject generated (see api_credentials).
+            update_service_settings(
+                project / "data" / f"{service_name}_settings.yaml",
+                install_app=f"apps.{MCP_APP}",
+                mcp_callers=("example",),
+            )
         run(
             (str(oldman), service_name, "settings", "sync"),
             cwd=project,
@@ -2336,8 +2477,8 @@ def generate_case(
             "browser_evidence_dir": case_evidence / "browser" if project_type == "dashboard" else None,
             "browser_package_provenance": browser_package_provenance,
         }
-        if signs_users_in(project_type, admin):
-            # Sessions keep the sign-in, in Redis: the gate's own, never the developer's.
+        if signs_users_in(project_type, admin) or offers_mcp(project_type):
+            # Sessions keep the sign-in, and MCP counts each caller's tool calls, in Redis: the gate's own, never the developer's.
             with owned_redis_server(case_evidence / "redis", environment=environment) as redis_url:
                 update_service_settings(project / "data" / f"{service_name}_settings.yaml", redis_url=redis_url)
                 metadata["http"] = run_http_probe(project, **probe)
