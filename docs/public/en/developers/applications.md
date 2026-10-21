@@ -267,7 +267,7 @@ App commands neither run `main()` nor start background services; they follow the
 
 ## Dedicated Taskiq services
 
-The demo provides task_worker and task_scheduler. task_worker extends TaskiqWorkerApplication, using native ProcessManager for execution children. task_scheduler extends SimpleApplication through TaskiqSchedulerApplication and runs only the native scheduler. Neither loads Web views; both load installed App tasks after models. Ordinary Web/Simple/commands manage enabled publication connections without importing every task. See [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md#app-与服务加载) for exact ordering, explicit Shell connections, and ownership.
+The demo provides task_worker and task_scheduler. task_worker extends TaskiqWorkerApplication, using native ProcessManager for execution children. task_scheduler extends SimpleApplication through TaskiqSchedulerApplication and runs only the native scheduler. Neither loads Web views; both load installed App tasks after models. Ordinary Web/Simple/commands manage enabled publication connections without importing every task. See [Taskiq interfaces and runtime](distributed-tasks.md#app-and-service-loading) for exact ordering, explicit Shell connections, and ownership.
 
 ## Access services outside service classes
 

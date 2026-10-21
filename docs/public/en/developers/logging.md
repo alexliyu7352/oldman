@@ -61,6 +61,6 @@ Each application should use its own log prefix/directory to prevent independent 
 
 When using multiprocessing yourself, explicitly pass it to the top-level child function, call `context.install()` at the start of the child, and close the returned runtime before exit. Children do not take rotation ownership. Do not pass parent Logger handlers, file descriptors, or thread objects as logging configuration.
 
-Raw `print()` differs from structured logging. Short-lived Python child processes forward stdout/stderr through pipes to the parent terminal; arbitrary external-command output does not automatically become application logs. Callers decide how to capture, decode, and log external commands; see [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md).
+Raw `print()` differs from structured logging. Short-lived Python child processes forward stdout/stderr through pipes to the parent terminal; arbitrary external-command output does not automatically become application logs. Callers decide how to capture, decode, and log external commands; see [Processes and background tasks](background.md).
 
 <!-- source: zh/developers/logging.md @ ad8aee01 -->

@@ -93,12 +93,12 @@ All three paths close the manager, reap the Worker, close the parent database, a
 
 - Asynchronous sampling of the same process: no additional processes or message middleware required.
 - CPU-intensive synchronous Python computation: use `AsyncProcessManager`; each call has concurrency and timeout limits.
-- External commands: pass an executable and argument list, rather than constructing shell strings. Use controlled `run_subprocess_exec` for unattended execution (Web services, taskiq workers, automated tasks). Use `run_foreground` when a person must answer in the terminal (`sudo` asking for a password); see [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md#外部命令).
+- External commands: pass an executable and argument list, rather than constructing shell strings. Use controlled `run_subprocess_exec` for unattended execution (Web services, taskiq workers, automated tasks). Use `run_foreground` when a person must answer in the terminal (`sudo` asking for a password); see [Processes and background tasks](../developers/background.md#external-commands).
 - Multiple long-lived Workers: use `BaseManager`. It sends only start/stop instructions and does not store reliable task results.
 - Durable asynchronous function queues, results, and schedules: use [Distributed background tasks](distributed-tasks.md).
 - Publishing or RPC between independent servers: Use NATS instead of exposing the Worker internal Queue to business services.
 
-See [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) for complete runnable examples, object origins, limitations, and shutdown methods. Computation examples without databases can run in a separate directory with Oldman installed. Workers depending on business Apps need the corresponding service configuration.
+See [Processes and background tasks](../developers/background.md) for complete runnable examples, object origins, limitations, and shutdown methods. Computation examples without databases can run in a separate directory with Oldman installed. Workers depending on business Apps need the corresponding service configuration.
 
 ## Handle failure and shutdown
 

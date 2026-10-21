@@ -29,7 +29,7 @@ This documentation covers the current `oldman` and `oldman-web`: what they are, 
 - How do I queue work durably, query task results, or schedule execution? Read the [Distributed background tasks](users/distributed-tasks.md).
 - How do two background services send events and make RPC calls? Read [Let running services communicate with each other](users/service-communication.md).
 - How do I deploy and check resource cleanup? Read the [Deployment and Operations](users/deployment.md).
-- How do I maintain, test, and package the framework? Read [Source maintenance and releases](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md).
+- How do I maintain, test, and package the framework? Read [Source development, verification, and releases](developers/maintenance.md).
 
 ## Conventions for reading examples
 

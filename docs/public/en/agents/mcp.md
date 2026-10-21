@@ -1,7 +1,7 @@
 # Agent guide: offer tools to AI agents over MCP
 
 Use this guide when the project should let MCP clients (Claude Code, Claude Desktop, Cursor and other agents) call its
-code: tools, readable resources, or prompt templates. The full reference is `docs/public/zh/developers/mcp.md`; paths
+code: tools, readable resources, or prompt templates. The full reference is `docs/public/en/developers/mcp.md`; paths
 are relative to the framework repository (your `.oldman-docs/` clone). Look up every `oldman` import in the
 [API index](../api/README.md).
 

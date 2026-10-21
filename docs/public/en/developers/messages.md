@@ -8,7 +8,7 @@
 | Personal notification with read state | `notifications.create()` | Database, then best-effort SSE delivery |
 | Temporary online toast/dialog | `notifications.push()` | SSE only, without persistence |
 
-Task-process control messages and NATS are outside this table; see [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) and [Redis and NATS providers](providers.md). Browser Feedback does not automatically create database notifications.
+Task-process control messages and NATS are outside this table; see [Processes and background tasks](background.md) and [Redis and NATS providers](providers.md). Browser Feedback does not automatically create database notifications.
 
 ## Cookie page messages
 

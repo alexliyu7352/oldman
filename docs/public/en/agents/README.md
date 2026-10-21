@@ -22,7 +22,7 @@ This directory helps agents develop applications with the current Oldman without
 | Update Tables with SSE or integrate notifications | [Realtime page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md): reuse stable DOM, request permissions, user connections, and persistent notification APIs |
 | Integrate an admin site or extend ModelAdmin | [Admin guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/admin.md): distinguish App registration, model administration, and route installation |
 | Prepare application deployment | [Deployment and Operations](../users/deployment.md) and [Security boundaries and rate limiting](../developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
-| Maintain the framework and verify release artifacts | [Source maintenance and releases](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md) and [Test isolation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/testing.md): keep these separate from application development tasks |
+| Maintain the framework and verify release artifacts | [Source development, verification, and releases](../developers/maintenance.md) and [Test isolation requirements](../developers/testing.md): keep these separate from application development tasks |
 
 ## Establish only the necessary facts before starting
 

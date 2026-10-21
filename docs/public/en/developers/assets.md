@@ -227,7 +227,7 @@ Web and CLI share this order (`oldman.i18n.catalogs.translation_roots`). With i1
 
 Browser catalogs use the same fallback. During `i18n compile-frontend`, framework browser messages untranslated in project PO use framework catalogs. Without a project PO for the language, all framework browser messages and plural rules come from the framework. The resulting catalog still contains only frontend messages, excluding backend text.
 
-See [Source maintenance and releases](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md#浏览器包和-admin-构建) for maintaining framework translations.
+See [Source development, verification, and releases](maintenance.md#browser-package-and-admin-builds) for maintaining framework translations.
 
 The actual Jinja section of demo root babel.cfg:
 

@@ -176,7 +176,7 @@ The demo actually selects `apps.accounts.models.User`. [This class](https://gith
 
 ## Shutdown and failures
 
-When a Web service, Simple service, or App command stops, the framework closes the process's `db_manager` (along with the cache and Redis) after business shutdown hooks, even if those hooks fail. Do not close it after each HTTP request. Standalone scripts must close the manager they use in their own finally block. The framework's shutdown chain closes the shared database pool of a dedicated Taskiq Worker; see [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md#app-与服务加载) for the actual demo and differences.
+When a Web service, Simple service, or App command stops, the framework closes the process's `db_manager` (along with the cache and Redis) after business shutdown hooks, even if those hooks fail. Do not close it after each HTTP request. Standalone scripts must close the manager they use in their own finally block. The framework's shutdown chain closes the shared database pool of a dedicated Taskiq Worker; see [Taskiq interfaces and runtime](distributed-tasks.md#app-and-service-loading) for the actual demo and differences.
 
 The creator of an explicit DatabaseManager likewise owns its shutdown. `enable_sql_logging=True` adds query tracking and summaries, and request_info can identify a business location. Do not enable detailed SQL output unconditionally in production.
 

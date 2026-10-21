@@ -259,7 +259,7 @@ This does not guarantee the entire service exits in 10 seconds. Python cancellat
 | Invalid reply | msgspec decoding/validation exception, not an empty result |
 | Sending failure during shutdown | Connection cleanup is still attempted; closing resources is not called successful delivery |
 
-Core provides online events/RPC without durable offline messages, processing ACKs, retry queues, group RPC, node directories, or replay. publish returning means only that the local sending step completed. Use [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md) for durable queuing, delayed/periodic execution, and task results; use [SSE and WebSocket](sse.md) for browser delivery.
+Core provides online events/RPC without durable offline messages, processing ACKs, retry queues, group RPC, node directories, or replay. publish returning means only that the local sending step completed. Use [Taskiq interfaces and runtime](distributed-tasks.md) for durable queuing, delayed/periodic execution, and task results; use [SSE and WebSocket](sse.md) for browser delivery.
 
 Native extensions were verified with FastStream 0.7.1, fast-depends 3.0.8, and nats-py 2.15.0; the nats-py dependency is pinned. Shutdown, request-Future cleanup, and TLS downgrade-prevention patches install only on Clients owned by Oldman, without modifying native classes or other clients. Upgrades must recheck the relevant private extension points and real-connection tests. Known native TLS-failure cleanup can still produce timeout/old StreamWriter warnings. Not every failed object is promised warning-free graceful reuse. These versions and limits define the actual acceptance scope.
 

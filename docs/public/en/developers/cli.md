@@ -40,7 +40,7 @@ Database choices are `none`, `sqlite`, `mysql`, and `postgres`. CLI scripts do n
 
 Database-enabled `web` and `dashboard` projects next ask whether to integrate the built-in Admin (default no). Choosing it installs `oldman.auth`, `oldman.apps.roles`, and `oldman.apps.admin`, generates a project User in `apps/accounts` like dashboard (`app_settings.auth.user_model` selects it), enables Session, and calls `install_admin(app)` in service `init()`. Admin mounts at `app_settings.admin.prefix` (default `/admin`) and shares sign-in state. Web without a database does not ask, since Admin users require storage. You can add it later by installing those Apps, enabling Session, and calling `install_admin`. Dashboards install user and role Apps regardless of this choice.
 
-These choices use questions, not `startproject --type` or `--db`. For unattended CI/scripts/agents, use environment [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md#预置答案无人值守); configured questions are not asked again:
+These choices use questions, not `startproject --type` or `--db`. For unattended CI/scripts/agents, use environment [Terminal interaction](tui.md#preset-answers-for-unattended-use); configured questions are not asked again:
 
 ```sh
 OLDMAN_ANSWER_STARTPROJECT_TYPE=web OLDMAN_ANSWER_STARTPROJECT_DATABASE=sqlite oldman startproject my_site
@@ -53,7 +53,7 @@ OLDMAN_ANSWER_STARTSERVICE_TYPE=taskiq_worker ./run.sh startservice worker
 | `startproject` | Project type | `OLDMAN_ANSWER_STARTPROJECT_TYPE` | `cli`, `service`, `api`, `web`, `dashboard` |
 | `startproject` | Database (not asked for `cli`) | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`, `sqlite`, `mysql`, `postgres`; `dashboard` requires a database |
 | `startproject` | Built-in Admin integration (database-enabled `web` and `dashboard` only) | `OLDMAN_ANSWER_STARTPROJECT_ADMIN` | `yes`, `no` (also true/false, 1/0); unset outside a terminal defaults to `no` |
-| `startapp` | App template | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`, `api`, `web`, `dashboard`, `mcp` (MCP tools/resources/prompts only; see [MCP server](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mcp.md)) |
+| `startapp` | App template | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`, `api`, `web`, `dashboard`, `mcp` (MCP tools/resources/prompts only; see [MCP server](mcp.md)) |
 | `startapp` | Display name | `OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME` | Any text; defaults to a name-derived value |
 | `startservice` | Service type | `OLDMAN_ANSWER_STARTSERVICE_TYPE` | `simple`, `web`, `taskiq_worker`, `taskiq_scheduler` |
 
@@ -77,7 +77,7 @@ The EPG demo uses [services/web.py](https://github.com/alexliyu7352/oldman-epg-d
 
 `start` runs in the foreground. `stop` reads the service PID, signals shutdown, waits for the entire group to exit, and prints “Stopped web (main process …)”; when absent it prints “web is not running”. `restart` stops before starting. Running `run.sh` without arguments does not start every service.
 
-The demo also has task_worker/task_scheduler with the same hierarchy, such as `./run.sh task_worker start` and `./run.sh task_scheduler stop`. Both stop commands wait, then force-stop the identity-verified group at the total deadline, without another kill command. See [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md) for Worker supervision and the single-Scheduler rule. Creating entry points does not change App lists or start other services.
+The demo also has task_worker/task_scheduler with the same hierarchy, such as `./run.sh task_worker start` and `./run.sh task_scheduler stop`. Both stop commands wait, then force-stop the identity-verified group at the total deadline, without another kill command. See [Taskiq interfaces and runtime](distributed-tasks.md) for Worker supervision and the single-Scheduler rule. Creating entry points does not change App lists or start other services.
 
 Web services also provide:
 
@@ -118,7 +118,7 @@ All services installing Auth (`oldman.auth`) have these two account commands, wh
 ./run.sh web changepassword admin
 ```
 
-Migrate before creating accounts. Replace admin in `changepassword admin` with an existing username. Missing users fail without creation; password changes end all existing sign-ins for that user. Duplicate `createsuperuser` names also fail without modifying accounts. Passwords use hidden input and confirmation, not plaintext command arguments. Database creation does not create a default administrator. Scripts provide passwords through environment variables: `createsuperuser --noinput --username … [--email …]` reads `OLDMAN_SUPERUSER_PASSWORD`; `changepassword` reads preset `OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD` ([Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md#预置答案无人值守)). Neither reads passwords from pipes. These commands need App registration and a database, not mounted/running `/admin` pages.
+Migrate before creating accounts. Replace admin in `changepassword admin` with an existing username. Missing users fail without creation; password changes end all existing sign-ins for that user. Duplicate `createsuperuser` names also fail without modifying accounts. Passwords use hidden input and confirmation, not plaintext command arguments. Database creation does not create a default administrator. Scripts provide passwords through environment variables: `createsuperuser --noinput --username … [--email …]` reads `OLDMAN_SUPERUSER_PASSWORD`; `changepassword` reads preset `OLDMAN_ANSWER_CHANGEPASSWORD_PASSWORD` ([Terminal interaction](tui.md#preset-answers-for-unattended-use)). Neither reads passwords from pipes. These commands need App registration and a database, not mounted/running `/admin` pages.
 
 ## Custom App commands
 
@@ -190,11 +190,11 @@ Prepare settings/database first; see [Demo page and source index](../users/demo-
 
 Typer checks `--team-id` type/minimum, returning exit 2 for invalid arguments. A missing team raises ValueError, displayed with exit 1; an existing empty team prints zero and exits 0. Missing tables or inaccessible databases also exit 1 without creating tables/importing fixtures. Status groups use actual database values, sorted and displayed only when present. Every run queries anew, not the cache-page snapshot.
 
-Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md) (`tui.ask`, `tui.confirm`, etc.); built-in [Admin commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py) provide examples.
+Read-session context managers close Sessions; `finally` also releases this command's database pool after query failure. One-off commands do not run Web stop listeners, so `WebService.before_server_stop()` cannot clean up for them. This is command resource ownership, not a statistics helper for concurrent requests. It prints ordinary text through `typer.echo()` and returns None, preventing Rich from interpreting database strings as markup. Questions use [Terminal interaction](tui.md) (`tui.ask`, `tui.confirm`, etc.); built-in [Admin commands](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py) provide examples.
 
 `name` matches `[a-z][a-z0-9-]*`; use hyphens for command names and underscores for Python parameters. `help` must be nonempty text or `LazyTranslation`. Classes must construct without arguments; `handle()` must be `async def`, returning a result for CLI printing or writing output itself and returning None.
 
-Parameters follow Typer: no default usually means positional; a default usually means option. Set explicit constraints through `Annotated[..., typer.Option(...)]` or `typer.Argument(...)`. Ask through [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md) instead of custom input parsing. Give questions keys for unattended use.
+Parameters follow Typer: no default usually means positional; a default usually means option. Set explicit constraints through `Annotated[..., typer.Option(...)]` or `typer.Argument(...)`. Ask through [Terminal interaction](tui.md) instead of custom input parsing. Give questions keys for unattended use.
 
 App command names must be unique within a service and not conflict with existing service, settings/static/Shell, or fixture commands. App display names group help without adding command levels. Use `web changepassword`, not `web admin changepassword`.
 
@@ -226,14 +226,14 @@ This does not run service `init()`, `prepare()`, `main()`, `prepare_server()`, o
 
 Core sends/RPC only: consume=true neither loads App events nor starts subscribers. Ordinary commands do not load all tasks automatically. Disabled capabilities create no corresponding connections. Initialization/handle/after_command failures still enter communication finally, retaining original errors and separately logging cleanup failures. DB/HTTP resources retain their ownership rules. Import bus directly in commands without another manual async with. Settings/help, database commands, and bootstrap/Shell do not run this async command chain; see [Redis and NATS providers](providers.md#shell-ide-and-independent-connections) for explicit Shell communication.
 
-Command files under `logging.dir` are named by command and contain INFO and above. Terminals normally show warnings/errors only. Return results or use [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md) for user output, not `logger.info()`. DEBUG (`core.debug` or `logging.level: DEBUG`) shows all terminal logs. Service `start` is unaffected.
+Command files under `logging.dir` are named by command and contain INFO and above. Terminals normally show warnings/errors only. Return results or use [Terminal interaction](tui.md) for user output, not `logger.info()`. DEBUG (`core.debug` or `logging.level: DEBUG`) shows all terminal logs. Service `start` is unaffected.
 
 Do not connect databases, read requests, or start tasks in Command constructors. CLI displays errors and exits with failure. Do not swallow exceptions and return success text.
 
 Two optional class attributes:
 
 - `check_pid = True`: serialize same-name commands for one service using `<service>.<command>.pid` under `process.pid_dir`. Default false; this is not distributed or cross-machine locking.
-- `raw_stdout = True`: send command logs to stderr for machine-readable stdout. Default false. Commands must also avoid explanatory text in data streams. With [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md), all explanatory output, tables, and waiting indicators except `echo` automatically use stderr.
+- `raw_stdout = True`: send command logs to stderr for machine-readable stdout. Default false. Commands must also avoid explanatory text in data streams. With [Terminal interaction](tui.md), all explanatory output, tables, and waiting indicators except `echo` automatically use stderr.
 
 ## Database command scope
 

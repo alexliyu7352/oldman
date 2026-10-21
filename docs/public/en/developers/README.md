@@ -9,9 +9,9 @@ A name is public when included in its exporting package/module's `__all__`; impo
 | [Applications and lifecycle](applications.md) | Service discovery, AppConfig, Registry, Web/SimpleApplication, Shell, resource ownership |
 | [Configuration reference](configuration.md) | Root/App Settings, YAML management, defaults/paths, mutable runtime configuration |
 | [CLI reference](cli.md) | Project/service commands, interaction conventions, custom async Commands |
-| [Terminal interactions](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/tui.md) | CLI/operations output, tables, waiting, questions, forms, menus, cancellation, non-terminals, testing |
-| [Operations primitives](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/ops.md) | Repeatable configuration editing, os-release, systemd units |
-| [Remote files](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/remote.md) | Remote Python files/scripts in operations menus: base URLs, cache/refresh, conventions, credentials |
+| [Terminal interaction](tui.md) | CLI/operations output, tables, waiting, questions, forms, menus, cancellation, non-terminals, testing |
+| [Operations primitives](ops.md) | Repeatable configuration editing, os-release, systemd units |
+| [Remote files](remote.md) | Remote Python files/scripts in operations menus: base URLs, cache/refresh, conventions, credentials |
 | [Web requests, templates, and permissions](web.md) | Routes, template loading, Session, permissions, CSRF, error pages |
 | [Permissions](permissions.md) | Code declarations, naming/startup checks, roles, role cache |
 | [Forms, fields, and remote choices](forms.md) | WTForms responsibilities, binding/validation, ModelForm, layouts, remote choices |
@@ -29,16 +29,16 @@ A name is public when included in its exporting package/module's `__all__`; impo
 | [Redis and NATS providers](providers.md) | Named connections, locks, managed buses, typed events/RPC, addressing, startup/shutdown ownership |
 | [Backend HTTP client](http-client.md) | Three backends, shared responses, retries, streams, Cookies, TLS |
 | [Media streaming proxy](proxy.md) | Upstream status forwarding, final player-visible failures, route-handler responsibilities, live entry points, browser fingerprints |
-| [MCP server](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mcp.md) | Expose App tools/resources/prompts to AI agents: installation, access, rate limits, protocol versions, known limits |
-| [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/background.md) | Coroutines, short-lived processes, controlled external commands, long-lived Workers, reliability limits |
-| [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md) | Native task API, JetStream/Redis, Worker/Scheduler, result/acknowledgment failure boundaries |
+| [MCP server](mcp.md) | Expose App tools/resources/prompts to AI agents: installation, access, rate limits, protocol versions, known limits |
+| [Processes and background tasks](background.md) | Coroutines, short-lived processes, controlled external commands, long-lived Workers, reliability limits |
+| [Taskiq interfaces and runtime](distributed-tasks.md) | Native task API, JetStream/Redis, Worker/Scheduler, result/acknowledgment failure boundaries |
 | [Logging](logging.md) | Standard Logger, initialization, rotation, child processes, shutdown |
 | [Page messages, feedback, and notifications](messages.md) | Cookie messages, Form/Feedback, database notifications, shared top bar/center |
 | [SSE and WebSocket](sse.md) | Direct output, Redis publication, Session, translation, backpressure, browser connections |
 | [Built-in Admin and extensions](admin.md) | Explicit site installation, ModelAdmin, permissions, template/asset extensions |
 | [Security boundaries and rate limiting](security.md) | Shared keys, trust boundaries, Redis rate limits, actual fingerprint-tool responsibilities |
-| [Source maintenance and releases](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md) | Builds, versions, sequential acceptance, installed artifacts, evidence cleanup |
-| [Test isolation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/testing.md) | Test boundaries for settings, Apps, models, processes, databases |
+| [Source development, verification, and releases](maintenance.md) | Builds, versions, sequential acceptance, installed artifacts, evidence cleanup |
+| [Test isolation requirements](testing.md) | Test boundaries for settings, Apps, models, processes, databases |
 
 Reference classes/functions use public installed-package imports. Private methods appear only to explain call order, not as application entry points.
 

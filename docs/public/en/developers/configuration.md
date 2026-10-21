@@ -269,7 +269,7 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 
 Built-in Redis aliases `DEFAULT`, `CACHE`, and `SESSION` default to TCP `localhost:6379`, databases 3, 2, and 5. `redis_url` also accepts `rediss://` for TLS and `unix:///path/to/redis.sock?db=N` for an enabled Unix socket. Add aliases such as `SSE` with real `redis_url` values; do not assume they exist automatically. Check generated URLs, database numbers, and `decode_responses` before enabling dependent capabilities.
 
-NATS DEFAULT defaults to nats://localhost:4222. Taskiq is disabled by default; enabling requires a namespace and existing NATS/Redis aliases. Non-Web services do not generate web automatically but still generate these root groups. See [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md#配置与默认值) for all Taskiq defaults, security parameter conversion, and lifecycle.
+NATS DEFAULT defaults to nats://localhost:4222. Taskiq is disabled by default; enabling requires a namespace and existing NATS/Redis aliases. Non-Web services do not generate web automatically but still generate these root groups. See [Taskiq interfaces and runtime](distributed-tasks.md#configuration-and-defaults) for all Taskiq defaults, security parameter conversion, and lifecycle.
 
 Root nats_bus separately controls Core events/RPC: enabled/consume default false, nats_alias defaults DEFAULT, and enabled buses require namespace. It may use the same named address as Taskiq without sharing connections/protocols. See [Redis and NATS providers](providers.md#configuration-and-defaults) for all defaults, peer_id, codec, and startup/shutdown budgets. init/sync/check neither connect to NATS nor read certificate files.
 
@@ -301,7 +301,7 @@ A real-IP header does not make every request trustworthy. Production reverse pro
 
 ### MCP endpoint (web.mcp)
 
-Used only when `init()` calls `oldman.mcp.install_mcp(app)` and `web.mcp.enabled` is true. Other services also have default YAML entries without behavioral changes. See [MCP server](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mcp.md).
+Used only when `init()` calls `oldman.mcp.install_mcp(app)` and `web.mcp.enabled` is true. Other services also have default YAML entries without behavioral changes. See [MCP server](mcp.md).
 
 | Field | Default |
 | --- | --- |

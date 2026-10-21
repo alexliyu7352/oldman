@@ -1,7 +1,7 @@
 # Agent guide: work that runs in the background
 
 Use this guide whenever work should continue after a request has been answered, run on a schedule, run in another process,
-or start an external program. Paths such as `docs/public/zh/developers/background.md` are relative to the framework
+or start an external program. Paths such as `docs/public/en/developers/background.md` are relative to the framework
 repository (your `.oldman-docs/` clone). Look up every `oldman` import in the [API index](../api/README.md).
 
 ## Choose by what the work needs
@@ -207,11 +207,11 @@ poll the record until it is `done`; make the work raise once to see `failed`. St
 
 Queues, schedules, retries, results kept in Redis (`broker.result_backend.get_result(task_id)`, 24 hours by default) and
 the EPG Demo's complete task pages are in `docs/public/zh/users/distributed-tasks.md`,
-`docs/public/zh/developers/distributed-tasks.md` and `docs/public/zh/agents/distributed-tasks.md`.
+`docs/public/en/developers/distributed-tasks.md` and `docs/public/zh/agents/distributed-tasks.md`.
 
 ## Other background work
 
-Read `docs/public/zh/developers/background.md` for the entry point you chose. The EPG Demo
+Read `docs/public/en/developers/background.md` for the entry point you chose. The EPG Demo
 (`https://github.com/alexliyu7352/oldman-epg-dashboard`) has a finished, runnable example of each; take the shape from
 there instead of building a collector or reporter service from scratch.
 
