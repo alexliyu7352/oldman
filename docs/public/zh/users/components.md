@@ -375,7 +375,7 @@ async def _chart_shell(request: Request, key: str, html_id: str):
     return await chart.render_shell(html_id=html_id, chart_key=key)
 ```
 
-Request 来自 oldman.web.request，ExampleChartData 从同 App 的 chart_views 导入。该类继承 SQLAlchemyChartView，使用 TailwindChartRenderer；视图模块通过 as_view() 把它注册到 `/examples/charts/data/<chart_key>`。普通页面路由经过 staff 权限检查，再由 _chart_cards 为每个 key 调用此函数，产生互不重复的 html_id；不能把辅助函数当成已安装 HTTP 路由。
+Request 来自 oldman.web.request，ExampleChartData 从同 App 的 chart_views 导入。该类继承 SQLAlchemyChartView，使用 TailwindChartRenderer；视图模块通过 as_view() 把它注册到 `/examples/charts/data/<chart_key>`。普通页面路由经过登录检查（`login_required()`），再由 _chart_cards 为每个 key 调用此函数，产生互不重复的 html_id；不能把辅助函数当成已安装 HTTP 路由。
 
 模板在包含 charts 的上下文里这样输出每张图，item.chart 是上述后端 renderer 生成的组件 HTML：
 

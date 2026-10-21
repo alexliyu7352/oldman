@@ -63,7 +63,7 @@ Demo 默认启用了 `nats_bus` 和 `taskiq`，现有异步命令入口会先连
 
 `/examples/config/file` 演示 `YamlStore`。数据目录下的 `example_channel_overrides.yaml` 由 `ChannelOverrides` 声明字段、类型和默认值，第一次打开页面时写出默认文件。“修改频道”走 `get()`、赋值、`save()`，“设置公告”走 `update()`，两者都不调用 `on_file_changed`，页面上的钩子计数不变。“在容器之外直接改文件里的公告”像编辑器一样整体替换文件；最多 2 秒后再读取，就能看到新公告，钩子计数加一，频道偏移仍是刚才保存的值。“往文件里写入类型不对的值”之后，页面继续显示上次的合法值，右侧文件原文里能看到写坏的那一行，服务日志记一条 ERROR。
 
-`/examples/config/redis` 演示 `RedisStore` 与 `RedisSet`。`SiteFlags` 整体存在 `<core.namespace>:store:example_site_flags`，每次读取都访问 Redis：“从另一个实例写入横幅”之后，这一次读取就能看到。“尝试把文字存进数字字段”被 `update()` 拒绝，什么也不写，页面显示校验错误。下方设备名单是一个 Redis 集合，加入、移除、判断和随机取各是一条集合命令，判断时不读出整个名单。示例放在 CACHE 别名下，因为 Demo 没有 DEFAULT 别名；生产环境应把运行期配置放在不会淘汰键的 Redis。
+`/examples/config/redis` 演示 `RedisStore` 与 `RedisSet`。`SiteFlags` 整体存在 `<core.namespace>:store:example_site_flags`，每次读取都访问 Redis：“从另一个实例写入横幅”之后，这一次读取就能看到。“尝试把文字存进数字字段”被 `update()` 拒绝，什么也不写，页面显示校验错误。下方设备名单是一个 Redis 集合，加入、移除、判断和随机取各是一条集合命令，判断时不读出整个名单。示例的值放在 CACHE 别名下（`dynamic_config.py` 的 `REDIS_ALIAS`）；生产环境应把运行期配置放在不会淘汰键的 Redis。
 
 两页都要求登录，提交带 CSRF。源码为 [dynamic_config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/dynamic_config.py)、[views/config.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/config.py) 和 [config 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/config)；接口说明见[开发者参考](../developers/configuration.md#运行期可变配置)。
 

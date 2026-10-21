@@ -91,7 +91,7 @@ async def asset_file_states(asset: ExampleAsset) -> dict[str, dict[str, object]]
     return states
 ```
 
-该模块从 `oldman.storage` 导入 storages，从 urllib.parse 导入 quote，并使用当前 App 的 ExampleAsset。路径、exists 和 stat 来自实际存储，不是根据“上传请求返回成功”猜测文件存在。
+该模块从 `oldman.storage` 导入 storages 与 media_url，并使用当前 App 的 ExampleAsset。路径、exists 和 stat 来自实际存储，不是根据“上传请求返回成功”猜测文件存在。
 
 Demo 的 /media URL 用于展示自己的测试文件，不是带对象授权的私有下载接口。真实业务若处理保密附件，需要另行实现下载权限；不能直接复制公开媒体地址当成授权方案。
 

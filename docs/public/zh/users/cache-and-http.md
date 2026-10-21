@@ -12,7 +12,7 @@ EPG Demo 的配置、服务和 Apps 已接入 Redis Session、SSE 与用户通�
 
 ## 运行项目统计缓存示例
 
-先按[运行教程](getting-started.md)初始化 Demo、迁移、导入 `demo` fixture 并创建工作人员账户。公开 [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) 包含：
+先按[运行教程](getting-started.md)初始化 Demo、迁移、导入 `demo` fixture 并创建账户。公开 [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) 包含：
 
 ```yaml
 redis:
@@ -111,7 +111,7 @@ rm -r -- "$demo_django_dir"
 4. 点击“失效响应缓存”，POST 同一路径，结果显示失效完成。它删除本例所有查询参数和语言版本，下次读取重新计算；不修改项目表，也不清上方的统计值 key。
 5. 切换语言后读取，结果使用当前语言；从其他示例通过侧栏回来，按钮仍可用。未登录仍返回认证错误，POST 没有有效 CSRF 则拒绝；关闭公共错误提示后可再次操作。
 
-实现是 views/cache.py 的 example_cached_response/example_invalidate_response，两个按钮共用普通 ExamplesPage，目标为 `#cache-response-result`，没有新增 TS 或组件。GET 的 staff 校验在缓存装饰器之前，按 request.ctx.locale 隔离；响应不含用户私有数据、CSRF 或 Cookie，不能直接复制成缓存个人账户页面。
+实现是 views/cache.py 的 example_cached_response/example_invalidate_response，两个按钮共用普通 ExamplesPage，目标为 `#cache-response-result`，没有新增 TS 或组件。GET 先经 `login_required()` 检查登录，再进缓存装饰器，按 request.ctx.locale 隔离；响应不含用户私有数据、CSRF 或 Cookie，不能直接复制成缓存个人账户页面。
 
 这两个装饰器读取根 cache.client/namespace；公开 YAML 没有覆盖 cache，使用默认 client=CACHE。它们缓存故障时记录 warning 并继续查询/返回业务结果，数据库异常仍抛出。这与前面直接 RedisCache 操作不自动降级不同。缓存命中须看真实计算时间，不能把 Redis 离线后的成功查询说成命中。命令的检查要求 Redis 可用，否则会报错。完整签名、key 规则和不能缓存的内容见[开发者参考](../developers/cache.md#函数结果与-http-响应缓存)。
 
@@ -126,7 +126,7 @@ rm -r -- "$demo_django_dir"
 5. 点“改名这个项目（ORM）”，再读：未命中。数据库会随项目删除它的任务、随团队删除它的项目（两级 `ON DELETE CASCADE`），缓存只能从项目和团队的写入得知，所以它们的任何更新、删除都让所有任务查询失效一次。
 6. 点“恢复示例数据”，去掉以上操作加的标记。恢复也走 ORM，相关缓存随之失效。
 
-其他 staff 同时操作时，统计差值可能混入别人的读取，结果会显示“来源不明”。缓存的读写规则、边界和实测耗时见[开发者参考](../developers/cache.md#模型缓存)。
+其他登录用户同时操作时，统计差值可能混入别人的读取，结果会显示“来源不明”。缓存的读写规则、边界和实测耗时见[开发者参考](../developers/cache.md#模型缓存)。
 
 ## 需要缓存时
 

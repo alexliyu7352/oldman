@@ -66,7 +66,7 @@ app_settings:
 
 其中 `oldman.auth` 的 label 是 `auth`，提供认证基础能力和 User 选择配置；Demo 的 `apps.accounts` 的 label 是 `accounts`，提供具体的 `User` 模型（和 `startproject` 生成的骨架一样，登录等账户页面是框架的流程，由它的 routes.py 安装）。这是两个不同的 App，`app_settings.auth.user_model` 指向后者定义的类。不要把 Python 包路径、label 和模型类名混为一谈。
 
-`oldman.apps.admin` 提供共享设置与用户管理命令。将它加入清单不等于挂载 `/admin`；EPG Demo 使用自己的 Dashboard，独立 Admin 站点见[Admin 教程](admin.md)。
+`oldman.apps.admin` 提供内置 Admin 的设置（例如下文的 `require_superuser`）；`createsuperuser`、`changepassword` 这些用户管理命令来自 `oldman.auth`。将它加入清单不等于挂载 `/admin`；EPG Demo 使用自己的 Dashboard，独立 Admin 站点见[Admin 教程](admin.md)。
 
 一个 App 必须可被当前 Python 环境导入，并且具有 `<包路径>.apps` 模块，模块里导出一个名为 `app` 的 `AppConfig` 对象。
 
