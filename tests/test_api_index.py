@@ -11,8 +11,9 @@ from pathlib import Path
 from scripts import api_index
 
 ROOT = Path(__file__).resolve().parents[1]
-#: ``from oldman.x import A, B as C`` or a parenthesized, possibly multi-line, name list.
-DOCUMENTED_IMPORT = re.compile(r"from (oldman[\w.]*) import (\([^)]*\)|[^\n]+)")
+#: ``from oldman.x import A, B as C`` or a parenthesized, possibly multi-line, name list. Written inline in
+#: backticks, the import ends at the closing backtick: the prose after it can list other names with commas.
+DOCUMENTED_IMPORT = re.compile(r"from (oldman[\w.]*) import (\([^)]*\)|[^\n`]+)")
 
 
 def write(root: Path, relative: str, source: str) -> None:
@@ -63,6 +64,11 @@ class DocumentedImportsTest(unittest.TestCase):
             [("oldman.conf.schemas", "DatabaseConfig"), ("oldman.conf.schemas", "RedisConfig"), ("oldman.web", "router")],
             documented_imports(text),
         )
+
+    def test_an_inline_import_ends_at_its_closing_backtick(self) -> None:
+        """English prose lists names with commas after an inline import; Chinese used 、 and never showed it."""
+        text = "Use `from oldman.tasks.distributed import schedule_source`; the calls are `schedule_by_time`, `schedule_by_cron`."
+        self.assertEqual([("oldman.tasks.distributed", "schedule_source")], documented_imports(text))
 
 
 class ResolverTest(unittest.TestCase):
