@@ -2,16 +2,16 @@
 
 Use this guide to change an existing model, load example records, or add file fields. It does not cover a new migration
 engine, a storage implementation, background cleanup workers or a permission system. Paths such as
-`docs/public/zh/developers/migrations.md` are relative to the framework repository (your `.oldman-docs/` clone). Look up
+`docs/public/en/developers/migrations.md` are relative to the framework repository (your `.oldman-docs/` clone). Look up
 every `oldman` import in the [API index](../api/README.md). Creating a model and its first migration is the first
 section of [the create-service guide](create-service.md).
 
 | Task | Reference to check, and the application files involved |
 | --- | --- |
-| Models and transactions | `docs/public/zh/developers/database.md`; the App's `models.py`, the service's `apps`, the real `database.url` |
-| Change, rename or take over tables | `docs/public/zh/developers/migrations.md`; the project `pyproject.toml`, every service's default YAML, the App's `migrations/` |
-| Example data | `docs/public/zh/developers/fixtures.md`; the App's `fixtures/*.json`, which service registers it |
-| File upload and deletion | `docs/public/zh/developers/storage.md`; the `storages` settings, the model's `file_column`, the Form, the authorized view |
+| Models and transactions | `docs/public/en/developers/database.md`; the App's `models.py`, the service's `apps`, the real `database.url` |
+| Change, rename or take over tables | `docs/public/en/developers/migrations.md`; the project `pyproject.toml`, every service's default YAML, the App's `migrations/` |
+| Example data | `docs/public/en/developers/fixtures.md`; the App's `fixtures/*.json`, which service registers it |
+| File upload and deletion | `docs/public/en/developers/storage.md`; the `storages` settings, the model's `file_column`, the Form, the authorized view |
 
 ## Change a model: add a field
 

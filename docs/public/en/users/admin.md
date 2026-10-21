@@ -136,7 +136,7 @@ Use “Forgot password?” at the lower right of the sign-in card to open `/admi
 
 Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [Configuration reference](../developers/configuration.md#app-settings).
 
-Local development defaults to the console mail backend, which prints emails and links in service logs. For actual delivery, configure `mail.backend` as smtp; see [Mail](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mail.md).
+Local development defaults to the console mail backend, which prints emails and links in service logs. For actual delivery, configure `mail.backend` as smtp; see [Mail](../developers/mail.md).
 
 ## FAQ
 

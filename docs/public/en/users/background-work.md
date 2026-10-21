@@ -104,6 +104,6 @@ See [Processes and background tasks](https://github.com/alexliyu7352/oldman/blob
 
 Task timeout or Worker shutdown does not undo business writes. Database writes still follow their own transaction management, and external calls may already have succeeded. Applications requiring idempotency define their own operation identifiers.
 
-Use `try/finally` to close process managers, HTTP/NATS clients, and database pools you create. End tasks first, close connections they may still use next, and close logging last. Use `get_logger(__name__)` for ordinary business logging, without reinitializing logging for each task. See the [Logging](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/logging.md).
+Use `try/finally` to close process managers, HTTP/NATS clients, and database pools you create. End tasks first, close connections they may still use next, and close logging last. Use `get_logger(__name__)` for ordinary business logging, without reinitializing logging for each task. See the [Logging](../developers/logging.md).
 
 <!-- source: zh/users/background-work.md @ 8c13fdcf -->

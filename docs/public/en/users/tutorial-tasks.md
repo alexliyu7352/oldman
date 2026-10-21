@@ -78,7 +78,7 @@ Run the following only when you **actually change model structure**:
 
 Follow the interactive prompts to choose the App for this change and confirm differences and the description. Inspect the generated revision's upgrade/downgrade, then execute `db migrate` separately. Deploy committed migration files; do not regenerate them on the server.
 
-`db` is a project-level command that reads database and App definitions from the project's actual services; it is not `web db`. Do not copy parameters such as `--app` and `--empty` from other migration tools. See the [Database migrations](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/migrations.md) for detailed interactions, table ownership, renaming, and recovery rules.
+`db` is a project-level command that reads database and App definitions from the project's actual services; it is not `web db`. Do not copy parameters such as `--app` and `--empty` from other migration tools. See the [Project database migrations](../developers/migrations.md) for detailed interactions, table ownership, renaming, and recovery rules.
 
 The project's `pyproject.toml` already contains a stable `tool.oldman.project_id`. Do not change it to resolve migration errors or use this demo to take over another system's production database.
 
@@ -167,7 +167,7 @@ To verify, use the next chapter's Modal to create your own test project. Inspect
 
 ## Close database connections owned by the service
 
-On service shutdown, the framework closes the process's database connection pool after business shutdown hooks. [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) needs no shutdown hook for this, and an individual list view must not close it either. See the [Applications and lifecycle](../developers/applications.md) for other lifecycle details, commands, and IDE initialization; see the [JSON fixtures](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/fixtures.md) for fixture type validation and transaction failure rules.
+On service shutdown, the framework closes the process's database connection pool after business shutdown hooks. [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) needs no shutdown hook for this, and an individual list view must not close it either. See the [Applications and lifecycle](../developers/applications.md) for other lifecycle details, commands, and IDE initialization; see the [JSON data import and export](../developers/fixtures.md) for fixture type validation and transaction failure rules.
 
 The next chapter opens the demo's two dynamic table pages directly, following the same model to see how Form, Modal, response actions, and Page connect.
 

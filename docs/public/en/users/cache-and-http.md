@@ -41,7 +41,7 @@ An empty project table displays and caches zero results, without filling in fixe
 | [cache template directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/cache) | Buttons, descriptions, independent result areas and fragments for two cache partitions |
 | [views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | page list and specific routing module import; continue to use the existing Examples App to register |
 
-Business function `read_project_statistics(refresh=False)` returns the snapshot and current source; it does not write "hit" into the snapshot. `clear_project_statistics()` calls `delete(CACHE_KEY)` of the same instance. For complete function and type description, see [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#demo-中的实际使用).
+Business function `read_project_statistics(refresh=False)` returns the snapshot and current source; it does not write "hit" into the snapshot. `clear_project_statistics()` calls `delete(CACHE_KEY)` of the same instance. For complete function and type description, see [Caching](../developers/cache.md#actual-use-in-the-demo).
 
 There is no cache-specific frontend TS. The current Page handles buttons' `data-om-action="post"`, `data-om-url`, and `data-om-target="#cache-result"`. The view calls `replace_html_response(html)` so the ordinary response runner replaces the result region. Preserve page loading, CSRF, and permission wiring when reusing it; do not copy only `fetch()` or expose an interface for arbitrary Redis keys.
 
@@ -87,7 +87,7 @@ The command actually checks Django writes read by Oldman and the reverse: projec
 
 The source code is [django_cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/django_cache.py). The command only reads the business database, only writes random keys and deletes them in finally, and never calls Django.clear (which will clear Redis DB). Both parties close their own connections; the framework's default cache encoding is not changed.
 
-Interoperability requires the same Redis DB, Django's default empty KEY_PREFIX, VERSION=1, and default codec. Custom prefixes, versions, KEY_FUNCTION, or other Redis backends are not adapted automatically. Read Pickle data only from trusted services; this command does not establish that arbitrary external Redis data is safe. See [Django Redis Configuration](https://docs.djangoproject.com/en/5.2/topics/cache/#redis) and [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#django-缓存互操作) for exact boundaries.
+Interoperability requires the same Redis DB, Django's default empty KEY_PREFIX, VERSION=1, and default codec. Custom prefixes, versions, KEY_FUNCTION, or other Redis backends are not adapted automatically. Read Pickle data only from trusted services; this command does not establish that arbitrary external Redis data is safe. See [Django Redis Configuration](https://docs.djangoproject.com/en/5.2/topics/cache/#redis) and [Caching](../developers/cache.md#django-cache-interoperability) for exact boundaries.
 
 ## Observe the real files of the image cache
 
@@ -97,7 +97,7 @@ Run `./run.sh web image-cache` with the current CACHE Redis. It does not query b
 
 The command checks original image bytes, WebP readability, and expiry extension on hits. After 1-second expiry, reads miss while the old file temporarily remains; the next write cleans up expired files. A deliberately corrupt image logs WebP conversion failed, but the current API preserves original bytes and returns only original. This demonstrates actual partial failure, rather than failure of the whole command. The cache is not an upload image validator.
 
-Once all five checks output true, the command deletes its random Redis set and `/tmp` image directory and prints completion of cleanup. Files serve only this inspection and do not remain in the user's media library. Image cache capacity cleanup runs before writes by format entry, rather than enforcing a strict total image count or byte limit. See the [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#图片缓存) for defaults and resource ownership.
+Once all five checks output true, the command deletes its random Redis set and `/tmp` image directory and prints completion of cleanup. Files serve only this inspection and do not remain in the user's media library. Image cache capacity cleanup runs before writes by format entry, rather than enforcing a strict total image count or byte limit. See the [Caching](../developers/cache.md#image-caching) for defaults and resource ownership.
 
 ## Observe function results and the entire HTTP response cache
 
@@ -113,7 +113,7 @@ Another example on the web page is in the "HTTP response cache" section below `/
 
 Implementation is example_cached_response/example_invalidate_response in views/cache.py. Both buttons use ordinary ExamplesPage and target `#cache-response-result`, without new TS or components. GET checks staff before the cache decorator; cached responses are isolated by request.ctx.locale. Responses contain no private user data, CSRF, or Cookies; do not copy this directly to cache personal account pages.
 
-Both decorators read root cache.client/namespace. The public YAML does not override cache, so it uses default client=CACHE. Cache failures log a warning and continue querying/returning business results; database exceptions still propagate. This differs from direct RedisCache operations above, which do not automatically fall back. Verify hits through actual computation time; a successful database query while Redis is offline is not a hit. Command checks require accessible Redis and fail otherwise. See the [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#函数结果与-http-响应缓存) for signatures, key rules, and content that cannot be cached.
+Both decorators read root cache.client/namespace. The public YAML does not override cache, so it uses default client=CACHE. Cache failures log a warning and continue querying/returning business results; database exceptions still propagate. This differs from direct RedisCache operations above, which do not automatically fall back. Verify hits through actual computation time; a successful database query while Redis is offline is not a hit. Command checks require accessible Redis and fail otherwise. See the [Caching](../developers/cache.md#function-result-and-http-response-caching) for signatures, key rules, and content that cannot be cached.
 
 ## Observe model cache
 
@@ -126,17 +126,17 @@ Model caching stores database rows per model and query, invalidating automatical
 5. Click “Rename the project (ORM)” and read: a miss. The database cascades task deletion from projects and project deletion from teams (two levels of `ON DELETE CASCADE`). The cache can only learn this from project/team writes, so any update or deletion of either invalidates all task queries once.
 6. Click “Restore example data” to remove markers added by these operations. Restoration also uses ORM, invalidating the relevant cache.
 
-Concurrent staff operations may mix another user's reads into statistics deltas, displaying “Source unknown”. See the [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#模型缓存) for read/write rules, boundaries, and measured timings.
+Concurrent staff operations may mix another user's reads into statistics deltas, displaying “Source unknown”. See the [Caching](../developers/cache.md#model-caching) for read/write rules, boundaries, and measured timings.
 
 ## When caching is needed
 
-- To share recalculable results among multiple workers, use [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md).
-- Use [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#模型缓存) to cache database rows and query results with automatic invalidation after writes.
+- To share recalculable results among multiple workers, use [Caching](../developers/cache.md).
+- Use [Caching](../developers/cache.md#model-caching) to cache database rows and query results with automatic invalidation after writes.
 - Use MemoryCache for temporary results within one process. It provides neither cross-process sessions nor permission invalidation.
 - Use separate namespaces and finite TTLs to express ownership and acceptable staleness. Do not clear shared Redis to reset an example.
 - Update or invalidate caches after database changes succeed. Do not claim atomic commits across the two systems.
 - Business code decides whether to fall back after cache failure. Do not swallow actual database or computation errors.
-- See [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md) for Django cache interoperability. Do not confuse its key/codec/TTL rules with native Oldman Cache rules.
+- See [Caching](../developers/cache.md) for Django cache interoperability. Do not confuse its key/codec/TTL rules with native Oldman Cache rules.
 
 The reference defines configuration, hits, expiry, None/False/0, multiple processes, and resource cleanup. CACHE serves the caching examples without changing Table's existing database queries. TwoLevelCache is a separate CLI example; do not assume it is integrated into every page.
 
@@ -176,7 +176,7 @@ There are two HTTP layers: the browser requests the demo, then the demo requests
 | [HTTP Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/http) | Four buttons, target area, diagnostic text; HTML in JSON will not be executed |
 | [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) | Initialize the HTTP Client at startup and close it on shutdown, retaining the framework's original cleanup |
 
-There is no dedicated TS for this example: the buttons use `data-om-action="post"` and `data-om-target="#http-result"`, and the normal ExamplesPage executes the replace_html returned by the view. For the complete Python implementation, see [Backend HTTP client](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/http-client.md#demo-中的实际使用).
+There is no dedicated TS for this example: the buttons use `data-om-action="post"` and `data-om-target="#http-result"`, and the normal ExamplesPage executes the replace_html returned by the view. For the complete Python implementation, see [Backend HTTP client](../developers/http-client.md#actual-use-in-the-demo).
 
 Each worker owns a MultiHttpClient without user credentials, using HTTPX, 8 connections, no retries, no redirects, and TLS verification enabled. Service startup calls init_client, but actual network connections open only on the first click. Request completion closes only the current response; service shutdown calls close_client. Do not share this instance directly across users' separate upstream sign-in Cookies.
 
@@ -184,7 +184,7 @@ Upstream disconnections produce explicit diagnostics without disabling Session, 
 
 ## Call external HTTP in business
 
-Use [Backend HTTP client](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/http-client.md) and do not duplicate another set of network layers in the business App. Make it clear who initializes, who holds the connection pool, and who closes:
+Use [Backend HTTP client](../developers/http-client.md) and do not duplicate another set of network layers in the business App. Make it clear who initializes, who holds the connection pool, and who closes:
 
 - One-time commands use their own invocation lifecycle, eventually releasing the client.
 - The long-running service reuses the connection pool and does not close the global client at the end of each request.
@@ -197,7 +197,7 @@ When the backend receives the business error code in JSON, it is interpreted by 
 
 ## Other connections
 
-The [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md) explains named Redis connections, Pub/Sub, and NATS publishing/RPC. Worker control messages, browser user messages, and external infrastructure have different boundaries; do not wrap them in one ambiguous MessageBus.
+The [Redis and NATS providers](../developers/providers.md) explains named Redis connections, Pub/Sub, and NATS publishing/RPC. Worker control messages, browser user messages, and external infrastructure have different boundaries; do not wrap them in one ambiguous MessageBus.
 
 When adding demo coverage, provide an actual source, visible results, a failure path, and shutdown cleanup for each scenario. A fake upstream returning a fixed dictionary does not verify network wiring. See [Demo page and source index](demo-examples.md) for existing interactive pages.
 

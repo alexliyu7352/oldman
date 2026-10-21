@@ -15,7 +15,7 @@ repository (your `.oldman-docs/` clone). Look up every `oldman` import in the [A
 | is an external program nobody answers (a web service, a Taskiq worker, a machine job) | `run_subprocess_exec` / `create_subprocess_exec` |
 | is an external program a person may answer (`sudo` asking for a password, a script with `read`) | `run_foreground` |
 | needs several long-lived workers taking start/stop instructions | `BaseManager`, `BaseWorker`, `BaseTask` |
-| is a message or RPC between separate services | the NATS provider (`docs/public/zh/developers/providers.md`) |
+| is a message or RPC between separate services | the NATS provider (`docs/public/en/developers/providers.md`) |
 
 Never call `asyncio.create_task` in a view and never keep job state in a module-level dict: the task is not tracked,
 nothing reports its failure, the state disappears on restart, and each worker process has its own copy. Do not add Redis,

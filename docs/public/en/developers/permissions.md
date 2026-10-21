@@ -47,7 +47,7 @@ Built-in Admin and custom user-management pages check them (`await require_perm(
 
 Permissions are assigned to roles, each a set of permission names, and users hold roles. Direct per-user grants are unsupported. Roles and assignments are database records managed at runtime.
 
-Install `oldman.apps.roles` in service `apps`, then migrate following [Database migrations](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/migrations.md). It is separate from `oldman.auth` because custom-User projects do not load Auth's models.
+Install `oldman.apps.roles` in service `apps`, then migrate following [Project database migrations](migrations.md). It is separate from `oldman.auth` because custom-User projects do not load Auth's models.
 
 Services installing roles have four role-management permissions in `oldman.apps.roles.permissions`, its configured `permissions_module`:
 

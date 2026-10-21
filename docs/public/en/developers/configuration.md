@@ -257,7 +257,7 @@ Auth's `user_model` and password-reset `password_reset` settings (`expiry` 24 ho
 | `database.url` | `None`; configure before database use |
 | `database.echo` | `None`, following `core.debug` |
 | `database.enable_sql_logging` | `False` |
-| `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md#缓存连接池) |
+| `database.cache_pool_size` / `cache_pool_timeout` | `5` / `1.0` seconds; dedicated query pool for model-cache misses; see [Caching](cache.md#cache-connection-pool) |
 | `i18n.use_i18n`、`use_i18n_path` | `False` |
 | `i18n.default_language` | `en` |
 | `i18n.cookie_name` / `cookie_max_age` | `preferred_language` / 365 days in seconds. Remembers visitor language outside path mode, written only at `i18n.preference_url`; see [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#请求用哪种语言) |
@@ -271,9 +271,9 @@ Built-in Redis aliases `DEFAULT`, `CACHE`, and `SESSION` default to TCP `localho
 
 NATS DEFAULT defaults to nats://localhost:4222. Taskiq is disabled by default; enabling requires a namespace and existing NATS/Redis aliases. Non-Web services do not generate web automatically but still generate these root groups. See [Distributed Taskiq tasks](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/distributed-tasks.md#配置与默认值) for all Taskiq defaults, security parameter conversion, and lifecycle.
 
-Root nats_bus separately controls Core events/RPC: enabled/consume default false, nats_alias defaults DEFAULT, and enabled buses require namespace. It may use the same named address as Taskiq without sharing connections/protocols. See [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#配置与默认值) for all defaults, peer_id, codec, and startup/shutdown budgets. init/sync/check neither connect to NATS nor read certificate files.
+Root nats_bus separately controls Core events/RPC: enabled/consume default false, nats_alias defaults DEFAULT, and enabled buses require namespace. It may use the same named address as Taskiq without sharing connections/protocols. See [Redis and NATS providers](providers.md#configuration-and-defaults) for all defaults, peer_id, codec, and startup/shutdown budgets. init/sync/check neither connect to NATS nor read certificate files.
 
-See [Mail](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mail.md) for mail fields and built-in backends. Explicit `storages` must include `default`; specify actual backend class import paths and options. Do not create backend connections during model import.
+See [Mail](mail.md) for mail fields and built-in backends. Explicit `storages` must include `default`; specify actual backend class import paths and options. Do not create backend connections during model import.
 
 ## Web defaults and switches
 

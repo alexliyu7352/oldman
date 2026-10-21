@@ -25,10 +25,10 @@ The core tutorials use the standalone EPG demo directly, without creating anothe
 - Basic UI, dropdowns, Tabs, Slider, Carousel, and charts: [Dashboard UI and interactive components](components.md).
 - Form cleaning, dynamic JSON fields, tags, and remote selection: [Forms and fields](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md).
 - Choosing icons and building styles and translations: [Assets and styles](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md).
-- Renaming, adopting external tables, or restoring migration state: [Database migrations](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/migrations.md).
-- Uploading, replacing, and deleting model files: [File storage](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md).
-- Shared caches, named Redis connections, and reading caches across Django and Oldman: [Caching](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md) and [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md).
-- Backend external API calls, stream downloads, or NATS RPC: [Backend HTTP client](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/http-client.md) and [Redis/NATS providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#nats-连接与发布).
+- Renaming, adopting external tables, or restoring migration state: [Project database migrations](../developers/migrations.md).
+- Uploading, replacing, and deleting model files: [File storage and model file fields](../developers/storage.md).
+- Shared caches, named Redis connections, and reading caches across Django and Oldman: [Caching](../developers/cache.md) and [Redis and NATS providers](../developers/providers.md).
+- Backend external API calls, stream downloads, or NATS RPC: [Backend HTTP client](../developers/http-client.md) and [Redis and NATS providers](../developers/providers.md#nats-connections-and-publishing).
 
 - Periodic work, computation processes, and long-lived Workers: [Run jobs in the background](background-work.md).
 - Page messages, the notification center, and realtime data: [User messages and realtime updates](messages-and-live-updates.md).
