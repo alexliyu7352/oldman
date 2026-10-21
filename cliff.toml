@@ -33,6 +33,9 @@ commit_preprocessors = [
     # 723109a3 changed what a route handler sees, but its subject has no "!".
     { pattern = "^fix\\(proxy\\): the relay passes on the upstream status and never ends a failed relay like a complete one", replace = "fix(proxy)!: the relay passes on the upstream status and never ends a failed relay like a complete one; once part of the body is sent, a failure closes the player's connection and raises RequestCancelled, so the route handler's first await after the relay is cancelled" },
     # 5698ae7e introduced MCP tools; c6ccfb42 (skipped below) added return-value checking before 0.8.0 shipped them.
+    # ec30604c is the first of four commits that rebuilt the documentation site (2b34b17d, aa8e36e2 and 035b2964 are skipped
+    # below); one entry describes the site a reader gets.
+    { pattern = "^docs\\(site\\): the documentation site takes the framework's look: slate neutrals, blue links, DM Sans and the Oldman brand mark", replace = "docs(site): the documentation site is redesigned in the framework's look, with a home page, local search in English and Chinese, and a 404 page that points to the documentation; each final release publishes it to GitHub Pages" },
     { pattern = "^feat\\(mcp\\): Apps can declare MCP tools, and the protocol layer answers both the 2026-07-28 and the handshake revisions", replace = "feat(mcp): Apps can declare MCP tools, and the protocol layer answers both the 2026-07-28 and the handshake revisions; a tool's arguments and return value are checked against its type hints, and a return value that does not match is logged instead of sent" },
 ]
 commit_parsers = [
@@ -47,6 +50,10 @@ commit_parsers = [
     { sha = "d878031c60b7ea454d9d1f57dd2a22d96a231108", skip = true },
     { sha = "87d446c886be121829fab8b5a9bd094b8deb744c", skip = true },
     { sha = "086357c310cc06e99010ba9e001c7c4365376f8e", skip = true },
+    # Folded into ec30604c's entry above: the home page, local search and the 404 page of the rebuilt documentation site.
+    { sha = "2b34b17df2efcb9b9644df39197669aa1133ae9a", skip = true },
+    { sha = "aa8e36e2d2210fde3523517ae73e409e2a131331", skip = true },
+    { sha = "035b29647685780814532f09ba95d76d484db24d", skip = true },
     { field = "breaking", pattern = "true", group = "<!-- 0 -->Breaking changes" },
     { message = "^feat", group = "<!-- 1 -->Added" },
     { message = "^fix", group = "<!-- 2 -->Fixed" },
