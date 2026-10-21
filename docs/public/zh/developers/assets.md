@@ -284,9 +284,9 @@ PO 不存在时，这种语言的词典里只有框架带了译文的框架前�
 
 npm 包的底层工具为 `oldman-web-i18n extract --project-root . --source-root frontend/src` 和 `oldman-web-i18n compile-po --fallback-locale en`（从标准输入读取 PO）。普通项目优先使用 Oldman CLI 和脚手架脚本，不另写 PO 解析器。
 
-Demo main.ts 从 `./i18n/generated` 导入 defaultLanguage、languageAliases、languageDefinitions 和 languagePreferencePath；从页面的 oldman-asset-base meta 取得资源基址。它创建 createI18n，交给 createOldmanContext，等待 i18n.init 后才 startOldman，完整代码见[前端入口](frontend.md#demo-的-dashboard-页面入口)。
+Demo main.ts 从 `./i18n/generated` 导入 defaultLanguage、languageAliases、languageDefinitions 和 languagePreferencePath，作为语言契约传给 `startDashboard()`，完整代码见[前端入口](frontend.md#demo-的-dashboard-页面入口)。读取页面 oldman-asset-base meta 里的资源基址、创建 createI18n、交给 createOldmanContext、等待 i18n.init 后再 startOldman，这几步都由 `startDashboard` 完成（见[框架的启动入口](frontend.md#框架的启动入口)）。
 
-词典加载不用自己写，`createFetchCatalogLoader` 来自 oldman-web/core：
+词典加载不用自己写：`startDashboard` 内部这样创建 i18n，`createFetchCatalogLoader` 来自 oldman-web/core：
 
 ```typescript
 const assetBaseUrl = readAssetBaseUrl();

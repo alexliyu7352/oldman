@@ -190,7 +190,7 @@ class ProjectStats(Command):
 
 `--team-id` 的类型及最小值由 Typer 检查，错误退出码为 2。不存在的团队抛出 ValueError，CLI 输出说明并退出 1；存在但没有项目的团队正常输出 0，退出 0。缺表、数据库不可访问等异常也退出 1，不自动建表或导入 fixture。状态按数据库原值排序/显示，输出只列实际存在的分组；每次重新查询，不读取缓存页的快照。
 
-读 Session 的上下文管理器负责关闭 Session；`finally` 另外释放本次命令使用的数据库连接池，包括查询失败时。一次性命令不执行 Web 停止监听器，不能指望 `WebService.before_server_stop()` 代为清理。这是命令的资源收尾，不是供请求内并发调用的统计助手。这里用 `typer.echo()` 打印普通文本后返回 None，避免数据库字符串被终端 Rich 标记解释；需要提问时用 [tui](tui.md)（`tui.ask`、`tui.confirm` 等），实际例子可看内置 [Admin 命令](https://github.com/alexliyu7352/oldman/blob/main/oldman/apps/admin/commands.py)。
+读 Session 的上下文管理器负责关闭 Session；`finally` 另外释放本次命令使用的数据库连接池，包括查询失败时。一次性命令不执行 Web 停止监听器，不能指望 `WebService.before_server_stop()` 代为清理。这是命令的资源收尾，不是供请求内并发调用的统计助手。这里用 `typer.echo()` 打印普通文本后返回 None，避免数据库字符串被终端 Rich 标记解释；需要提问时用 [tui](tui.md)（`tui.ask`、`tui.confirm` 等），实际例子可看 Auth App 的[账户命令](https://github.com/alexliyu7352/oldman/blob/main/oldman/auth/commands.py)（`createsuperuser`、`changepassword`）。
 
 `name` 匹配 `[a-z][a-z0-9-]*`；命令名用连字符，Python 参数名用下划线。`help` 必须是非空字符串或 `LazyTranslation`。类必须可无参数构造，`handle()` 必须是 `async def`，可以返回供 CLI 打印的结果，也可以自行输出并返回 None。
 

@@ -537,7 +537,7 @@ async def write_banner_from_another_instance(banner: str) -> None:
     await other.update(banner=banner)
 ```
 
-- 不传 `client` 时，第一次读写才取全局 `redis_client`（DEFAULT 别名），所以 `RedisStore(SiteFlags, "site_flags")` 可以放在模块级。`redis_client.using(alias)` 当场读取 Redis 配置并校验别名是否存在，必须在服务 bootstrap 之后调用；Demo 没有 DEFAULT 别名，所以像上面那样由 `@cache` 的函数在第一次用到时取 CACHE 别名，每个进程也只有一个实例，`update` 才能排队。
+- 不传 `client` 时，第一次读写才取全局 `redis_client`（DEFAULT 别名），所以 `RedisStore(SiteFlags, "site_flags")` 可以放在模块级。`redis_client.using(alias)` 当场读取 Redis 配置并校验别名是否存在，必须在服务 bootstrap 之后调用。Demo 把这些值放在 CACHE 别名下（`REDIS_ALIAS`），要传 `client`，所以像上面那样由 `@cache` 的函数在第一次用到时才取客户端；每个进程也因此只有一个实例，`update` 才能排队。
 - 键是 `<core.namespace>:store:<name>`，值是整个 schema 的 msgpack。名字必须是非空字符串，否则 `ValueError`。
 - 不做本地缓存：每次 `get()` 读一次 Redis，别的进程写入后下一次读取即可见。上面的 `write_banner_from_another_instance` 用第二个实例代替另一个进程演示这一点。每次返回的都是新解码的对象，改了直接 `save`。
 - 键不存在时取默认值，不写入。存的值与 schema 对不上（例如改过字段类型）抛 `msgspec.ValidationError`，不回落默认值；schema 删掉的字段忽略，新加的字段取默认值。

@@ -138,7 +138,7 @@ async def example_asset_update(request: Request, asset_id: int):
     return form_saved_response(_("Asset saved."), url=f"/examples/storage/lifecycle?asset={asset_id}")
 ```
 
-路由经 `oldman.web` 的 `router` 注册；db_manager 来自 oldman.db，CSRF 和 `login_required`（`oldman.web.auth`）来自框架。`get_object_or_404()`（`oldman.web.shortcuts`）在当前 Session 中读取 ExampleAsset，不存在则 404；`form_saved_response()`（`oldman.web.api`）输出 Feedback 和 Redirect 动作，并不直接返回浏览器 302。Demo 是 staff 共用测试数据，需要用户隔离的应用还要在对象查询中增加权限范围。
+路由经 `oldman.web` 的 `router` 注册；db_manager 来自 oldman.db，CSRF 和 `login_required`（`oldman.web.auth`）来自框架。`get_object_or_404()`（`oldman.web.shortcuts`）在当前 Session 中读取 ExampleAsset，不存在则 404；`form_saved_response()`（`oldman.web.api`）输出 Feedback 和 Redirect 动作，并不直接返回浏览器 302。Demo 的示例数据由所有登录用户共用，需要用户隔离的应用还要在对象查询中增加权限范围。
 
 Form 先写新文件，再把实际名称写到实例；commit=True 只是 add/flush，外层上下文才提交。commit=False 同样会写文件，不等于“没有外部副作用”。即使后续由业务自己 add/flush，也应传入当前 Session，使新文件进入失败清理；不提供 Session 就没有这项自动清理保证。
 
