@@ -20,7 +20,7 @@ services/nats_b.py → ./run.sh nats_b start → data/nats_b_settings.yaml
 
 Service file names support lowercase letters, digits, and underscores, and must start with a letter. Files sit directly under `services/`; nested directories are not searched. Each file defines one concrete class directly extending `WebApplication`, `SimpleApplication`, `TaskiqWorkerApplication`, or `TaskiqSchedulerApplication`.
 
-You can use `startservice` to add services in the future. For specific interfaces, see [CLI Reference](../developers/cli.md#项目级命令). This command only creates the entry file and does not automatically create the configuration. For the shared namespace, connections and different App lists of the three Web/Taskiq services, see [Distributed Task Tutorial](distributed-tasks.md); for the two Simple receiving services, see [Communication Tutorial](service-communication.md). These five services still use the same root Settings type, and their initial configuration does not mean starting all services.
+You can use `startservice` to add services in the future. For specific interfaces, see [CLI Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cli.md#项目级命令). This command only creates the entry file and does not automatically create the configuration. For the shared namespace, connections and different App lists of the three Web/Taskiq services, see [Distributed Task Tutorial](distributed-tasks.md); for the two Simple receiving services, see [Communication Tutorial](service-communication.md). These five services still use the same root Settings type, and their initial configuration does not mean starting all services.
 
 Different services run in different processes, and each has its own current Settings instance. A process cannot first initialize a service configuration and then switch to another service to continue running.
 
@@ -101,7 +101,7 @@ __all__ = ["ExamplesAppConfig", "app"]
 
 Default module names are `models`, `views`, `commands`, `tasks`, `events`, and `migrations`. Omit modules for capabilities you do not need; there is no need to set default module names to `None` or create empty proxy implementations. Only Worker/Scheduler automatically load tasks; Web publishers import them explicitly as needed. Only ordinary Web/Simple services with Core consumption enabled load events; commands and Shell do not start subscriptions automatically.
 
-For details on directory and loading constraints, see [AppConfig Reference](../developers/applications.md#appconfig).
+For details on directory and loading constraints, see [AppConfig Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/applications.md#appconfig).
 
 ## An App's own settings
 
@@ -133,15 +133,15 @@ self.require_superuser = admin_settings.require_superuser
 
 This controls only the built-in Admin: false admits active staff users; true additionally requires superuser status. Inactive users, non-staff users, and incorrect passwords are always rejected. It does not disable all permission checks or affect the demo's dashboard. Dashboard sign-in requires an active account; pages requiring staff explicitly declare `staff_required`.
 
-When two different services install the same App with settings, they can fill in different values in their respective YAMLs; the shared business code maintains the same import entry, and there is no need to determine which service you are in. It can only be read when the configuration has been initialized and the App has been installed; the normal CLI will complete the initialization, IDE see [Shell and bootstrap](../developers/applications.md#python-shell-与-ide).
+When two different services install the same App with settings, they can fill in different values in their respective YAMLs; the shared business code maintains the same import entry, and there is no need to determine which service you are in. It can only be read when the configuration has been initialized and the App has been installed; the normal CLI will complete the initialization, IDE see [Shell and bootstrap](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/applications.md#python-shell-与-ide).
 
 Apps that are not installed will not generate configuration; however, an error will be reported when YAML writes its `app_settings`. When an App with a configuration model is installed but no specific value is filled in, the default value of the model is used; the verification fails when a required field without a default value is missing.
 
-Do not write `settings.admin`, `settings.app_settings` or `settings.for_app(...)`. App and root Settings are two strongly typed object spaces, just saved to the same YAML. For the method of writing App configuration model, see [App Settings Reference](../developers/configuration.md#app-settings).
+Do not write `settings.admin`, `settings.app_settings` or `settings.for_app(...)`. App and root Settings are two strongly typed object spaces, just saved to the same YAML. For the method of writing App configuration model, see [App Settings Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#app-settings).
 
 ## Shared project configuration
 
-There is only one root type for the entire project. Demo's [config/schemas.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/schemas.py) declares the project default configuration of database, Web, i18n and Storage on `DefaultSettings`; instead of writing a set of `ApiSettings` and `WebSettings` for each service. For specific classes and default functions, see [Root Settings Reference](../developers/configuration.md#根-settings).
+There is only one root type for the entire project. Demo's [config/schemas.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/schemas.py) declares the project default configuration of database, Web, i18n and Storage on `DefaultSettings`; instead of writing a set of `ApiSettings` and `WebSettings` for each service. For specific classes and default functions, see [Root Settings Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#根-settings).
 
 The business import entry point is [config/settings.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/config/settings.py), with these complete contents:
 
@@ -187,6 +187,6 @@ Use your local YAML as the authority; do not overwrite existing Redis URLs to tr
 
 SimpleApplication's `init/sync` does not automatically generate the entire `web` node. If you write that node explicitly, its existing contents remain. It does not start Web routes or browser session middleware. When background code explicitly needs a setting from it, initialization still follows the corresponding module's usage. Having configuration does not mean the capability has started.
 
-See the [Configuration reference](../developers/configuration.md) for fields, actual defaults, and debugging path options.
+See the [Configuration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md) for fields, actual defaults, and debugging path options.
 
 <!-- source: zh/users/settings-and-apps.md @ 950469ee -->

@@ -21,20 +21,20 @@ The core tutorials use the standalone EPG demo directly, without creating anothe
 - Different configurations for multiple services: [Services and configuration files](settings-and-apps.md#services-and-configuration-files).
 - App-specific settings and IDE completion: [An App's own settings](settings-and-apps.md#an-apps-own-settings).
 - Generating versus applying migrations: [Tutorial data preparation](tutorial-tasks.md#3-run-existing-migrations-on-the-first-run).
-- Custom and built-in commands: [CLI reference](../developers/cli.md).
+- Custom and built-in commands: [CLI reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cli.md).
 - Basic UI, dropdowns, Tabs, Slider, Carousel, and charts: [Component usage](components.md).
-- Form cleaning, dynamic JSON fields, tags, and remote selection: [Form reference](../developers/forms.md).
-- Choosing icons and building styles and translations: [Assets reference](../developers/assets.md).
-- Renaming, adopting external tables, or restoring migration state: [Migration reference](../developers/migrations.md).
-- Uploading, replacing, and deleting model files: [File storage](../developers/storage.md).
-- Shared caches, named Redis connections, and reading caches across Django and Oldman: [Cache](../developers/cache.md) and [Providers](../developers/providers.md).
-- Backend external API calls, stream downloads, or NATS RPC: [HTTP client](../developers/http-client.md) and [NATS](../developers/providers.md#nats-连接与发布).
+- Form cleaning, dynamic JSON fields, tags, and remote selection: [Form reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md).
+- Choosing icons and building styles and translations: [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md).
+- Renaming, adopting external tables, or restoring migration state: [Migration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/migrations.md).
+- Uploading, replacing, and deleting model files: [File storage](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/storage.md).
+- Shared caches, named Redis connections, and reading caches across Django and Oldman: [Cache](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cache.md) and [Providers](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md).
+- Backend external API calls, stream downloads, or NATS RPC: [HTTP client](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/http-client.md) and [NATS](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/providers.md#nats-连接与发布).
 
 - Periodic work, computation processes, and long-lived Workers: [Background work](background-work.md).
 - Page messages, the notification center, and realtime data: [Messages and realtime updates](messages-and-live-updates.md).
 - Installing the built-in admin site and creating administrators: [Admin](admin.md).
 - Preparing production, static assets, and resource cleanup: [Deployment and operations](deployment.md).
 
-Consult the [Developer Reference](../developers/README.md) when you need exact signatures or extensions. Use the [Example index](demo-examples.md) to find specific pages, backends, and templates, avoiding copying only the UI while missing data or component initialization.
+Consult the [Developer Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/README.md) when you need exact signatures or extensions. Use the [Example index](demo-examples.md) to find specific pages, backends, and templates, avoiding copying only the UI while missing data or component initialization.
 
 <!-- source: zh/users/README.md @ 1147cb3f -->

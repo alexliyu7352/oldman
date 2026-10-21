@@ -211,7 +211,7 @@ ExamplesPage extends the project's BasePage, which extends the framework's Dashb
 
 When switching pages through the sidebar, the unified lifecycle unmounts the old Page, replaces the main Frame, and creates the target Page. Although both example URLs use ExamplesPage, they still create separate instances. Loading a Modal or replacing a form fragment within the current page updates only affected components, without destroying the entire Page.
 
-See the [Frontend reference](../developers/frontend.md) for cancellation, cleanup, main Frame, and Feedback rules. Registering all components globally does not fix an unloaded entry point for an individual page.
+See the [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) for cancellation, cleanup, main Frame, and Feedback rules. Registering all components globally does not fix an unloaded entry point for an individual page.
 
 ## 9. Verify through real operations
 

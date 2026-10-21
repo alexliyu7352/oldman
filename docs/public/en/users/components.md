@@ -15,7 +15,7 @@ Template and browser wiring are:
 3. ExamplesPage also registers five Demo private components: navigation-probe, example-chart, realtime-table, icon-catalog, and feedback-workflow. Ordinary Tabs, Slider, and Alert are already in the shared loader and do not need to be registered as global components.
 4. Both initial visits and Turbo dynamic entry pages mount content through the Page lifecycle; old instances are cleaned up when leaving. The remote Modal insertion content is already dynamically mounted, so do not write another set of scripts to initialize the plug-in for it.
 
-The complete code of these steps can be found in [Front-end Entry and Lifecycle](../developers/frontend.md#demo-的-dashboard-页面入口), and the construction and CSS wiring can be found in [Resource Reference](../developers/assets.md). The following `{{ _("...") }}` is a Jinja translation call and needs to be rendered by the backend; it cannot be saved as a browser static HTML. data-example-* is the positioning or private interaction tag of Demo, not the framework component API; the corresponding attributes and consumers must still be retained when copying private interactions.
+The complete code of these steps can be found in [Front-end Entry and Lifecycle](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md#demo-的-dashboard-页面入口), and the construction and CSS wiring can be found in [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md). The following `{{ _("...") }}` is a Jinja translation call and needs to be rendered by the backend; it cannot be saved as a browser static HTML. data-example-* is the positioning or private interaction tag of Demo, not the framework component API; the corresponding attributes and consumers must still be retained when copying private interactions.
 
 ## Distinguish three capabilities
 
@@ -171,7 +171,7 @@ The interactive content container on the same page is as follows:
 
 Popover can contain links and buttons, but neither traps focus nor creates a Modal backdrop. This remains a UI demonstration: View team's #popover and Request review have no corresponding business handlers and do not form a review workflow.
 
-Use an [ordinary Modal](../developers/frontend.md#modal-只是容器) for a backdrop, focus trapping, or remote content container. Drawer on the same page imports modal from `oldman/dashboard/components/modal.html`, passing om-drawer and om-drawer-start/end/top/bottom through root_class. Its trigger's data-om-modal-target matches the macro-generated ID. Copy the trigger, macro import, and macro call together; a direction class alone cannot open the panel. Drawer reuses Modal loading, closing, and cleanup, without a separate submission protocol.
+Use an [ordinary Modal](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md#modal-只是容器) for a backdrop, focus trapping, or remote content container. Drawer on the same page imports modal from `oldman/dashboard/components/modal.html`, passing om-drawer and om-drawer-start/end/top/bottom through root_class. Its trigger's data-om-modal-target matches the macro-generated ID. Copy the trigger, macro import, and macro call together; a direction class alone cannot open the panel. Drawer reuses Modal loading, closing, and cleanup, without a separate submission protocol.
 
 ## Tabs
 
@@ -232,7 +232,7 @@ Multiple details of Accordion share a name, and the folding appearance comes fro
 
 ## Form enhancement
 
-Prioritize the [Backend Fields and Widget](../developers/forms.md) to output the DOM, instead of hand-crafting a second set of submission protocols on each page. The field class of Demo is in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), and the general submission is in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py); for the specific source code and library boundaries, see [Form Example Index](demo-examples.md#forms-and-input).
+Prioritize the [Backend Fields and Widget](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md) to output the DOM, instead of hand-crafting a second set of submission protocols on each page. The field class of Demo is in [forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), and the general submission is in [views/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/forms.py); for the specific source code and library boundaries, see [Form Example Index](demo-examples.md#forms-and-input).
 
 | Need | Backend/frontend capability | Actual page |
 | --- | --- | --- |
@@ -435,7 +435,7 @@ Another button request on the same page is `/examples/messages/feedback/target`.
       <div id="example-target-feedback" data-om-component="feedback"></div>
 ```
 
-Copy actions together with target DOM. A selector does not automatically create an instance. Other buttons return message-only, message + feedback action, and nonzero error_code, matching three actual endpoints in the same file. See the [Response reference](../developers/responses.md) for message fallback and action order.
+Copy actions together with target DOM. A selector does not automatically create an instance. Other buttons return message-only, message + feedback action, and nonzero error_code, matching three actual endpoints in the same file. See the [Response reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) for message fallback and action order.
 
 toast uses Toastify, multiple messages can appear at the same time; alert/confirm/prompt uses SweetAlert2. Simply displaying the toast does not generate notification center records. When the confirmation result determines whether the business continues, the Page should call confirm or process a private action. A feedback action that does not need to return the selection result cannot be regarded as a confirmation protocol.
 
@@ -454,7 +454,7 @@ After confirmation, the component is submitted through the existing `runAction(f
 
 Disconnection, timeout, or HTTP 403 uses existing visible errors, without pretending a successful save. Buttons and overlays recover afterward. Use browser developer tools to go offline, confirm to observe the error, then restore the network and retry. Leaving the page cancels old requests and remaining UI actions, preventing old messages from entering a new page. **This does not guarantee undoing changes already committed by the server**; the database is authoritative on return.
 
-`Feedback.confirm(options)` returns `Promise<boolean>`; explicitly pass `showCancelButton: true` for a cancel button. `prompt<string>(options)` returns results including `isConfirmed` and `value`; do not submit cancellation as an empty string. Page.feedback's public type guarantees only response presentation. The demo narrows it with `instanceof Feedback`. See the [Frontend reference](../developers/frontend.md#feedback-交互与真实请求) for extension wiring and complete execution order.
+`Feedback.confirm(options)` returns `Promise<boolean>`; explicitly pass `showCancelButton: true` for a cancel button. `prompt<string>(options)` returns results including `isConfirmed` and `value`; do not submit cancellation as an empty string. Page.feedback's public type guarantees only response presentation. The demo narrows it with `instanceof Feedback`. See the [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md#feedback-交互与真实请求) for extension wiring and complete execution order.
 
 Other capabilities can be viewed further from these real pages:
 
@@ -471,7 +471,7 @@ Other capabilities can be viewed further from these real pages:
 | language-switcher | Shell language menu and /examples/i18n/browser, use the existing language translation catalog, do not automatically generate translation |
 | back-to-top, history-back, preloader | Return to top, history back and loading presentation; enabled by existing page wiring, does not require all pages to add placeholder components |
 
-Corresponding to [UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Complete Page Index](demo-examples.md), other layouts, pictures, Timeline, system status, etc. are displayed. For the complete library address, adding steps, generation commands and visual variables of the icons, see [Resource Reference](../developers/assets.md#图标). The currently used icons are not regarded as the entire icon library.
+Corresponding to [UI Template Directory](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/ui) and [Complete Page Index](demo-examples.md), other layouts, pictures, Timeline, system status, etc. are displayed. For the complete library address, adding steps, generation commands and visual variables of the icons, see [Resource Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md#图标). The currently used icons are not regarded as the entire icon library.
 
 ## How to check wiring
 

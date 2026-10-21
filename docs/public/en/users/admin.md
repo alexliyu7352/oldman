@@ -124,7 +124,7 @@ Sign in with the superuser you created and operate one of your own projects:
 - Accessing protected pages after signing out should require sign in.
 - CSRF 403 appears after leaving the page for a long time. You should refresh to obtain a new token; do not disable CSRF.
 
-See [ModelAdmin Reference](../developers/admin.md#modeladmin) when you need to customize forms, columns, save rules, or permissions. The project template is overwritten by the template of the same name in settings.web.template.dir, and the installation package resources are not directly modified. Use extension bundle for additional icons and CSS, do not create a separate Admin Form/Modal.
+See [ModelAdmin Reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/admin.md#modeladmin) when you need to customize forms, columns, save rules, or permissions. The project template is overwritten by the template of the same name in settings.web.template.dir, and the installation package resources are not directly modified. Use extension bundle for additional icons and CSS, do not create a separate Admin Form/Modal.
 
 ## 6. Retrieve password
 
@@ -134,9 +134,9 @@ Use “Forgot password?” at the lower right of the sign-in card to open `/admi
 2. Open the email link (`web.domain` plus `/admin/password-reset/<用户标识>/<token>`), set a new password, and confirm it. Rules match Admin password changes: 8 to 128 characters, including both letters and digits.
 3. After the change, all of that user's sign-in sessions in other browsers are invalidated, and the page asks them to sign in with the new password.
 
-Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [Configuration](../developers/configuration.md#app-settings).
+Links are valid for 24 hours by default and become invalid after a password change, signing in again, or expiry. Each link can be used only once. Accounts without email cannot use self-service recovery; an administrator can change their password in the user list. Each IP can request at most 5 resets per 15 minutes (excess requests return 429), and each email address can receive at most 3 emails per hour (excess requests still display “Sent” but send no email). These values are in the Auth App's `password_reset` settings; see [Configuration](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#app-settings).
 
-When developing locally, the default email backend is console, and the email and link will be printed in the service log; for actual sending of emails, you need to configure `mail.backend` as smtp, see [Mail](../developers/mail.md).
+When developing locally, the default email backend is console, and the email and link will be printed in the service log; for actual sending of emails, you need to configure `mail.backend` as smtp, see [Mail](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/mail.md).
 
 ## FAQ
 

@@ -8,12 +8,12 @@ This directory helps agents develop applications with the current Oldman without
 | --- | --- |
 | Create an API or background service | [Creating a service](create-service.md): complete configuration, Apps, entry points, and verification with actual requests or commands |
 | Add persistent data to a service | [Demo data tutorial](../users/tutorial-tasks.md): follow ExampleProject's models, migrations, and transaction wiring |
-| Add settings to an App | [Configuration reference](../developers/configuration.md#app-settings): import the App's strongly typed instance directly |
-| Add project commands | [Command contract](../developers/cli.md#自定义-app-命令): use the Registry's existing discovery mechanism |
-| Handle initialization or import errors | [Loading order](../developers/applications.md#实际加载顺序): distinguish configuration, model, and Web phases |
+| Add settings to an App | [Configuration reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#app-settings): import the App's strongly typed instance directly |
+| Add project commands | [Command contract](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/cli.md#自定义-app-命令): use the Registry's existing discovery mechanism |
+| Handle initialization or import errors | [Loading order](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/applications.md#实际加载顺序): distinguish configuration, model, and Web phases |
 | Develop dashboard CRUD/Modal Forms | [Wiring guide](dashboard-crud.md): cover permissions, the database, both Table formats, responses, and browser verification |
-| Add existing UI or field enhancements | [Component usage](../users/components.md) and the [Field reference](../developers/forms.md): reuse the current loader/Widget |
-| Build application styles, icons, and translations | [Assets reference](../developers/assets.md): install and build in the application project, without copying framework release artifacts |
+| Add existing UI or field enhancements | [Component usage](../users/components.md) and the [Field reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/forms.md): reuse the current loader/Widget |
+| Build application styles, icons, and translations | [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md): install and build in the application project, without copying framework release artifacts |
 | Modify models, prepare fixtures, or integrate files | [Data and files guide](data-and-files.md): check migration scope, transactions, and the file lifecycle |
 | Cache data, request upstream services, or use Redis/NATS | [Caching and networking guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/cache-and-network.md): choose existing clients, configure isolation, and manage connections and failures |
 | Integrate events/RPC between services | [Communication tutorial](../users/service-communication.md) and [Wiring checklist (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/cache-and-network.md#nats按真实-demo-接线): follow the receiving App, shared messages, configuration, and actual processes |
@@ -21,8 +21,8 @@ This directory helps agents develop applications with the current Oldman without
 | Hand asynchronous work to a durable queue or schedule it | [Taskiq wiring (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/distributed-tasks.md): follow the demo's configuration, tasks, services, permissions, and actual execution |
 | Update Tables with SSE or integrate notifications | [Realtime page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md): reuse stable DOM, request permissions, user connections, and persistent notification APIs |
 | Integrate an admin site or extend ModelAdmin | [Admin guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/admin.md): distinguish App registration, model administration, and route installation |
-| Prepare application deployment | [Deployment guide](../users/deployment.md) and [Security boundaries](../developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
-| Maintain the framework and verify release artifacts | [Source maintenance](../developers/maintenance.md) and [Test isolation](../developers/testing.md): keep these separate from application development tasks |
+| Prepare application deployment | [Deployment guide](../users/deployment.md) and [Security boundaries](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
+| Maintain the framework and verify release artifacts | [Source maintenance](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/maintenance.md) and [Test isolation](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/testing.md): keep these separate from application development tasks |
 
 ## Establish only the necessary facts before starting
 
