@@ -1,25 +1,27 @@
 # oldman-web
 
-Oldman 的 TypeScript 浏览器包：共享 Page 生命周期、Dashboard 壳、Form、Table、Modal、响应动作、SSE 客户端和默认样式。使用原生 DOM，不要求 React/Vue。它不包含业务数据、后端路由或业务页面。
+English | [简体中文](https://github.com/alexliyu7352/oldman/blob/main/frontend/packages/oldman-web/README.zh-CN.md)
 
-Python 包 oldman 负责服务端模型、表单、Table、模板及权限；两端通过同一 HTML/JSON 协议协作。Admin 和业务 Dashboard 共用本包，不需要两套组件。
+Oldman's TypeScript browser package provides shared Page lifecycles, a dashboard shell, Form, Table, Modal, response actions, an SSE client, and default styles. It uses native DOM and requires neither React nor Vue. It includes no business data, backend routes, or business pages.
 
-## 安装
+The Python package oldman provides server-side models, forms, Tables, templates, and permissions. Both sides use the same HTML/JSON protocol. Admin and business dashboards share this package without separate component sets.
 
-Node.js 20 或更高。在应用的 frontend 目录：
+## Installation
+
+Use Node.js 20 or later. In the application's frontend directory:
 
 ```sh
 pnpm add oldman-web @fontsource/dm-sans
 pnpm add -D vite@^5 tailwindcss@^4 @tailwindcss/vite typescript @types/node sass
 ```
 
-Tailwind 4 用于共享主题；不导入共享 CSS 的应用可不安装它。Sass 是 Vite 编译组件 SCSS 所需的应用构建工具：pnpm 隔离依赖或 link 安装时，不应依赖间接依赖恰好可解析。TanStack、Choices、Swiper 等组件插件则由 oldman-web 声明，不需要消费者重复安装；业务直接调用插件 API 时才自行声明直接依赖。
+Tailwind 4 powers the shared theme; applications that do not import shared CSS can omit it. Sass is an application build tool required by Vite to compile component SCSS. With pnpm's isolated dependencies or linked installations, do not rely on transitive dependencies happening to resolve. oldman-web declares component plugins such as TanStack, Choices, and Swiper; consumers need not reinstall them. Declare direct dependencies only when business code calls their APIs directly.
 
-使用与 Python 框架匹配的版本。本地源码关联需要目标包已有有效 dist，不能只关联没有构建产物的 src。安装成功也不等于已创建后台路由。
+Use a version matching the Python framework. A local source link requires valid dist output in the target package; linking unbuilt src alone is insufficient. A successful installation does not create backend routes.
 
-## 最小 Dashboard 入口
+## Minimal dashboard entry point
 
-下面是单页的最小 **API 接线参考**，不是完整 Demo 的源码节选。包含语言目录和按需 Page loader 的实际应用入口见 [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)及[浏览器生命周期参考](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md)。此处文件为应用 frontend/src/main.ts：
+This is a minimal single-page **API wiring reference**, not a source excerpt from the complete demo. For an actual entry point with translation catalogs and on-demand Page loaders, see [EPG main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts) and the [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md). The file here is the application's frontend/src/main.ts:
 
 ```typescript
 import "./app.css";
@@ -36,15 +38,15 @@ setupPage("tasks", TasksPage);
 void startOldman().catch((error: unknown) => console.error(error));
 ```
 
-HTML 使用 body data-om-page="tasks"，并加载该入口构建出的脚本及样式。setupPage 注册类，运行时持有当前实例；每个文档只调用一次 startOldman，不在每个片段或 Modal 中重新启动。
+HTML uses body data-om-page="tasks" and loads scripts and styles built from this entry point. setupPage registers the class; the runtime owns the current instance. Call startOldman once per document, without restarting it in each fragment or Modal.
 
-createDashboardComponentLoaders 提供完整默认 loader，并使用 Dashboard Modal/Feedback 主题适配器；createDashboardCrudComponentLoaders 是更小的子集，只预置 Sidebar/Table。需要 Form、Modal 等时不要误用只有两个 loader 的入口。
+createDashboardComponentLoaders provides the complete default loaders with Dashboard Modal/Feedback theme adapters. createDashboardCrudComponentLoaders is a smaller subset containing only Sidebar/Table. Do not use that two-loader entry point when you need Form, Modal, or other components.
 
-最小入口没有加载项目翻译 JSON；完整语言切换使用 createI18n、createOldmanContext 和 catalogLoader，Dashboard 项目脚手架已提供接线。
+The minimal entry point does not load project translation JSON. Complete language switching uses createI18n, createOldmanContext, and catalogLoader; dashboard project scaffolds already provide this wiring.
 
-## 样式和字体
+## Styles and fonts
 
-目录采用 frontend/src/app.css、项目根 templates/ 和 apps/：
+The layout uses frontend/src/app.css and project-root templates/ and apps/:
 
 ```css
 @import "@fontsource/dm-sans/latin-300.css";
@@ -62,61 +64,63 @@ createDashboardComponentLoaders 提供完整默认 loader，并使用 Dashboard 
 @source "./**/*.ts";
 ```
 
-相对路径以 CSS 文件位置为准。包内共享样式已带入框架自身的类；应用仍需扫描会输出 class 的模板、Python 和 TypeScript。样式提供 om-card、om-button、om-modal 等语义类和统一视觉变量，不会替代 JS loader。
+Paths are relative to the CSS file. Shared package styles already include framework classes; applications still need to scan templates, Python, and TypeScript that emit classes. Styles provide semantic classes such as om-card, om-button, and om-modal and shared visual variables, without replacing JS loaders.
 
-DM Sans 覆盖拉丁字符，简繁中文回退到系统中文字体。不默认下载大型中文字体；应用需要统一中文字形时自行选择合适字体。颜色、边框和间距应集中覆盖共享变量，不逐页重新定义风格。
+DM Sans covers Latin characters. Simplified and traditional Chinese fall back to system fonts. No large Chinese font is downloaded by default; applications needing consistent Chinese glyphs choose a suitable font themselves. Override shared color, border, and spacing variables centrally, rather than redefining styles per page.
 
-## 图标
+## Icons
 
-支持 ri-*、mdi-*、bx-*。共享 icons.css 只包含框架自身图标，应用按实际使用生成：
+ri-*, mdi-*, and bx-* are supported. Shared icons.css includes only framework icons. Generate application icons from actual usage:
 
 ```sh
 pnpm exec oldman-web-icons --output src/generated/icons.css \
   --source src --source ../templates --source ../apps --exclude-shared
 ```
 
-把命令加入应用 prebuild/predev/pretypecheck。生成器随包提供图标数据，扫描完整 class 字符串，排除测试、vendor、theme、public、static、dist 等目录；不能从动态字符串拼接推断全部图标。提交生成文件可让刚检出的项目具备 CSS 导入目标。
+Add this command to application prebuild/predev/pretypecheck. The generator bundles icon data, scans complete class strings, and excludes directories such as tests, vendor, theme, public, static, and dist. It cannot infer every icon from dynamically concatenated strings. Committing the generated file provides a CSS import target immediately after checkout.
 
-完整图库：[Remix Icon](https://icon-sets.iconify.design/ri/)、[Material Design Icons](https://icon-sets.iconify.design/mdi/)、[BoxIcons](https://icon-sets.iconify.design/bx/)。例如 ri-add-line；装饰图标使用 aria-hidden，纯图标按钮仍须 aria-label。
+Complete catalogs: [Remix Icon](https://icon-sets.iconify.design/ri/), [Material Design Icons](https://icon-sets.iconify.design/mdi/), and [BoxIcons](https://icon-sets.iconify.design/bx/). For example, ri-add-line. Decorative icons use aria-hidden; icon-only buttons still require aria-label.
 
-## 公开入口与动态内容
+## Public entry points and dynamic content
 
-| 导入 | 作用 |
+| Import | Purpose |
 | --- | --- |
-| oldman-web/core | Page、Component、运行时、HTTP、i18n、动作与类型 |
-| oldman-web/app | BasePage 和动态页面生命周期 |
-| oldman-web/dashboard | DashboardPage、壳和 loaders |
-| oldman-web/dashboard/modal、oldman-web/dashboard/feedback | Dashboard/Admin 共用主题适配 |
-| oldman-web/components/form、table、select 等 | 单个组件及其公开类型 |
-| oldman-web/sse | 浏览器 SSE 客户端 |
+| oldman-web/core | Page, Component, runtime, HTTP, i18n, actions, and types |
+| oldman-web/app | BasePage and dynamic page lifecycles |
+| oldman-web/dashboard | DashboardPage, shell, and loaders |
+| oldman-web/dashboard/modal, oldman-web/dashboard/feedback | Shared dashboard/Admin theme adapters |
+| oldman-web/components/form, table, select, etc. | Individual components and public types |
+| oldman-web/sse | Browser SSE client |
 
-不要导入私有 src/dist 深层文件。组件由 Page 管理；动态 HTML 先卸载旧组件，再加载并挂载新组件，离开页面释放请求、监听和插件实例。
+Do not import deep private src/dist files. Page manages components. Dynamic HTML first unmounts old components, then loads and mounts new ones. Leaving the page releases requests, listeners, and plugin instances.
 
-Modal 只是容器，内部表单仍由普通 Form 提交。远程 loadParts 消费 title/body/footer JSON，loadContent 消费 HTML；表单保存的 actions JSON 则由 Form 和当前 Page 的 Runner 消费，不能混为同一协议。直接 setContent/setParts 不代替完整动态加载生命周期。
+Modal is only a container; an ordinary Form still submits its internal form. Remote loadParts consumes title/body/footer JSON; loadContent consumes HTML. Form and the current Page's Runner consume actions JSON after saving. Do not confuse these protocols. Calling setContent/setParts directly does not replace the complete dynamic loading lifecycle.
 
-声明式远程内容在成功加载后才打开 Modal。加载失败由共享点击入口使用所属 Page 的 Feedback 提示，并保留 error 状态和 om:modal:error 事件，不需要应用再监听一次弹窗；离页/销毁取消不提示。直接调用 loadParts/loadContent 仍向调用方抛出原异常，由调用方处理。无 Page 的独立底层 Modal 只记录声明式失败，不创建全局 Feedback；隐藏容器的状态本身不可见。完整入口及事件类型见下方 Page 参考。
+Declarative remote content opens the Modal only after successful loading. On failure, the shared click entry point reports through the owning Page's Feedback, retaining error state and the om:modal:error event. Applications need no additional listener to show another alert. Cancellation on leaving/destroying a page shows no error. Direct loadParts/loadContent calls still raise the original exception for callers to handle. A standalone low-level Modal without a Page only logs declarative failures; it creates no global Feedback, and hidden container state is not itself visible. See the Page reference below for complete entry points and event types.
 
-JSON Table 使用共享服务端 columns/rows/pagination/sort 协议；HTML Table 消费服务端片段。两者均通过 reload 刷新，不能把它们当成任意第三方表格协议。
+JSON Table uses the shared server columns/rows/pagination/sort protocol; HTML Table consumes server fragments. Both refresh through reload. Do not treat either as an arbitrary third-party table protocol.
 
-DashboardPage 已提供默认 Feedback。toast 使用 Toastify，弹窗使用 SweetAlert2，统一通过 Feedback API；显示 toast 不会自动产生持久通知记录。
+DashboardPage provides default Feedback. Toasts use Toastify; modals use SweetAlert2, both through the Feedback API. Displaying a toast does not automatically create a persistent notification record.
 
-## 翻译
+## Translation
 
-项目 Python、Jinja、CLI 与浏览器共用 messages PO，浏览器只接收需要的词条 JSON：
+Project Python, Jinja, CLI, and browser code share messages PO files. The browser receives JSON containing only required entries:
 
 ```sh
-# 在项目根提取 TypeScript；输出供上层工具合并。
+# Extract TypeScript from the project root; higher-level tools merge the output.
 frontend/node_modules/.bin/oldman-web-i18n extract --project-root . --source-root frontend/src
-# 从标准输入读取 PO，向标准输出写 catalog JSON。
+# Read PO from stdin and write catalog JSON to stdout.
 frontend/node_modules/.bin/oldman-web-i18n compile-po --fallback-locale en < locales/en/LC_MESSAGES/messages.po
 ```
 
-extract 使用 TypeScript AST 识别 i18n.t/tc/tn/tnc，接受字符串字面量或无插值模板字面量。动态消息、缺参数和语法错误以具体文件位置报错。compile-po 保留 context、plural forms 和 pluralRule；项目不应另写 PO 解析器。
+extract uses the TypeScript AST to recognize i18n.t/tc/tn/tnc and accepts string literals or template literals without interpolation. Dynamic messages, missing arguments, and syntax errors report precise file locations. compile-po preserves context, plural forms, and pluralRule. Projects should not write another PO parser.
 
-Python CLI 负责项目统一 POT/PO/MO，Dashboard 脚手架构建脚本按框架及项目的前端词清单过滤 JSON，再由 Vite 发布。上述底层 compile-po 本身不会自动知道哪些词属于前端。
+The Python CLI manages project-wide POT/PO/MO. Dashboard scaffold build scripts filter JSON using framework and project frontend message inventories, then publish through Vite. The low-level compile-po command does not automatically know which messages belong to the frontend.
 
-## 完整文档
+## Full documentation
 
-[Dashboard 连续教程](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-dashboard.md) · [组件用法](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/components.md) · [Page 和生命周期](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [响应协议](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [构建、图标和翻译](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
+[Demo HTML/JSON tables and Modal Forms](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/tutorial-dashboard.md) · [Dashboard UI and interactive components](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/users/components.md) · [Frontend reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/frontend.md) · [Response protocol](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/responses.md) · [Assets reference](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/assets.md)
 
-发布内容包括 dist、图标与翻译 CLI、类型声明、README 和 LICENSE。应用需要构建自己的入口；后端内置 Admin 资源不替代业务前端构建。
+The release includes dist, icon and translation CLIs, type declarations, README, and LICENSE. Applications build their own entry points; backend built-in Admin assets do not replace business frontend builds.
+
+<!-- source: frontend/packages/oldman-web/README.zh-CN.md @ 7dfc0480 -->
