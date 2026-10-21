@@ -7,3 +7,5 @@ build/
 .staging/
 # 只有文档树本身是组装出来的；同目录的 current.json（侧边栏分区名的译文）是源文件。
 i18n/*/docusaurus-plugin-content-docs/current/
+# 繁体整个是组装时从简体转换出来的，界面文字也一样。
+i18n/zh-Hant/

@@ -1,5 +1,5 @@
 // 首页。文字都取自 README（docs/public 之外唯一面向所有人的介绍）和文档本身，不另写一套宣传文案；
-// 中文译文在 i18n/zh-Hans/code.json。版式与配色跟文档页同一套 token（src/css/custom.css）。
+// 中文译文在 i18n/zh-Hans/code.json（繁体由它转换生成）。版式与配色跟文档页同一套 token（src/css/custom.css）。
 
 import CodeBlock from "@theme/CodeBlock";
 import Layout from "@theme/Layout";

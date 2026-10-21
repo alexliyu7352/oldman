@@ -151,5 +151,35 @@
   },
   "notFound.api": {
     "message": "打开 API 参考"
+  },
+  "theme.SearchBar.label": {
+    "message": "搜索"
+  },
+  "theme.SearchBar.seeAll": {
+    "message": "查看全部结果"
+  },
+  "theme.SearchBar.noResultsText": {
+    "message": "没有找到任何文档"
+  },
+  "theme.SearchBar.searchInContext": {
+    "message": "查看“{context}”以内的全部结果"
+  },
+  "theme.SearchBar.seeAllOutsideContext": {
+    "message": "查看“{context}”以外的全部结果"
+  },
+  "theme.SearchPage.existingResultsTitle": {
+    "message": "“{query}”的搜索结果"
+  },
+  "theme.SearchPage.emptyResultsTitle": {
+    "message": "搜索文档"
+  },
+  "theme.SearchPage.documentsFound.plurals": {
+    "message": "共找到 {count} 篇文档"
+  },
+  "theme.SearchPage.noResultsText": {
+    "message": "没有找到任何文档"
+  },
+  "theme.SearchPage.searchContext.everywhere": {
+    "message": "所有"
   }
 }

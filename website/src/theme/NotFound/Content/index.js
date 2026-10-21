@@ -1,5 +1,5 @@
 // 404 页的内容（从 @docusaurus/theme-classic 弹出）：原文让读者"去联系链接的主人"，对读者没有用；
-// 这里说明可能的原因，并给出文档与 API 两个入口。中文译文在 i18n/zh-Hans/code.json。
+// 这里说明可能的原因，并给出文档与 API 两个入口。中文译文在 i18n/zh-Hans/code.json（繁体由它转换生成）。
 
 import Heading from "@theme/Heading";
 import Link from "@docusaurus/Link";

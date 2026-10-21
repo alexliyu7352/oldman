@@ -381,20 +381,20 @@
 }
 
 /* 中文：标题不收字距，行高放宽。 */
-:global(html[lang="zh-Hans"]) .title,
-:global(html[lang="zh-Hans"]) .sectionTitle {
+:global(html[lang|="zh"]) .title,
+:global(html[lang|="zh"]) .sectionTitle {
   letter-spacing: 0;
   /* 只在空格与标点处换行，"管理后台"这样的词不被拆到两行。 */
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
-:global(html[lang="zh-Hans"]) .title {
+:global(html[lang|="zh"]) .title {
   line-height: 1.25;
 }
 
-:global(html[lang="zh-Hans"]) .lead,
-:global(html[lang="zh-Hans"]) .capability dd,
-:global(html[lang="zh-Hans"]) .sectionText {
+:global(html[lang|="zh"]) .lead,
+:global(html[lang|="zh"]) .capability dd,
+:global(html[lang|="zh"]) .sectionText {
   line-height: 1.8;
 }

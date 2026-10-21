@@ -11,8 +11,8 @@ const ORGANIZATION = "alexliyu7352";
 const PROJECT = "oldman";
 const REPOSITORY = `https://github.com/${ORGANIZATION}/${PROJECT}`;
 
-/** 暂存目录名 -> 源目录名。editUrl 要指回真实的源文件，不是暂存副本。 */
-const SOURCE_DIRECTORY = { en: "en", "zh-Hans": "zh" };
+/** 暂存目录名 -> 源目录名。editUrl 要指回真实的源文件，不是暂存副本。繁体由简体转换而来，改简体原文。 */
+const SOURCE_DIRECTORY = { en: "en", "zh-Hans": "zh", "zh-Hant": "zh" };
 
 /** 代码块底色跟页面的表面色走（亮：slate-50，暗：slate-900），高亮配色沿用 Prism 自带的两套。 */
 const CODE_LIGHT = { ...themes.github, plain: { ...themes.github.plain, backgroundColor: "#f8fafc" } };
@@ -45,11 +45,13 @@ export default {
   i18n: {
     // 英文不带路径前缀。两棵暂存树都是完整的，所以这不依赖 Docusaurus 自己的
     // 回退——缺的译文在组装阶段就用中文填上了，站点侧不存在“未翻译”状态。
+    // 繁体不翻译：组装阶段把简体的页面和界面文字经 OpenCC（台湾用语）转换出来，不进 git。
     defaultLocale: "en",
-    locales: ["en", "zh-Hans"],
+    locales: ["en", "zh-Hans", "zh-Hant"],
     localeConfigs: {
       en: { label: "English" },
       "zh-Hans": { label: "简体中文" },
+      "zh-Hant": { label: "繁體中文" },
     },
   },
 
@@ -78,7 +80,8 @@ export default {
 
   themes: [
     [
-      // 本地搜索：构建时为两种语言各建一份索引，不依赖外部服务；中文用 jieba 分词。
+      // 本地搜索：构建时为每种语言各建一份索引，不依赖外部服务；中文用 jieba 分词。
+      // 插件只带简体界面文字，所以它的 theme.Search* 字符串也抄在 i18n/zh-Hans/code.json 里，繁体由它转换得到。
       "@easyops-cn/docusaurus-search-local",
       {
         hashed: true,

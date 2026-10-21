@@ -290,13 +290,19 @@ html {
   margin: 2.5rem 0;
 }
 
+/* 繁体页面换成繁体字体：简体字体里的繁体字是大陆字形。 */
+html[lang="zh-Hant"] {
+  --ifm-font-family-base: "DM Sans", "PingFang TC", "Hiragino Sans CNS", "Microsoft JhengHei", "Noto Sans CJK TC",
+    "Source Han Sans TC", system-ui, sans-serif;
+}
+
 /* 中文字形更满：同样的行高读起来更挤，正文放到 1.8。 */
-html[lang="zh-Hans"] .markdown {
+html[lang|="zh"] .markdown {
   line-height: 1.8;
 }
 
-html[lang="zh-Hans"] .markdown h1:first-child,
-html[lang="zh-Hans"] .markdown h2 {
+html[lang|="zh"] .markdown h1:first-child,
+html[lang|="zh"] .markdown h2 {
   letter-spacing: 0;
 }
 

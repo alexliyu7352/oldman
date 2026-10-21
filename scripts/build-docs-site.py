@@ -14,6 +14,10 @@ translated/untranslated boundary breaks the build. Both staged trees are therefo
 **complete**: each locale's own file when it exists, the other language's file when it
 does not. No boundary exists, so no link can cross one.
 
+Traditional Chinese has no directory of its own. It is the staged Simplified tree, and
+the Simplified interface strings beside it, run through OpenCC with Taiwan vocabulary.
+Nothing of it is committed, so it cannot fall behind the Simplified pages.
+
 Usage:
     build-docs-site.py check     report gaps and stale translations; exit 1 if any
     build-docs-site.py stage     assemble the staged trees
@@ -23,9 +27,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,13 +47,26 @@ DEFAULT_LANGUAGE = "en"
 #: Language a missing file falls back to. Documents are authored in Chinese and
 #: translated, so an untranslated page shows Chinese rather than disappearing.
 FALLBACK_LANGUAGE = "zh"
+#: Locale -> (the locale it is converted from, OpenCC configuration). s2twp converts
+#: characters and phrases to Taiwan usage: 函数 -> 函式, 数据 -> 資料, 线程 -> 執行緒.
+CONVERTED_LOCALES = {"zh-Hant": ("zh-Hans", "s2twp")}
+
+FENCE = re.compile(r"^\s*(```|~~~)")
+#: A code span, or the target of a Markdown link (`](target`).
+CODE_OR_LINK_TARGET = re.compile(r"(`+).+?\1|\]\(([^)\s]+)")
+URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
 
 def staged_root(language: str) -> Path:
     """Where Docusaurus expects this language's Markdown to be."""
     if language == DEFAULT_LANGUAGE:
         return WEBSITE / ".staging" / language
-    return WEBSITE / "i18n" / LANGUAGES[language] / "docusaurus-plugin-content-docs" / "current"
+    return locale_docs_root(LANGUAGES[language])
+
+
+def locale_docs_root(locale: str) -> Path:
+    """Where Docusaurus expects the Markdown of a locale other than the default one."""
+    return WEBSITE / "i18n" / locale / "docusaurus-plugin-content-docs" / "current"
 
 
 def source_files(language: str) -> dict[str, Path]:
@@ -126,6 +146,76 @@ def stage(languages: dict[str, dict[str, Path]]) -> dict[str, int]:
     return filled
 
 
+def converter(configuration: str) -> Callable[[str], str]:
+    """OpenCC's converter for one configuration. Imported here: only staging needs it."""
+    import opencc
+
+    return opencc.OpenCC(configuration).convert
+
+
+def convert_markdown(text: str, convert: Callable[[str], str]) -> str:
+    """Convert a page's prose, headings and in-page anchors; leave code and URLs as written.
+
+    Code blocks and code spans quote real source, commands and messages, so converting
+    them would show code that exists nowhere. A heading's anchor is made from its
+    converted text, so a relative link's `#fragment` is converted the same way to keep
+    pointing at it. A link with a scheme points outside this site and stays as written.
+    """
+    lines: list[str] = []
+    fenced = False
+    for line in text.splitlines(keepends=True):
+        if FENCE.match(line):
+            fenced = not fenced
+            lines.append(line)
+            continue
+        if fenced:
+            lines.append(line)
+            continue
+        parts: list[str] = []
+        position = 0
+        for match in CODE_OR_LINK_TARGET.finditer(line):
+            parts.append(convert(line[position : match.start()]))
+            target = match.group(2)
+            if target is None or URL_SCHEME.match(target):
+                parts.append(match.group(0))
+            else:
+                path, hash_sign, fragment = target.partition("#")
+                parts.append(f"]({path}{hash_sign}{convert(fragment)}")
+            position = match.end()
+        parts.append(convert(line[position:]))
+        lines.append("".join(parts))
+    return "".join(lines)
+
+
+def convert_locales() -> list[str]:
+    """Write every converted locale from the staged tree and interface strings of its source."""
+    written: list[str] = []
+    for locale, (source_locale, configuration) in CONVERTED_LOCALES.items():
+        convert = converter(configuration)
+        source, destination = WEBSITE / "i18n" / source_locale, WEBSITE / "i18n" / locale
+        if destination.exists():
+            shutil.rmtree(destination)
+
+        # Interface strings: navbar, footer, sidebar categories, the home and 404 pages.
+        source_docs = locale_docs_root(source_locale)
+        for path in sorted(source.rglob("*.json")):
+            if path.is_relative_to(source_docs):
+                continue
+            strings = json.loads(path.read_text(encoding="utf-8"))
+            for entry in strings.values():
+                entry["message"] = convert(entry["message"])
+            target = destination / path.relative_to(source)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(strings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+        for path in sorted(source_docs.rglob("*.md")):
+            target = locale_docs_root(locale) / path.relative_to(source_docs)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(convert_markdown(path.read_text(encoding="utf-8"), convert), encoding="utf-8")
+        written.append(f"staged {locale} -> {destination.relative_to(ROOT)} (converted from {source_locale} with {configuration})")
+    return written
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("action", nargs="?", default="build", choices=("check", "stage", "build"))
@@ -148,6 +238,8 @@ def main() -> int:
     filled = stage(languages)
     for language, borrowed in sorted(filled.items()):
         print(f"staged {language} -> {staged_root(language).relative_to(ROOT)} ({borrowed} filled from another language)")
+    for line in convert_locales():
+        print(line)
     return 0
 
 
