@@ -185,7 +185,7 @@ class LayoutExampleForm(BasicFieldsForm):
 
 When ModelForm generates fields from columns, labels/help follow these priorities: explicitly declared fields > `Meta.labels` / `Meta.help_texts` > column `info={"label": ..., "help_text": ...}` > humanized field names. Put model-level defaults on columns and form-specific overrides in Meta.
 
-Filter forms (`TailwindTableFilterForm`) default to `layout_style = "inline"`. Search inputs (`render_kw={"type": "search"}` or field name `q`) fill remaining width; other controls use labels as left prefixes. `advanced=True` fields move into a "More filters" panel on the right, followed by fixed "Reset" and "Filter" controls. Pages with many always-visible fields can use `layout_style = "grid"` for labels above controls. Each layout has corresponding templates under `oldman/forms/default/`; override matching project paths to restyle them.
+Filter forms (`TailwindTableFilterForm`) default to `layout_style = "inline"`. Search inputs (`render_kw={"type": "search"}` or field name `q`) fill remaining width; other controls use labels as left prefixes. `advanced=True` fields move into a "More filters" panel on the right, followed by fixed "Reset" and "Filter" controls. Pages with many always-visible fields can set `layout_style` to `"grid"` for labels above controls. Each layout has corresponding templates under `oldman/forms/default/`; override matching project paths to restyle them.
 
 ## Extended fields
 
@@ -316,7 +316,7 @@ It deliberately **does not** reuse provider `get_queryset`. Values a user can se
 
 The resolver is an ordinary asynchronous function, so sources are not limited to databases. Structured data, caches, and remote services use the same hook. Without a declaration it adds no overhead or queries. Multiple-selection fields with `tags=True` intentionally allow nonexistent values and skip validation even when declared.
 
-Clearing an optional remote foreign key (`validators=[Optional()]`) submits an empty string, which `AjaxSelectField` stores as `None`. No extra empty-to-None coerce wrapper is needed. Cleared multiple selections may submit an empty string or omit the key entirely; `AjaxSelectMultipleField` stores `[]` in both cases, without separate caller handling.
+Clearing an optional remote foreign key (`validators=[Optional()]`) submits an empty string, which `AjaxSelectField` stores as `None`. No extra empty-to-None `coerce` wrapper is needed. Cleared multiple selections may submit an empty string or omit the key entirely; `AjaxSelectMultipleField` stores `[]` in both cases, without separate caller handling.
 
 ### Submissions still require object validation
 

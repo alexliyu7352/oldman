@@ -301,7 +301,7 @@ const i18n = createI18n({
 });
 ```
 
-Supplying `http` also requires `languagePreferencePath`, specifying where to POST language choices; generated `generated.ts` uses `i18n.preference_url`. Omitting it makes `createI18n` fail instead of guessing an address. `null` means no endpoint and suits only single-language pages (also Admin's fallback without server language data). On multilingual pages outside path mode, null leaves no Cookie to remember the selection when returning to the current page, reverting its language. Path mode is unaffected because the destination URL carries its language prefix.
+Supplying `http` also requires `languagePreferencePath`, specifying where to POST language choices; generated `generated.ts` uses `i18n.preference_url`. Omitting it makes `createI18n` fail instead of guessing an address. `null` means no endpoint and suits only single-language pages (also Admin's fallback without server language data). On multilingual pages outside path mode, `null` leaves no Cookie to remember the selection when returning to the current page, reverting its language. Path mode is unaffected because the destination URL carries its language prefix.
 
 `createFetchCatalogLoader` resolves `catalogPath` by URL rules without rewriting it. Project catalogs live with bundles and use relative `i18n/en.json` resolved against assetBaseUrl. Admin catalogs are another mounted route and use absolute site paths such as `/admin/i18n/en.json`. Stripping the leading slash would resolve them against the current page, producing 404 on every non-root page.
 
@@ -321,7 +321,7 @@ Ordinary websites use path mode only. The framework offers no Cookie-based langu
 Language switching outside path mode:
 
 1. The user selects a language; the browser POSTs `{"language": "<code>"}` to `i18n.preference_url` (default `/preferences/language`), available before or after sign-in.
-2. `save_language_preference` handles this endpoint and is the **sole** language-Cookie writer. Its name is `i18n.cookie_name`, lifetime `i18n.cookie_max_age` (default 365 days), Path=/, SameSite=Lax, and Secure follows `web.session.cookie_secure`. It is not HttpOnly, allowing project scripts to read the current language.
+2. `save_language_preference` handles this endpoint and is the **sole** language-Cookie writer. Its name is `i18n.cookie_name`, lifetime `i18n.cookie_max_age` (default 365 days), `Path=/`, `SameSite=Lax`, and `Secure` follows `web.session.cookie_secure`. It is not HttpOnly, allowing project scripts to read the current language.
 3. The browser navigates to the menu item's URL (current page without `?lang=`), and the server renders using the new Cookie's language.
 
 Change those two settings to customize Cookie name/lifetime; do not add another frontend Cookie implementation.

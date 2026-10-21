@@ -134,7 +134,7 @@ Use `async def` for callbacks that query the database or render fragments. SQLAl
         return badge(str(count), tone="primary"), count
 ```
 
-One query per cell means 50 queries for 50 rows. Fetch data needed by every row in `build_row_contexts()` once, then read `row_context` in callbacks. Callback queries suit small, on-demand cases. To include a Modal in a cell, likewise call `await render_modal(request, ...)` in an asynchronous callback; request is among its keyword arguments. See [the frontend Modal section](frontend.md#modal-is-only-a-container).
+One query per cell means 50 queries for 50 rows. Fetch data needed by every row in `build_row_contexts()` once, then read `row_context` in callbacks. Callback queries suit small, on-demand cases. To include a Modal in a cell, likewise call `await render_modal(request, ...)` in an asynchronous callback; `request` is among its keyword arguments. See [the frontend Modal section](frontend.md#modal-is-only-a-container).
 
 ExampleProjectTable's name column demonstrates this boundary. Markup and escape both come from markupsafe:
 

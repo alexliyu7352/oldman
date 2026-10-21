@@ -28,7 +28,7 @@ Direct `stream.send()` bypasses Redis Pub/Sub and does not require `web.sse.enab
 
 `@sse.streaming(*, preflight=None, queue_mode=SSEQueueMode.FIFO, queue_size=None, retry=None, session_guard=False, login_url=None)` injects `SSEStream` after the route handler's request parameter without registering the route. `login_url` is the sign-in destination after session invalidation, defaulting to site `web.account.login_url`. Optional asynchronous `preflight(request)` runs before HTTP headers are sent. Ordinary permissions should use existing decorators outside streaming.
 
-`stream.send(payload, *, event, id=None)` accepts `MsgspecModel` and outputs JSON text as SSE data. Use stable event names such as `server.metrics`; `id` is an optional string. Set `retry` in the streaming decorator, in milliseconds, to affect native EventSource reconnection. `id` does not make the framework store/replay events automatically.
+`stream.send(payload, *, event, id=None)` accepts `MsgspecModel` and outputs JSON text as SSE data. Use stable `event` names such as `server.metrics`; `id` is an optional string. Set `retry` in the streaming decorator, in milliseconds, to affect native EventSource reconnection. `id` does not make the framework store/replay events automatically.
 
 A single writer owns the HTTP response; business send only enqueues. Normal handler completion drains queued data before closing, and disconnection cancels the handler. Put resources in `try/finally` and do not swallow `CancelledError`. Do not also write the same response through `request.respond()`.
 

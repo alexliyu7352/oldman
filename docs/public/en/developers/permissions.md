@@ -24,7 +24,7 @@ class ReportPermissions(PermissionSet, namespace="reports"):
 
 ## Loading
 
-`AppConfig.permissions_module` defaults to `permissions`. Every service type (Web, persistent service, CLI, Worker) imports this module from each installed App immediately after models in `bootstrap_service()`, skipping absent modules. The complete catalog therefore exists for view imports and CLI bulk role creation. Admin model permissions are declared during model registration instead, existing only in services registering those models. As with views, permission imports must not register database models. Existing unrelated modules named permissions, such as permission-check helpers, also load at every startup. To avoid that, select another `permissions_module` in AppConfig; missing modules are skipped.
+`AppConfig.permissions_module` defaults to `permissions`. Every service type (Web, persistent service, CLI, Worker) imports this module from each installed App immediately after models in `bootstrap_service()`, skipping absent modules. The complete catalog therefore exists for view imports and CLI bulk role creation. Admin model permissions are declared during model registration instead, existing only in services registering those models. As with views, permission imports must not register database models. Existing unrelated modules named `permissions`, such as permission-check helpers, also load at every startup. To avoid that, select another `permissions_module` in `AppConfig`; missing modules are skipped.
 
 Auth's permission module is `user_permissions` (below), because `oldman.auth.permissions` is the declaration mechanism imported by every service. Declaring there would affect services without Auth installed.
 
@@ -47,7 +47,7 @@ Built-in Admin and custom user-management pages check them (`await require_perm(
 
 Permissions are assigned to roles, each a set of permission names, and users hold roles. Direct per-user grants are unsupported. Roles and assignments are database records managed at runtime.
 
-Install `oldman.apps.roles` in service `apps`, then migrate following [Project database migrations](migrations.md). It is separate from `oldman.auth` because custom-User projects do not load Auth's models.
+Install `oldman.apps.roles` in service `apps`, then migrate following [Project database migrations](migrations.md). It is separate from `oldman.auth` because custom-User projects do not load models from `oldman.auth`.
 
 Services installing roles have four role-management permissions in `oldman.apps.roles.permissions`, its configured `permissions_module`:
 

@@ -38,7 +38,7 @@ Every project includes `AGENTS.md` with coding-agent instructions: clone documen
 
 Database choices are `none`, `sqlite`, `mysql`, and `postgres`. CLI scripts do not ask for a database; dashboards require one. MySQL/PostgreSQL scaffolds declare drivers, but you still supply actual URLs, create databases, and apply migrations.
 
-Database-enabled `web` and `dashboard` projects next ask whether to integrate the built-in Admin (default no). Choosing it installs `oldman.auth`, `oldman.apps.roles`, and `oldman.apps.admin`, generates a project User in `apps/accounts` like dashboard (`app_settings.auth.user_model` selects it), enables Session, and calls `install_admin(app)` in service `init()`. Admin mounts at `app_settings.admin.prefix` (default `/admin`) and shares sign-in state. Web without a database does not ask, since Admin users require storage. You can add it later by installing those Apps, enabling Session, and calling `install_admin`. Dashboards install user and role Apps regardless of this choice.
+Database-enabled `web` and `dashboard` projects next ask whether to integrate the built-in Admin (default no). Choosing it installs `oldman.auth`, `oldman.apps.roles`, and `oldman.apps.admin`, generates a project User in `apps/accounts` like `dashboard` (`app_settings.auth.user_model` selects it), enables Session, and calls `install_admin(app)` in service `init()`. Admin mounts at `app_settings.admin.prefix` (default `/admin`) and shares sign-in state. A `web` project without a database does not ask, since Admin users require storage. You can add it later by installing those Apps, enabling Session, and calling `install_admin`. Dashboards install user and role Apps regardless of this choice.
 
 These choices use questions, not `startproject --type` or `--db`. For unattended CI/scripts/agents, use environment [preset answers](tui.md#preset-answers-for-unattended-use); configured questions are not asked again:
 
@@ -51,7 +51,7 @@ OLDMAN_ANSWER_STARTSERVICE_TYPE=taskiq_worker ./run.sh startservice worker
 | Command | Question | Variable | Choices |
 | --- | --- | --- | --- |
 | `startproject` | Project type | `OLDMAN_ANSWER_STARTPROJECT_TYPE` | `cli`, `service`, `api`, `web`, `dashboard` |
-| `startproject` | Database (not asked for `cli`) | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`, `sqlite`, `mysql`, `postgres`; `dashboard` requires a database |
+| `startproject` | Database (not asked for `cli`) | `OLDMAN_ANSWER_STARTPROJECT_DATABASE` | `none`, `sqlite`, `mysql`, `postgres`; `dashboard` cannot use `none` |
 | `startproject` | Built-in Admin integration (database-enabled `web` and `dashboard` only) | `OLDMAN_ANSWER_STARTPROJECT_ADMIN` | `yes`, `no` (also true/false, 1/0); unset outside a terminal defaults to `no` |
 | `startapp` | App template | `OLDMAN_ANSWER_STARTAPP_TEMPLATE` | `service`, `api`, `web`, `dashboard`, `mcp` (MCP tools/resources/prompts only; see [MCP server](mcp.md)) |
 | `startapp` | Display name | `OLDMAN_ANSWER_STARTAPP_DISPLAY_NAME` | Any text; defaults to a name-derived value |
@@ -177,7 +177,7 @@ class ProjectStats(Command):
             await db_manager.close()
 ```
 
-`apps.examples` is already in service YAML `apps`. Inherited `commands_module = "commands"` lets Registry discover this exported class without AppConfig/WebService changes. Help groups commands by App display name. Invoke it as follows:
+`apps.examples` is already in service YAML `apps`. The `commands_module = "commands"` inherited by `ExamplesAppConfig` lets Registry discover this exported class without AppConfig/WebService changes. Help groups commands by App display name. Invoke it as follows:
 
 ```sh
 ./run.sh web --help
@@ -222,7 +222,7 @@ Construct the selected service Application
 → Close logging resources for this command
 ```
 
-This does not run service `init()`, `prepare()`, `main()`, `prepare_server()`, or Web start/stop listeners, so executing commands does not bind HTTP ports. Override `before_command()` for service-level command initialization; close related resources in `after_command()`. Business `handle()` may also use context managers/finally for its own resources.
+This does not run service `init()`, `prepare()`, `main()`, `prepare_server()`, or Web start/stop listeners, so executing commands does not bind HTTP ports. Override `before_command()` for service-level command initialization; close related resources in `after_command()`. Business `handle()` may also use context managers/`finally` for its own resources.
 
 Core sends/RPC only: consume=true neither loads App events nor starts subscribers. Ordinary commands do not load all tasks automatically. Disabled capabilities create no corresponding connections. Initialization/handle/after_command failures still enter communication finally, retaining original errors and separately logging cleanup failures. DB/HTTP resources retain their ownership rules. Import bus directly in commands without another manual async with. Settings/help, database commands, and bootstrap/Shell do not run this async command chain; see [the provider reference](providers.md#shell-ide-and-independent-connections) for explicit Shell communication.
 
