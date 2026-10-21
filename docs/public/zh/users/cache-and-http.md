@@ -39,7 +39,7 @@ redis:
 | [cache_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/cache_example.py) | 持有 RedisCache；读快照、数据库分组查询、写入 TTL、删除单 key |
 | [views/cache.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/cache.py) | GET 页面；三个统计 POST；独立的响应缓存 GET/失效 POST；登录检查与写操作 CSRF |
 | [cache 模板目录](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/templates/pages/examples/cache) | 两个缓存分区的按钮、说明、独立结果区域及片段 |
-| [views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | 页面清单与具体路由模块导入；沿用现有 Examples App 注册 |
+| [`views/__init__.py`](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py) | 页面清单与具体路由模块导入；沿用现有 Examples App 注册 |
 
 业务函数 `read_project_statistics(refresh=False)` 返回快照与本次来源；不是把“已命中”写进快照。`clear_project_statistics()` 调用同一实例的 `delete(CACHE_KEY)`。完整函数及类型说明见[Cache 参考](../developers/cache.md#demo-中的实际使用)。
 

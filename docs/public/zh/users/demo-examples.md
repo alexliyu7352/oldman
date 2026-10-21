@@ -11,7 +11,7 @@
 3. 普通组件来自共享 Dashboard loaders。只有表格实时显示等私有行为才继续看 `frontend/src/components/examples/`。
 4. 修改后在同一个 Demo 页面验证，也通过侧栏从其他页面进入一次，检查动态挂载是否正确。
 
-示例统一入口与分类在 [views/__init__.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py)。它会导入各具体视图模块；不要把所有 URL 都理解为一个只渲染空壳的通配路由。
+示例统一入口与分类在 [`views/__init__.py`](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/__init__.py)。它会导入各具体视图模块；不要把所有 URL 都理解为一个只渲染空壳的通配路由。
 
 ## 自定义 App 命令
 

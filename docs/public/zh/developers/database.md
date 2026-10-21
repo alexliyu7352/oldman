@@ -41,7 +41,7 @@ class ExampleTeam(DatabaseModel):
 
 时间列存的是无时区 UTC。需要“现在”时用 `oldman.utils.date.naive_utcnow`（`default=naive_utcnow`、`onupdate=naive_utcnow`，代码里 `naive_utcnow()`），不要在每处写一遍 `datetime.now(UTC).replace(tzinfo=None)`，也不要让同一列出现带时区和不带时区两种值。
 
-App Registry 根据已注册包的 models 模块加载模型，记录所属 App、Table、展示名和 managed 状态。不扫描所有安装包，也不应在 App 元数据模块中提前导入模型。一个 Table 只能归属一个 App；独立的关联 Table 也必须在该 App 的模型模块树中声明。模型模块拆成包时，由其 models/__init__.py 显式导入各子模块。
+App Registry 根据已注册包的 models 模块加载模型，记录所属 App、Table、展示名和 managed 状态。不扫描所有安装包，也不应在 App 元数据模块中提前导入模型。一个 Table 只能归属一个 App；独立的关联 Table 也必须在该 App 的模型模块树中声明。模型模块拆成包时，由其 `models/__init__.py` 显式导入各子模块。
 
 Demo 服务 YAML 的 apps 包含 `apps.examples`，该包的 [apps.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/apps.py) 声明 label 为 `examples`。因此包路径、App label、Python 类名 ExampleTeam、数据库表名 example_team 是不同标识，不能混用。已有迁移随 [migrations](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/apps/examples/migrations) 保存；查看示例不需要每次重新生成它们。
 
