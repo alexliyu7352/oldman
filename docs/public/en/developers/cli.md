@@ -75,7 +75,7 @@ The EPG demo uses [services/web.py](https://github.com/alexliyu7352/oldman-epg-d
 ./run.sh web shell
 ```
 
-`start` runs in the foreground. `stop` reads the service PID, signals shutdown, waits for the entire group to exit, and prints “Stopped web (main process …)”; when absent it prints “web is not running”. `restart` stops before starting. Running `run.sh` without arguments does not start every service.
+`start` runs in the foreground. `stop` reads the service PID, signals shutdown, waits for the entire group to exit, and prints “Stopped web (main process …).”; when absent it prints “web is not running.”. `restart` stops before starting. Running `run.sh` without arguments does not start every service.
 
 The demo also has task_worker/task_scheduler with the same hierarchy, such as `./run.sh task_worker start` and `./run.sh task_scheduler stop`. Both stop commands wait, then force-stop the identity-verified group at the total deadline, without another kill command. See [Taskiq interfaces and runtime](distributed-tasks.md) for Worker supervision and the single-Scheduler rule. Creating entry points does not change App lists or start other services.
 

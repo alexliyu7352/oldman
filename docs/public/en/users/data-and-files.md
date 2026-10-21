@@ -91,7 +91,7 @@ async def asset_file_states(asset: ExampleAsset) -> dict[str, dict[str, object]]
     return states
 ```
 
-This module imports storages from `oldman.storage`, quote from urllib.parse, and ExampleAsset from the current App. Paths, exists, and stat come from actual storage, rather than assuming file existence because an upload request succeeded.
+This module imports storages and media_url from `oldman.storage`, and ExampleAsset from the current App. Paths, exists, and stat come from actual storage, rather than assuming file existence because an upload request succeeded.
 
 The demo's /media URL displays its own test files. It is not a private download endpoint enforcing object authorization. Applications handling confidential attachments need download permission checks; do not copy public media URLs as an authorization scheme.
 
@@ -118,4 +118,4 @@ The function owns these demonstration files and cleans them up in finally. It ne
 
 Fixture exports contain database fields only. File columns remain logical names; files are not copied. Before importing file-column fixtures elsewhere, prepare matching storage contents and understand that replacement can trigger cleanup. See [JSON data import and export](../developers/fixtures.md).
 
-<!-- source: zh/users/data-and-files.md @ d2d7dd40 -->
+<!-- source: zh/users/data-and-files.md @ d06f9281 -->

@@ -80,7 +80,7 @@ Built-in Admin includes role management when roles is installed (see [Built-in A
 
 | Function | When | Action |
 | --- | --- | --- |
-| `publish_saved_role(role)` | After save transaction commits | `publish_role`; unavailable Redis raises 503 (`ServiceUnavailable`, “Permission storage is temporarily unavailable”). The role is already saved; save again after recovery to repair Redis |
+| `publish_saved_role(role)` | After save transaction commits | `publish_role`; unavailable Redis raises 503 (`ServiceUnavailable`, “The permission store is unavailable”). The role is already saved; save again after recovery to repair Redis |
 | `delete_role(session, role)` | Inside delete transaction | `forget_role` first; unavailable Redis raises 503 and rolls back without deletion. Then delete the row |
 | `forget_deleted_role(role_id)` | After delete transaction commits | Repeat `forget_role`; Redis unavailability only logs WARNING |
 

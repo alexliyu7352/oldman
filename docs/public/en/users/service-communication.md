@@ -68,7 +68,7 @@ Opening a page reads only options and configuration; it sends no messages. Recei
 
 After stopping nats_b and observing again, the valid results of monitor_a are still retained, and monitor_b shows no responders. The slow reply handler actually waits for two seconds, and the front end times out in 0.5 seconds; it does not cancel the peer after timeout. Intentional exceptions are written to the nats_a log and the caller may only know that there is no timely reply and the framework does not transmit the remote Python exception object.
 
-Buttons use ordinary Forms, ordered Actions, staff permissions, and CSRF. Browsers cannot supply arbitrary NATS subjects or server addresses. Load data first if there are no projects; a missing selection or a deleted project produces form/business errors. With nats_bus disabled, pages remain viewable but operations are disabled.
+Buttons use ordinary Forms, ordered Actions, sign-in checks (`login_required()`), and CSRF. Browsers cannot supply arbitrary NATS subjects or server addresses. Load data first if there are no projects; a missing selection or a deleted project produces form/business errors. With nats_bus disabled, pages remain viewable but operations are disabled.
 
 ## 3. Where does the message come from and how is it sent?
 
@@ -181,4 +181,4 @@ When stopping normally, first stop new task delivery, then let the Worker finish
 
 If you also ran a Scheduler, stop it first with `./run.sh task_scheduler stop`. Do not clear an entire NATS or Redis instance to stop the demo. Handlers normally have 10 seconds to finish, followed by cooperative cancellation and waiting for finally. This does not guarantee forced termination of arbitrary blocking work within 10 seconds. See the [Redis and NATS providers](../developers/providers.md#shutdown-failures-and-guarantees) for native TLS failure cleanup and measured dependency limits.
 
-<!-- source: zh/users/service-communication.md @ db5eb607 -->
+<!-- source: zh/users/service-communication.md @ d06f9281 -->

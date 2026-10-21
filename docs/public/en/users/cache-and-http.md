@@ -12,7 +12,7 @@ The backend HTTP page is `/examples/http/client`: Python requests the configured
 
 ## Run project statistics cache example
 
-First follow [Run EPG Dashboard Demo](getting-started.md) to initialize, migrate, import the `demo` fixture, and create a staff account. The public [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) contains:
+First follow [Run EPG Dashboard Demo](getting-started.md) to initialize, migrate, import the `demo` fixture, and create an account. The public [web_settings.example.yaml](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/data/web_settings.example.yaml) contains:
 
 ```yaml
 redis:
@@ -111,7 +111,7 @@ Another example on the web page is in the "HTTP response cache" section below `/
 4. Click “Invalidate response cache”, which POSTs to the same path and displays completed invalidation. It removes this example's cached query-parameter and language variants; the next read recomputes. It neither modifies projects nor clears the statistics key above.
 5. Switch language and read; results use the current language. Return from another example through the sidebar and check that buttons still work. Signed-out requests still fail authentication; POST without valid CSRF is rejected. After dismissing the shared error message, you can operate again.
 
-Implementation is example_cached_response/example_invalidate_response in views/cache.py. Both buttons use ordinary ExamplesPage and target `#cache-response-result`, without new TS or components. GET checks staff before the cache decorator; cached responses are isolated by request.ctx.locale. Responses contain no private user data, CSRF, or Cookies; do not copy this directly to cache personal account pages.
+Implementation is example_cached_response/example_invalidate_response in views/cache.py. Both buttons use ordinary ExamplesPage and target `#cache-response-result`, without new TS or components. GET checks sign-in through `login_required()` before entering the cache decorator; cached responses are isolated by request.ctx.locale. Responses contain no private user data, CSRF, or Cookies; do not copy this directly to cache personal account pages.
 
 Both decorators read root cache.client/namespace. The public YAML does not override cache, so it uses default client=CACHE. Cache failures log a warning and continue querying/returning business results; database exceptions still propagate. This differs from direct RedisCache operations above, which do not automatically fall back. Verify hits through actual computation time; a successful database query while Redis is offline is not a hit. Command checks require accessible Redis and fail otherwise. See the [Caching](../developers/cache.md#function-result-and-http-response-caching) for signatures, key rules, and content that cannot be cached.
 
@@ -126,7 +126,7 @@ Model caching stores database rows per model and query, invalidating automatical
 5. Click “Rename the project (ORM)” and read: a miss. The database cascades task deletion from projects and project deletion from teams (two levels of `ON DELETE CASCADE`). The cache can only learn this from project/team writes, so any update or deletion of either invalidates all task queries once.
 6. Click “Restore example data” to remove markers added by these operations. Restoration also uses ORM, invalidating the relevant cache.
 
-Concurrent staff operations may mix another user's reads into statistics deltas, displaying “Source unknown”. See the [Caching](../developers/cache.md#model-caching) for read/write rules, boundaries, and measured timings.
+Concurrent operations by other signed-in users may mix another user's reads into statistics deltas, displaying “Source unknown: another read ran at the same time”. See the [Caching](../developers/cache.md#model-caching) for read/write rules, boundaries, and measured timings.
 
 ## When caching is needed
 
@@ -201,4 +201,4 @@ The [Redis and NATS providers](../developers/providers.md) explains named Redis 
 
 When adding demo coverage, provide an actual source, visible results, a failure path, and shutdown cleanup for each scenario. A fake upstream returning a fixed dictionary does not verify network wiring. See [Demo page and source index](demo-examples.md) for existing interactive pages.
 
-<!-- source: zh/users/cache-and-http.md @ db5eb607 -->
+<!-- source: zh/users/cache-and-http.md @ d06f9281 -->
