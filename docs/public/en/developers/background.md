@@ -160,7 +160,7 @@ This function does not clean up descendants. Timeout kills only the command itse
 
 ## Long-lived Workers: real project snapshots
 
-The actual entry point is EPG `./run.sh web worker-demo --scenario success|error|stop`, rather than another worker_example.py. [the user tutorial](../users/background-work.md#run-a-long-lived-worker) explains the three results and their cleanup. The actual [worker_jobs.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/worker_jobs.py) depends only on the standard library and oldman.tasks and defines ProjectSnapshotTask, its factory, and Worker:
+The actual entry point is EPG `./run.sh web worker-demo --scenario success|error|stop`, rather than another worker_example.py. [The user tutorial](../users/background-work.md#run-a-long-lived-worker) explains the three results and their cleanup. The actual [worker_jobs.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/worker_jobs.py) depends only on the standard library and oldman.tasks and defines ProjectSnapshotTask, its factory, and Worker:
 
 ```python
 def create_snapshot(task_id: str, data: dict[str, Any]) -> BaseTask:
