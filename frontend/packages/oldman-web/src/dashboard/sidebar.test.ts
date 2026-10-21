@@ -204,4 +204,51 @@ describe("DashboardSidebar", () => {
       await sidebar.stop();
     }
   });
+
+  it("shows a scrolling arrow while the menu continues below its bottom edge", async () => {
+    const root = document.createElement("aside");
+    root.innerHTML = `<div class="oldman-sidebar-scroll"><ul id="navbar-nav"><li class="nav-item"><a href="/admin">Dashboard</a></li></ul></div>`;
+    document.body.append(root);
+    const wrapper = root.querySelector<HTMLElement>(".oldman-sidebar-scroll")!;
+    let scrollTop = 0;
+    let scrollHeight = 1000;
+    const scrolls: ScrollToOptions[] = [];
+    Object.defineProperty(wrapper, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(wrapper, "scrollHeight", { configurable: true, get: () => scrollHeight });
+    Object.defineProperty(wrapper, "scrollTop", {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => { scrollTop = value; }
+    });
+    wrapper.scrollBy = ((options: ScrollToOptions) => { scrolls.push(options); }) as typeof wrapper.scrollBy;
+    const scrollTo = (value: number) => {
+      scrollTop = value;
+      wrapper.dispatchEvent(new Event("scroll"));
+    };
+    const sidebar = new DashboardSidebar(root, { activePath: "/admin" });
+
+    await sidebar.start();
+    try {
+      // The indicator lives beside the scroll container, so it does not move with the menu.
+      const indicator = root.querySelector<HTMLElement>(":scope > .oldman-sidebar-more")!;
+      expect(indicator.getAttribute("aria-hidden")).toBe("true");
+      expect(indicator.hasAttribute("data-om-visible")).toBe(true);
+
+      indicator.querySelector<HTMLElement>(".oldman-sidebar-more-arrow")!.click();
+      expect(scrolls).toEqual([{ top: 280, behavior: "smooth" }]);
+
+      scrollTo(598);
+      expect(indicator.hasAttribute("data-om-visible"), "within the end tolerance").toBe(false);
+      scrollTo(500);
+      expect(indicator.hasAttribute("data-om-visible"), "scrolled back up").toBe(true);
+
+      // A menu that fits needs no hint.
+      scrollHeight = 400;
+      scrollTo(0);
+      expect(indicator.hasAttribute("data-om-visible")).toBe(false);
+    } finally {
+      await sidebar.stop();
+    }
+    expect(root.querySelector(".oldman-sidebar-more"), "removed when the sidebar stops").toBeNull();
+  });
 });

@@ -20,6 +20,10 @@ const SIDEBAR_MENU_SELECTOR = '[data-om-component~="sidebar-menu"]';
 /** Fired on document after the sidebar re-evaluated which item is active. */
 export const SIDEBAR_ACTIVE_CHANGE_EVENT = "om:sidebar:active-change";
 const SCROLL_INTO_VIEW_MARGIN = 16;
+/** Within this many pixels of the end the menu counts as fully scrolled: fractional layouts never land exactly on it. */
+const MORE_BELOW_END_TOLERANCE = 4;
+/** One click on the "more below" arrow scrolls this share of the visible menu, keeping a few items for orientation. */
+const MORE_BELOW_SCROLL_RATIO = 0.7;
 
 interface SidebarMenuAttributes {
   defaultSidebarSize: string | null;
@@ -60,6 +64,7 @@ export class DashboardSidebar extends Component {
     this.bindVerticalHoverToggle();
     this.bindMainFrameNavigationState();
     this.scrollActiveMenuIntoView();
+    this.bindMoreBelowIndicator();
   }
 
   override async beforeUnmount(): Promise<void> {
@@ -285,6 +290,49 @@ export class DashboardSidebar extends Component {
     // Show the parent title first; when the open group is taller than the
     // viewport the active link wins so the current page stays visible.
     wrapper.scrollTop = Math.max(0, top, bottom - viewportHeight);
+  }
+
+  /**
+   * The menu scrolls without a scrollbar (see `.oldman-sidebar-scroll` in tailwind.css), so while it continues
+   * past the bottom a fading arrow says so, and a click on it scrolls down. The indicator sits in the scroll
+   * container's parent, the positioned sidebar, so it stays put while the menu moves under it.
+   */
+  private bindMoreBelowIndicator(): void {
+    const scroller = this.root.querySelector<HTMLElement>(this.scrollContainerSelector);
+    const sidebar = scroller?.parentElement;
+    if (!scroller || !sidebar) return;
+
+    const indicator = document.createElement("div");
+    indicator.className = "oldman-sidebar-more";
+    // Mouse affordance only: keyboard focus already scrolls the menu, so the arrow takes no tab stop.
+    indicator.setAttribute("aria-hidden", "true");
+    const arrow = document.createElement("span");
+    arrow.className = "oldman-sidebar-more-arrow";
+    arrow.innerHTML = '<i class="ri-arrow-down-s-line"></i>';
+    indicator.append(arrow);
+    sidebar.append(indicator);
+
+    const update = () => {
+      const below = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
+      indicator.toggleAttribute("data-om-visible", below > MORE_BELOW_END_TOLERANCE);
+    };
+    this.listen(scroller, "scroll", update, { passive: true });
+    this.listen(arrow, "click", () => {
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      scroller.scrollBy({ top: scroller.clientHeight * MORE_BELOW_SCROLL_RATIO, behavior: reduceMotion ? "auto" : "smooth" });
+    });
+    // Opening a group or resizing the window changes what lies below without a scroll event.
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(update);
+      observer.observe(scroller);
+      for (const child of Array.from(scroller.children)) observer.observe(child);
+    }
+    this.cleanup(() => {
+      observer?.disconnect();
+      indicator.remove();
+    });
+    update();
   }
 
   private outermostMenuItem(link: HTMLElement, nav: HTMLElement): HTMLElement {

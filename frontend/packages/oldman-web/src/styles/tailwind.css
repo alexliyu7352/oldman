@@ -471,6 +471,17 @@
   }
 }
 
+/* The sidebar's "more below" arrow bobs a few pixels, enough to read as a hint without pulling the eye. */
+@keyframes om-sidebar-more-nudge {
+  0%,
+  100% {
+    transform: translateY(-1px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
 @layer components {
   #oldman-sidebar-nav {
     display: contents;
@@ -531,7 +542,8 @@
     html[data-sidebar-size="sm"] .oldman-menu-title,
     html[data-sidebar-size="sm"] .menu-text,
     html[data-sidebar-size="sm"] .oldman-menu-chevron,
-    html[data-sidebar-size="sm"] .oldman-submenu {
+    html[data-sidebar-size="sm"] .oldman-submenu,
+    html[data-sidebar-size="sm"] .oldman-sidebar-more {
       @apply hidden;
     }
 
@@ -579,8 +591,35 @@
     @apply hidden;
   }
 
+  /* The menu scrolls without a scrollbar: a classic one is a 15px bar with arrows that squeezes long items onto
+     two lines. While more of the menu lies below, DashboardSidebar adds `.oldman-sidebar-more`, a fade with a
+     nudging arrow that scrolls on click. Wheel, touch and keyboard focus scroll the menu as before. */
   .oldman-sidebar-scroll {
     @apply min-h-0 flex-1 overflow-y-auto px-3 py-2;
+    scrollbar-width: none;
+  }
+
+  .oldman-sidebar-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .oldman-sidebar-more {
+    @apply pointer-events-none invisible absolute inset-x-0 bottom-0 flex h-16 items-end justify-center pb-2.5 opacity-0;
+    background: linear-gradient(to bottom, transparent, var(--color-canvas) 72%);
+    transition: opacity var(--om-motion-slow) var(--om-ease-standard), visibility var(--om-motion-slow);
+  }
+
+  .oldman-sidebar-more[data-om-visible] {
+    @apply visible opacity-100;
+  }
+
+  .oldman-sidebar-more-arrow {
+    @apply pointer-events-auto grid size-7 cursor-pointer place-items-center rounded-full border border-border bg-canvas text-base leading-none text-content-muted transition-colors hover:text-content-strong;
+    transition-duration: var(--om-motion-fast);
+  }
+
+  .oldman-sidebar-more-arrow > i {
+    animation: om-sidebar-more-nudge 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   }
 
   .menu-title,
@@ -3618,7 +3657,8 @@
 
     .om-tooltip-content.show,
     .om-popover-content.show,
-    .oldman-menu-flyout {
+    .oldman-menu-flyout,
+    .oldman-sidebar-more-arrow > i {
       animation: none;
     }
 
