@@ -103,7 +103,8 @@ LIGHT_ENTRY_GLOBS = (
     "src/dashboard/**/*.ts",
 )
 REQUIRED_DM_SANS_IMPORTS = tuple(f'@import "@fontsource/dm-sans/latin-{weight}.css";' for weight in (300, 400, 500, 600, 700))
-PACK_FILE_ENTRIES = ("bin", "dist", "LICENSE", "README.md", "package.json")
+# README.zh-CN.md is the Chinese README; npm and pnpm pack every README* at the root anyway.
+PACK_FILE_ENTRIES = ("bin", "dist", "LICENSE", "README.md", "README.zh-CN.md", "package.json")
 PACK_EXECUTABLE_MEMBERS = frozenset(
     {
         "package/bin/oldman-web-i18n.mjs",
@@ -750,7 +751,7 @@ def verify_pack_artifact(
     declared = package_json.get("files")
     if not isinstance(declared, list) or tuple(declared) != PACK_FILE_ENTRIES:
         return ["Frozen oldman-web package.json files do not match the verifier-owned publish roots"]
-    allowed_exact = {"package/LICENSE", "package/README.md", "package/package.json"}
+    allowed_exact = {"package/LICENSE", "package/README.md", "package/README.zh-CN.md", "package/package.json"}
     unexpected_snapshot = [name for name in expected_payloads if name not in allowed_exact and not name.startswith(("package/bin/", "package/dist/"))]
     if unexpected_snapshot:
         return [f"Frozen oldman-web publish snapshot escaped the verifier-owned roots: {unexpected_snapshot}"]

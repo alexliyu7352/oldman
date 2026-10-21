@@ -15,12 +15,12 @@ Python 负责配置、应用生命周期、权限、数据和 HTML；浏览器�
 
 ## 从哪里开始
 
-- [用户文档](docs/public/zh/users/README.md)：安装、创建项目和实际使用。
-- [开发者参考](docs/public/zh/developers/README.md)：准确的接口、加载顺序和扩展方法。
-- [Agent 应用开发指南](docs/public/zh/agents/README.md)：按任务选择文件、完成接线与验证。
-- [文档总入口](docs/public/zh/README.md)：按问题查找正文。
+- [用户文档](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/README.md)：安装、创建项目和实际使用。
+- [开发者参考](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/README.md)：准确的接口、加载顺序和扩展方法。
+- [Agent 应用开发指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/README.md)：按任务选择文件、完成接线与验证。
+- [文档总入口](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/README.md)：按问题查找正文。
 
-初次使用可先[运行 EPG Dashboard Demo](docs/public/zh/users/getting-started.md)，再对照其[真实数据](docs/public/zh/users/tutorial-tasks.md)和[表格、Modal 表单](docs/public/zh/users/tutorial-dashboard.md)。教程直接使用 Demo 代码，给出源文件、运行目录、配置和预期结果；更多页面见[示例索引](docs/public/zh/users/demo-examples.md)。
+初次使用可先[运行 EPG Dashboard Demo](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/getting-started.md)，再对照其[真实数据](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-tasks.md)和[表格、Modal 表单](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/tutorial-dashboard.md)。教程直接使用 Demo 代码，给出源文件、运行目录、配置和预期结果；更多页面见[示例索引](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/demo-examples.md)。
 
 ## 最短的项目入口
 
@@ -46,9 +46,9 @@ uv sync
 ./run.sh api start
 ```
 
-生成的项目带 `.python-version`（3.13），`uv sync` 按它选择解释器，本机没有时 uv 会自动下载。服务自带三个示例接口：`/` 是不需要认证的健康检查，`/api/caller`、`/api/ops` 分别演示 API key 和 HTTP Basic 认证，凭据位置和试用命令见生成项目的 README。添加 API 的接线见[服务创建指南](docs/public/en/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
+生成的项目带 `.python-version`（3.13），`uv sync` 按它选择解释器，本机没有时 uv 会自动下载。服务自带三个示例接口：`/` 是不需要认证的健康检查，`/api/caller`、`/api/ops` 分别演示 API key 和 HTTP Basic 认证，凭据位置和试用命令见生成项目的 README。添加 API 的接线见[服务创建指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)；要直接查看完整业务页面则运行上面的 Demo。
 
-`run.sh` 只把原样参数交给项目 `.venv` 中的 `oldman`，不替你选服务、迁移数据库或启动前端。`./run.sh api start` 与使用同一虚拟环境运行 `oldman api start` 的语义相同。上面是新建空项目的命令，不是 Demo 启动步骤；Demo 的独立安装与调试见[运行环境与安装](docs/public/zh/users/getting-started.md#运行环境与安装)。
+`run.sh` 只把原样参数交给项目 `.venv` 中的 `oldman`，不替你选服务、迁移数据库或启动前端。`./run.sh api start` 与使用同一虚拟环境运行 `oldman api start` 的语义相同。上面是新建空项目的命令，不是 Demo 启动步骤；Demo 的独立安装与调试见[运行环境与安装](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/users/getting-started.md#运行环境与安装)。
 
 ## 框架提供什么
 
@@ -61,7 +61,7 @@ uv sync
 
 普通 API 不要求安装前端包。需要共享 Dashboard UI 时再安装 `oldman-web` 及其声明的依赖；内置 Admin 的默认浏览器资源随 Python 包提供。
 
-当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：打开 `core.debug`（asyncio 调试模式）时，uvloop（0.22.1、0.23.0 都未修复）回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)）：要同时满足调试模式和代码里有没关闭的 async generator 才会出现，换 Python 版本避不开，详见[配置参考](docs/public/zh/developers/configuration.md#web-默认值与开关)；默认关闭调试的生产运行不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
+当前运行目标为 Linux，Python 版本范围为 `>=3.12,<3.15`，推荐 3.13。已知限制：打开 `core.debug`（asyncio 调试模式）时，uvloop（0.22.1、0.23.0 都未修复）回收没有关闭的 async generator 可能报错或段错误（[uvloop#699](https://github.com/MagicStack/uvloop/issues/699)、[uvloop#715](https://github.com/MagicStack/uvloop/issues/715)）：要同时满足调试模式和代码里有没关闭的 async generator 才会出现，换 Python 版本避不开，详见[配置参考](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/developers/configuration.md#web-默认值与开关)；默认关闭调试的生产运行不受影响。Dashboard 类型项目和两个 Demo 另需 Node.js 20 及以上与 pnpm（`corepack enable` 即可启用）。SQLite 驱动随 Python 包安装；MySQL、PostgreSQL 驱动按项目需要声明。配置中存在 Redis 连接项不代表启动就连接 Redis，启用或调用相应能力时才需要可用的服务。
 
 ## 完整示例
 
@@ -84,4 +84,4 @@ docs/                         用户、开发者与 Agent 文档
 
 Python 和 npm 包不包含独立 Demo 的业务代码与运行数据。框架仓库不是业务项目，不在根目录添加应用的 `config/`、`services/` 或数据库。
 
-产品取舍见 [PRODUCT.md](PRODUCT.md)。
+产品取舍见 [PRODUCT.md](https://github.com/alexliyu7352/oldman/blob/main/PRODUCT.md)。

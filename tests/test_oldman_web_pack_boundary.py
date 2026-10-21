@@ -153,7 +153,7 @@ class OldmanWebPackBoundaryTest(unittest.TestCase):
             self.verifier.expected_pack_files(package)
 
         self.assertEqual(
-            ("bin", "dist", "LICENSE", "README.md", "package.json"),
+            ("bin", "dist", "LICENSE", "README.md", "README.zh-CN.md", "package.json"),
             self.verifier.PACK_FILE_ENTRIES,
         )
 
