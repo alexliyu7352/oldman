@@ -26,7 +26,7 @@
     "typecheck": "uv run pyright && pnpm --filter oldman-web typecheck && pnpm --filter oldman-admin typecheck",
     "build:python": "pnpm verify:version && pnpm --filter oldman-admin build && SOURCE_DATE_EPOCH=1580601600 uv build --package oldman",
     "pack:web": "pnpm verify:version && pnpm -C frontend/packages/oldman-web pack",
-    "verify": "pnpm verify:static && pnpm verify:python && pnpm verify:frontend && pnpm verify:web-boundaries && pnpm verify:packages && pnpm verify:scaffold-matrix",
+    "verify": "pnpm verify:static && pnpm verify:python && pnpm verify:frontend && pnpm verify:web-boundaries && pnpm verify:packages && pnpm verify:scaffold-matrix && pnpm verify:docs",
     "verify:static": "pnpm lint && uv run pyright && uv run pyrefly check",
     "verify:python": "uv run --index-strategy unsafe-best-match python3 -m unittest discover -s tests -t .",
     "verify:frontend": "pnpm --filter oldman-web test && pnpm --filter oldman-web typecheck && pnpm --filter oldman-admin test && pnpm --filter oldman-admin typecheck",
@@ -34,6 +34,7 @@
     "verify:web-boundaries": "uv run python3 scripts/verify-oldman-web-boundary-inventory.py",
     "verify:web-package": "uv run python3 scripts/verify-current-release-oldman-web-package.py",
     "verify:python-package": "uv run python3 scripts/verify-current-release-python-package.py",
-    "verify:scaffold-matrix": "uv run python3 scripts/verify-current-release-scaffold-matrix.py"
+    "verify:scaffold-matrix": "uv run python3 scripts/verify-current-release-scaffold-matrix.py",
+    "verify:docs": "pnpm --dir website install --frozen-lockfile && pnpm --dir website build"
   }
 }

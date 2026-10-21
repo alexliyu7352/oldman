@@ -82,3 +82,9 @@ jobs:
       - name: Web boundary inventory
         if: startsWith(matrix.python, '3.12')
         run: pnpm verify:web-boundaries
+
+      # The documentation site is its own pnpm root (website/); nothing else builds it, so a page
+      # that breaks its build would go unnoticed until the next deployment.
+      - name: Documentation site
+        if: startsWith(matrix.python, '3.12')
+        run: pnpm verify:docs
