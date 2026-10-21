@@ -1,5 +1,508 @@
-/* 站点自定义样式。目前只调了中文正文的行高——Infima 默认值按拉丁字母设计，
-   中文字形更满，同样的行高读起来更挤。 */
+/* 文档站的外观。数值取自框架的设计规格（oldman-web 的 tailwind.css 里的 --om-* token）：
+   石板灰中性色、单色主色（亮 slate-900 / 暗 slate-50）、蓝色链接、borders-only（表面只靠 1px
+   低不透明度边分层，不带阴影），圆角 8（控件、代码块）与 12（卡片、分页卡），焦点环 3px。
+   正文比框架界面大一档（16 而不是 14）：这里是成段阅读，不是工作台。
+
+   DM Sans 与框架同源，只负责拉丁字母与数字；中文交给操作系统的 UI 字体，完整的中文字体名排在
+   system-ui 前面（system-ui 在 Linux 桌面上可能是一份字重不全的精简字体，排在前面会让中文变细）。 */
+
+@import "@fontsource/dm-sans/latin-400.css";
+@import "@fontsource/dm-sans/latin-500.css";
+@import "@fontsource/dm-sans/latin-600.css";
+@import "@fontsource/dm-sans/latin-700.css";
+
+:root {
+  --om-canvas: #f8fafc;
+  --om-surface: #ffffff;
+  --om-surface-muted: #f1f5f9;
+  --om-text-strong: #0f172a;
+  --om-text: #334155;
+  --om-text-muted: #64748b;
+  --om-border: rgb(15 23 42 / 0.08);
+  --om-border-strong: rgb(15 23 42 / 0.16);
+  --om-hover: rgb(15 23 42 / 0.04);
+  --om-primary: #0f172a;
+  --om-primary-hover: #1e293b;
+  --om-on-primary: #ffffff;
+  --om-link: #2563eb;
+  --om-focus: rgb(100 116 139 / 0.5);
+  --om-signature: linear-gradient(135deg, #2563eb, #16a34a);
+  --om-ease-enter: cubic-bezier(0.23, 1, 0.32, 1);
+
+  --ifm-font-family-base: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+    "Source Han Sans SC", system-ui, sans-serif;
+  --ifm-font-family-monospace: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --ifm-font-size-base: 100%;
+  --ifm-line-height-base: 1.7;
+  --ifm-heading-font-weight: 600;
+  --ifm-heading-color: var(--om-text-strong);
+  --ifm-h1-font-size: 2.25rem;
+  --ifm-h2-font-size: 1.5rem;
+  --ifm-h3-font-size: 1.25rem;
+  --ifm-h4-font-size: 1.0625rem;
+  --ifm-heading-line-height: 1.3;
+
+  --ifm-color-primary: var(--om-primary);
+  --ifm-color-primary-dark: #0b1222;
+  --ifm-color-primary-darker: #0a101f;
+  --ifm-color-primary-darkest: #080d19;
+  --ifm-color-primary-light: #1e293b;
+  --ifm-color-primary-lighter: #334155;
+  --ifm-color-primary-lightest: #475569;
+  --ifm-color-emphasis-100: #f1f5f9;
+  --ifm-color-emphasis-200: #e2e8f0;
+  --ifm-color-emphasis-300: #cbd5e1;
+  --ifm-color-emphasis-400: #94a3b8;
+  --ifm-color-emphasis-500: #64748b;
+  --ifm-color-emphasis-600: #475569;
+  --ifm-color-emphasis-700: #334155;
+  --ifm-color-emphasis-800: #1e293b;
+  --ifm-color-emphasis-900: #0f172a;
+
+  --ifm-background-color: var(--om-surface);
+  --ifm-background-surface-color: var(--om-canvas);
+  --ifm-font-color-base: var(--om-text);
+  --ifm-font-color-secondary: var(--om-text-muted);
+  --ifm-link-color: var(--om-link);
+  --ifm-link-hover-color: var(--om-link);
+  --ifm-link-hover-decoration: underline;
+  --ifm-hr-background-color: var(--om-border);
+  --ifm-global-radius: 8px;
+  --ifm-global-shadow-lw: none;
+  --ifm-global-shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.12);
+  --ifm-transition-fast: 150ms;
+
+  --ifm-code-font-size: 0.875em;
+  --ifm-code-background: var(--om-surface-muted);
+  --ifm-code-border-radius: 6px;
+  --ifm-code-padding-horizontal: 0.375em;
+  --ifm-code-padding-vertical: 0.125em;
+  --ifm-pre-line-height: 1.6;
+  --ifm-pre-padding: 1rem;
+
+  --ifm-navbar-height: 3.5rem;
+  --ifm-navbar-background-color: var(--om-surface);
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-link-color: var(--om-text);
+  --ifm-navbar-link-hover-color: var(--om-text-strong);
+  --ifm-navbar-item-padding-horizontal: 0.75rem;
+
+  --ifm-menu-color: var(--om-text);
+  --ifm-menu-color-active: var(--om-text-strong);
+  --ifm-menu-color-background-active: var(--om-surface-muted);
+  --ifm-menu-color-background-hover: var(--om-hover);
+  --ifm-menu-link-padding-vertical: 0.3125rem;
+  --ifm-menu-link-padding-horizontal: 0.75rem;
+  --doc-sidebar-width: 272px;
+
+  --ifm-toc-border-color: var(--om-border);
+  --ifm-table-border-color: var(--om-border);
+  --ifm-table-head-background: var(--om-canvas);
+  --ifm-table-stripe-background: transparent;
+  --ifm-table-cell-padding: 0.5rem 0.75rem;
+
+  --ifm-footer-background-color: var(--om-canvas);
+  --ifm-footer-color: var(--om-text);
+  --ifm-footer-link-color: var(--om-text);
+  --ifm-footer-link-hover-color: var(--om-text-strong);
+  --ifm-footer-title-color: var(--om-text-strong);
+  --ifm-footer-padding-vertical: 3rem;
+
+  --ifm-pagination-nav-border-radius: 12px;
+  --ifm-pagination-nav-color-hover: var(--om-border-strong);
+  --ifm-button-border-radius: 8px;
+}
+
+/* 与 Infima 的 html[data-theme="dark"] 同样的权重，后加载者生效，所以选择器写全。 */
+html[data-theme="dark"] {
+  --om-canvas: #020617;
+  --om-surface: #020617;
+  --om-surface-muted: #1e293b;
+  --om-text-strong: #f8fafc;
+  --om-text: #cbd5e1;
+  --om-text-muted: #94a3b8;
+  --om-border: rgb(255 255 255 / 0.08);
+  --om-border-strong: rgb(255 255 255 / 0.14);
+  --om-hover: rgb(255 255 255 / 0.04);
+  --om-primary: #f8fafc;
+  --om-primary-hover: #e2e8f0;
+  --om-on-primary: #0f172a;
+  --om-link: #60a5fa;
+  --om-focus: rgb(148 163 184 / 0.5);
+
+  --ifm-color-primary: var(--om-primary);
+  --ifm-color-primary-dark: #e2e8f0;
+  --ifm-color-primary-darker: #cbd5e1;
+  --ifm-color-primary-darkest: #94a3b8;
+  --ifm-color-primary-light: #f8fafc;
+  --ifm-color-primary-lighter: #f8fafc;
+  --ifm-color-primary-lightest: #ffffff;
+  --ifm-color-emphasis-100: #0f172a;
+  --ifm-color-emphasis-200: #1e293b;
+  --ifm-color-emphasis-300: #334155;
+  --ifm-color-emphasis-400: #475569;
+  --ifm-color-emphasis-500: #64748b;
+  --ifm-color-emphasis-600: #94a3b8;
+  --ifm-color-emphasis-700: #cbd5e1;
+  --ifm-color-emphasis-800: #e2e8f0;
+  --ifm-color-emphasis-900: #f8fafc;
+
+  --ifm-background-color: var(--om-surface);
+  --ifm-background-surface-color: #0f172a;
+  --ifm-navbar-background-color: var(--om-surface);
+  --ifm-table-head-background: #0f172a;
+  --ifm-footer-background-color: #0f172a;
+  --ifm-global-shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+}
+
+/* ---- 基础 ---- */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(37 99 235 / 0.18);
+}
+
+:focus-visible {
+  outline: 3px solid var(--om-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---- 正文 ---- */
+
+.markdown {
+  --ifm-h1-vertical-rhythm-bottom: 1;
+  max-width: 46rem;
+  font-size: 1rem;
+}
+
+.markdown h1:first-child {
+  --ifm-h1-font-size: clamp(1.875rem, 1.4rem + 1.6vw, 2.25rem);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.markdown h2 {
+  margin-top: 2.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--om-border);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.markdown h3 {
+  margin-top: 2rem;
+  text-wrap: balance;
+}
+
+.markdown p,
+.markdown li {
+  text-wrap: pretty;
+}
+
+.markdown a {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--om-link) 35%, transparent);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 150ms var(--om-ease-enter);
+}
+
+.markdown a:hover {
+  text-decoration-color: currentColor;
+}
+
+.markdown strong {
+  color: var(--om-text-strong);
+  font-weight: 600;
+}
+
+.markdown code {
+  border: 0;
+  color: var(--om-text-strong);
+  font-variant-ligatures: none;
+}
+
+.markdown a code {
+  color: inherit;
+}
+
+/* 标题与目录里的代码（API 页的名字）只换等宽字体，不套行内代码的底色。 */
+.markdown :is(h1, h2, h3, h4) code,
+.table-of-contents code {
+  padding: 0;
+  background: none;
+  font-size: 0.92em;
+  font-weight: inherit;
+  vertical-align: baseline;
+}
+
+/* 引用块：整块浅底加完整的边，不用左侧色条。 */
+.markdown blockquote {
+  margin: 1.5rem 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--om-border);
+  border-radius: 8px;
+  background: var(--om-canvas);
+  color: var(--om-text);
+}
+
+.markdown blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* 表格：发丝线、表头浅底，数值按等宽数字排。 */
+.markdown table {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  border-collapse: collapse;
+}
+
+.markdown table thead tr {
+  border-bottom: 1px solid var(--om-border-strong);
+}
+
+.markdown table th {
+  color: var(--om-text-strong);
+  font-weight: 600;
+  text-align: left;
+}
+
+.markdown table tr {
+  border-top: 1px solid var(--om-border);
+}
+
+.markdown table th,
+.markdown table td {
+  border: 0;
+  vertical-align: top;
+}
+
+.markdown hr {
+  height: 1px;
+  margin: 2.5rem 0;
+}
+
+/* 中文字形更满：同样的行高读起来更挤，正文放到 1.8。 */
 html[lang="zh-Hans"] .markdown {
   line-height: 1.8;
+}
+
+html[lang="zh-Hans"] .markdown h1:first-child,
+html[lang="zh-Hans"] .markdown h2 {
+  letter-spacing: 0;
+}
+
+/* ---- 代码块 ---- */
+
+.theme-code-block {
+  border: 1px solid var(--om-border);
+  border-radius: 8px;
+  box-shadow: none;
+  --ifm-pre-background: transparent;
+}
+
+.theme-code-block pre {
+  font-size: 0.875rem;
+}
+
+[data-theme="dark"] .theme-code-block {
+  border-color: var(--om-border-strong);
+}
+
+/* ---- 导航栏 ---- */
+
+.navbar {
+  border-bottom: 1px solid var(--om-border);
+  padding-inline: 1.5rem;
+}
+
+.navbar__brand {
+  margin-right: 1.5rem;
+}
+
+.navbar__logo {
+  height: 1.5rem;
+  margin-right: 0.625rem;
+}
+
+.navbar__title {
+  color: var(--om-text-strong);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+.navbar__link {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.navbar__link--active {
+  color: var(--om-text-strong);
+}
+
+.navbar-github-link {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 0;
+}
+
+.navbar-github-link::before {
+  content: "";
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.navbar-github-link:hover {
+  background: var(--om-hover);
+}
+
+/* ---- 侧边栏与目录 ---- */
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--om-border) !important;
+}
+
+.menu {
+  padding: 1rem 0.75rem 2rem !important;
+  font-size: 0.9375rem;
+}
+
+.menu__link {
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 500;
+}
+
+.menu__list-item-collapsible {
+  border-radius: 8px;
+}
+
+/* 顶层分区标题：区分分区与条目，不靠颜色块。 */
+.theme-doc-sidebar-menu > .theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible .menu__link {
+  color: var(--om-text-strong);
+  font-weight: 600;
+}
+
+.theme-doc-sidebar-menu > .theme-doc-sidebar-item-category-level-1 {
+  margin-top: 0.75rem;
+}
+
+.table-of-contents {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.table-of-contents__link {
+  color: var(--om-text-muted);
+}
+
+.table-of-contents__link:hover,
+.table-of-contents__link--active {
+  color: var(--om-text-strong);
+}
+
+.table-of-contents__link--active {
+  font-weight: 500;
+}
+
+.theme-doc-breadcrumbs {
+  font-size: 0.875rem;
+}
+
+/* 窄屏的"本页目录"折叠条：一条边，不铺色块。 */
+div.theme-doc-toc-mobile {
+  border: 1px solid var(--om-border);
+  border-radius: 8px;
+  background: none;
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+  background: var(--om-surface-muted);
+  color: var(--om-text-strong);
+}
+
+/* ---- 上一页 / 下一页 ---- */
+
+.pagination-nav__link {
+  border: 1px solid var(--om-border);
+  transition: border-color 150ms var(--om-ease-enter);
+}
+
+.pagination-nav__sublabel {
+  color: var(--om-text-muted);
+  font-size: 0.8125rem;
+}
+
+.pagination-nav__label {
+  color: var(--om-text-strong);
+  font-weight: 600;
+}
+
+/* ---- 页脚 ---- */
+
+.footer {
+  border-top: 1px solid var(--om-border);
+}
+
+.footer__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.footer__item {
+  font-size: 0.875rem;
+  line-height: 2;
+}
+
+.footer__copyright {
+  margin-top: 1.5rem;
+  color: var(--om-text-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---- 按钮 ---- */
+
+.button {
+  font-weight: 500;
+  transition:
+    background-color 150ms var(--om-ease-enter),
+    border-color 150ms var(--om-ease-enter),
+    transform 100ms var(--om-ease-enter);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .button:active {
+    transform: none;
+  }
 }

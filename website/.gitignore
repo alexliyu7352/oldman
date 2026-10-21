@@ -5,4 +5,5 @@ build/
 
 # 由 scripts/build-docs-site.py 在构建期组装，源在 docs/public/<语言>/
 .staging/
-i18n/*/docusaurus-plugin-content-docs/
+# 只有文档树本身是组装出来的；同目录的 current.json（侧边栏分区名的译文）是源文件。
+i18n/*/docusaurus-plugin-content-docs/current/

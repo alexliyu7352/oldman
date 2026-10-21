@@ -1,0 +1,62 @@
+{
+  "link.title.Docs": {
+    "message": "文档",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.Demos": {
+    "message": "示例",
+    "description": "The title of the footer links column with title=Demos in the footer"
+  },
+  "link.title.Project": {
+    "message": "项目",
+    "description": "The title of the footer links column with title=Project in the footer"
+  },
+  "link.item.label.User Guide": {
+    "message": "用户文档",
+    "description": "The label of footer link with label=User Guide linking to /users"
+  },
+  "link.item.label.Developer Reference": {
+    "message": "开发者参考",
+    "description": "The label of footer link with label=Developer Reference linking to /developers"
+  },
+  "link.item.label.Agent Guide": {
+    "message": "Agent 应用开发指南",
+    "description": "The label of footer link with label=Agent Guide linking to /agents"
+  },
+  "link.item.label.API Reference": {
+    "message": "API 参考",
+    "description": "The label of footer link with label=API Reference linking to /api"
+  },
+  "link.item.label.EPG dashboard": {
+    "message": "EPG Dashboard",
+    "description": "The label of footer link with label=EPG dashboard linking to https://github.com/alexliyu7352/oldman-epg-dashboard"
+  },
+  "link.item.label.Built-in Admin": {
+    "message": "内置 Admin",
+    "description": "The label of footer link with label=Built-in Admin linking to https://github.com/alexliyu7352/oldman-admin-demo"
+  },
+  "link.item.label.Ops tool": {
+    "message": "运维工具",
+    "description": "The label of footer link with label=Ops tool linking to https://github.com/alexliyu7352/oldman-ops-demo"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/alexliyu7352/oldman"
+  },
+  "link.item.label.Releases": {
+    "message": "发行版本",
+    "description": "The label of footer link with label=Releases linking to https://github.com/alexliyu7352/oldman/releases"
+  },
+  "link.item.label.PyPI": {
+    "message": "PyPI",
+    "description": "The label of footer link with label=PyPI linking to https://pypi.org/project/oldman/"
+  },
+  "link.item.label.npm": {
+    "message": "npm",
+    "description": "The label of footer link with label=npm linking to https://www.npmjs.com/package/oldman-web"
+  },
+  "copyright": {
+    "message": "MIT 许可证。",
+    "description": "The footer copyright"
+  }
+}

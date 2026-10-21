@@ -24,6 +24,9 @@ const SECTION_LABELS = {
   agents: "Agent Guide",
 };
 
+/** 自己有一份侧边栏的分区（导航栏上单独一项），不出现在 Docs 侧边栏里。 */
+const OWN_SIDEBAR = new Set(["api"]);
+
 /**
  * 从一个 README 里读出它列出的条目，按出现顺序去重。
  *
@@ -67,7 +70,10 @@ function itemsOf(directory, relative) {
   const documents = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md")
     .map((entry) => entry.name.slice(0, -3));
-  const subdirectories = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const subdirectories = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .filter((name) => relative !== "" || !OWN_SIDEBAR.has(name));
 
   const present = new Set([...documents, ...subdirectories]);
   const listed = orderFromReadme(directory).filter((name) => present.has(name));
@@ -95,6 +101,12 @@ function itemsOf(directory, relative) {
   });
 }
 
+/** 顶层的一个分区，作为一份侧边栏：它的 README 在最前，其余按 README 的顺序。 */
+function sectionSidebar(name) {
+  return [`${name}/README`, ...itemsOf(path.join(STAGED, name), name)];
+}
+
 export default {
   docs: ["README", ...itemsOf(STAGED, "")],
+  api: sectionSidebar("api"),
 };

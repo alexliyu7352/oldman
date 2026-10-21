@@ -1,6 +1,9 @@
 // 文档站配置。内容不在这里，也不属于这里：源是 docs/public/<语言>/，
 // scripts/build-docs-site.py 把它组装成 Docusaurus 要的形状后放进暂存树。
 // 这个文件是唯一知道 Docusaurus 形状的地方之一，仓库结构不跟着它走。
+//
+// 外观跟框架的界面是一套：石板灰单色、蓝色链接、品牌标那道蓝到绿的渐变只用在品牌标上，
+// 数值来自框架的设计规格（oldman-web 的 tailwind.css 里的 --om-* token），见 src/css/custom.css。
 
 import { themes } from "prism-react-renderer";
 
@@ -11,15 +14,20 @@ const REPOSITORY = `https://github.com/${ORGANIZATION}/${PROJECT}`;
 /** 暂存目录名 -> 源目录名。editUrl 要指回真实的源文件，不是暂存副本。 */
 const SOURCE_DIRECTORY = { en: "en", "zh-Hans": "zh" };
 
+/** 代码块底色跟页面的表面色走（亮：slate-50，暗：slate-900），高亮配色沿用 Prism 自带的两套。 */
+const CODE_LIGHT = { ...themes.github, plain: { ...themes.github.plain, backgroundColor: "#f8fafc" } };
+const CODE_DARK = { ...themes.vsDark, plain: { ...themes.vsDark.plain, backgroundColor: "#0f172a" } };
+
 export default {
   title: "Oldman",
-  tagline: "A batteries-included async Python web framework",
-  favicon: "img/favicon.ico",
+  tagline: "A server-rendered-first Python framework for dashboards, admin sites, Web and API services, and background services",
+  favicon: "img/logo.svg",
 
   url: `https://${ORGANIZATION}.github.io`,
   baseUrl: `/${PROJECT}/`,
   organizationName: ORGANIZATION,
   projectName: PROJECT,
+  trailingSlash: false,
 
   // 死链一律失败。文档跨语言、跨目录互链很多，静默的 404 比构建失败难查得多。
   onBrokenLinks: "throw",
@@ -69,21 +77,58 @@ export default {
   ],
 
   themeConfig: {
+    // 跟随系统的亮暗设置；用户切换后由 Docusaurus 记住。
+    colorMode: { respectPrefersColorScheme: true },
+    metadata: [{ name: "theme-color", content: "#ffffff" }],
     navbar: {
       title: "Oldman",
+      logo: { alt: "", src: "img/logo.svg", width: 24, height: 24 },
       items: [
-        { type: "docSidebar", sidebarId: "docs", position: "left", label: "Documentation" },
+        { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
+        { type: "docSidebar", sidebarId: "api", position: "left", label: "API" },
         { type: "localeDropdown", position: "right" },
-        { href: REPOSITORY, label: "GitHub", position: "right" },
+        { href: REPOSITORY, position: "right", className: "navbar-github-link", "aria-label": "GitHub repository" },
       ],
     },
+    docs: {
+      sidebar: { autoCollapseCategories: false },
+    },
+    tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
     footer: {
-      style: "dark",
-      copyright: `MIT licensed. Built from <a href="${REPOSITORY}/tree/main/docs/public">docs/public</a>.`,
+      style: "light",
+      links: [
+        {
+          title: "Docs",
+          items: [
+            { label: "User Guide", to: "/users" },
+            { label: "Developer Reference", to: "/developers" },
+            { label: "Agent Guide", to: "/agents" },
+            { label: "API Reference", to: "/api" },
+          ],
+        },
+        {
+          title: "Demos",
+          items: [
+            { label: "EPG dashboard", href: `https://github.com/${ORGANIZATION}/oldman-epg-dashboard` },
+            { label: "Built-in Admin", href: `https://github.com/${ORGANIZATION}/oldman-admin-demo` },
+            { label: "Ops tool", href: `https://github.com/${ORGANIZATION}/oldman-ops-demo` },
+          ],
+        },
+        {
+          title: "Project",
+          items: [
+            { label: "GitHub", href: REPOSITORY },
+            { label: "Releases", href: `${REPOSITORY}/releases` },
+            { label: "PyPI", href: "https://pypi.org/project/oldman/" },
+            { label: "npm", href: "https://www.npmjs.com/package/oldman-web" },
+          ],
+        },
+      ],
+      copyright: "MIT licensed.",
     },
     prism: {
-      theme: themes.github,
-      darkTheme: themes.dracula,
+      theme: CODE_LIGHT,
+      darkTheme: CODE_DARK,
       additionalLanguages: ["python", "bash", "yaml", "toml", "json", "nginx"],
     },
   },
