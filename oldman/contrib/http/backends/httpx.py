@@ -44,7 +44,10 @@ def _metadata(response: httpx.Response) -> dict[str, Any]:
 
 
 class HttpxClient(BaseHttpClient):
-    """HTTPX实现的HTTP客户端"""
+    """HTTP client implemented with HTTPX.
+
+    HTTPX实现的HTTP客户端
+    """
 
     def __init__(self, parent: "MultiHttpClient"):
         """
@@ -62,15 +65,24 @@ class HttpxClient(BaseHttpClient):
     backend_label: ClassVar[str] = "HTTPX"
 
     async def init_client(self) -> None:
-        """初始化HTTPX客户端"""
+        """Initialize the HTTPX client.
+
+        初始化HTTPX客户端
+        """
         logger.info(f"初始化HTTPX客户端, 最大连接数: {self.parent.max_connections}")
 
     async def close_session(self, session: Any) -> None:
-        """关闭 HTTPX 客户端。"""
+        """Close the HTTPX client.
+
+        关闭 HTTPX 客户端。
+        """
         await session.aclose()
 
     async def get_client(self) -> httpx.AsyncClient:
-        """获取或创建HTTPX客户端实例"""
+        """Return or create the HTTPX client instance.
+
+        获取或创建HTTPX客户端实例
+        """
         self._ensure_open()
         async with self.parent.lock:
             if self.http_client is None or self.http_client.is_closed:
@@ -108,7 +120,10 @@ class HttpxClient(BaseHttpClient):
             return self.http_client
 
     def prepare_request_params(self, **kwargs: Any) -> dict[str, Any]:
-        """转换 HTTPX 参数并补充统一 User-Agent。"""
+        """Convert HTTPX parameters and supply the common User-Agent.
+
+        转换 HTTPX 参数并补充统一 User-Agent。
+        """
 
         # 处理超时参数
         timeout = kwargs.pop("timeout", None)
@@ -149,7 +164,10 @@ class HttpxClient(BaseHttpClient):
         )
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
-        """执行HTTPX请求"""
+        """Execute an HTTPX request.
+
+        执行HTTPX请求
+        """
         client = await self.get_client()
         kwargs = self.prepare_request_params(**kwargs)
         # 通过 raw stream 完整读取一次，确保原始正文不会被 HTTPX 自动解码后丢失。
@@ -163,7 +181,10 @@ class HttpxClient(BaseHttpClient):
 
     @asynccontextmanager
     async def stream(self, method: HttpMethod, url: str, **kwargs: Any):
-        """流式请求上下文管理器"""
+        """Context manager for streaming requests.
+
+        流式请求上下文管理器
+        """
         client = await self.get_client()
         kwargs = self.prepare_request_params(**kwargs)
         # 执行流式请求
@@ -182,7 +203,10 @@ class HttpxClient(BaseHttpClient):
         live_stream: bool = False,
         **kwargs: Any,
     ):
-        """复用统一流适配器，生命周期由断点续传对象显式持有。"""
+        """Reuse the common stream adapter with lifecycle ownership held explicitly by the resumable response.
+
+        复用统一流适配器，生命周期由断点续传对象显式持有。
+        """
 
         del live_stream
         async with self.stream(method, url, **kwargs) as response:

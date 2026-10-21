@@ -1,4 +1,7 @@
-"""Oldman 后端组件 HTTP 视图基类。"""
+"""Base HTTP view for Oldman backend components.
+
+Oldman 后端组件 HTTP 视图基类。
+"""
 
 from __future__ import annotations
 
@@ -21,7 +24,9 @@ ResponseMode = Literal["auto", "html", "json"]
 
 
 def resolve_response_mode(request: Any, default: ResponseMode = "auto") -> Literal["html", "json"]:
-    """按 response_mode 参数优先、Accept 兜底解析响应模式。
+    """Resolve response mode from response_mode first, falling back to Accept.
+
+    按 response_mode 参数优先、Accept 兜底解析响应模式。
 
     出示了 Bearer 令牌的请求来自 API 客户端:令牌过期时它要的是 JSON 401,不是跳转到登录页的 302。
     只认 Bearer,不认任意 Authorization——代理在测试站前面加的 HTTP Basic 不该把整站变成 JSON。
@@ -39,7 +44,10 @@ def resolve_response_mode(request: Any, default: ResponseMode = "auto") -> Liter
 
 
 def build_login_url(request: Any, login_url: str | None = None) -> str:
-    """构造包含原始 path/query 的登录跳转地址;`login_url` 省略时用站点的 `web.account.login_url`。"""
+    """Build a sign-in redirect preserving path/query, defaulting login_url to site web.account.login_url.
+
+    构造包含原始 path/query 的登录跳转地址;`login_url` 省略时用站点的 `web.account.login_url`。
+    """
     if login_url is None:
         login_url = conf.settings.web.account.login_url
     path = str(getattr(request, "path", "") or "/")
@@ -55,7 +63,10 @@ def authentication_required_response(
     *,
     login_url: str | None = None,
 ):
-    """返回未登录响应;`login_url` 省略时用站点的 `web.account.login_url`。"""
+    """Return an unauthenticated response, defaulting login_url to site web.account.login_url.
+
+    返回未登录响应;`login_url` 省略时用站点的 `web.account.login_url`。
+    """
     if login_url is None:
         login_url = conf.settings.web.account.login_url
     headers = getattr(request, "headers", {}) or {}
@@ -71,7 +82,10 @@ def authentication_required_response(
 
 
 async def permission_denied_response(request: Any, response_mode: Literal["html", "json"], *, message: str | None = None):
-    """返回 JSON 403 或项目可覆盖的 HTML 403 页面;没给 message 时用翻译后的"没有权限"。"""
+    """Return JSON 403 or project-overridable HTML 403, defaulting to translated Permission denied.
+
+    返回 JSON 403 或项目可覆盖的 HTML 403 页面;没给 message 时用翻译后的"没有权限"。
+    """
     message = message or gettext("Permission denied", request=request)
     if response_mode == "json":
         payload = DefaultApiResponse(error_code=ApiErrorCode.PERMISSION_DENIED, message=message)
@@ -92,7 +106,9 @@ async def access_denied_response(request: Any, *, login_url: str | None = None, 
 
 
 class HTTPMethodView(SanicHTTPMethodView):
-    """Sanic 的 HTTPMethodView 加上 Oldman 的登录协议与权限钩子。
+    """Sanic HTTPMethodView with Oldman sign-in protocols and permission hooks.
+
+    Sanic 的 HTTPMethodView 加上 Oldman 的登录协议与权限钩子。
 
     分派时依次:``require_authenticated`` 为真而请求未登录时走登录协议(401 或跳登录页);
     ``check_permission`` 拒绝时 403;都通过才进入处理方法。``check_permission`` 在解析参数、
@@ -104,7 +120,10 @@ class HTTPMethodView(SanicHTTPMethodView):
     response_mode: ResponseMode = "auto"
 
     async def dispatch_request(self, request: Any, *args: object, **kwargs: object):
-        """执行认证/权限检查后按 Sanic HTTPMethodView 规则分派 method。"""
+        """Check authentication/permissions, then dispatch by Sanic HTTPMethodView rules.
+
+        执行认证/权限检查后按 Sanic HTTPMethodView 规则分派 method。
+        """
         self.request = request
         method_name = str(getattr(request, "method", "")).lower()
         response_mode = resolve_response_mode(request, self.response_mode)
@@ -133,11 +152,16 @@ class HTTPMethodView(SanicHTTPMethodView):
         return result
 
     def is_authenticated(self, request: Any) -> bool:
-        """判断请求是否来自已登录用户,不论它凭什么认证。"""
+        """Check whether a user is signed in, regardless of authentication method.
+
+        判断请求是否来自已登录用户,不论它凭什么认证。
+        """
         return request_user(request).is_authenticated
 
     async def check_permission(self, request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]:
-        """endpoint 级权限 hook,默认允许;返回 (是否允许, 拒绝时的提示)。
+        """Check endpoint permissions, allowing by default and returning an allowed flag and denial message.
+
+        endpoint 级权限 hook,默认允许;返回 (是否允许, 拒绝时的提示)。
 
         只在登录检查之后执行,所以不必再判断是否登录;要 staff 就看 ``request_user(request).is_staff``,
         要某个权限就 ``await has_perm(request, PERMISSION)``。
@@ -146,18 +170,27 @@ class HTTPMethodView(SanicHTTPMethodView):
         return True, None
 
     async def resolve_hook_response(self, response: Any) -> Any:
-        """兼容同步和异步权限响应 hook。"""
+        """Support synchronous and asynchronous permission-response hooks.
+
+        兼容同步和异步权限响应 hook。
+        """
         if inspect.isawaitable(response):
             return await response
         return response
 
     def on_authentication_required(self, request: Any, response_mode: Literal["html", "json"], *, method_name: str) -> Any:
-        """未登录响应 hook;可以返回响应,也可以返回待 await 的响应(分派时两种都接受)。"""
+        """Return an unauthenticated response directly or as an awaitable, both supported by dispatch.
+
+        未登录响应 hook;可以返回响应,也可以返回待 await 的响应(分派时两种都接受)。
+        """
         del method_name
         return authentication_required_response(request, response_mode)
 
     async def on_permission_denied(self, request: Any, response_mode: Literal["html", "json"], *, message: str, method_name: str):
-        """无权限响应 hook。"""
+        """Return a permission-denied response.
+
+        无权限响应 hook。
+        """
         del method_name
         return await permission_denied_response(request, response_mode, message=message)
 

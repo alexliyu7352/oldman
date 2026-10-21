@@ -65,7 +65,10 @@ def _normalize_tags(value: object, delimiter: str) -> str:
 
 
 class ColorPickerField(StringField):
-    """保存规范化的六位 RGB 或八位 RGBA HEX 颜色。"""
+    """Store normalized six-digit RGB or eight-digit RGBA hex colors.
+
+    保存规范化的六位 RGB 或八位 RGBA HEX 颜色。
+    """
 
     def __init__(self, *args: Any, allow_alpha: bool = True, **kwargs: Any) -> None:
         kwargs.setdefault("widget", ColorPickerWidget(allow_alpha=allow_alpha))
@@ -73,13 +76,19 @@ class ColorPickerField(StringField):
         self.allow_alpha = allow_alpha
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """统一输出小写 HEX，便于模型和前端稳定比较。"""
+        """Emit lowercase hex consistently for stable model/browser comparisons.
+
+        统一输出小写 HEX，便于模型和前端稳定比较。
+        """
         super().process_formdata(valuelist)
         if self.data:
             self.data = str(self.data).strip().lower()
 
     def pre_validate(self, form: BaseForm) -> None:
-        """拒绝浏览器或客户端提交的非 HEX 值。"""
+        """Reject non-hex browser or client submissions.
+
+        拒绝浏览器或客户端提交的非 HEX 值。
+        """
         super().pre_validate(form)
         if not self.data:
             return
@@ -89,7 +98,10 @@ class ColorPickerField(StringField):
 
 
 class SlugField(StringField):
-    """把提交值规范为 URL slug，并可从同一表单的其他字段补全空值。"""
+    """Normalize submissions as URL slugs, optionally filling empty values from another form field.
+
+    把提交值规范为 URL slug，并可从同一表单的其他字段补全空值。
+    """
 
     def __init__(
         self,
@@ -103,13 +115,19 @@ class SlugField(StringField):
         self.allow_unicode = allow_unicode
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """只规范用户提交的值，不改写用于编辑展示的模型初始值。"""
+        """Normalize only submitted values without rewriting model initial values used for editing.
+
+        只规范用户提交的值，不改写用于编辑展示的模型初始值。
+        """
         super().process_formdata(valuelist)
         if self.data:
             self.data = slugify(str(self.data), allow_unicode=self.allow_unicode)
 
     def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
-        """空值可从指定源字段生成；用户已填写时始终保留其语义。"""
+        """Generate empty values from a source field while preserving the meaning of user-supplied values.
+
+        空值可从指定源字段生成；用户已填写时始终保留其语义。
+        """
         if not self.data and self.source_field:
             source = form._fields.get(self.source_field)
             if source is None:
@@ -121,7 +139,10 @@ class SlugField(StringField):
 
 
 class TagsField(StringField):
-    """以单个字符串保存可渐进增强的文本标签。"""
+    """Store progressively enhanced text tags as one string.
+
+    以单个字符串保存可渐进增强的文本标签。
+    """
 
     def __init__(self, *args: Any, delimiter: str = ",", **kwargs: Any) -> None:
         if not isinstance(delimiter, str):
@@ -133,18 +154,27 @@ class TagsField(StringField):
         super().__init__(*args, **kwargs)
 
     def process_data(self, value: Any) -> None:
-        """规范模型或默认值，确保首次渲染与提交结果一致。"""
+        """Normalize model/default values so initial rendering matches submission results.
+
+        规范模型或默认值，确保首次渲染与提交结果一致。
+        """
         super().process_data(value)
         self.data = _normalize_tags(self.data, self.delimiter)
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """规范浏览器提交值，保留字符串数据合同。"""
+        """Normalize browser submissions while preserving the string-data contract.
+
+        规范浏览器提交值，保留字符串数据合同。
+        """
         super().process_formdata(valuelist)
         self.data = _normalize_tags(self.data, self.delimiter)
 
 
 class RichTextField(TextAreaField):
-    """使用原生 textarea 提交 HTML，并可在服务端显式清洗。"""
+    """Submit HTML through a native textarea with explicit optional server-side sanitization.
+
+    使用原生 textarea 提交 HTML，并可在服务端显式清洗。
+    """
 
     def __init__(
         self,
@@ -157,14 +187,20 @@ class RichTextField(TextAreaField):
         self.sanitizer = sanitizer
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """只在配置 sanitizer 时清洗提交值，不猜测业务信任策略。"""
+        """Sanitize submissions only when a sanitizer is configured, without guessing business trust policies.
+
+        只在配置 sanitizer 时清洗提交值，不猜测业务信任策略。
+        """
         super().process_formdata(valuelist)
         if self.sanitizer is not None and self.data is not None:
             self.data = self.sanitizer(str(self.data))
 
 
 class JSONListField(FieldList):
-    """把 Text 中的 JSON 数组绑定为 WTForms 标量字段列表。"""
+    """Bind a JSON array in Text to a WTForms scalar-field list.
+
+    把 Text 中的 JSON 数组绑定为 WTForms 标量字段列表。
+    """
 
     def __init__(self, unbound_field: Any, *args: Any, **kwargs: Any) -> None:
         """拒绝嵌套字段；第一版只维护一维标量列表。"""
@@ -175,7 +211,10 @@ class JSONListField(FieldList):
         super().__init__(unbound_field, *args, **kwargs)
 
     def process(self, formdata: Any, data: Any = unset_value, extra_filters: Any = None) -> None:
-        """解码模型值，并在 WTForms 截断前检查提交索引和数量。"""
+        """Decode model values and check submitted indexes/counts before WTForms truncation.
+
+        解码模型值，并在 WTForms 截断前检查提交索引和数量。
+        """
         self._process_list_errors = []
         decoded = data if data is unset_value else self._decode_model_value(data)
         if formdata is not None:
@@ -186,7 +225,10 @@ class JSONListField(FieldList):
         super().process(formdata, decoded, extra_filters=extra_filters)
 
     def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
-        """保留子字段错误，并把列表级失败交给表单顶部消息。"""
+        """Preserve child-field errors and pass list-level failures to the top form message.
+
+        保留子字段错误，并把列表级失败交给表单顶部消息。
+        """
         valid = super().validate(form, extra_validators=extra_validators)
         self.list_errors = list(self._process_list_errors)
         self.list_errors.extend(error for error in self.errors if not isinstance(error, (list, tuple)))
@@ -199,7 +241,10 @@ class JSONListField(FieldList):
         return valid and not self.list_errors and not self.errors
 
     def template_entry(self, index: str = "__index__") -> Any:
-        """创建不写入 entries 的空白子字段，供 HTML template 克隆。"""
+        """Create an empty child field outside entries for HTML-template cloning.
+
+        创建不写入 entries 的空白子字段，供 HTML template 克隆。
+        """
         field_list = cast(Any, self)
         entry = cast(Any, self.unbound_field).bind(
             form=None,
@@ -214,7 +259,10 @@ class JSONListField(FieldList):
 
     @staticmethod
     def encode(value: list[Any]) -> str:
-        """返回数据库 Text 使用的稳定紧凑 JSON。"""
+        """Return stable compact JSON for database Text storage.
+
+        返回数据库 Text 使用的稳定紧凑 JSON。
+        """
         if any(not isinstance(item, (str, int, float, bool, type(None))) for item in value):
             raise TypeError("JSONListField values must be scalar")
         # 这里刻意用 stdlib：allow_nan=False 的语义是"遇到 NaN/Infinity 就报错"，
@@ -255,16 +303,25 @@ class JSONListField(FieldList):
 
 
 class UploadField(FileField):
-    """绑定 Sanic 单个上传文件的 WTForms 字段。"""
+    """A WTForms field binding one Sanic upload.
+
+    绑定 Sanic 单个上传文件的 WTForms 字段。
+    """
 
     def process_data(self, value: Any) -> None:
-        """编辑模型时不把数据库中的逻辑文件名当作本次上传。"""
+        """Do not treat the database's logical filename as a new upload when editing models.
+
+        编辑模型时不把数据库中的逻辑文件名当作本次上传。
+        """
         del value
         self.data = None
 
 
 class FileSize:
-    """限制上传文件的字节数。"""
+    """Limit upload size in bytes.
+
+    限制上传文件的字节数。
+    """
 
     def __init__(self, max_bytes: int, message: str | LazyTranslation | None = None) -> None:
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int):
@@ -285,7 +342,10 @@ class FileSize:
 
 
 class FileExtension:
-    """限制上传文件名最后一个扩展名。"""
+    """Restrict the final extension in uploaded filenames.
+
+    限制上传文件名最后一个扩展名。
+    """
 
     def __init__(self, extensions: Collection[str], message: str | LazyTranslation | None = None) -> None:
         if isinstance(extensions, (str, bytes)) or not isinstance(extensions, Collection):
@@ -327,7 +387,10 @@ class CheckboxGroupField(SelectMultipleField):
 
 
 class ModelChoiceField(SelectField):
-    """本地模型外键选择字段。"""
+    """Local model foreign-key choice field.
+
+    本地模型外键选择字段。
+    """
 
     def __init__(self, *args: Any, model_choice: ModelChoice, coerce: Any = int, **kwargs: Any) -> None:
         """保存 ModelChoice 配置并初始化 SelectField。"""
@@ -341,7 +404,10 @@ class ModelChoiceField(SelectField):
         self._choices_prepared = False
 
     async def prepare_choices(self, form: Any) -> None:
-        """加载本地候选项并写入 WTForms choices。"""
+        """Load local candidates into WTForms choices.
+
+        加载本地候选项并写入 WTForms choices。
+        """
         if self._choices_prepared:
             return
         objects = await self.model_choice.get_queryset(form.request, form.session)
@@ -356,7 +422,10 @@ class ModelChoiceField(SelectField):
         self._choices_prepared = True
 
     def pre_validate(self, form: BaseForm) -> None:
-        """校验提交值必须来自当前可见 choices。"""
+        """Require submitted values to belong to currently visible choices.
+
+        校验提交值必须来自当前可见 choices。
+        """
         if self.data in {None, ""}:
             return
         if self.data not in self._choice_values:
@@ -444,7 +513,10 @@ class RemoteChoiceValidationMixin:
 
 
 class AjaxSelectField(RemoteChoiceValidationMixin, SelectField):
-    """远程 Select provider 的便捷字段封装。"""
+    """Convenience field for remote Select providers.
+
+    远程 Select provider 的便捷字段封装。
+    """
 
     def __init__(
         self,
@@ -478,14 +550,19 @@ class AjaxSelectField(RemoteChoiceValidationMixin, SelectField):
         super().__init__(*args, choices=[], coerce=coerce, **kwargs)
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """清空远程 select 是合法提交：空值存成 None，由 validators 决定是否必填。"""
+        """Accept cleared remote selects as None, leaving requiredness to validators.
+
+        清空远程 select 是合法提交：空值存成 None，由 validators 决定是否必填。
+        """
         if valuelist and valuelist[0] in {"", None}:
             self.data = None
             return
         super().process_formdata(valuelist)
 
     def initial_choice(self, value: Any, label: Any) -> None:
-        """编辑页首屏回显当前值。
+        """Display the current value on the initial edit page.
+
+        编辑页首屏回显当前值。
 
         远程字段的 choices 初始为空，不先放入当前值就会渲染成空选项。表单一旦带着提交数据处理过
         （`raw_data` 不是 None，哪怕是空列表），这次提交说了算；空值也不改。所以在表单 `__init__`
@@ -499,7 +576,10 @@ class AjaxSelectField(RemoteChoiceValidationMixin, SelectField):
 
 
 class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
-    """远程多选 Select provider 的便捷字段封装。"""
+    """Convenience field for remote multiple-selection providers.
+
+    远程多选 Select provider 的便捷字段封装。
+    """
 
     def __init__(
         self,
@@ -535,7 +615,9 @@ class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
         super().__init__(*args, choices=[], coerce=coerce, **kwargs)
 
     def process_formdata(self, valuelist: list[Any]) -> None:
-        """清空远程多选是合法提交：空值丢掉，结果是空列表。
+        """Accept cleared remote multiple selections, dropping empty values to produce an empty list.
+
+        清空远程多选是合法提交：空值丢掉，结果是空列表。
 
         前端清空时提交一个空字符串（和单选一致），不提交这个 key 时 WTForms 给的是空列表。
         两条路径都应该落到 `[]`，不然调用方要为"提交了空"和"没提交"写两种处理。
@@ -543,7 +625,9 @@ class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
         super().process_formdata([value for value in valuelist if value not in {"", None}])
 
     def initial_choices(self, choices: Sequence[tuple[Any, Any]]) -> None:
-        """编辑页首屏回显已选的多个值，顺序就是传入顺序。空值会被跳过。
+        """Display initial multiple selections in input order, skipping empty values.
+
+        编辑页首屏回显已选的多个值，顺序就是传入顺序。空值会被跳过。
 
         守卫看的是"表单有没有带着提交数据处理过"（`raw_data is not None`），不是"有没有值"：
         多选一个都不选时浏览器根本不提交这个 key，`raw_data` 是空列表，此时把旧值写回去等于把
@@ -559,7 +643,10 @@ class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
 
 
 class AjaxAutocompleteField(RemoteChoiceValidationMixin, StringField):
-    """远程 Autocomplete provider 的便捷字段封装：提交的是 ID，输入框显示标签。"""
+    """Convenience remote Autocomplete field submitting IDs while displaying labels.
+
+    远程 Autocomplete provider 的便捷字段封装：提交的是 ID，输入框显示标签。
+    """
 
     def __init__(
         self,
@@ -589,7 +676,9 @@ class AjaxAutocompleteField(RemoteChoiceValidationMixin, StringField):
         super().__init__(*args, **kwargs)
 
     def initial_choice(self, value: Any, label: Any) -> None:
-        """编辑页首屏回显：字段值放 ID，输入框里显示给用户看的标签。
+        """Display initial edit values with the ID in the field and a user-facing label in the input.
+
+        编辑页首屏回显：字段值放 ID，输入框里显示给用户看的标签。
 
         表单带着提交数据处理过（`raw_data` 不是 None）和空值都不改，所以可以无条件调用。
         """

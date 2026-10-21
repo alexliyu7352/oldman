@@ -21,7 +21,10 @@ _EXPORT_FORMAT_LABELS = {"csv": "CSV"}
 
 
 class TableRenderer:
-    """无主题 Table renderer，负责把表格状态转换为模板上下文。"""
+    """Unthemed Table renderer converting table state into template context.
+
+    无主题 Table renderer，负责把表格状态转换为模板上下文。
+    """
 
     template_namespace = "oldman/tables/default"
 
@@ -30,7 +33,10 @@ class TableRenderer:
         self.table = table
 
     def template_name(self, name: str) -> str:
-        """返回当前 renderer 使用的模板路径。"""
+        """Return the current renderer's template path.
+
+        返回当前 renderer 使用的模板路径。
+        """
         return f"{self.template_namespace}/{name}"
 
     async def render_shell(
@@ -42,7 +48,10 @@ class TableRenderer:
         data_format: Literal["html", "json"] = "html",
         bulk_actions_html: Markup | str | None = None,
     ) -> Markup:
-        """渲染表格外壳。"""
+        """Render the table shell.
+
+        渲染表格外壳。
+        """
         if data_format not in {"html", "json"}:
             raise ValueError("data_format must be 'html' or 'json'")
         attrs = self.shell_attrs(route_kwargs, html_id=html_id, data_format=data_format)
@@ -132,7 +141,10 @@ class TableRenderer:
         html_id: str | None,
         data_format: Literal["html", "json"] = "html",
     ) -> dict[str, object]:
-        """生成表格外层容器属性。"""
+        """Build outer table-container attributes.
+
+        生成表格外层容器属性。
+        """
         attrs: dict[str, object] = {
             "id": html_id,
             "data-om-component": "table",
@@ -159,7 +171,10 @@ class TableRenderer:
         return attrs
 
     async def render_initial_fragment(self, *, data_format: Literal["html", "json"] = "html") -> Markup:
-        """渲染远程表格首屏占位片段，避免数据到达前出现空白区域。"""
+        """Render an initial remote-table placeholder to avoid blank space before data arrives.
+
+        渲染远程表格首屏占位片段，避免数据到达前出现空白区域。
+        """
         page_size = self.table.initial_page_size or self.table.page_size
         initial_result = TableResult(
             rows=[],
@@ -194,7 +209,10 @@ class TableRenderer:
         )
 
     async def render_html_fragment(self, table_request: TableRequest, result: TableResult) -> Markup:
-        """渲染 HTML Table 局部片段。"""
+        """Render an HTML Table fragment.
+
+        渲染 HTML Table 局部片段。
+        """
         # One row after another: a column callback may query the table's database session, which runs one
         # statement at a time.
         rows = [
@@ -259,7 +277,10 @@ class TableRenderer:
         return [str(option) for option in options]
 
     async def render_html_head(self) -> Markup:
-        """渲染带列 metadata 的表头。"""
+        """Render table headings with column metadata.
+
+        渲染带列 metadata 的表头。
+        """
         header_cells = []
         for column in self.table.get_columns():
             label = escape(column.label or column.name)
@@ -286,11 +307,17 @@ class TableRenderer:
         )
 
     async def render_error_fragment(self, message: str) -> Markup:
-        """渲染表格错误局部片段。"""
+        """Render a table-error fragment.
+
+        渲染表格错误局部片段。
+        """
         return await render_component_template(self.table, self.template_name("error.html"), {"message": message})
 
     async def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup:
-        """渲染 HTML Table 单行。"""
+        """Render one HTML Table row.
+
+        渲染 HTML Table 单行。
+        """
         cells = [
             await self.render_html_cell(row, column, context, row_index=row_index, column_index=index, request=request)
             for index, column in enumerate(self.table.get_columns())
@@ -307,7 +334,10 @@ class TableRenderer:
         )
 
     async def render_html_summary(self, result: TableResult) -> Markup:
-        """渲染表格总数摘要。"""
+        """Render the table-count summary.
+
+        渲染表格总数摘要。
+        """
         return await render_component_template(
             self.table,
             self.template_name("summary.html"),
@@ -315,7 +345,10 @@ class TableRenderer:
         )
 
     async def render_html_pagination(self, result: TableResult) -> Markup:
-        """渲染服务端分页按钮。"""
+        """Render server-side pagination buttons.
+
+        渲染服务端分页按钮。
+        """
         page_count = max(1, (result.filtered_total + result.page_size - 1) // result.page_size)
         pages = []
         previous_page: int | None = None
@@ -340,7 +373,10 @@ class TableRenderer:
     async def render_html_cell(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> Markup:
-        """渲染 HTML Table 单元格。"""
+        """Render an HTML Table cell.
+
+        渲染 HTML Table 单元格。
+        """
         display_value, raw_value = await self.table.get_cell_values(
             row, column, context, row_index=row_index, column_index=column_index, request=request
         )

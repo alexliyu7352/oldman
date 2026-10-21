@@ -14,24 +14,24 @@ class · defined in `oldman.contrib.http.base`
 class BaseHttpClient
 ```
 
-所有HTTP客户端实现必须遵循的基础接口
+Base interface required of all HTTP client implementations.
 
 Members:
 
-- `async def init_client() -> None` — 初始化 backend，但不要求立即建立网络连接。
+- `async def init_client() -> None` — Initialize the backend without requiring an immediate network connection.
 - `session_attribute: ClassVar[str] = ''`
 - `backend_label: ClassVar[str] = 'HTTP'`
-- `async def close_session(session: Any) -> None` — 关闭一个活动会话。子类用自己的关闭调用覆盖它。
-- `async def reset_client() -> bool` — 丢弃当前会话，下次请求会重新建立。失败向上抛，由调用方决定冷却。
-- `async def close_client() -> bool` — 释放会话资源。
-- `def export_cookie_jar(destination: CookieJar) -> None` — 把 backend 运行态 Cookie 导出到标准库 jar；直接使用该 jar 的实现无需处理。
-- `async def request(method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse` — 执行普通请求并返回统一的缓冲响应。
-- `async def stream(method: HttpMethod, url: str, **kwargs: Any) -> AsyncIterator[HttpStreamResponse]` — 打开统一的流式响应上下文。
-- `async def reconnect_stream(method: HttpMethod, url: str, live_stream: bool=False, **kwargs: Any) -> AsyncIterator[Any]` — 打开供断点续传包装器管理的 backend 流上下文。
-- `async def get(url: str, **kwargs: Any) -> HttpResponse` — GET请求
-- `async def post(url: str, **kwargs: Any) -> HttpResponse` — POST请求
-- `async def put(url: str, **kwargs: Any) -> HttpResponse` — PUT请求
-- `async def delete(url: str, **kwargs: Any) -> HttpResponse` — DELETE请求
+- `async def close_session(session: Any) -> None` — Close an active session using the subclass-specific implementation.
+- `async def reset_client() -> bool` — Discard the session for recreation on the next request, propagating failures so callers can choose a cooldown.
+- `async def close_client() -> bool` — Release session resources.
+- `def export_cookie_jar(destination: CookieJar) -> None` — Export backend Cookies to the standard-library jar unless the backend already uses it directly.
+- `async def request(method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse` — Execute an ordinary request and return a common buffered response.
+- `async def stream(method: HttpMethod, url: str, **kwargs: Any) -> AsyncIterator[HttpStreamResponse]` — Open a common streaming-response context.
+- `async def reconnect_stream(method: HttpMethod, url: str, live_stream: bool=False, **kwargs: Any) -> AsyncIterator[Any]` — Open a backend stream context managed by the resumption wrapper.
+- `async def get(url: str, **kwargs: Any) -> HttpResponse` — Send a GET request.
+- `async def post(url: str, **kwargs: Any) -> HttpResponse` — Send a POST request.
+- `async def put(url: str, **kwargs: Any) -> HttpResponse` — Send a PUT request.
+- `async def delete(url: str, **kwargs: Any) -> HttpResponse` — Send a DELETE request.
 
 ## `ClientType`
 
@@ -41,7 +41,7 @@ class · defined in `oldman.contrib.http.schemas`
 class ClientType(enum.StrEnum)
 ```
 
-HTTP 客户端类型的字符串枚举
+String enumeration of HTTP client types.
 
 ## `HTTPClientError`
 
@@ -93,7 +93,7 @@ class · defined in `oldman.contrib.http.schemas`
 class HttpMethod(enum.StrEnum)
 ```
 
-HTTP 方法的字符串枚举
+String enumeration of HTTP methods.
 
 ## `HttpRangeError`
 
@@ -141,7 +141,7 @@ class · defined in `oldman.contrib.http.exceptions`
 class HttpStatusError(HTTPClientError)
 ```
 
-携带统一响应对象的非成功 HTTP 状态错误。
+An unsuccessful HTTP-status error carrying the common response object.
 
 Constructor:
 
@@ -199,7 +199,7 @@ class · defined in `oldman.contrib.http.multi_client`
 class MultiHttpClient(BaseHttpClient)
 ```
 
-支持多种后端的统一HTTP客户端工厂
+Common HTTP client factory supporting multiple backends.
 
 Constructor:
 
@@ -209,18 +209,18 @@ MultiHttpClient(client_type: ClientType=ClientType.HTTPX, connect_timeout: float
 
 Members:
 
-- `property client` — 获取当前实现的客户端实例
-- `def is_initialized() -> bool` — 检查客户端是否已初始化
-- `async def init_client() -> None` — 初始化HTTP客户端；已初始化时保持现有 backend 不变。
-- `async def check_health() -> bool` — 检查客户端健康状态，根据需要重置
-- `async def reset_client() -> bool` — 重置HTTP客户端 - 增强调试版本
-- `async def close_client() -> bool` — 关闭HTTP客户端并清理资源。
-- `async def request(method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse` — 发送HTTP请求，支持自动重试和错误处理
-- `async def stream(method: HttpMethod, url: str, **kwargs: Any) -> AsyncIterator[HttpStreamResponse]` — 改进的流式请求上下文管理器，支持重试和续传
-- `async def reconnect_stream(method: HttpMethod, url: str, live_stream: bool=False, **kwargs) -> AsyncIterator['ReconnectStreamResponse']` — 建立支持读取中断后按 Range 续传的统一流响应。
-- `def export_cookies() -> CookieJar | None` — 显式导出 backend 运行态 Cookie 到构造时传入的标准库 jar。
-- `def save_cookies(filename: str | None=None) -> None` — 导出并保存 cookies 到文件（仅对 MozillaCookieJar 有效）。
-- `def response_has_cookies(response: HttpResponse | HttpStreamResponse) -> bool` — 检查响应是否包含新的 cookies
+- `property client` — Return the current backend client instance.
+- `def is_initialized() -> bool` — Check whether the client is initialized.
+- `async def init_client() -> None` — Initialize the HTTP client, preserving its existing backend if already initialized.
+- `async def check_health() -> bool` — Check client health and reset if needed.
+- `async def reset_client() -> bool` — Reset the HTTP client with enhanced diagnostics.
+- `async def close_client() -> bool` — Close the HTTP client and release resources.
+- `async def request(method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse` — Send an HTTP request with automatic retries and error handling.
+- `async def stream(method: HttpMethod, url: str, **kwargs: Any) -> AsyncIterator[HttpStreamResponse]` — Open an enhanced streaming-request context with retry and resumption support.
+- `async def reconnect_stream(method: HttpMethod, url: str, live_stream: bool=False, **kwargs) -> AsyncIterator['ReconnectStreamResponse']` — Establish a common stream response that resumes interrupted reads using Range.
+- `def export_cookies() -> CookieJar | None` — Explicitly export runtime backend Cookies to the standard-library jar supplied at construction.
+- `def save_cookies(filename: str | None=None) -> None` — Export and save Cookies to a file for MozillaCookieJar only.
+- `def response_has_cookies(response: HttpResponse | HttpStreamResponse) -> bool` — Check whether the response contains new Cookies.
 
 ## `ReconnectStreamResponse`
 
@@ -230,7 +230,7 @@ class · defined in `oldman.contrib.http.reconnect_stream`
 class ReconnectStreamResponse
 ```
 
-读取中断后自动重连的流式响应。上层业务先拿响应头、再读正文，所以底层上下文跨 connect 和 aiter_bytes 保存。
+A stream response that reconnects after interrupted reads, retaining backend context between connection and body consumption.
 
 Constructor:
 
@@ -240,13 +240,13 @@ ReconnectStreamResponse(client: _ReconnectClient, method: HttpMethod, url: str, 
 
 Members:
 
-- `async def connect() -> None` — 建立首次响应；读取中断后也由它建立恢复响应。连接失败、错误状态码和读取中断共用一份连续的重试预算。
-- `def incr_timeout(reset: bool=False) -> None` — 更新父客户端记录的连续超时次数。
-- `async def aiter_bytes(chunk_size: int=512 * 1024) -> AsyncIterator[bytes]` — 输出本次响应的连续字节；读取中断后按续传规则恢复。
-- `async def release_response() -> None` — 退出 backend 上下文，由统一流响应完成幂等关闭。
-- `def detach_response() -> AbstractAsyncContextManager[HttpStreamResponse] | None` — 把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
-- `async def release() -> None` — 清理当前断点续传响应。
-- `def update_response_status(response: HttpStreamResponse) -> None` — 首次响应确定对外状态、响应头和续传方式；之后的响应只核对能不能接上，不改对外的东西。
+- `async def connect() -> None` — Establish initial or resumed responses using a shared consecutive retry budget for connection, status, and read failures.
+- `def incr_timeout(reset: bool=False) -> None` — Update the parent client's consecutive-timeout count.
+- `async def aiter_bytes(chunk_size: int=512 * 1024) -> AsyncIterator[bytes]` — Yield contiguous response bytes, recovering interrupted reads under resumption rules.
+- `async def release_response() -> None` — Exit the backend context through idempotent common-response closure.
+- `def detach_response() -> AbstractAsyncContextManager[HttpStreamResponse] | None` — Transfer the current response context to the caller for closure, leaving release nothing to await.
+- `async def release() -> None` — Clean up the current resumable response.
+- `def update_response_status(response: HttpStreamResponse) -> None` — Set public status, headers, and resumption mode from the first response; later responses only verify continuity.
 
 ## `RequestFailedError`
 

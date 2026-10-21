@@ -2,7 +2,7 @@
 
 Generated from the source by `scripts/api_index.py`; do not edit by hand. [All packages](README.md)
 
-后端 Chart 组件封装入口。
+Backend Chart component entry point.
 
 Import with `from oldman.web.components.charts import <name>`.
 
@@ -14,7 +14,7 @@ class · defined in `oldman.web.components.charts.views`
 class BaseChartView(DataEndpointMixin, HTTPMethodView)
 ```
 
-支持独立 endpoint 的无主题 Chart 基类。
+Unthemed Chart base supporting a standalone endpoint.
 
 Constructor:
 
@@ -34,17 +34,17 @@ Members:
 - `allowed_group_by: tuple[str, ...] = ()`
 - `allowed_metrics: tuple[str, ...] = ()`
 - `allowed_chart_types: tuple[str, ...] = ()`
-- `def build_chart_request(request: Any, *, route_kwargs: dict[str, object]) -> ChartRequest` — 从 HTTP 请求构建标准 ChartRequest。
-- `async def get(request: Any, **route_kwargs: object)` — 处理图表 data endpoint 请求。
-- `async def check_auth(chart_request: ChartRequest) -> bool` — 要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
-- `async def validate_filters(chart_request: ChartRequest) -> None` — 验证请求中的 filter 参数都由业务图表显式支持。
-- `def validate_allowed_parameter(name: str, value: str, allowed: tuple[str, ...], *, default: str) -> None` — 按业务图表声明的白名单校验单个请求参数。
-- `def render_error_response(message: str, *, status: int, error_code: ApiErrorCode=ApiErrorCode.INVALID_REQUEST)` — 把图表请求错误转换为统一 JSON 响应。
-- `async def on_permission_denied(request: Any, response_mode: Literal['html', 'json'], *, message: str, method_name: str)` — endpoint 级权限失败复用 Chart JSON 错误协议。
-- `def render_json_result(result: ChartResult)` — 渲染 ChartResult JSON 响应。
-- `def get_renderer() -> ChartRenderer` — 返回当前图表 renderer 实例。
-- `async def render_shell(*, html_id: str | None=None, **route_kwargs: object) -> Markup` — 异步渲染图表外壳和前端挂载属性。
-- `async def get_result(chart_request: ChartRequest) -> ChartResult` — 返回当前图表结果，业务子类应重写。
+- `def build_chart_request(request: Any, *, route_kwargs: dict[str, object]) -> ChartRequest` — Build a standard ChartRequest from an HTTP request.
+- `async def get(request: Any, **route_kwargs: object)` — Handle a chart data-endpoint request.
+- `async def check_auth(chart_request: ChartRequest) -> bool` — Check request- or database-dependent access, allowing by default and returning 403 on denial.
+- `async def validate_filters(chart_request: ChartRequest) -> None` — Validate that the business chart explicitly supports every requested filter.
+- `def validate_allowed_parameter(name: str, value: str, allowed: tuple[str, ...], *, default: str) -> None` — Validate one request parameter against the business chart's allowlist.
+- `def render_error_response(message: str, *, status: int, error_code: ApiErrorCode=ApiErrorCode.INVALID_REQUEST)` — Convert chart request errors to common JSON responses.
+- `async def on_permission_denied(request: Any, response_mode: Literal['html', 'json'], *, message: str, method_name: str)` — Use the Chart JSON error protocol for endpoint-level permission denial.
+- `def render_json_result(result: ChartResult)` — Render a ChartResult JSON response.
+- `def get_renderer() -> ChartRenderer` — Return the current chart renderer instance.
+- `async def render_shell(*, html_id: str | None=None, **route_kwargs: object) -> Markup` — Render the chart shell and browser mounting attributes asynchronously.
+- `async def get_result(chart_request: ChartRequest) -> ChartResult` — Return the current chart result, to be overridden by business subclasses.
 
 ## `ChartConfig`
 
@@ -54,7 +54,7 @@ class · defined in `oldman.web.components.charts.config`
 class ChartConfig
 ```
 
-Chart 类属性和字段配置的标准对象。
+Standard chart class-attribute and field configuration.
 
 Members:
 
@@ -72,7 +72,7 @@ class · defined in `oldman.web.components.charts.config`
 class ChartField
 ```
 
-图表可聚合字段声明。
+Declaration of an aggregatable chart field.
 
 Members:
 
@@ -88,7 +88,7 @@ class · defined in `oldman.web.components.charts.exceptions`
 class ChartInvalidRequest(Exception)
 ```
 
-图表请求参数非法。
+Invalid chart request parameters.
 
 ## `ChartRenderer`
 
@@ -98,7 +98,7 @@ class · defined in `oldman.web.components.charts.renderers`
 class ChartRenderer
 ```
 
-无主题 Chart renderer，负责把图表状态转换为模板上下文。
+Unthemed Chart renderer converting chart state into template context.
 
 Constructor:
 
@@ -108,9 +108,9 @@ ChartRenderer(chart: Any) -> None
 
 Members:
 
-- `def template_name(name: str) -> str` — 返回当前 renderer 使用的模板路径。
-- `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None) -> Markup` — 渲染图表外壳和前端挂载属性。
-- `def shell_attrs(route_kwargs: dict[str, object], *, html_id: str | None) -> dict[str, object]` — 生成图表外层容器属性。
+- `def template_name(name: str) -> str` — Return the current renderer's template path.
+- `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None) -> Markup` — Render the chart shell and browser mounting attributes.
+- `def shell_attrs(route_kwargs: dict[str, object], *, html_id: str | None) -> dict[str, object]` — Build outer chart-container attributes.
 
 ## `ChartRequest`
 
@@ -120,7 +120,7 @@ class · defined in `oldman.web.components.charts.request`
 class ChartRequest
 ```
 
-标准化后的图表请求状态。
+Normalized chart request state.
 
 Members:
 
@@ -131,8 +131,8 @@ Members:
 - `metric: str`
 - `filters: dict[str, object]`
 - `route_kwargs: dict[str, object]`
-- `def range_days() -> int` — `7d`、`30d` 这类 range key 对应的天数。
-- `def range_start(*, end: dt.datetime | None=None) -> dt.datetime` — 当前窗口的起点，含今天：`end`（默认无时区 UTC 现在）往前 `range_days() - 1` 天的零点。
+- `def range_days() -> int` — Return the day count represented by range keys such as 7d or 30d.
+- `def range_start(*, end: dt.datetime | None=None) -> dt.datetime` — Return midnight at the start of a window including today, range_days() - 1 days before end (default naive UTC now).
 
 ## `ChartResult`
 
@@ -142,7 +142,7 @@ class · defined in `oldman.web.components.charts.results`
 class ChartResult
 ```
 
-图表查询结果，不是 HTTP 响应对象。
+Chart query results, not an HTTP response.
 
 Members:
 
@@ -152,7 +152,7 @@ Members:
 - `meta: dict[str, object] = field(default_factory=dict)`
 - `chart: dict[str, object] = field(default_factory=dict)`
 - `options: dict[str, object] = field(default_factory=dict)`
-- `def to_apex_options() -> dict[str, object]` — 转换为前端 ApexChart 组件可消费的 JSON 配置。
+- `def to_apex_options() -> dict[str, object]` — Convert to JSON options consumed by the browser ApexChart component.
 
 ## `ChartSeries`
 
@@ -162,7 +162,7 @@ class · defined in `oldman.web.components.charts.results`
 class ChartSeries
 ```
 
-ApexCharts series 数据。
+ApexCharts series data.
 
 Members:
 
@@ -177,7 +177,7 @@ class · defined in `oldman.web.components.charts.results`
 class ChartSummary
 ```
 
-图表旁边的摘要项。
+A summary item beside the chart.
 
 Members:
 
@@ -193,13 +193,13 @@ class · defined in `oldman.web.components.charts.sqlalchemy`
 class SQLAlchemyChartView(BaseChartView)
 ```
 
-在同一个只读数据库 session 内完成图表查询的 adapter。
+Adapter running chart queries within one read-only database session.
 
 Members:
 
 - `database_manager: DatabaseManager = default_db_manager`
 - `db_session: AsyncSession | None = None`
-- `async def get(request: Any, **route_kwargs: object)` — 在只读 session 生命周期内处理图表 data endpoint 请求。
+- `async def get(request: Any, **route_kwargs: object)` — Handle chart data-endpoint requests within a read-only session lifecycle.
 - `def require_db_session() -> AsyncSession` — Return the request-scoped SQLAlchemy session.
 
 ## `TailwindChartRenderer`
@@ -210,4 +210,4 @@ class · defined in `oldman.web.components.charts.renderers`
 class TailwindChartRenderer(ChartRenderer)
 ```
 
-Tailwind/Oldman 图表 renderer。
+Tailwind/Oldman chart renderer.

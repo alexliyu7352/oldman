@@ -10,7 +10,10 @@ from markupsafe import Markup, escape
 
 @dataclass(frozen=True)
 class SelectChoice:
-    """后端选择器候选项。"""
+    """A backend selector choice.
+
+    后端选择器候选项。
+    """
 
     id: Any
     text: str
@@ -20,7 +23,10 @@ class SelectChoice:
     data: dict[str, object] | None = None
 
     def to_option(self, *, label_mode: Literal["text", "html"] = "text") -> dict[str, object]:
-        """转换为前端 SelectOption JSON。"""
+        """Convert to browser SelectOption JSON.
+
+        转换为前端 SelectOption JSON。
+        """
         payload: dict[str, object] = {
             "id": str(self.id),
             "text": self.text,
@@ -38,13 +44,19 @@ class SelectChoice:
 
 @dataclass(frozen=True)
 class SelectResult:
-    """远程 Select/Autocomplete 正式 JSON 响应。"""
+    """Canonical remote Select/Autocomplete JSON response.
+
+    远程 Select/Autocomplete 正式 JSON 响应。
+    """
 
     results: list[SelectChoice]
     more: bool = False
 
     def to_json(self, *, label_mode: Literal["text", "html"] = "text") -> dict[str, object]:
-        """转换为正式前端协议 JSON。"""
+        """Convert to the canonical browser JSON protocol.
+
+        转换为正式前端协议 JSON。
+        """
         return {
             "results": [choice.to_option(label_mode=label_mode) for choice in self.results],
             "more": self.more,

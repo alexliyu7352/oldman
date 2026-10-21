@@ -1,4 +1,7 @@
-"""Oldman 后端 Select/Autocomplete 组件入口。"""
+"""Backend Oldman Select/Autocomplete component entry point.
+
+Oldman 后端 Select/Autocomplete 组件入口。
+"""
 
 from .choices import SelectChoice, SelectResult
 from .providers import DataSelectProvider, ModelSelectProvider, SelectProvider, SelectProviderConfigError

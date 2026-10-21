@@ -5,7 +5,9 @@ from zoneinfo import ZoneInfo
 
 
 def naive_utcnow() -> datetime:
-    """当前 UTC 时间，去掉 tzinfo。
+    """Return the current UTC time without tzinfo.
+
+    当前 UTC 时间，去掉 tzinfo。
 
     数据库里的 DateTime 列大多是无时区的，存一个带时区的值会让同一列出现两种语义；模型默认值、
     “最后一次看到”时间戳和图表的起点都用这一个函数，不各写一遍 `datetime.now(UTC).replace(...)`。

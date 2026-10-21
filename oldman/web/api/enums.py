@@ -6,7 +6,10 @@ from enum import IntEnum, StrEnum
 
 
 class ApiErrorCode(IntEnum):
-    """统一 API 响应错误码。"""
+    """Common API response error codes.
+
+    统一 API 响应错误码。
+    """
 
     OK = 0
     INVALID_REQUEST = 1000
@@ -20,7 +23,10 @@ class ApiErrorCode(IntEnum):
 
 
 class ApiResponseAction(StrEnum):
-    """框架内置响应动作。"""
+    """Framework built-in response actions.
+
+    框架内置响应动作。
+    """
 
     FEEDBACK = "feedback"
     REPLACE_HTML = "replace_html"
@@ -30,14 +36,20 @@ class ApiResponseAction(StrEnum):
 
 
 class FeedbackMode(StrEnum):
-    """用户反馈的显示方式。"""
+    """User feedback presentation modes.
+
+    用户反馈的显示方式。
+    """
 
     TOAST = "toast"
     ALERT = "alert"
 
 
 class HtmlSwap(StrEnum):
-    """HTML 替换范围。"""
+    """HTML replacement scopes.
+
+    HTML 替换范围。
+    """
 
     INNER = "inner"
     OUTER = "outer"

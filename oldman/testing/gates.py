@@ -1,4 +1,6 @@
-"""起一套完全自有的临时环境来跑浏览器门禁：空闲端口、独立 Redis、临时配置、前台服务。
+"""Run browser gates in fully owned temporary environments with free ports, Redis, configuration, and foreground services.
+
+起一套完全自有的临时环境来跑浏览器门禁：空闲端口、独立 Redis、临时配置、前台服务。
 
 门禁必须只碰自己创建的东西：Redis 不落盘、数据库在临时目录、服务在自己的进程组里，退出时确认整组都
 没了。这里是两个演示项目此前各自复制的那套机制；演示脚本只保留自己的配置差异和页面断言。
@@ -42,11 +44,16 @@ ENVIRONMENT_ALLOWLIST = frozenset(
 
 
 class BrowserGateError(RuntimeError):
-    """门禁的准备、运行或清理失败。"""
+    """Gate setup, execution, or cleanup failure.
+
+    门禁的准备、运行或清理失败。
+    """
 
 
 def minimal_environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
-    """只保留启动本机工具需要的环境变量，并固定 hash 种子、时区和语言。
+    """Keep only environment variables needed by local tools and fix the hash seed, timezone, and language.
+
+    只保留启动本机工具需要的环境变量，并固定 hash 种子、时区和语言。
 
     门禁不继承开发机的全部环境：那样一次通过说明不了别的机器也通过。语言也一样——浏览器按
     `LANG`/`LANGUAGE` 决定它请求的 `Accept-Language`，继承开发机的值会让同一个门禁在 zh_TW 的机器上
@@ -65,14 +72,20 @@ def minimal_environment(source: Mapping[str, str] | None = None) -> dict[str, st
 
 
 def find_free_port(host: str = DEFAULT_HOST) -> int:
-    """当前没人用的一个 loopback 端口。"""
+    """Return a currently unused loopback port.
+
+    当前没人用的一个 loopback 端口。
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
         listener.bind((host, 0))
         return int(listener.getsockname()[1])
 
 
 def port_is_open(port: int, host: str = DEFAULT_HOST) -> bool:
-    """端口是否已经有人在监听。"""
+    """Check whether a port already has a listener.
+
+    端口是否已经有人在监听。
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
         connection.settimeout(0.5)
         try:
@@ -83,7 +96,10 @@ def port_is_open(port: int, host: str = DEFAULT_HOST) -> bool:
 
 
 def process_group_exists(process_group: int) -> bool:
-    """进程组是否还存在（清理后必须为 False）。"""
+    """Check whether a process group still exists, which must be False after cleanup.
+
+    进程组是否还存在（清理后必须为 False）。
+    """
     try:
         os.killpg(process_group, 0)
     except ProcessLookupError:
@@ -94,7 +110,10 @@ def process_group_exists(process_group: int) -> bool:
 
 
 def redis_database_url(redis_url: str, database: int) -> str:
-    """在门禁自有的 Redis 上选一个逻辑库。"""
+    """Select a logical database on gate-owned Redis.
+
+    在门禁自有的 Redis 上选一个逻辑库。
+    """
     parsed = urlsplit(redis_url)
     if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
         raise BrowserGateError("Gate Redis URL must be a concrete Redis URL")
@@ -147,7 +166,10 @@ def _terminate_group(process: subprocess.Popen[Any], *, grace: float = 8, kill_w
 
 @contextmanager
 def owned_redis_server(state_root: Path, *, environment: Mapping[str, str], host: str = DEFAULT_HOST) -> Iterator[str]:
-    """起一个不落盘的 Redis，并在退出时证明进程组和端口都已释放。"""
+    """Start nonpersistent Redis and verify process-group and port release on exit.
+
+    起一个不落盘的 Redis，并在退出时证明进程组和端口都已释放。
+    """
     executable = shutil.which("redis-server", path=environment.get("PATH"))
     if executable is None:
         raise BrowserGateError("This gate requires redis-server")
@@ -208,7 +230,9 @@ def gate_settings(
     host: str = DEFAULT_HOST,
     customize: Callable[[dict], None] | None = None,
 ) -> Path:
-    """把项目的 `web_settings.example.yaml` 改写成一份只指向临时目录的完整配置。
+    """Rewrite project web_settings.example.yaml as complete configuration pointing only to temporary directories.
+
+    把项目的 `web_settings.example.yaml` 改写成一份只指向临时目录的完整配置。
 
     `redis` 下的**每一个**别名都经 `use_owned_redis` 改写到门禁自己那台 Redis 的一个独立 database。
 
@@ -254,7 +278,10 @@ def gate_settings(
 
 
 class FirstUseInteraction:
-    """迁移只允许回答“这是首次使用”，其它询问都算门禁接线错误。"""
+    """Allow only first-use confirmation during migration, treating other questions as gate wiring errors.
+
+    迁移只允许回答“这是首次使用”，其它询问都算门禁接线错误。
+    """
 
     is_interactive = False
 
@@ -273,7 +300,10 @@ class FirstUseInteraction:
 
 
 def migrate_gate_database(config_file: Path, state_root: Path, *, project_root: Path, service: str = "web") -> None:
-    """在临时目录里搭一个最小项目，把已评审的迁移应用到门禁自己的数据库。"""
+    """Build a minimal temporary project and apply reviewed migrations to the gate-owned database.
+
+    在临时目录里搭一个最小项目，把已评审的迁移应用到门禁自己的数据库。
+    """
     from oldman.db.migrations.commands import migrate
     from oldman.db.migrations.project import load_migration_project
 
@@ -299,7 +329,10 @@ def ensure_gate_admin(
     email: str = "oldman@example.com",
     service: str = "web",
 ) -> None:
-    """通过公开的 bootstrap 与 ensure_superuser 建出门禁要用的管理员。"""
+    """Create the gate administrator through public bootstrap and ensure_superuser APIs.
+
+    通过公开的 bootstrap 与 ensure_superuser 建出门禁要用的管理员。
+    """
     source = f"""
 import asyncio
 import sys
@@ -334,7 +367,10 @@ asyncio.run(main())
 
 
 def service_command(config_file: Path, *, service: str = "web") -> list[str]:
-    """前台启动一个服务的命令，走的是正常的 bootstrap 与服务发现路径。"""
+    """Build a foreground service command using normal bootstrap and service discovery.
+
+    前台启动一个服务的命令，走的是正常的 bootstrap 与服务发现路径。
+    """
     source = (
         "import sys; "
         "from pathlib import Path; "
@@ -357,7 +393,10 @@ def owned_service(
     service: str = "web",
     name: str = "service",
 ) -> Iterator[subprocess.Popen[bytes]]:
-    """起一个门禁自有的前台服务进程组，退出时确认整组已经回收。"""
+    """Start a gate-owned foreground service group and confirm its complete cleanup on exit.
+
+    起一个门禁自有的前台服务进程组，退出时确认整组已经回收。
+    """
     log_file = config_file.parent / f"{name}.log"
     log_handle = log_file.open("wb")
     process = subprocess.Popen(
@@ -385,7 +424,10 @@ def wait_for_service(
     timeout: float = 30,
     name: str = "service",
 ) -> None:
-    """等服务开始监听；进程提前退出算失败，不能一直等到超时。"""
+    """Wait for service listening, failing immediately on early process exit rather than waiting until timeout.
+
+    等服务开始监听；进程提前退出算失败，不能一直等到超时。
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -405,7 +447,9 @@ def run_browser_child(
     timeout: float = 180,
     label: str = "gate",
 ) -> dict:
-    """跑真实浏览器子进程，并要求它输出干净的成功载荷。
+    """Run a real-browser child process and require a clean success payload.
+
+    跑真实浏览器子进程，并要求它输出干净的成功载荷。
 
     console 错误、page 错误和坏响应都必须是空的：浏览器里出过错，就不算通过。
     """

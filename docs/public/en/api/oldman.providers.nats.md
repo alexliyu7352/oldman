@@ -22,7 +22,7 @@ function · defined in `oldman.providers.nats.serializers`
 async def msgpack_decoder(msg: StreamMessage[Any]) -> Any
 ```
 
-替换 FastStream 默认的 decode_message，使用 msgspec.msgpack 解码。
+Replace FastStream's default decode_message with msgspec.msgpack decoding.
 
 ## `MsgpackNatsSerializer`
 
@@ -32,7 +32,7 @@ class · defined in `oldman.providers.nats.serializers`
 class MsgpackNatsSerializer(SerializerProto)
 ```
 
-用 MsgspecModel 内置 Msgpack 编码器完成序列化，全链路二进制，零 JSON 开销。
+Serialize with MsgspecModel's built-in MessagePack encoder, using binary throughout without JSON overhead.
 
 Members:
 
@@ -46,7 +46,7 @@ function · defined in `oldman.providers.nats.serializers`
 async def msgspec_json_decoder(msg: StreamMessage[Any]) -> Any
 ```
 
-替换 FastStream 默认的 decode_message（stdlib json.loads）。
+Replace FastStream's default decode_message based on stdlib json.loads.
 
 ## `MsgspecJsonNatsSerializer`
 
@@ -56,7 +56,7 @@ class · defined in `oldman.providers.nats.serializers`
 class MsgspecJsonNatsSerializer(SerializerProto)
 ```
 
-用 MsgspecModel 内置 JSON 编码器完成序列化，消除 stdlib json 中间层。
+Serialize with MsgspecModel's built-in JSON encoder without an intermediate stdlib json layer.
 
 Members:
 

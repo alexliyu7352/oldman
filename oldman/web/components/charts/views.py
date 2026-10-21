@@ -20,7 +20,10 @@ from .results import ChartResult
 
 
 class BaseChartView(DataEndpointMixin, HTTPMethodView):
-    """支持独立 endpoint 的无主题 Chart 基类。"""
+    """Unthemed Chart base supporting a standalone endpoint.
+
+    支持独立 endpoint 的无主题 Chart 基类。
+    """
 
     # The framework's floor is a signed-in user; staff, roles or permissions go in check_permission.
     require_authenticated = True
@@ -42,7 +45,10 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         self.request = request
 
     def build_chart_request(self, request: Any, *, route_kwargs: dict[str, object]) -> ChartRequest:
-        """从 HTTP 请求构建标准 ChartRequest。"""
+        """Build a standard ChartRequest from an HTTP request.
+
+        从 HTTP 请求构建标准 ChartRequest。
+        """
         args = getattr(request, "args", {}) or {}
         filters = {key.removeprefix("filter."): value for key, value in iter_args(args) if key.startswith("filter.") and value not in {"", None}}
         return ChartRequest(
@@ -56,7 +62,10 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         )
 
     async def get(self, request: Any, **route_kwargs: object):
-        """处理图表 data endpoint 请求。"""
+        """Handle a chart data-endpoint request.
+
+        处理图表 data endpoint 请求。
+        """
         self.request = request
         chart_request = self.build_chart_request(request, route_kwargs=route_kwargs)
         try:
@@ -74,7 +83,9 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         return self.render_json_result(result)
 
     async def check_auth(self, chart_request: ChartRequest) -> bool:
-        """要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
+        """Check request- or database-dependent access, allowing by default and returning 403 on denial.
+
+        要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
 
         在参数校验之后执行,SQLAlchemy 图表的只读会话此时已经打开(``self.db_session``),可以用
         ``chart_request`` 里的用户(``chart_request.request``)、路径参数与筛选去查库比对。不看数据的判断
@@ -84,7 +95,10 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         return True
 
     async def validate_filters(self, chart_request: ChartRequest) -> None:
-        """验证请求中的 filter 参数都由业务图表显式支持。"""
+        """Validate that the business chart explicitly supports every requested filter.
+
+        验证请求中的 filter 参数都由业务图表显式支持。
+        """
         self.validate_allowed_parameter("range", chart_request.range_key, self.allowed_ranges, default=self.default_range)
         self.validate_allowed_parameter("group_by", chart_request.group_by, self.allowed_group_by, default=self.default_group_by)
         self.validate_allowed_parameter("metric", chart_request.metric, self.allowed_metrics, default=self.default_metric)
@@ -94,14 +108,20 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
                 raise ChartInvalidRequest(gettext("Unknown chart filter: %(name)s", name=name))
 
     def validate_allowed_parameter(self, name: str, value: str, allowed: tuple[str, ...], *, default: str) -> None:
-        """按业务图表声明的白名单校验单个请求参数。"""
+        """Validate one request parameter against the business chart's allowlist.
+
+        按业务图表声明的白名单校验单个请求参数。
+        """
         effective_allowed = allowed or (default,)
         if value in effective_allowed:
             return
         raise ChartInvalidRequest(gettext("Invalid chart parameter: %(name)s", name=name))
 
     def render_error_response(self, message: str, *, status: int, error_code: ApiErrorCode = ApiErrorCode.INVALID_REQUEST):
-        """把图表请求错误转换为统一 JSON 响应。"""
+        """Convert chart request errors to common JSON responses.
+
+        把图表请求错误转换为统一 JSON 响应。
+        """
         response = DefaultApiResponse(
             error_code=error_code,
             message=message,
@@ -109,24 +129,39 @@ class BaseChartView(DataEndpointMixin, HTTPMethodView):
         return json_response(response.to_dict(), status=status)
 
     async def on_permission_denied(self, request: Any, response_mode: Literal["html", "json"], *, message: str, method_name: str):
-        """endpoint 级权限失败复用 Chart JSON 错误协议。"""
+        """Use the Chart JSON error protocol for endpoint-level permission denial.
+
+        endpoint 级权限失败复用 Chart JSON 错误协议。
+        """
         del request, response_mode, method_name
         return self.render_error_response(message, status=403, error_code=ApiErrorCode.PERMISSION_DENIED)
 
     def render_json_result(self, result: ChartResult):
-        """渲染 ChartResult JSON 响应。"""
+        """Render a ChartResult JSON response.
+
+        渲染 ChartResult JSON 响应。
+        """
         return json_response(result.to_apex_options())
 
     def get_renderer(self) -> ChartRenderer:
-        """返回当前图表 renderer 实例。"""
+        """Return the current chart renderer instance.
+
+        返回当前图表 renderer 实例。
+        """
         return self.renderer_class(self)
 
     async def render_shell(self, *, html_id: str | None = None, **route_kwargs: object) -> Markup:
-        """异步渲染图表外壳和前端挂载属性。"""
+        """Render the chart shell and browser mounting attributes asynchronously.
+
+        异步渲染图表外壳和前端挂载属性。
+        """
         return await self.get_renderer().render_shell(route_kwargs=route_kwargs, html_id=html_id)
 
     async def get_result(self, chart_request: ChartRequest) -> ChartResult:
-        """返回当前图表结果，业务子类应重写。"""
+        """Return the current chart result, to be overridden by business subclasses.
+
+        返回当前图表结果，业务子类应重写。
+        """
         del chart_request
         return ChartResult(series=[])
 

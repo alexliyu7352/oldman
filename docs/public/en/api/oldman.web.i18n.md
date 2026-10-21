@@ -135,7 +135,7 @@ Resolve one language flag against the configured public static prefix.
 
 ## Module `oldman.web.i18n.frontend_build`
 
-从统一的 gettext 目录生成浏览器用的 JSON 语言包与语言清单。
+Generate browser JSON catalogs and language manifests from the shared gettext catalog.
 
 Import with `from oldman.web.i18n.frontend_build import <name>`.
 
@@ -147,7 +147,7 @@ function · defined in `oldman.web.i18n.frontend_build`
 def build_frontend_i18n(output_dir: Path, locales_dir: Path, settings_file: Path, languages_output: Path, *, compiler_command: Sequence[str] | None=None, project_root: Path=Path.cwd()) -> None
 ```
 
-按项目配置编译、校验并原子发布一整套浏览器语言包与清单。
+Compile, validate, and atomically publish complete browser catalogs and manifests using project configuration.
 
 ### `build_language_aliases`
 
@@ -177,7 +177,7 @@ function · defined in `oldman.web.i18n.frontend_build`
 def project_frontend_paths(project_root: Path, *, service: str='web') -> dict[str, Path]
 ```
 
-项目约定的四个位置：settings、locales、浏览器目录输出、语言清单输出。
+Four conventional project locations for settings, locales, browser catalogs, and language manifests.
 
 ### `read_i18n_contract`
 

@@ -100,15 +100,15 @@ Members:
 - `def model_dump_json() -> str` — ``model_dump_dict()`` as JSON text.
 - `classmethod def model_validate_json(data: str | bytes | dict[str, Any]) -> Self` — A new, unsaved instance from what ``model_dump_json`` / ``model_dump_dict`` produced.
 - `classmethod async def get_by_id(session: AsyncSession, pk: Any) -> Self | None`
-- `classmethod async def get_by_fields(session: AsyncSession, options: Sequence[_AbstractLoad] | None=None, **kwargs) -> Self | None` — 从数据库获取实例
-- `classmethod async def get_many_by_ids(session: AsyncSession, ids: list[Any]) -> dict[Any, Self]` — 从数据库批量获取实例
+- `classmethod async def get_by_fields(session: AsyncSession, options: Sequence[_AbstractLoad] | None=None, **kwargs) -> Self | None` — Fetch an instance from the database.
+- `classmethod async def get_many_by_ids(session: AsyncSession, ids: list[Any]) -> dict[Any, Self]` — Fetch multiple instances from the database.
 - `classmethod async def get_many(session: AsyncSession, **kwargs) -> Sequence[Self]`
-- `classmethod async def execute_query(session: AsyncSession, *conditions, page: int | None=None, page_size: int | None=None) -> list[Self] | PageResult` — 从数据库执行查询
-- `classmethod async def execute_query_with_select(session: AsyncSession, query: Select, page: int | None=None, page_size: int | None=None) -> list[Self] | PageResult` — 从数据库执行查询
-- `async def save(session: AsyncSession) -> Self` — 独立保存操作，自动提交。
-- `def add_to_session(session: AsyncSession) -> Self` — 仅添加到会话，不提交，用于事务操作。
-- `async def delete(session: AsyncSession) -> None` — 删除这一行并提交。
-- `async def update(session: AsyncSession, **kwargs) -> Self` — 按关键字更新字段并提交。
+- `classmethod async def execute_query(session: AsyncSession, *conditions, page: int | None=None, page_size: int | None=None) -> list[Self] | PageResult` — Execute a database query.
+- `classmethod async def execute_query_with_select(session: AsyncSession, query: Select, page: int | None=None, page_size: int | None=None) -> list[Self] | PageResult` — Execute a database query.
+- `async def save(session: AsyncSession) -> Self` — Save independently and commit automatically.
+- `def add_to_session(session: AsyncSession) -> Self` — Add to the session without committing for transactional operations.
+- `async def delete(session: AsyncSession) -> None` — Delete this row and commit.
+- `async def update(session: AsyncSession, **kwargs) -> Self` — Update fields from keyword arguments and commit.
 
 ## `DatabaseNotConfiguredError`
 
@@ -235,7 +235,7 @@ class · defined in `oldman.db.sqlalchemy.models`
 class NativeTimestampsMixin
 ```
 
-Mixin 定义时间戳的类, 使用是数据库服务器当前时区, 不包含时区信息.
+Timestamp mixin using the database server's current timezone without timezone information.
 
 Members:
 
@@ -263,7 +263,7 @@ class · defined in `oldman.db.sqlalchemy.models`
 class UtcTimestampsMixin
 ```
 
-Mixin 定义时间戳的类, 使用是UTC时区, 不包含时区信息。
+Timestamp mixin using naive UTC values.
 
 Members:
 
@@ -278,7 +278,7 @@ class · defined in `oldman.db.sqlalchemy.models`
 class UUIDMixin
 ```
 
-UUIDv7 主键，值由 Python 端生成。
+A UUIDv7 primary key generated in Python.
 
 Members:
 

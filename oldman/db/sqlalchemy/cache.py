@@ -905,7 +905,10 @@ class AsyncQueryCache(Generic[T]):  # noqa: UP046 -- preserve the existing Gener
 
 
 class CacheableModel(DatabaseModel):
-    """可缓存模型的基类"""
+    """Base class for cacheable models.
+
+    可缓存模型的基类
+    """
 
     __abstract__ = True
 
@@ -913,14 +916,20 @@ class CacheableModel(DatabaseModel):
 
     @classmethod
     def get_cache_manager(cls) -> AsyncQueryCache[Any]:
-        """获取缓存管理器实例"""
+        """Return the cache manager instance.
+
+        获取缓存管理器实例
+        """
         if cls._cache_manager is None:
             raise RuntimeError(f"Cache manager not initialized for {cls.__name__}")
         return cls._cache_manager
 
     @classmethod
     def set_cache_manager(cls, cache_manager: AsyncQueryCache[Any]) -> None:
-        """设置缓存管理器实例"""
+        """Set the cache manager instance.
+
+        设置缓存管理器实例
+        """
         cls._cache_manager = cache_manager
 
     @classmethod

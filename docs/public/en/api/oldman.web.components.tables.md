@@ -2,7 +2,7 @@
 
 Generated from the source by `scripts/api_index.py`; do not edit by hand. [All packages](README.md)
 
-Oldman 后端 Table 组件入口。
+Backend Oldman Table component entry point.
 
 Import with `from oldman.web.components.tables import <name>`.
 
@@ -24,7 +24,7 @@ class · defined in `oldman.web.components.tables.views`
 class BaseTableView(DataEndpointMixin, HTTPMethodView)
 ```
 
-支持结构化数据源的无主题 Table 基类。
+Unthemed Table base supporting structured data sources.
 
 Constructor:
 
@@ -52,47 +52,47 @@ Members:
 - `empty_description: str = ''`
 - `empty_filtered_message: str = cast(str, gettext_lazy('No matching records'))`
 - `empty_filtered_description: str = cast(str, gettext_lazy('Adjust or reset the filters to see more records.'))`
-- `def get_columns() -> list[Column]` — 返回标准化后的列定义。
-- `def get_renderer() -> TableRenderer` — 返回当前表格 renderer 实例。
-- `async def render_shell(*, html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None, **route_kwargs: object) -> Markup` — 异步渲染表格外壳和前端挂载属性；bulk_actions_html 放进工具条，只在有选中行时显示。
-- `def build_table_request(request: Any, *, route_kwargs: dict[str, object]) -> TableRequest` — 从 HTTP 请求构建标准 TableRequest。
-- `async def get(request: Any, **route_kwargs: object)` — 处理表格 data endpoint 请求。
-- `async def check_auth(table_request: TableRequest) -> bool` — 要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
-- `async def get_object_list() -> Sequence[object]` — 返回结构化数据源。
-- `async def query_result(table_request: TableRequest) -> TableResult` — 执行结构化数据源查询生命周期。
+- `def get_columns() -> list[Column]` — Return normalized column definitions.
+- `def get_renderer() -> TableRenderer` — Return the current table renderer instance.
+- `async def render_shell(*, html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None, **route_kwargs: object) -> Markup` — Render the shell and mounting attributes asynchronously, showing toolbar bulk_actions_html only when rows are selected.
+- `def build_table_request(request: Any, *, route_kwargs: dict[str, object]) -> TableRequest` — Build a standard TableRequest from an HTTP request.
+- `async def get(request: Any, **route_kwargs: object)` — Handle a table data-endpoint request.
+- `async def check_auth(table_request: TableRequest) -> bool` — Check request- or database-dependent access, allowing by default and returning 403 on denial.
+- `async def get_object_list() -> Sequence[object]` — Return the structured data source.
+- `async def query_result(table_request: TableRequest) -> TableResult` — Run the structured-source query lifecycle.
 - `async def query_export(table_request: TableRequest) -> TableResult` — Run the filter, search and sort lifecycle without paging; the row count stops at max_export_rows.
-- `async def apply_base_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 应用服务端固定限制;第一个参数只按位置传,SQLAlchemy 表格的子类可以把它叫 ``query``。
-- `async def apply_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按 filter_xxx 方法应用请求筛选。
-- `async def apply_search(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按 search_fields 对结构化数据做大小写不敏感搜索。
+- `async def apply_base_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — Apply fixed server-side restrictions using a positional-only first argument that SQLAlchemy subclasses may name query.
+- `async def apply_filters(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — Apply requested filters through filter_xxx methods.
+- `async def apply_search(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — Search structured data case-insensitively using search_fields.
 - `def resolve_sort_field(table_request: TableRequest) -> tuple[str, bool] | None` — Resolve the ordering to apply, refusing a sort the client may not ask for.
-- `async def apply_ordering(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按 sort 参数对结构化数据排序。
-- `async def paginate(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — 按页码和分页大小返回当前页数据。
-- `async def preload_record_data(row: object) -> dict[str, object]` — 预加载当前行多个列共享的派生数据。
+- `async def apply_ordering(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — Sort structured data according to the sort parameter.
+- `async def paginate(rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]` — Return current-page data by page number and page size.
+- `async def preload_record_data(row: object) -> dict[str, object]` — Preload derived data shared by several columns in the current row.
 - `async def build_row_contexts(rows: Sequence[object]) -> list[Mapping[str, object]]` — Render context for every row of a page or an export; override to load extra data for all rows in one query.
-- `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — 渲染 HTML Table 局部片段。
-- `async def render_html_head() -> str` — 渲染带列 metadata 的表头。
-- `async def render_error_fragment(message: str) -> str` — 渲染表格错误局部片段。
-- `async def render_request_error_response(request: Any, message: str, *, status: int)` — 按请求头把表格请求错误转换为局部 HTML 或 JSON。
-- `async def render_permission_denied_response(request: Any, message: str | None=None)` — 按请求头把表格权限错误转换为局部 HTML 或 JSON;没给消息时用通用的「没有权限」。
-- `async def on_permission_denied(request: Any, response_mode: str, *, message: str, method_name: str)` — endpoint 级权限失败复用表格局部错误协议,并带上 check_permission 给的消息(与图表、HTTPMethodView 一致)。
-- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str` — 渲染 HTML Table 单行。
-- `async def render_html_summary(result: TableResult) -> str` — 渲染表格总数摘要。
-- `async def render_html_pagination(result: TableResult) -> str` — 渲染服务端分页按钮。
-- `def pagination_window(current_page: int, page_count: int) -> list[int]` — 返回分页窗口页码，避免大结果集输出过多按钮撑开页面。
-- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — 渲染 HTML Table 单元格。
-- `async def render_json_payload(table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload` — 渲染 JSON Table 协议 payload。
+- `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — Render an HTML Table fragment.
+- `async def render_html_head() -> str` — Render table headings with column metadata.
+- `async def render_error_fragment(message: str) -> str` — Render a table-error fragment.
+- `async def render_request_error_response(request: Any, message: str, *, status: int)` — Convert table request errors to partial HTML or JSON according to request headers.
+- `async def render_permission_denied_response(request: Any, message: str | None=None)` — Return partial HTML or JSON permission errors according to headers, defaulting to translated Permission denied.
+- `async def on_permission_denied(request: Any, response_mode: str, *, message: str, method_name: str)` — Use table-fragment errors for endpoint permission denial, preserving check_permission messages like charts and HTTPMethodView.
+- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str` — Render one HTML Table row.
+- `async def render_html_summary(result: TableResult) -> str` — Render the table-count summary.
+- `async def render_html_pagination(result: TableResult) -> str` — Render server-side pagination buttons.
+- `def pagination_window(current_page: int, page_count: int) -> list[int]` — Return a page-number window to avoid excessive pagination buttons for large results.
+- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — Render an HTML Table cell.
+- `async def render_json_payload(table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload` — Render the JSON Table protocol payload.
 - `def resolve_export_format(request: Any) -> str` — Return the requested export format (`?export=csv`), lowercase, or an empty string.
 - `def supported_export_formats() -> set[str]` — Return the declared export formats as lowercase names.
 - `def export_filename(export_format: str) -> str` — Return the download name: route name (or `table`) plus today's date.
 - `async def render_export_response(export_format: str, table_request: TableRequest, result: TableResult[Any])` — Dispatch a declared export format to its renderer.
 - `async def render_csv_response(table_request: TableRequest, result: TableResult[Any])` — Write the exportable columns as UTF-8 CSV with a BOM so spreadsheets open it correctly.
 - `async def export_cell_value(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> str` — Numbers and booleans export their raw value; everything else exports the text the user sees.
-- `def get_row_data(row: object) -> dict[str, object]` — 返回安全的行级前端元数据。
+- `def get_row_data(row: object) -> dict[str, object]` — Return safe row-level browser metadata.
 - `def get_row_id(row: object) -> object` — Return the configured stable identity for one structured row.
-- `async def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — 读取单元格显示值和 raw 值。
+- `async def get_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue]` — Read cell display and raw values.
 - `async def resolve_cell_values(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> tuple[CellDisplayValue, CellRawValue, bool]` — Like get_cell_values, plus whether the callback supplied the raw value itself (a `(display, raw)` tuple).
 - `async def call_column_callback(row: object, column: Column, context: Mapping[str, object], default_value: object, *, row_index: int, column_index: int, request: Any) -> CellReturnValue` — Call the column's callback, or return the field value when it has none.
-- `def resolve_response_type(request: Any) -> str` — 根据 response_mode 参数优先、Accept 兜底判断响应类型。
+- `def resolve_response_type(request: Any) -> str` — Choose response type from response_mode first, falling back to Accept.
 
 ## `CellDisplayValue`
 
@@ -126,7 +126,7 @@ class · defined in `oldman.web.components.tables.columns`
 class Column
 ```
 
-标准化后的表格列定义。
+Normalized table-column definition.
 
 Members:
 
@@ -142,8 +142,8 @@ Members:
 - `hideable: bool = True`
 - `header_attrs: dict[str, object] = field(default_factory=dict)`
 - `cell_attrs: dict[str, object] = field(default_factory=dict)`
-- `def normalized(*, search_fields: set[str], unsortable_columns: set[str]) -> Column` — 返回补齐 field_path、label、排序和搜索能力后的列对象。
-- `def with_metadata(*, sortable: bool, searchable: bool) -> Column` — 返回带内部排序和搜索 metadata 的列对象。
+- `def normalized(*, search_fields: set[str], unsortable_columns: set[str]) -> Column` — Return a column with resolved field_path, label, sorting, and search capabilities.
+- `def with_metadata(*, sortable: bool, searchable: bool) -> Column` — Return a column with internal sorting and search metadata.
 
 ## `date_cell`
 
@@ -183,7 +183,7 @@ function · defined in `oldman.web.components.tables.columns`
 def normalize_columns(column_defs: list[object] | tuple[object, ...], *, search_fields: set[str], unsortable_columns: set[str]) -> list[Column]
 ```
 
-把字符串、tuple 和 Column 声明标准化为 Column 列表。
+Normalize strings, tuples, and Column declarations to a Column list.
 
 ## `parse_boolean_filter`
 
@@ -223,7 +223,7 @@ function · defined in `oldman.web.components.tables.columns`
 def resolve_field_path(row: object, path: str | None) -> object
 ```
 
-按点号路径读取 dict、dataclass 或普通对象字段。
+Read dict, dataclass, or ordinary-object fields through dotted paths.
 
 ## `row_actions`
 
@@ -264,7 +264,7 @@ class · defined in `oldman.web.components.tables.views`
 class SQLAlchemyTableView(BaseTableView)
 ```
 
-SQLAlchemy Table adapter 的占位基类。
+Placeholder base class for SQLAlchemy Table adapters.
 
 Members:
 
@@ -273,16 +273,16 @@ Members:
 - `row_id_field: str | None = None`
 - `loader_options: list[object] | tuple[object, ...] = ()`
 - `db_session: AsyncSession | None = None`
-- `async def get_queryset()` — 返回基础 SQLAlchemy 查询。
-- `async def get(request: Any, **route_kwargs: object)` — 在同一个只读数据库 session 内完成表格查询和响应渲染。
-- `async def query_result(table_request: TableRequest) -> TableResult` — 使用当前请求 session 完成 SQLAlchemy 表格查询生命周期。
+- `async def get_queryset()` — Return the base SQLAlchemy query.
+- `async def get(request: Any, **route_kwargs: object)` — Query and render table responses within one read-only database session.
+- `async def query_result(table_request: TableRequest) -> TableResult` — Run SQLAlchemy table queries using the current request session.
 - `async def query_export(table_request: TableRequest) -> TableResult` — Same lifecycle as query_result without OFFSET; LIMIT is max_export_rows.
-- `def apply_loader_options(query: Any) -> Any` — 统一应用关系预加载配置，避免业务 get_queryset 重复手写 options。
-- `async def apply_search(query: Any, /, table_request: TableRequest) -> Any` — 把 search_fields 转换为 SQL LIKE 条件。
-- `async def apply_ordering(query: Any, /, table_request: TableRequest) -> Any` — 把 sort 或默认 ordering 转换为 SQL ORDER BY。
-- `async def paginate(query: Any, /, table_request: TableRequest) -> list[object]` — 执行分页查询。
-- `async def get_total_count(query: Any) -> int` — 执行去掉排序和分页的 count 查询。
-- `def resolve_sql_field(query: Any, field_path: str, *, terminal_relationship_local_key: bool=False, isouter: bool=True) -> tuple[Any, Any]` — 解析字段路径，并为关系字段补齐显式 JOIN。
+- `def apply_loader_options(query: Any) -> Any` — Apply relationship-preloading configuration centrally without repeated options in business get_queryset methods.
+- `async def apply_search(query: Any, /, table_request: TableRequest) -> Any` — Convert search_fields to SQL LIKE conditions.
+- `async def apply_ordering(query: Any, /, table_request: TableRequest) -> Any` — Convert sort or default ordering to SQL ORDER BY.
+- `async def paginate(query: Any, /, table_request: TableRequest) -> list[object]` — Execute a paginated query.
+- `async def get_total_count(query: Any) -> int` — Execute a count query without ordering or pagination.
+- `def resolve_sql_field(query: Any, field_path: str, *, terminal_relationship_local_key: bool=False, isouter: bool=True) -> tuple[Any, Any]` — Resolve field paths and add explicit JOINs for relationship fields.
 - `def require_db_session() -> AsyncSession` — Return the request-scoped SQLAlchemy session.
 - `def get_row_id(row: object) -> object` — Use an explicit field or the model's single mapped primary key.
 
@@ -294,7 +294,7 @@ class · defined in `oldman.web.components.tables.views`
 class TableInvalidRequest(Exception)
 ```
 
-表格请求参数非法。
+Invalid table request parameters.
 
 ## `TableRenderer`
 
@@ -304,7 +304,7 @@ class · defined in `oldman.web.components.tables.renderers`
 class TableRenderer
 ```
 
-无主题 Table renderer，负责把表格状态转换为模板上下文。
+Unthemed Table renderer converting table state into template context.
 
 Constructor:
 
@@ -314,24 +314,24 @@ TableRenderer(table: Any) -> None
 
 Members:
 
-- `def template_name(name: str) -> str` — 返回当前 renderer 使用的模板路径。
-- `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None) -> Markup` — 渲染表格外壳。
+- `def template_name(name: str) -> str` — Return the current renderer's template path.
+- `async def render_shell(*, route_kwargs: dict[str, object], html_id: str | None=None, show_search: bool=True, data_format: Literal['html', 'json']='html', bulk_actions_html: Markup | str | None=None) -> Markup` — Render the table shell.
 - `async def render_empty_state(*, filtered: bool) -> Markup` — Empty-state block for the table body: plain when there is nothing, with a reset when filters hide everything.
 - `async def render_empty_templates() -> Markup` — Both empty-state variants as &lt;template&gt; elements for the JSON mode, which builds rows in the browser.
 - `async def render_toolbar(*, show_search: bool=True, bulk_actions_html: Markup | str | None=None) -> Markup` — Render the table toolbar; empty output when nothing would appear in it.
 - `def toolbar_tools() -> list[str]` — Return the enabled toolbar tools in declared order.
 - `def export_formats() -> list[str]` — Return the declared export formats as lowercase names.
 - `staticmethod def column_is_hideable(column: Column) -> bool` — The row-action column is never hideable; other columns follow their own flag.
-- `def shell_attrs(route_kwargs: dict[str, object], *, html_id: str | None, data_format: Literal['html', 'json']='html') -> dict[str, object]` — 生成表格外层容器属性。
-- `async def render_initial_fragment(*, data_format: Literal['html', 'json']='html') -> Markup` — 渲染远程表格首屏占位片段，避免数据到达前出现空白区域。
-- `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — 渲染 HTML Table 局部片段。
+- `def shell_attrs(route_kwargs: dict[str, object], *, html_id: str | None, data_format: Literal['html', 'json']='html') -> dict[str, object]` — Build outer table-container attributes.
+- `async def render_initial_fragment(*, data_format: Literal['html', 'json']='html') -> Markup` — Render an initial remote-table placeholder to avoid blank space before data arrives.
+- `async def render_html_fragment(table_request: TableRequest, result: TableResult) -> Markup` — Render an HTML Table fragment.
 - `def resolve_page_size_options(*, current_page_size: int | None=None) -> list[str]` — Return stable page-size choices even if the request view instance shadows defaults.
-- `async def render_html_head() -> Markup` — 渲染带列 metadata 的表头。
-- `async def render_error_fragment(message: str) -> Markup` — 渲染表格错误局部片段。
-- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup` — 渲染 HTML Table 单行。
-- `async def render_html_summary(result: TableResult) -> Markup` — 渲染表格总数摘要。
-- `async def render_html_pagination(result: TableResult) -> Markup` — 渲染服务端分页按钮。
-- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> Markup` — 渲染 HTML Table 单元格。
+- `async def render_html_head() -> Markup` — Render table headings with column metadata.
+- `async def render_error_fragment(message: str) -> Markup` — Render a table-error fragment.
+- `async def render_html_row(row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> Markup` — Render one HTML Table row.
+- `async def render_html_summary(result: TableResult) -> Markup` — Render the table-count summary.
+- `async def render_html_pagination(result: TableResult) -> Markup` — Render server-side pagination buttons.
+- `async def render_html_cell(row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any) -> Markup` — Render an HTML Table cell.
 
 ## `TableRequest`
 
@@ -341,7 +341,7 @@ class · defined in `oldman.web.components.tables.request`
 class TableRequest
 ```
 
-标准化后的表格请求。
+Normalized table request.
 
 Members:
 
@@ -361,7 +361,7 @@ class · defined in `oldman.web.components.tables.results`
 class TableResult
 ```
 
-表格查询结果，不是 HTTP 响应 DTO。
+Table query results, not an HTTP response DTO.
 
 Members:
 
@@ -380,7 +380,7 @@ class · defined in `oldman.web.components.tables.views`
 class TableValidationError(Exception)
 ```
 
-表格筛选值校验失败。
+Table-filter value validation failure.
 
 ## `TailwindTableRenderer`
 

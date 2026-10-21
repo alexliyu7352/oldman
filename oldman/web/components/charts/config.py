@@ -8,7 +8,10 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ChartField:
-    """图表可聚合字段声明。"""
+    """Declaration of an aggregatable chart field.
+
+    图表可聚合字段声明。
+    """
 
     key: str
     label: str
@@ -17,7 +20,10 @@ class ChartField:
 
 @dataclass(frozen=True)
 class ChartConfig:
-    """Chart 类属性和字段配置的标准对象。"""
+    """Standard chart class-attribute and field configuration.
+
+    Chart 类属性和字段配置的标准对象。
+    """
 
     chart_type: str = "line"
     default_range: str = "30d"

@@ -40,7 +40,8 @@ _COOKIE_ID = re.compile(r"[A-Za-z0-9_-]{32}")
 
 
 class StatelessCSRFManager:
-    """
+    """Stateless CSRF token manager.
+
     无状态 CSRF Token 管理器
 
     Token 组成: {绑定对象, expire_time, url_hash} -> 对称加密
@@ -82,7 +83,10 @@ class StatelessCSRFManager:
             self.init_app(app, secret_key)
 
     def init_app(self, app: WebApp, secret_key: str | None = None):
-        """初始化应用"""
+        """Initialize the application.
+
+        初始化应用
+        """
         secret = secret_key
         if secret is None:
             security_config = conf.settings.web.security
@@ -179,7 +183,8 @@ class StatelessCSRFManager:
         return hashlib.md5(url.encode()).hexdigest()[:16]
 
     def generate_token(self, request: Request) -> str:
-        """
+        """Generate a CSRF token.
+
         生成 CSRF token
 
         Token 结构: {session_id, expire_time, url_hash} -> 加密
@@ -260,7 +265,10 @@ class StatelessCSRFManager:
         return False
 
     def get_token_from_request(self, request: Request) -> str | None:
-        """从请求中提取 CSRF token"""
+        """Extract a CSRF token from the request.
+
+        从请求中提取 CSRF token
+        """
         # 1. 表单数据
         form = request.form
         token = form.get("csrfmiddlewaretoken") if form is not None else None
@@ -314,7 +322,10 @@ class StatelessCSRFManager:
         app.register_middleware(validate_unsafe_request, MiddlewareLocation.REQUEST.name)
 
     def validate_token(self, request: Request, token: str) -> tuple[bool, str]:
-        """验证 CSRF token"""
+        """Validate a CSRF token.
+
+        验证 CSRF token
+        """
         # 1. 同源检查：Origin 优先，Referer 回退（no-referrer 下 Origin 是 null，按跨站拒绝）
         if not self._validate_same_origin(request):
             return False, "Cross-origin request blocked"

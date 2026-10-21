@@ -1,4 +1,7 @@
-"""Form renderer 协议和模板化主题输出。"""
+"""Form renderer protocols and template-based theme output.
+
+Form renderer 协议和模板化主题输出。
+"""
 
 from __future__ import annotations
 
@@ -39,7 +42,10 @@ def display_text(value: object) -> str:
 
 
 class FormRenderer:
-    """无主题表单整体 renderer。"""
+    """Unthemed whole-form renderer.
+
+    无主题表单整体 renderer。
+    """
 
     template_namespace = "oldman/forms/default"
     fields_wrapper_class = ""
@@ -55,7 +61,10 @@ class FormRenderer:
         self.form = form
 
     async def render(self, **kwargs: Any) -> Markup:
-        """渲染完整表单 HTML。"""
+        """Render complete form HTML.
+
+        渲染完整表单 HTML。
+        """
         action = kwargs.get("action", "")
         method = kwargs.get("method", "post")
         form_mode = kwargs.get("form_mode", "html")
@@ -106,7 +115,10 @@ class FormRenderer:
         )
 
     async def render_table_filter(self, **kwargs: Any) -> Markup:
-        """渲染 TableFilterForm 专用 HTML。"""
+        """Render HTML specifically for TableFilterForm.
+
+        渲染 TableFilterForm 专用 HTML。
+        """
         action = kwargs.get("action", "")
         method = kwargs.get("method", "get")
         table_target = kwargs.get("table_target")
@@ -148,7 +160,10 @@ class FormRenderer:
         )
 
     async def render_inline_filter(self, attrs: dict[str, Any], *, submit_label: object, extra_buttons: Markup | str) -> Markup:
-        """一行式筛选条：搜索框、带前缀标签的控件、范围控件、"更多筛选"面板和右端动作。"""
+        """Render an inline filter bar with search, prefixed controls, ranges, a More filters panel, and right-aligned actions.
+
+        一行式筛选条：搜索框、带前缀标签的控件、范围控件、"更多筛选"面板和右端动作。
+        """
         await self.form.prepare_async_fields()
         field_renderer = self.form.get_field_renderer()
         search_html: Markup | None = None
@@ -201,7 +216,10 @@ class FormRenderer:
         extra_buttons: Markup | str,
         validator: bool = False,
     ) -> Markup:
-        """使用指定 form 属性渲染完整表单模板。"""
+        """Render the complete form template with specified form attributes.
+
+        使用指定 form 属性渲染完整表单模板。
+        """
         if any(isinstance(field, UploadField) for field in self.form._fields.values()):
             attrs["enctype"] = "multipart/form-data"
         await self.form.prepare_async_fields()
@@ -231,11 +249,17 @@ class FormRenderer:
         )
 
     def template_name(self, name: str) -> str:
-        """返回当前 renderer 使用的模板路径。"""
+        """Return the current renderer's template path.
+
+        返回当前 renderer 使用的模板路径。
+        """
         return f"{self.template_namespace}/{name}"
 
     async def render_fields(self) -> Markup:
-        """按字段布局渲染表单字段。"""
+        """Render form fields according to their layout.
+
+        按字段布局渲染表单字段。
+        """
         steps = self.form.get_layout_steps()
         if steps:
             rendered_steps = []
@@ -320,7 +344,10 @@ class FormRenderer:
         return fields
 
     async def render_status(self) -> Markup:
-        """渲染前端 Form 组件用于显示提交状态的锚点。"""
+        """Render the submission-status anchor used by the browser Form component.
+
+        渲染前端 Form 组件用于显示提交状态的锚点。
+        """
         return await render_component_template(
             self.form,
             self.template_name("status.html"),
@@ -336,7 +363,10 @@ class FormRenderer:
         )
 
     async def render_actions(self, *, submit_label: object, cancel_url: str | None, cancel_label: object, extra_buttons: Markup | str) -> Markup:
-        """渲染表单底部按钮。"""
+        """Render bottom form buttons.
+
+        渲染表单底部按钮。
+        """
         return await render_component_template(
             self.form,
             self.template_name("actions.html"),
@@ -360,7 +390,10 @@ class FormRenderer:
         )
 
     async def render_message(self) -> Markup:
-        """渲染唯一的表单顶部校验消息区域。"""
+        """Render the single top-level form-validation message area.
+
+        渲染唯一的表单顶部校验消息区域。
+        """
         message = self.form.error_message
         if message is None and self.form.errors:
             message = _FORM_INVALID_MESSAGE
@@ -381,7 +414,10 @@ class FormRenderer:
 
 
 class FieldRenderer:
-    """无主题字段 renderer，负责字段上下文和 widget attrs。"""
+    """Unthemed field renderer managing field context and widget attributes.
+
+    无主题字段 renderer，负责字段上下文和 widget attrs。
+    """
 
     template_namespace = "oldman/forms/default"
     label_class = ""
@@ -404,7 +440,10 @@ class FieldRenderer:
         self.form = form
 
     async def render(self, field: Any) -> Markup:
-        """渲染单个字段 HTML。"""
+        """Render one field's HTML.
+
+        渲染单个字段 HTML。
+        """
         if isinstance(field, JSONListField):
             return await self.render_json_list_field(field)
         if isinstance(field, RadioField):
@@ -465,7 +504,10 @@ class FieldRenderer:
         return options
 
     async def render_radio_field(self, field: RadioField) -> Markup:
-        """把 RadioField 渲染为可正常布局的原生单选组。"""
+        """Render RadioField as a normally laid-out native radio group.
+
+        把 RadioField 渲染为可正常布局的原生单选组。
+        """
         error_id = f"{field.id}-error"
         options = self._choice_options(
             field,
@@ -526,7 +568,10 @@ class FieldRenderer:
         )
 
     async def render_json_list_field(self, field: JSONListField) -> Markup:
-        """渲染标量列表现有行和供前端克隆的空白模板。"""
+        """Render scalar-list rows and an empty template for browser cloning.
+
+        渲染标量列表现有行和供前端克隆的空白模板。
+        """
         rows = [await self._json_list_row(entry, index, len(field.entries), field.min_entries) for index, entry in enumerate(field.entries)]
         template_row = await self._json_list_row(field.template_entry(), "__index__", len(field.entries), field.min_entries)
         return await render_component_template(
@@ -563,7 +608,10 @@ class FieldRenderer:
         }
 
     async def render_password_field(self, field: PasswordField) -> Markup:
-        """渲染带共享可见性控件的密码字段。"""
+        """Render a password field with shared visibility controls.
+
+        渲染带共享可见性控件的密码字段。
+        """
         control = await self.render_widget(field)
         help_text = await self.render_help(field)
         errors = await self.render_field_errors(field)
@@ -596,17 +644,26 @@ class FieldRenderer:
         )
 
     def password_toggle_enabled(self, field: PasswordField) -> bool:
-        """返回字段是否启用共享密码可见性控件。"""
+        """Return whether the field enables shared password-visibility controls.
+
+        返回字段是否启用共享密码可见性控件。
+        """
         render_kw = getattr(field, "render_kw", None) or {}
         return render_kw.get("password_toggle", True) is not False
 
     def boolean_presentation(self, field: BooleanField) -> str:
-        """返回布尔字段的呈现方式：widget 自带的优先，否则用 renderer 默认。"""
+        """Return boolean presentation, prioritizing widget settings over renderer defaults.
+
+        返回布尔字段的呈现方式：widget 自带的优先，否则用 renderer 默认。
+        """
         presentation = getattr(getattr(field, "widget", None), "presentation", None)
         return str(presentation or self.default_boolean_presentation)
 
     async def render_boolean_field(self, field: BooleanField) -> Markup:
-        """渲染布尔字段：复选框行、开关行或开关卡片。"""
+        """Render booleans as checkbox rows, switch rows, or switch cards.
+
+        渲染布尔字段：复选框行、开关行或开关卡片。
+        """
         presentation = self.boolean_presentation(field)
         extra_attrs: dict[str, Any] = {}
         if presentation != "checkbox" and getattr(getattr(field, "widget", None), "presentation", None) is None:
@@ -631,7 +688,10 @@ class FieldRenderer:
         )
 
     async def render_widget(self, field: Field, **extra_attrs: Any) -> Markup:
-        """渲染字段 widget，远程组件走可替换模板。"""
+        """Render field widgets, using replaceable templates for remote components.
+
+        渲染字段 widget，远程组件走可替换模板。
+        """
         attrs = self.widget_attrs(field)
         attrs.update(extra_attrs)
         widget = getattr(field, "widget", None)
@@ -642,11 +702,17 @@ class FieldRenderer:
         return field(**attrs)
 
     def template_name(self, name: str) -> str:
-        """返回当前字段 renderer 使用的模板路径。"""
+        """Return the current field renderer's template path.
+
+        返回当前字段 renderer 使用的模板路径。
+        """
         return f"{self.template_namespace}/{name}"
 
     async def render_range_field(self, start: Field, end: Field, *, label: object = None) -> Markup:
-        """栅格布局里的范围字段：范围标签（默认取起点字段标签）+ 两个控件并排。"""
+        """Render a grid range with a label defaulting to the start field's label and two adjacent controls.
+
+        栅格布局里的范围字段：范围标签（默认取起点字段标签）+ 两个控件并排。
+        """
         return await render_component_template(
             self.form,
             self.template_name("range_field.html"),
@@ -662,7 +728,10 @@ class FieldRenderer:
         )
 
     async def render_filter_search(self, field: Field) -> Markup:
-        """inline 筛选条的搜索框：无前缀，占满剩余宽度。"""
+        """Render an inline-filter search input without a prefix, filling remaining width.
+
+        inline 筛选条的搜索框：无前缀，占满剩余宽度。
+        """
         return await render_component_template(
             self.form,
             self.template_name("filter_search.html"),
@@ -674,7 +743,10 @@ class FieldRenderer:
         )
 
     async def render_filter_control(self, field: Field) -> Markup:
-        """inline 筛选条的控件：标签是控件左侧的前缀段。"""
+        """Render an inline-filter control with its label as a left prefix.
+
+        inline 筛选条的控件：标签是控件左侧的前缀段。
+        """
         return await render_component_template(
             self.form,
             self.template_name("filter_control.html"),
@@ -686,7 +758,10 @@ class FieldRenderer:
         )
 
     async def render_filter_range(self, start: Field, end: Field, *, label: object = None) -> Markup:
-        """inline 筛选条的范围控件：一个前缀（默认取起点字段标签），起止两个输入。"""
+        """Render an inline-filter range with one prefix defaulting to the start label and two inputs.
+
+        inline 筛选条的范围控件：一个前缀（默认取起点字段标签），起止两个输入。
+        """
         return await render_component_template(
             self.form,
             self.template_name("filter_range.html"),
@@ -699,7 +774,10 @@ class FieldRenderer:
         )
 
     async def render_help(self, field: Field) -> Markup:
-        """渲染字段帮助文本。"""
+        """Render field help text.
+
+        渲染字段帮助文本。
+        """
         description = getattr(field, "description", "")
         return await render_component_template(
             self.form,
@@ -711,7 +789,10 @@ class FieldRenderer:
         )
 
     async def render_field_errors(self, field: Field, *, error_id: str | None = None) -> Markup:
-        """渲染字段级错误。"""
+        """Render field-level errors.
+
+        渲染字段级错误。
+        """
         return await render_component_template(
             self.form,
             self.template_name("field_errors.html"),
@@ -727,7 +808,10 @@ class FieldRenderer:
         )
 
     def widget_attrs(self, field: Field) -> dict[str, Any]:
-        """根据字段类型返回控件属性。"""
+        """Return control attributes according to field type.
+
+        根据字段类型返回控件属性。
+        """
         base_class = self.widget_base_class(field)
         render_kw = dict(getattr(field, "render_kw", None) or {})
         render_kw.pop("password_toggle", None)
@@ -750,16 +834,25 @@ class FieldRenderer:
         return render_kw
 
     def widget_base_class(self, field: Field) -> str:
-        """返回无主题默认控件 class。"""
+        """Return default unthemed control classes.
+
+        返回无主题默认控件 class。
+        """
         return ""
 
     def invalid_class(self) -> str:
-        """返回字段错误状态 class。"""
+        """Return field-error state classes.
+
+        返回字段错误状态 class。
+        """
         return ""
 
 
 class TailwindFormRenderer(FormRenderer):
-    """Tailwind/Oldman 表单整体 renderer。"""
+    """Tailwind/Oldman whole-form renderer.
+
+    Tailwind/Oldman 表单整体 renderer。
+    """
 
     template_namespace = "oldman/forms/default"
     fields_wrapper_class = "om-form-grid"
@@ -772,7 +865,10 @@ class TailwindFormRenderer(FormRenderer):
 
 
 class TailwindFieldRenderer(FieldRenderer):
-    """Tailwind/Oldman 字段 renderer。"""
+    """Tailwind/Oldman field renderer.
+
+    Tailwind/Oldman 字段 renderer。
+    """
 
     template_namespace = "oldman/forms/default"
     label_class = "om-form-label"
@@ -790,7 +886,10 @@ class TailwindFieldRenderer(FieldRenderer):
     error_class = "om-form-error"
 
     def widget_base_class(self, field: Field) -> str:
-        """返回 Tailwind 控件 class。"""
+        """Return Tailwind control classes.
+
+        返回 Tailwind 控件 class。
+        """
         if isinstance(field, SelectMultipleField):
             return "om-select om-select-multiple"
         if isinstance(field, SelectField):
@@ -804,7 +903,10 @@ class TailwindFieldRenderer(FieldRenderer):
         return "om-field"
 
     def invalid_class(self) -> str:
-        """返回字段错误 class。"""
+        """Return field-error classes.
+
+        返回字段错误 class。
+        """
         return "border-danger focus:border-danger focus:ring-danger/20"
 
 
@@ -815,7 +917,10 @@ def is_search_field(field: Field) -> bool:
 
 
 def layout_width_classes(width: str) -> str:
-    """返回声明式 Tailwind grid column span。"""
+    """Return declarative Tailwind grid-column spans.
+
+    返回声明式 Tailwind grid column span。
+    """
     if not width:
         return ""
     return " ".join(width.split())

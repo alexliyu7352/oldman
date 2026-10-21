@@ -1,4 +1,7 @@
-"""ModelForm 基类。"""
+"""ModelForm base class.
+
+ModelForm 基类。
+"""
 
 from __future__ import annotations
 
@@ -33,7 +36,10 @@ from .fields import JSONListField, ModelChoiceField, UploadField
 
 
 def humanize_model_field_name(name: str) -> str:
-    """把模型字段名转换为默认表单标签。"""
+    """Convert a model field name to a default form label.
+
+    把模型字段名转换为默认表单标签。
+    """
     return name.replace("_", " ").strip().title()
 
 
@@ -45,7 +51,9 @@ def model_field_for_column(
     description: str | None = None,
     model_choice: ModelChoice | None = None,
 ) -> Any:
-    """把 SQLAlchemy Column 转换为 WTForms 字段定义。
+    """Convert a SQLAlchemy Column to a WTForms field declaration.
+
+    把 SQLAlchemy Column 转换为 WTForms 字段定义。
 
     标签和帮助文字的优先级：显式参数（Meta.labels / Meta.help_texts）> 列的 ``info["label"]`` /
     ``info["help_text"]`` > 字段名转写。
@@ -172,7 +180,10 @@ def coerce_boolean_choice(value: Any) -> bool:
 
 
 class ModelForm(Form):
-    """Oldman 无主题模型表单基类。"""
+    """Base class for unthemed Oldman model forms.
+
+    Oldman 无主题模型表单基类。
+    """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """子类创建时根据 Meta.fields 注入缺失的模型字段。"""
@@ -203,7 +214,10 @@ class ModelForm(Form):
         select_secret_key: str = "",
         **kwargs: Any,
     ) -> Self:
-        """从 Sanic 请求创建模型表单实例。"""
+        """Create a model form from a Sanic request.
+
+        从 Sanic 请求创建模型表单实例。
+        """
         if "obj" in kwargs:
             raise TypeError("ModelForm uses instance=..., not obj=...")
         is_submission = request.method.upper() in {"POST", "PUT", "PATCH"}
@@ -233,7 +247,10 @@ class ModelForm(Form):
         prefix: str = "",
         **kwargs: Any,
     ) -> Self:
-        """从 Sanic 查询参数创建模型筛选表单实例。"""
+        """Create a model filter form from Sanic query parameters.
+
+        从 Sanic 查询参数创建模型筛选表单实例。
+        """
         if "obj" in kwargs:
             raise TypeError("ModelForm uses instance=..., not obj=...")
         return cls(
@@ -248,7 +265,10 @@ class ModelForm(Form):
 
     @classmethod
     def get_model(cls) -> type[Any]:
-        """返回 Meta.model 声明的模型类。"""
+        """Return the model class declared by Meta.model.
+
+        返回 Meta.model 声明的模型类。
+        """
         meta = getattr(cls, "Meta", None)
         model = getattr(meta, "model", None)
         if model is None:
@@ -257,7 +277,10 @@ class ModelForm(Form):
 
     @classmethod
     def get_model_fields(cls) -> tuple[str, ...]:
-        """返回 Meta.fields 声明的可编辑字段。"""
+        """Return editable fields declared by Meta.fields.
+
+        返回 Meta.fields 声明的可编辑字段。
+        """
         meta = getattr(cls, "Meta", None)
         fields = getattr(meta, "fields", None)
         if fields is None or fields == "__all__":
@@ -266,7 +289,10 @@ class ModelForm(Form):
 
     @classmethod
     def inject_model_fields(cls) -> None:
-        """把 SQLAlchemy 模型字段映射为 WTForms 字段。"""
+        """Map SQLAlchemy model fields to WTForms fields.
+
+        把 SQLAlchemy 模型字段映射为 WTForms 字段。
+        """
         meta = getattr(cls, "Meta", None)
         model = getattr(meta, "model", None)
         fields = getattr(meta, "fields", None)
@@ -300,7 +326,10 @@ class ModelForm(Form):
             )
 
     async def validate(self, extra_validators: dict[str, Any] | None = None) -> bool:
-        """校验普通字段，并补充非空文件列的“新建必传、编辑可沿用”规则。"""
+        """Validate ordinary fields and require new uploads for non-nullable file columns while allowing retained files on edit.
+
+        校验普通字段，并补充非空文件列的“新建必传、编辑可沿用”规则。
+        """
         valid = await super().validate(extra_validators=extra_validators)
         if not self.is_bound:
             return False
@@ -323,7 +352,10 @@ class ModelForm(Form):
         return self._validation_succeeded
 
     def populate_obj(self, obj: Any) -> None:
-        """把 cleaned_data 中允许的字段写回模型实例。"""
+        """Write permitted cleaned_data fields back to the model instance.
+
+        把 cleaned_data 中允许的字段写回模型实例。
+        """
         mapper = sqlalchemy_inspect(self.model)
         cleaned_data = self.cleaned_data
         for field_name in self.model_fields:
@@ -336,7 +368,10 @@ class ModelForm(Form):
                 setattr(obj, field_name, field.encode(value) if isinstance(field, JSONListField) else value)
 
     async def save(self, *, commit: bool = False, session: Any = None) -> Any:
-        """保存模型表单并返回模型实例，事务提交由外部负责。"""
+        """Save the model form and return its instance, leaving transaction commit to the caller.
+
+        保存模型表单并返回模型实例，事务提交由外部负责。
+        """
         if not self._validation_succeeded:
             raise ValueError("ModelForm.save() requires a successfully validated form")
         instance = self.instance or self.model()
@@ -371,7 +406,9 @@ class ModelForm(Form):
         return instance
 
     async def before_save(self, instance: Any) -> None:
-        """派生字段的钩子：实例已经装好表单值和上传文件名，还没有写库。
+        """Maintain derived fields after form values and uploaded filenames are assigned but before database writes.
+
+        派生字段的钩子：实例已经装好表单值和上传文件名，还没有写库。
 
         子类在这里维护模型自己的派生列（创建/更新时间、小写查找列、拼出来的 key……），
         不用重写 `save()`，也就不用复制 session、add 和 flush 那几行。

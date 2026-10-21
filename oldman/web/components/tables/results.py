@@ -8,7 +8,10 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class TableResult[T_co]:
-    """表格查询结果，不是 HTTP 响应 DTO。"""
+    """Table query results, not an HTTP response DTO.
+
+    表格查询结果，不是 HTTP 响应 DTO。
+    """
 
     rows: Sequence[T_co]
     row_contexts: Sequence[Mapping[str, object]] = field(default_factory=list)

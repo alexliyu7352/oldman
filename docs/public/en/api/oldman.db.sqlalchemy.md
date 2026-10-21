@@ -20,12 +20,12 @@ class · defined in `oldman.db.sqlalchemy.cache`
 class CacheableModel(DatabaseModel)
 ```
 
-可缓存模型的基类
+Base class for cacheable models.
 
 Members:
 
-- `classmethod def get_cache_manager() -> AsyncQueryCache[Any]` — 获取缓存管理器实例
-- `classmethod def set_cache_manager(cache_manager: AsyncQueryCache[Any]) -> None` — 设置缓存管理器实例
+- `classmethod def get_cache_manager() -> AsyncQueryCache[Any]` — Return the cache manager instance.
+- `classmethod def set_cache_manager(cache_manager: AsyncQueryCache[Any]) -> None` — Set the cache manager instance.
 - `classmethod async def cached_get(session: AsyncSession, *, use_cache: bool=True, **fields: Any) -> Self | None`
 - `classmethod async def cached_get_many(session: AsyncSession, ids: list[Any], *, use_cache: bool=True) -> dict[Any, Self]`
 - `classmethod async def cached_filter(session: AsyncSession, *conditions: Any, page: int | None=None, page_size: int | None=None, use_cache: bool=True, expire_seconds: int | None=None) -> list[Self] | PageResult[Self]`

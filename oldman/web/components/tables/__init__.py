@@ -1,4 +1,7 @@
-"""Oldman 后端 Table 组件入口。"""
+"""Backend Oldman Table component entry point.
+
+Oldman 后端 Table 组件入口。
+"""
 
 from .cells import RowAction, badge, date_cell, link, muted, row_actions, truncated
 from .columns import CellDisplayValue, CellRawValue, CellReturnValue, Column, normalize_columns, resolve_field_path

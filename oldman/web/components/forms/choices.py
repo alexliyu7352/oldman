@@ -10,7 +10,10 @@ from typing import Any
 
 @dataclass
 class ModelChoice:
-    """本地模型选择器配置。"""
+    """Local model-choice configuration.
+
+    本地模型选择器配置。
+    """
 
     model: type[Any]
     value_field: str = "id"
@@ -20,7 +23,10 @@ class ModelChoice:
     empty_label: str | None = None
 
     async def get_queryset(self, request: Any, session: Any) -> Sequence[Any]:
-        """返回当前 request/session 可见的本地候选对象。"""
+        """Return local candidate objects visible to the current request/session.
+
+        返回当前 request/session 可见的本地候选对象。
+        """
         if session is None:
             raise RuntimeError("ModelChoice requires form session")
         from sqlalchemy import select
@@ -43,11 +49,17 @@ class ModelChoice:
         return rows
 
     def value_from_instance(self, obj: Any) -> Any:
-        """从候选对象读取提交值。"""
+        """Read the submitted value from a candidate object.
+
+        从候选对象读取提交值。
+        """
         return getattr(obj, self.value_field)
 
     def label_from_instance(self, obj: Any) -> str:
-        """从候选对象读取显示文本。"""
+        """Read display text from a candidate object.
+
+        从候选对象读取显示文本。
+        """
         return str(getattr(obj, self.label_field))
 
 

@@ -1,4 +1,7 @@
-"""后端 Form 组件包入口。"""
+"""Backend Form component package entry point.
+
+后端 Form 组件包入口。
+"""
 
 from .base import Form, SanicFormData, TableFilterForm
 from .choices import ModelChoice

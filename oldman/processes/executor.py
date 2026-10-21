@@ -128,7 +128,8 @@ class ParentLogPipeReader(threading.Thread):
 
 
 class AsyncProcessManager:
-    """
+    """Manage short-lived asynchronous task processes created per request.
+
     管理按请求创建的短生命周期异步任务进程。
 
     特性:
@@ -524,7 +525,8 @@ class AsyncProcessManager:
                 await asyncio.to_thread(reader_thread.join, 1)
 
     async def shutdown(self):
-        """
+        """Gracefully shut down all active processes.
+
         优雅关闭所有活动进程
 
         步骤:

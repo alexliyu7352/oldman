@@ -8,14 +8,20 @@ ProviderT = TypeVar("ProviderT", bound=type)
 
 
 class SelectRegistry:
-    """保存 provider 名称到 Provider 类的轻量映射。"""
+    """A lightweight mapping from provider names to provider classes.
+
+    保存 provider 名称到 Provider 类的轻量映射。
+    """
 
     def __init__(self) -> None:
         """初始化空注册表。"""
         self._providers: dict[str, type] = {}
 
     def register(self, name: str):
-        """注册 provider 类，名称冲突时直接失败。"""
+        """Register a provider class, failing on name conflicts.
+
+        注册 provider 类，名称冲突时直接失败。
+        """
         normalized = name.strip()
         if not normalized:
             raise ValueError("Select provider name cannot be empty")
@@ -30,11 +36,17 @@ class SelectRegistry:
         return decorator
 
     def get(self, name: str) -> type | None:
-        """按名称返回 provider 类。"""
+        """Return the named provider class.
+
+        按名称返回 provider 类。
+        """
         return self._providers.get(name)
 
     def names(self) -> tuple[str, ...]:
-        """返回已注册 provider 名称，供门禁和调试使用。"""
+        """Return registered provider names for gates and debugging.
+
+        返回已注册 provider 名称，供门禁和调试使用。
+        """
         return tuple(sorted(self._providers))
 
 

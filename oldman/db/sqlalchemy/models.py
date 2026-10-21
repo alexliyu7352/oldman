@@ -79,7 +79,9 @@ def _localnow_sqlite(element: Any, compiler: Any, **kw: Any) -> str:
 
 
 class UUIDMixin:
-    """UUIDv7 主键，值由 Python 端生成。
+    """A UUIDv7 primary key generated in Python.
+
+    UUIDv7 主键，值由 Python 端生成。
 
     原来这里还挂着 server_default=gen_random_uuid()，那是 PostgreSQL 专用函数，在 MySQL 和
     SQLite 上不存在；而且它产生的是 v4，和 Python 端的 uuid7 不是一种东西，同一列会混进两种
@@ -90,7 +92,8 @@ class UUIDMixin:
 
 
 class NativeTimestampsMixin:
-    """
+    """Timestamp mixin using the database server's current timezone without timezone information.
+
     Mixin 定义时间戳的类, 使用是数据库服务器当前时区, 不包含时区信息.
 
     server_default 按方言渲染（见本模块的 localnow），MySQL、PostgreSQL、SQLite 都可用。
@@ -117,7 +120,9 @@ class NativeTimestampsMixin:
 
 
 class UtcTimestampsMixin:
-    """Mixin 定义时间戳的类, 使用是UTC时区, 不包含时区信息。
+    """Timestamp mixin using naive UTC values.
+
+    Mixin 定义时间戳的类, 使用是UTC时区, 不包含时区信息。
 
     server_default 按方言渲染（见本模块的 utcnow），MySQL、PostgreSQL、SQLite 都可用。
     """
@@ -233,7 +238,8 @@ class DatabaseModel(Base):
 
     @classmethod
     async def get_by_fields(cls, session: AsyncSession, options: Sequence[_AbstractLoad] | None = None, **kwargs) -> Self | None:
-        """
+        """Fetch an instance from the database.
+
         从数据库获取实例
 
         Args:
@@ -249,7 +255,10 @@ class DatabaseModel(Base):
 
     @classmethod
     async def get_many_by_ids(cls, session: AsyncSession, ids: list[Any]) -> dict[Any, Self]:
-        """从数据库批量获取实例"""
+        """Fetch multiple instances from the database.
+
+        从数据库批量获取实例
+        """
         if not ids:
             return {}
         primary_keys = inspect(cls).primary_key
@@ -275,7 +284,10 @@ class DatabaseModel(Base):
         page: int | None = None,
         page_size: int | None = None,
     ) -> list[Self] | PageResult:
-        """从数据库执行查询"""
+        """Execute a database query.
+
+        从数据库执行查询
+        """
         query = select(cls).filter(*conditions)
         return await cls.execute_query_with_select(session, query, page, page_size)
 
@@ -287,7 +299,10 @@ class DatabaseModel(Base):
         page: int | None = None,
         page_size: int | None = None,
     ) -> list[Self] | PageResult:
-        """从数据库执行查询"""
+        """Execute a database query.
+
+        从数据库执行查询
+        """
         if page is None or page_size is None:
             result = await session.execute(query)
             return list(result.scalars().all())
@@ -307,7 +322,9 @@ class DatabaseModel(Base):
         return PageResult(items=items, total=total, page=page, page_size=page_size)
 
     async def save(self, session: AsyncSession) -> Self:
-        """独立保存操作，自动提交。
+        """Save independently and commit automatically.
+
+        独立保存操作，自动提交。
 
         这个方法**会提交传进来的 session**。`db_manager.get_session()` 把 session 包在
         `async with session.begin()` 里交给调用方，在那样一个 session 上调用 `save()` 会提前
@@ -320,7 +337,9 @@ class DatabaseModel(Base):
         return self
 
     def add_to_session(self, session: AsyncSession) -> Self:
-        """仅添加到会话，不提交，用于事务操作。
+        """Add to the session without committing for transactional operations.
+
+        仅添加到会话，不提交，用于事务操作。
 
         `save()` 的事务内版本：调用方拥有事务，也由调用方提交。
         """
@@ -328,7 +347,9 @@ class DatabaseModel(Base):
         return self
 
     async def delete(self, session: AsyncSession) -> None:
-        """删除这一行并提交。
+        """Delete this row and commit.
+
+        删除这一行并提交。
 
         和 `save()` 一样会提交调用方的事务，事务内删除请直接用 `session.delete()`。
         """
@@ -336,7 +357,9 @@ class DatabaseModel(Base):
         await session.commit()
 
     async def update(self, session: AsyncSession, **kwargs) -> Self:
-        """按关键字更新字段并提交。
+        """Update fields from keyword arguments and commit.
+
+        按关键字更新字段并提交。
 
         拼错的字段名会直接报错，不会被悄悄忽略：原来的实现用 `if hasattr(self, key)` 跳过不认识的
         名字，于是 `row.update(session, titel="x")` 什么也没改、也什么都没说，调用方还以为成功了。

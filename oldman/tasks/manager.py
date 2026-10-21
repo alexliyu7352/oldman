@@ -11,7 +11,10 @@ from oldman.tasks.worker import BaseWorker
 
 
 class WorkerInfo:
-    """Worker信息"""
+    """Worker information.
+
+    Worker信息
+    """
 
     def __init__(self, worker_id: int, process: mp.Process, task_queue: mp.Queue):
         self.worker_id = worker_id
@@ -24,7 +27,10 @@ class WorkerInfo:
 
 
 class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstract hook yet.
-    """极简管理器基类 - 只发送任务，不等待结果"""
+    """A minimal manager base that sends tasks without waiting for results.
+
+    极简管理器基类 - 只发送任务，不等待结果
+    """
 
     def __init__(
         self,
@@ -98,7 +104,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
                 child_runtime.close()
 
     async def start(self):
-        """启动管理器"""
+        """Start the manager.
+
+        启动管理器
+        """
         self.running = True
         logger.info(f"启动管理器，{self.num_workers} 个worker")
 
@@ -265,7 +274,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         max_restarts: int = -1,
         auto_remove_on_complete: bool | None = None,
     ) -> str | None:
-        """添加任务"""
+        """Add a task.
+
+        添加任务
+        """
         # 选择worker
         worker_id = self._select_worker()
         if worker_id is None:
@@ -300,7 +312,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
             return None
 
     async def stop_task(self, task_id: str, worker_id: int = -1):
-        """停止任务"""
+        """Stop a task.
+
+        停止任务
+        """
         if worker_id == -1:
             # 从task_id中提取worker_id
             try:
@@ -322,7 +337,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
             logger.error(f"发送停止命令失败: {e}")
 
     def get_manager_status(self) -> dict[str, Any]:
-        """获取管理器状态"""
+        """Return manager status.
+
+        获取管理器状态
+        """
         healthy_count = sum(1 for w in self.workers.values() if w.is_healthy and w.process.is_alive())
 
         worker_status = {}
@@ -338,7 +356,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         return {"total_workers": self.num_workers, "healthy_workers": healthy_count, "worker_status": worker_status}
 
     async def shutdown(self):
-        """关闭管理器"""
+        """Shut down the manager.
+
+        关闭管理器
+        """
         logger.info("关闭管理器...")
         self.running = False
 

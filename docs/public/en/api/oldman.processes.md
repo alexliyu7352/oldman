@@ -14,7 +14,7 @@ class · defined in `oldman.processes.executor`
 class AsyncProcessManager
 ```
 
-管理按请求创建的短生命周期异步任务进程。
+Manage short-lived asynchronous task processes created per request.
 
 Constructor:
 
@@ -25,7 +25,7 @@ AsyncProcessManager(workers: int=1, logging_context: ChildLoggingContext | None=
 Members:
 
 - `async def run_with_timeout(target, args=(), _timeout: int=30) -> dict | None` — Run one import-safe, pickleable callable and enforce its timeout.
-- `async def shutdown()` — 优雅关闭所有活动进程
+- `async def shutdown()` — Gracefully shut down all active processes.
 
 ## `CompletedSubprocess`
 

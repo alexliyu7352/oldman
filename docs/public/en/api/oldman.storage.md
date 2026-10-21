@@ -22,7 +22,7 @@ function · defined in `oldman.storage.models`
 def file_column(*, upload_to: UploadTo, storage: str='default', max_length: int=255, nullable: bool=False, **column_kwargs: Any) -> MappedColumn[Any]
 ```
 
-声明由 Storage 管理、数据库中仍保存逻辑名称的 String 列。
+Declare a Storage-managed String column that stores logical filenames in the database.
 
 ## `FileInfo`
 
@@ -292,7 +292,7 @@ Validate and return a safe, relative POSIX storage name unchanged.
 
 ## Module `oldman.storage.lifecycle`
 
-根据数据库最终状态清理模型文件列不再引用的 Storage 文件。
+Clean up Storage files no longer referenced by model file columns according to final database state.
 
 Import with `from oldman.storage.lifecycle import <name>`.
 
@@ -304,7 +304,7 @@ function · defined in `oldman.storage.lifecycle`
 async def finalize_model_files(manager: DatabaseManager, records: tuple[_CleanupRecord, ...]) -> None
 ```
 
-查询数据库最终值，只删除候选中已不再被引用的文件。
+Query final database values and delete only unreferenced candidate files.
 
 ### `install_model_file_lifecycle`
 
@@ -314,7 +314,7 @@ function · defined in `oldman.storage.lifecycle`
 def install_model_file_lifecycle(models: Iterable[ModelMetadata]) -> None
 ```
 
-只为已注册模型中的 file_column 属性安装轻量变化标记。
+Install lightweight change markers only for file_column attributes on registered models.
 
 ### `take_file_cleanup_records`
 
@@ -324,7 +324,7 @@ function · defined in `oldman.storage.lifecycle`
 def take_file_cleanup_records(session: Any) -> tuple[_CleanupRecord, ...]
 ```
 
-从已关闭写 Session 取出并冻结本次文件候选。
+Extract and freeze file candidates from a closed write Session.
 
 ### `WriteSession`
 
@@ -334,4 +334,4 @@ class · defined in `oldman.storage.lifecycle`
 class WriteSession(Session)
 ```
 
-只供 DatabaseManager 写会话使用的内部同步 Session。
+Internal synchronous Session used only by DatabaseManager write sessions.

@@ -1,4 +1,7 @@
-"""读取一个对象或者返回 404 的快捷函数。"""
+"""Shortcut for fetching an object or returning 404.
+
+读取一个对象或者返回 404 的快捷函数。
+"""
 
 from __future__ import annotations
 
@@ -8,7 +11,9 @@ from oldman.web.exceptions import NotFound
 
 
 async def get_object_or_404[TModel](session: Any, model: type[TModel], object_id: Any, *, message: str | None = None) -> TModel:
-    """在调用方的事务里按主键读一个对象，读不到就抛 `NotFound`。
+    """Read an object by primary key in the caller's transaction, raising NotFound when absent.
+
+    在调用方的事务里按主键读一个对象，读不到就抛 `NotFound`。
 
     URL 里的主键来自浏览器，不存在是正常情况，应该走 404 页面/JSON，而不是让 `None` 继续流到模板或
     表单里变成 500。默认信息是 "<模型类名> <主键> was not found"，需要给用户看别的话时传 `message`。

@@ -22,7 +22,7 @@ function · defined in `oldman.web.security.csrf.decorators`
 def csrf_exempt(func)
 ```
 
-CSRF 豁免装饰器
+CSRF-exemption decorator.
 
 ## `csrf_protect`
 
@@ -54,7 +54,7 @@ Jinja2 CSRF Token Extension
 
 Members:
 
-- `def parse(parser)` — 解析 {% csrf_token %} 标签
+- `def parse(parser)` — Parse the {% csrf_token %} tag.
 
 ## `Payload`
 
@@ -79,7 +79,7 @@ class · defined in `oldman.web.security.csrf.manager`
 class StatelessCSRFManager
 ```
 
-无状态 CSRF Token 管理器
+Stateless CSRF token manager.
 
 Constructor:
 
@@ -89,9 +89,9 @@ StatelessCSRFManager(app: WebApp | None=None, secret_key: str | None=None, ttl: 
 
 Members:
 
-- `def init_app(app: WebApp, secret_key: str | None=None)` — 初始化应用
-- `def generate_token(request: Request) -> str` — 生成 CSRF token
-- `def get_token_from_request(request: Request) -> str | None` — 从请求中提取 CSRF token
+- `def init_app(app: WebApp, secret_key: str | None=None)` — Initialize the application.
+- `def generate_token(request: Request) -> str` — Generate a CSRF token.
+- `def get_token_from_request(request: Request) -> str | None` — Extract a CSRF token from the request.
 - `def register_enforcement(app: WebApp) -> None` — Validate every unsafe-method request, except handlers marked csrf_exempt.
-- `def validate_token(request: Request, token: str) -> tuple[bool, str]` — 验证 CSRF token
+- `def validate_token(request: Request, token: str) -> tuple[bool, str]` — Validate a CSRF token.
 - `async def before_server_start(app)`

@@ -34,7 +34,7 @@ class · defined in `oldman.web.api.enums`
 class ApiErrorCode(IntEnum)
 ```
 
-统一 API 响应错误码。
+Common API response error codes.
 
 ## `ApiResponseAction`
 
@@ -44,7 +44,7 @@ class · defined in `oldman.web.api.enums`
 class ApiResponseAction(StrEnum)
 ```
 
-框架内置响应动作。
+Framework built-in response actions.
 
 ## `CloseModalAction`
 
@@ -122,7 +122,7 @@ class · defined in `oldman.web.api.enums`
 class FeedbackMode(StrEnum)
 ```
 
-用户反馈的显示方式。
+User feedback presentation modes.
 
 ## `form_error_response`
 
@@ -182,7 +182,7 @@ class · defined in `oldman.web.api.enums`
 class HtmlSwap(StrEnum)
 ```
 
-HTML 替换范围。
+HTML replacement scopes.
 
 ## `modal_close_footer`
 

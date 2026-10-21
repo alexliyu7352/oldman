@@ -16,7 +16,10 @@ CellReturnValue = CellDisplayValue | tuple[CellDisplayValue, CellRawValue]
 
 @dataclass(frozen=True)
 class Column:
-    """标准化后的表格列定义。"""
+    """Normalized table-column definition.
+
+    标准化后的表格列定义。
+    """
 
     name: str
     label: str | None = None
@@ -32,7 +35,10 @@ class Column:
     cell_attrs: dict[str, object] = field(default_factory=dict)
 
     def normalized(self, *, search_fields: set[str], unsortable_columns: set[str]) -> Column:
-        """返回补齐 field_path、label、排序和搜索能力后的列对象。"""
+        """Return a column with resolved field_path, label, sorting, and search capabilities.
+
+        返回补齐 field_path、label、排序和搜索能力后的列对象。
+        """
         field_path = self.name if self.field_path is DEFAULT_FIELD_PATH else self.field_path
         is_virtual = field_path is None
         sortable = not is_virtual and self.name not in unsortable_columns and str(field_path) not in unsortable_columns
@@ -52,14 +58,20 @@ class Column:
         ).with_metadata(sortable=sortable, searchable=searchable)
 
     def with_metadata(self, *, sortable: bool, searchable: bool) -> Column:
-        """返回带内部排序和搜索 metadata 的列对象。"""
+        """Return a column with internal sorting and search metadata.
+
+        返回带内部排序和搜索 metadata 的列对象。
+        """
         object.__setattr__(self, "sortable", sortable)
         object.__setattr__(self, "searchable", searchable)
         return self
 
 
 def normalize_columns(column_defs: list[object] | tuple[object, ...], *, search_fields: set[str], unsortable_columns: set[str]) -> list[Column]:
-    """把字符串、tuple 和 Column 声明标准化为 Column 列表。"""
+    """Normalize strings, tuples, and Column declarations to a Column list.
+
+    把字符串、tuple 和 Column 声明标准化为 Column 列表。
+    """
     columns: list[Column] = []
     for index, definition in enumerate(column_defs):
         column = normalize_column(definition, index=index)
@@ -111,7 +123,10 @@ def humanize_field_name(name: str) -> str:
 
 
 def resolve_field_path(row: object, path: str | None) -> object:
-    """按点号路径读取 dict、dataclass 或普通对象字段。"""
+    """Read dict, dataclass, or ordinary-object fields through dotted paths.
+
+    按点号路径读取 dict、dataclass 或普通对象字段。
+    """
     if not path:
         return None
     current: object = row

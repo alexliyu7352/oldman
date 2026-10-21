@@ -4,7 +4,10 @@ from __future__ import annotations
 
 
 class ChartInvalidRequest(Exception):
-    """图表请求参数非法。"""
+    """Invalid chart request parameters.
+
+    图表请求参数非法。
+    """
 
 
 __all__ = ["ChartInvalidRequest"]

@@ -1,4 +1,6 @@
-"""把“这段代码在别处已经有了”变成一条测试，而不是靠人记得。
+"""Detect existing duplicate implementations through tests rather than relying on memory.
+
+把“这段代码在别处已经有了”变成一条测试，而不是靠人记得。
 
 三种最常见的重复各有一个检查：
 
@@ -43,7 +45,10 @@ DEFAULT_EXCLUDED_DIRECTORIES = frozenset(
 
 @dataclass(frozen=True, slots=True)
 class DuplicateFunction:
-    """同一个函数名在两棵源码树里有结构相同的实现。"""
+    """A same-named function with structurally identical implementations in two source trees.
+
+    同一个函数名在两棵源码树里有结构相同的实现。
+    """
 
     name: str
     left: Path
@@ -51,7 +56,10 @@ class DuplicateFunction:
     lines: int
 
     def describe(self, *, left_root: Path | None = None, right_root: Path | None = None) -> str:
-        """一行可读描述，供断言失败时直接打印。"""
+        """Return a readable one-line description for assertion failures.
+
+        一行可读描述，供断言失败时直接打印。
+        """
         left = self.left.relative_to(left_root) if left_root else self.left
         right = self.right.relative_to(right_root) if right_root else self.right
         return f"{self.name} ({self.lines} lines): {left} == {right}"
@@ -59,7 +67,10 @@ class DuplicateFunction:
 
 @dataclass(frozen=True, slots=True)
 class IdenticalFile:
-    """两棵源码树里内容完全相同的文件。"""
+    """Files with identical contents in two source trees.
+
+    两棵源码树里内容完全相同的文件。
+    """
 
     left: Path
     right: Path
@@ -72,7 +83,10 @@ class IdenticalFile:
 
 @dataclass(frozen=True, slots=True)
 class SourceReference:
-    """一处不该出现的 import 或属性访问。"""
+    """An import or attribute access that must not appear.
+
+    一处不该出现的 import 或属性访问。
+    """
 
     path: Path
     line: int
@@ -84,7 +98,10 @@ class SourceReference:
 
 
 def iter_python_files(root: Path, *, exclude_directories: Iterable[str] = ()) -> Iterator[Path]:
-    """遍历一棵源码树里的 .py 文件，跳过缓存、虚拟环境和迁移目录。"""
+    """Iterate Python files in a source tree, excluding caches, virtual environments, and migrations.
+
+    遍历一棵源码树里的 .py 文件，跳过缓存、虚拟环境和迁移目录。
+    """
     excluded = DEFAULT_EXCLUDED_DIRECTORIES | set(exclude_directories)
     for path in sorted(root.rglob("*.py")):
         if any(part in excluded for part in path.relative_to(root).parts):
@@ -108,7 +125,10 @@ def function_digests(
     exclude_names: Sequence[str] = (),
     exclude_directories: Iterable[str] = (),
 ) -> dict[tuple[str, str], list[tuple[Path, int]]]:
-    """一棵源码树里每个够长的函数的 (名字, 指纹) → 出现位置。"""
+    """Map names and fingerprints of sufficiently long functions to their source-tree locations.
+
+    一棵源码树里每个够长的函数的 (名字, 指纹) → 出现位置。
+    """
     excluded_names = set(exclude_names)
     digests: dict[tuple[str, str], list[tuple[Path, int]]] = {}
     for path in iter_python_files(root, exclude_directories=exclude_directories):
@@ -136,7 +156,10 @@ def duplicate_functions(
     exclude_names: Sequence[str] = (),
     exclude_directories: Iterable[str] = (),
 ) -> list[DuplicateFunction]:
-    """两棵源码树里同名且结构相同的函数。"""
+    """Find same-named, structurally identical functions across two source trees.
+
+    两棵源码树里同名且结构相同的函数。
+    """
     left = function_digests(left_root, min_lines=min_lines, exclude_names=exclude_names, exclude_directories=exclude_directories)
     right = function_digests(right_root, min_lines=min_lines, exclude_names=exclude_names, exclude_directories=exclude_directories)
     duplicates: list[DuplicateFunction] = []
@@ -159,7 +182,10 @@ def identical_files(
     exclude_directories: Iterable[str] = (),
     min_bytes: int = 200,
 ) -> list[IdenticalFile]:
-    """两棵源码树里内容逐字节相同的文件（按同名文件比对）。"""
+    """Find byte-identical same-named files across two source trees.
+
+    两棵源码树里内容逐字节相同的文件（按同名文件比对）。
+    """
     excluded = DEFAULT_EXCLUDED_DIRECTORIES | set(exclude_directories)
 
     def collect(root: Path) -> dict[str, list[tuple[Path, str]]]:
@@ -192,7 +218,10 @@ def forbidden_imports(
     allowed_names: Sequence[str] = (),
     exclude_directories: Iterable[str] = (),
 ) -> list[SourceReference]:
-    """找出从指定模块（前缀匹配）导入的地方，`allowed_names` 里的名字放行。"""
+    """Find imports from prefix-matched modules, permitting names in allowed_names.
+
+    找出从指定模块（前缀匹配）导入的地方，`allowed_names` 里的名字放行。
+    """
     allowed = set(allowed_names)
     references: list[SourceReference] = []
     for path in iter_python_files(root, exclude_directories=exclude_directories):
@@ -220,7 +249,10 @@ def forbidden_attributes(
     attributes: Sequence[str],
     exclude_directories: Iterable[str] = (),
 ) -> list[SourceReference]:
-    """找出形如 `a.b.c` 的属性访问链，用来挡住绕开公开入口的写法。"""
+    """Find attribute chains such as a.b.c to prevent bypassing public entry points.
+
+    找出形如 `a.b.c` 的属性访问链，用来挡住绕开公开入口的写法。
+    """
     wanted = {tuple(attribute.split(".")): attribute for attribute in attributes}
     references: list[SourceReference] = []
     for path in iter_python_files(root, exclude_directories=exclude_directories):

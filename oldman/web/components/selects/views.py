@@ -43,7 +43,10 @@ async def select_provider_payload(
 
 
 class SelectProviderView(HTTPMethodView):
-    """Select/Autocomplete 中心 provider endpoint。"""
+    """Central Select/Autocomplete provider endpoint.
+
+    Select/Autocomplete 中心 provider endpoint。
+    """
 
     # The framework's floor is a signed-in user; staff, roles or permissions go in check_permission.
     require_authenticated = True
@@ -55,7 +58,10 @@ class SelectProviderView(HTTPMethodView):
         self.secret_key = secret_key
 
     async def get(self, request: Any, provider_name: str):
-        """验证 bind 并分发 provider。"""
+        """Validate bind and dispatch to the provider.
+
+        验证 bind 并分发 provider。
+        """
         payload, status = await select_provider_payload(
             request,
             provider_name,

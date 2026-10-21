@@ -28,7 +28,10 @@ _FILTER_LABEL = gettext_lazy("Filter")
 
 
 class SanicFormData:
-    """把 Sanic 表单数据适配为 WTForms 需要的 `getlist` 协议。"""
+    """Adapt Sanic form data to the WTForms getlist protocol.
+
+    把 Sanic 表单数据适配为 WTForms 需要的 `getlist` 协议。
+    """
 
     def __init__(self, data: Mapping[str, Any] | None, files: Mapping[str, Any] | None = None):
         """保存普通字段和上传文件映射。"""
@@ -36,7 +39,10 @@ class SanicFormData:
         self.files = files or {}
 
     def getlist(self, key: str) -> list[Any]:
-        """返回字段的多值列表。"""
+        """Return the field's list of values.
+
+        返回字段的多值列表。
+        """
         file_values = self._mapping_getlist(self.files, key)
         return file_values[:1] if file_values else self._mapping_getlist(self.data, key)
 
@@ -54,12 +60,18 @@ class SanicFormData:
         return [value]
 
     def get(self, key: str, default: Any = None) -> Any:
-        """返回字段的第一个值，兼容普通 mapping 和 Sanic 参数对象。"""
+        """Return the first field value from ordinary mappings or Sanic parameter objects.
+
+        返回字段的第一个值，兼容普通 mapping 和 Sanic 参数对象。
+        """
         values = self.getlist(key)
         return values[0] if values else default
 
     def items(self):
-        """返回原始字段项，供调试和测试读取。"""
+        """Return original field items for debugging and tests.
+
+        返回原始字段项，供调试和测试读取。
+        """
         return self.data.items()
 
     def __iter__(self):
@@ -67,7 +79,10 @@ class SanicFormData:
         return iter(self.data)
 
     def to_dict(self) -> dict[str, Any]:
-        """把原始输入转换为普通 dict，保留多值字段列表。"""
+        """Convert raw input to an ordinary dict while preserving multi-value lists.
+
+        把原始输入转换为普通 dict，保留多值字段列表。
+        """
         return {key: values[0] if len(values) == 1 else values for key in self.data for values in [self.getlist(key)]}
 
     def __contains__(self, key: str) -> bool:
@@ -76,7 +91,10 @@ class SanicFormData:
 
 
 class Form(WTForm):
-    """Oldman 后端渲染表单基类。"""
+    """Base class for Oldman server-rendered forms.
+
+    Oldman 后端渲染表单基类。
+    """
 
     class Meta(DefaultMeta):
         """WTForms 的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
@@ -162,7 +180,10 @@ class Form(WTForm):
         self._set_list_error_message()
 
     def configure_remote_select_fields(self) -> None:
-        """配置远程 Select widget 的字段校验边界。"""
+        """Configure field-validation boundaries for remote Select widgets.
+
+        配置远程 Select widget 的字段校验边界。
+        """
         from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget
 
         for field in self._fields.values():
@@ -171,7 +192,10 @@ class Form(WTForm):
                 cast(Any, field).validate_choice = False
 
     def add_error(self, field_name: str, message: str | LazyTranslation) -> None:
-        """向真实字段添加一条错误，拒绝拼错或伪造的字段名。"""
+        """Add an error to an actual field, rejecting misspelled or fabricated field names.
+
+        向真实字段添加一条错误，拒绝拼错或伪造的字段名。
+        """
         field = self._fields.get(field_name)
         if not field_name or field_name == "__all__" or field is None:
             raise ValueError(f"{field_name!r} is not a real form field")
@@ -192,7 +216,10 @@ class Form(WTForm):
         select_secret_key: str = "",
         **kwargs: Any,
     ) -> Self:
-        """从 Sanic 请求创建表单实例。"""
+        """Create a form instance from a Sanic request.
+
+        从 Sanic 请求创建表单实例。
+        """
         is_submission = request.method.upper() in {"POST", "PUT", "PATCH"}
         files = getattr(request, "files", None) if is_submission else None
         formdata = SanicFormData(getattr(request, "form", None), files) if is_submission else None
@@ -213,7 +240,10 @@ class Form(WTForm):
     def from_query(
         cls, request, *, obj: Any = None, session: Any = None, initial: dict[str, Any] | None = None, prefix: str = "", **kwargs: Any
     ) -> Form:
-        """从 Sanic 查询参数创建 GET 筛选表单实例。"""
+        """Create a GET filter form from Sanic query parameters.
+
+        从 Sanic 查询参数创建 GET 筛选表单实例。
+        """
         return cls(
             formdata=SanicFormData(getattr(request, "args", None)),
             obj=obj,
@@ -241,7 +271,10 @@ class Form(WTForm):
         validate: bool = False,
         feedback_target: str | None = None,
     ) -> Markup:
-        """渲染完整表单 HTML。"""
+        """Render complete form HTML.
+
+        渲染完整表单 HTML。
+        """
         return await self.get_renderer().render(
             action=action,
             method=method,
@@ -259,15 +292,24 @@ class Form(WTForm):
         )
 
     def get_renderer(self) -> FormRenderer:
-        """返回当前表单的整体渲染器实例。"""
+        """Return the current form renderer instance.
+
+        返回当前表单的整体渲染器实例。
+        """
         return self.renderer_class(self)
 
     def get_field_renderer(self) -> FieldRenderer:
-        """返回当前表单的字段渲染器实例。"""
+        """Return the current form's field renderer instance.
+
+        返回当前表单的字段渲染器实例。
+        """
         return self.field_renderer_class(self)
 
     async def render_field(self, field: Field | str) -> Markup:
-        """渲染单个字段的 label、控件和错误。"""
+        """Render a field's label, control, and errors.
+
+        渲染单个字段的 label、控件和错误。
+        """
         if isinstance(field, str):
             field = self._fields[field]
         return await self.get_field_renderer().render(field)
@@ -280,7 +322,10 @@ class Form(WTForm):
         cancel_label: str | LazyTranslation = _CANCEL_LABEL,
         extra_buttons: Markup | str = "",
     ) -> Markup:
-        """渲染表单底部操作区，供模板局部调用。"""
+        """Render the bottom action area for partial template use.
+
+        渲染表单底部操作区，供模板局部调用。
+        """
         return await self.get_renderer().render_actions(
             submit_label=submit_label,
             cancel_url=cancel_url,
@@ -289,15 +334,24 @@ class Form(WTForm):
         )
 
     def visible_fields(self) -> list[Field]:
-        """返回可见字段列表。"""
+        """Return visible fields.
+
+        返回可见字段列表。
+        """
         return [field for field in self._fields.values() if not isinstance(field, HiddenField)]
 
     def hidden_fields(self) -> list[Field]:
-        """返回隐藏字段列表。"""
+        """Return hidden fields.
+
+        返回隐藏字段列表。
+        """
         return [field for field in self._fields.values() if isinstance(field, HiddenField)]
 
     def iter_layout(self) -> Iterable[FieldLayout]:
-        """返回表单布局字段。"""
+        """Return form-layout fields.
+
+        返回表单布局字段。
+        """
         if self.layout is not None:
             for item in self.layout.items:
                 if isinstance(item, FormStep):
@@ -313,7 +367,10 @@ class Form(WTForm):
             yield FieldLayout(name)
 
     def get_layout_steps(self) -> tuple[FormStep, ...]:
-        """返回布局中声明的多步骤字段分组。"""
+        """Return multi-step field groups declared in the layout.
+
+        返回布局中声明的多步骤字段分组。
+        """
         if self.layout is None:
             return ()
         steps = tuple(item for item in self.layout.items if isinstance(item, FormStep))
@@ -322,18 +379,27 @@ class Form(WTForm):
         return steps
 
     def iter_step_layout(self, step: FormStep) -> Iterable[FieldLayout]:
-        """展开一个步骤中的字段布局。"""
+        """Expand field layouts within one step.
+
+        展开一个步骤中的字段布局。
+        """
         yield from self._iter_layout_items(step.items)
 
     def iter_layout_segments(self) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
-        """按分组切分顶层布局：连续的散字段成一段，每个 FieldGroup 自成一段。"""
+        """Split the top-level layout into consecutive ungrouped-field sections and individual FieldGroup sections.
+
+        按分组切分顶层布局：连续的散字段成一段，每个 FieldGroup 自成一段。
+        """
         if self.layout is None:
             yield None, tuple(self.iter_layout())
             return
         yield from self._iter_segments(self.layout.items)
 
     def iter_step_segments(self, step: FormStep) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
-        """按分组切分一个步骤里的布局。"""
+        """Split one step's layout into grouped sections.
+
+        按分组切分一个步骤里的布局。
+        """
         yield from self._iter_segments(step.items)
 
     def _iter_segments(self, items: Iterable[object]) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]:
@@ -369,7 +435,10 @@ class Form(WTForm):
                 yield FieldLayout(item)
 
     def get_layout_actions(self) -> Actions | None:
-        """返回布局中声明的 actions 配置。"""
+        """Return actions configuration declared in the layout.
+
+        返回布局中声明的 actions 配置。
+        """
         if self.layout is None:
             return None
         for item in self.layout.items:
@@ -378,12 +447,18 @@ class Form(WTForm):
         return None
 
     async def is_valid(self) -> bool:
-        """执行异步表单校验并返回是否通过。"""
+        """Run asynchronous form validation and return whether it passes.
+
+        执行异步表单校验并返回是否通过。
+        """
         return await self.validate()
 
     # Asynchronous by design - clean() may query the database - where WTForms' is synchronous.
     async def validate(self, extra_validators: dict[str, Any] | None = None) -> bool:  # pyrefly: ignore[bad-override]
-        """执行 WTForms 同步校验和 Oldman 异步 clean 生命周期。"""
+        """Run WTForms synchronous validation and Oldman's asynchronous cleaning lifecycle.
+
+        执行 WTForms 同步校验和 Oldman 异步 clean 生命周期。
+        """
         self._cleaned_data = {}
         self._error_message = None
         self._validation_succeeded = False
@@ -434,7 +509,9 @@ class Form(WTForm):
         return self._validation_succeeded
 
     async def clean(self) -> dict[str, Any] | None:
-        """执行跨字段校验，业务子类可覆盖。
+        """Run cross-field validation, allowing business subclasses to override it.
+
+        执行跨字段校验，业务子类可覆盖。
 
         返回 `None` 表示不改动 `cleaned_data`；返回 dict 则把其中的键**合并**进去，
         同名键以返回值为准。跨字段错误用 `raise ValidationError(...)` 报，它会成为表单级
@@ -444,23 +521,35 @@ class Form(WTForm):
 
     @property
     def data(self) -> dict[str, Any]:
-        """返回原始输入数据，和 cleaned_data 区分。"""
+        """Return raw input separately from cleaned_data.
+
+        返回原始输入数据，和 cleaned_data 区分。
+        """
         return dict(self._input_data)
 
     @property
     def cleaned_data(self) -> dict[str, Any]:
-        """返回通过验证后的字段数据。"""
+        """Return validated field data.
+
+        返回通过验证后的字段数据。
+        """
         return dict(self._cleaned_data)
 
     def populate_obj(self, obj: Any) -> None:
-        """把 cleaned_data 中的字段写回普通对象。"""
+        """Write cleaned_data fields back to an ordinary object.
+
+        把 cleaned_data 中的字段写回普通对象。
+        """
         for field_name, value in self._cleaned_data.items():
             setattr(obj, field_name, value)
 
     @property
     # Messages may still be lazy translations, rendered in the request's language; WTForms types them as str.
     def errors(self) -> dict[str, list[str | LazyTranslation]]:  # pyrefly: ignore[bad-override]
-        """返回每个真实字段的完整错误列表。"""
+        """Return complete error lists for every actual field.
+
+        返回每个真实字段的完整错误列表。
+        """
         errors: dict[str, list[str | LazyTranslation]] = {}
         for name, field in self._fields.items():
             if isinstance(field, JSONListField):
@@ -473,11 +562,16 @@ class Form(WTForm):
 
     @property
     def error_message(self) -> str | LazyTranslation | None:
-        """返回无法归属到具体字段的顶部校验消息。"""
+        """Return the top-level validation message not attributable to one field.
+
+        返回无法归属到具体字段的顶部校验消息。
+        """
         return self._error_message
 
     def to_api_response(self) -> DefaultApiFormResponse:
-        """把当前表单状态转换为统一 API 响应对象。
+        """Convert current form state to a common API response object.
+
+        把当前表单状态转换为统一 API 响应对象。
 
         每个字段只带**第一条**错误，因为前端一个字段下面只显示一条提示。这和 `errors`
         属性的形状不同——那里是完整的列表——所以要拿全部错误请读 `errors`，不要从这个
@@ -493,7 +587,10 @@ class Form(WTForm):
         return DefaultApiFormResponse(error_code=ApiErrorCode.OK)
 
     async def prepare_async_fields(self) -> None:
-        """准备需要异步数据源的字段。"""
+        """Prepare fields requiring asynchronous data sources.
+
+        准备需要异步数据源的字段。
+        """
         for field in self._fields.values():
             prepare = getattr(field, "prepare_choices", None)
             if prepare is None:
@@ -516,7 +613,9 @@ def _validation_error_message(error: ValidationError) -> str | LazyTranslation:
 
 
 class TableFilterForm(Form):
-    """专门用于驱动 Table API 的筛选表单。
+    """A filter form specifically for driving Table APIs.
+
+    专门用于驱动 Table API 的筛选表单。
 
     ``layout_style``: ``"inline"``（默认，一行、标签嵌在控件左侧、``advanced`` 字段收进"更多筛选"）
     或 ``"grid"``（标签在上的栅格，字段很多且都要一直可见时用）。
@@ -537,7 +636,10 @@ class TableFilterForm(Form):
         extra_buttons: Markup | str = "",
         form_class: str = "",
     ) -> Markup:
-        """渲染 Table 筛选组件 HTML。"""
+        """Render Table filter-component HTML.
+
+        渲染 Table 筛选组件 HTML。
+        """
         if not table_target:
             raise ValueError("table_target is required")
         return await self.get_renderer().render_table_filter(

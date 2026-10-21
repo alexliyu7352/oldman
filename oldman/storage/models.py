@@ -44,7 +44,10 @@ def file_column(
     nullable: bool = False,
     **column_kwargs: Any,
 ) -> MappedColumn[Any]:
-    """声明由 Storage 管理、数据库中仍保存逻辑名称的 String 列。"""
+    """Declare a Storage-managed String column that stores logical filenames in the database.
+
+    声明由 Storage 管理、数据库中仍保存逻辑名称的 String 列。
+    """
     if not isinstance(upload_to, str) and not callable(upload_to):
         raise TypeError("upload_to must be a string or callable")
     if not isinstance(storage, str):

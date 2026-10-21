@@ -1,4 +1,7 @@
-"""根据数据库最终状态清理模型文件列不再引用的 Storage 文件。"""
+"""Clean up Storage files no longer referenced by model file columns according to final database state.
+
+根据数据库最终状态清理模型文件列不再引用的 Storage 文件。
+"""
 
 from __future__ import annotations
 
@@ -29,7 +32,10 @@ _SESSION_PENDING_RECORDS_KEY = "oldman_model_file_pending_records"
 
 
 class WriteSession(Session):
-    """只供 DatabaseManager 写会话使用的内部同步 Session。"""
+    """Internal synchronous Session used only by DatabaseManager write sessions.
+
+    只供 DatabaseManager 写会话使用的内部同步 Session。
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +75,10 @@ _SESSION_EVENTS_INSTALLED = False
 
 
 def install_model_file_lifecycle(models: Iterable[ModelMetadata]) -> None:
-    """只为已注册模型中的 file_column 属性安装轻量变化标记。"""
+    """Install lightweight change markers only for file_column attributes on registered models.
+
+    只为已注册模型中的 file_column 属性安装轻量变化标记。
+    """
     global _SESSION_EVENTS_INSTALLED
 
     found_file_field = False
@@ -176,7 +185,10 @@ def _ensure_original_snapshot(
 
 
 def take_file_cleanup_records(session: Any) -> tuple[_CleanupRecord, ...]:
-    """从已关闭写 Session 取出并冻结本次文件候选。"""
+    """Extract and freeze file candidates from a closed write Session.
+
+    从已关闭写 Session 取出并冻结本次文件候选。
+    """
     pending: dict[InstanceState[Any], _PendingRecord] = session.info.pop(_SESSION_PENDING_RECORDS_KEY, {})
     created: list[_CreatedFileRecord] = session.info.pop(_CREATED_FILES_KEY, [])
     session.info.pop(_SESSION_CHANGED_STATES_KEY, None)
@@ -206,7 +218,10 @@ def take_file_cleanup_records(session: Any) -> tuple[_CleanupRecord, ...]:
 
 
 async def finalize_model_files(manager: DatabaseManager, records: tuple[_CleanupRecord, ...]) -> None:
-    """查询数据库最终值，只删除候选中已不再被引用的文件。"""
+    """Query final database values and delete only unreferenced candidate files.
+
+    查询数据库最终值，只删除候选中已不再被引用的文件。
+    """
     if not records:
         return
     final_values: dict[int, dict[str, str | None]] = {}

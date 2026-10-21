@@ -71,7 +71,10 @@ def _validate_request_tls_inputs(kwargs: dict[str, Any]) -> None:
 
 
 class MultiHttpClient(BaseHttpClient):
-    """支持多种后端的统一HTTP客户端工厂"""
+    """Common HTTP client factory supporting multiple backends.
+
+    支持多种后端的统一HTTP客户端工厂
+    """
 
     # 类级别的全局清理器，避免每个实例都有后台任务
     _instances: ClassVar["weakref.WeakSet[MultiHttpClient]"] = weakref.WeakSet()
@@ -192,17 +195,26 @@ class MultiHttpClient(BaseHttpClient):
 
     @property
     def client(self):
-        """获取当前实现的客户端实例"""
+        """Return the current backend client instance.
+
+        获取当前实现的客户端实例
+        """
         if self._impl is None:
             raise RuntimeError("HTTP客户端尚未初始化，请先调用 init_client()")
         return self._impl
 
     def is_initialized(self) -> bool:
-        """检查客户端是否已初始化"""
+        """Check whether the client is initialized.
+
+        检查客户端是否已初始化
+        """
         return self._impl is not None
 
     async def init_client(self) -> None:
-        """初始化HTTP客户端；已初始化时保持现有 backend 不变。"""
+        """Initialize the HTTP client, preserving its existing backend if already initialized.
+
+        初始化HTTP客户端；已初始化时保持现有 backend 不变。
+        """
 
         if self._impl is not None:
             return
@@ -225,7 +237,10 @@ class MultiHttpClient(BaseHttpClient):
         await self._impl.init_client()
 
     async def check_health(self) -> bool:
-        """检查客户端健康状态，根据需要重置"""
+        """Check client health and reset if needed.
+
+        检查客户端健康状态，根据需要重置
+        """
         if self.timeout_count > self.max_timeout_count:
             # 如果连续超时次数过多，重置客户端
             logger.error(f"连续超时次数: {self.timeout_count}, 重置HTTP客户端")
@@ -249,7 +264,10 @@ class MultiHttpClient(BaseHttpClient):
         return reset_success
 
     async def reset_client(self) -> bool:
-        """重置HTTP客户端 - 增强调试版本"""
+        """Reset the HTTP client with enhanced diagnostics.
+
+        重置HTTP客户端 - 增强调试版本
+        """
         current_time = time.time()
         # caller_info = f"调用者线程: {asyncio.current_task()}"
         #
@@ -318,7 +336,9 @@ class MultiHttpClient(BaseHttpClient):
         return False
 
     async def close_client(self) -> bool:
-        """关闭HTTP客户端并清理资源。
+        """Close the HTTP client and release resources.
+
+        关闭HTTP客户端并清理资源。
 
         永不抛普通异常：调用方多半是业务的收尾路径，不应该被迫 catch。失败只记日志并
         返回 False，同时保留 backend 引用——backend 那边也保留了会话，退出清理或下一次
@@ -349,7 +369,8 @@ class MultiHttpClient(BaseHttpClient):
         return True
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
-        """
+        """Send an HTTP request with automatic retries and error handling.
+
         发送HTTP请求，支持自动重试和错误处理
 
         Args:
@@ -444,7 +465,10 @@ class MultiHttpClient(BaseHttpClient):
         url: str,
         **kwargs: Any,
     ) -> AsyncIterator[HttpStreamResponse]:
-        """改进的流式请求上下文管理器，支持重试和续传"""
+        """Open an enhanced streaming-request context with retry and resumption support.
+
+        改进的流式请求上下文管理器，支持重试和续传
+        """
         _validate_request_cookie_inputs(kwargs)
         _validate_request_tls_inputs(kwargs)
         await self.check_health()
@@ -503,7 +527,10 @@ class MultiHttpClient(BaseHttpClient):
 
     @asynccontextmanager
     async def reconnect_stream(self, method: HttpMethod, url: str, live_stream: bool = False, **kwargs) -> AsyncIterator["ReconnectStreamResponse"]:
-        """建立支持读取中断后按 Range 续传的统一流响应。"""
+        """Establish a common stream response that resumes interrupted reads using Range.
+
+        建立支持读取中断后按 Range 续传的统一流响应。
+        """
 
         _validate_request_cookie_inputs(kwargs)
         _validate_request_tls_inputs(kwargs)
@@ -530,14 +557,20 @@ class MultiHttpClient(BaseHttpClient):
                     self._no_active_requests.set()
 
     def export_cookies(self) -> CookieJar | None:
-        """显式导出 backend 运行态 Cookie 到构造时传入的标准库 jar。"""
+        """Explicitly export runtime backend Cookies to the standard-library jar supplied at construction.
+
+        显式导出 backend 运行态 Cookie 到构造时传入的标准库 jar。
+        """
 
         if self.cookie_jar is not None and self._impl is not None:
             self._impl.export_cookie_jar(self.cookie_jar)
         return self.cookie_jar
 
     def save_cookies(self, filename: str | None = None) -> None:
-        """导出并保存 cookies 到文件（仅对 MozillaCookieJar 有效）。"""
+        """Export and save Cookies to a file for MozillaCookieJar only.
+
+        导出并保存 cookies 到文件（仅对 MozillaCookieJar 有效）。
+        """
 
         self.export_cookies()
         if isinstance(self.cookie_jar, MozillaCookieJar):
@@ -547,5 +580,8 @@ class MultiHttpClient(BaseHttpClient):
             logger.warning("当前 cookie_jar 不支持保存到文件，请使用 MozillaCookieJar")
 
     def response_has_cookies(self, response: HttpResponse | HttpStreamResponse) -> bool:
-        """检查响应是否包含新的 cookies"""
+        """Check whether the response contains new Cookies.
+
+        检查响应是否包含新的 cookies
+        """
         return bool(response.cookies)

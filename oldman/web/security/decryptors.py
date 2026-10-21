@@ -15,7 +15,10 @@ from oldman.utils.crypto import aes_gcm_decrypt
 
 
 class AESGcmDecrypt:
-    """解密前端 Web Crypto API 加密的数据。"""
+    """Decrypt data encrypted by the browser Web Crypto API.
+
+    解密前端 Web Crypto API 加密的数据。
+    """
 
     @staticmethod
     def decrypt(encrypted_b64: str, aes_secret_key: str) -> tuple[bool, str, dict]:

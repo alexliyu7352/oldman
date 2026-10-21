@@ -69,15 +69,24 @@ class TableJsonPayload(TypedDict):
 
 
 class TableInvalidRequest(Exception):
-    """表格请求参数非法。"""
+    """Invalid table request parameters.
+
+    表格请求参数非法。
+    """
 
 
 class TableValidationError(Exception):
-    """表格筛选值校验失败。"""
+    """Table-filter value validation failure.
+
+    表格筛选值校验失败。
+    """
 
 
 class BaseTableView(DataEndpointMixin, HTTPMethodView):
-    """支持结构化数据源的无主题 Table 基类。"""
+    """Unthemed Table base supporting structured data sources.
+
+    支持结构化数据源的无主题 Table 基类。
+    """
 
     # The framework's floor is a signed-in user; staff, roles or permissions go in check_permission.
     require_authenticated = True
@@ -137,11 +146,17 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
                     self.initial_page_size = None
 
     def get_columns(self) -> list[Column]:
-        """返回标准化后的列定义。"""
+        """Return normalized column definitions.
+
+        返回标准化后的列定义。
+        """
         return normalize_columns(list(self.columns), search_fields=set(self.search_fields), unsortable_columns=set(self.unsortable_columns))
 
     def get_renderer(self) -> TableRenderer:
-        """返回当前表格 renderer 实例。"""
+        """Return the current table renderer instance.
+
+        返回当前表格 renderer 实例。
+        """
         return self.renderer_class(self)
 
     async def render_shell(
@@ -153,7 +168,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         bulk_actions_html: Markup | str | None = None,
         **route_kwargs: object,
     ) -> Markup:
-        """异步渲染表格外壳和前端挂载属性；bulk_actions_html 放进工具条，只在有选中行时显示。"""
+        """Render the shell and mounting attributes asynchronously, showing toolbar bulk_actions_html only when rows are selected.
+
+        异步渲染表格外壳和前端挂载属性；bulk_actions_html 放进工具条，只在有选中行时显示。
+        """
         # Only forward the slot when a page fills it, so renderers with the older signature keep working.
         extra: dict[str, Markup | str] = {"bulk_actions_html": bulk_actions_html} if bulk_actions_html else {}
         return await self.get_renderer().render_shell(
@@ -165,7 +183,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         )
 
     def build_table_request(self, request: Any, *, route_kwargs: dict[str, object]) -> TableRequest:
-        """从 HTTP 请求构建标准 TableRequest。"""
+        """Build a standard TableRequest from an HTTP request.
+
+        从 HTTP 请求构建标准 TableRequest。
+        """
         args = getattr(request, "args", {}) or {}
         try:
             page_size = parse_positive_int(
@@ -186,7 +207,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         )
 
     async def get(self, request: Any, **route_kwargs: object):
-        """处理表格 data endpoint 请求。"""
+        """Handle a table data-endpoint request.
+
+        处理表格 data endpoint 请求。
+        """
         self.request = request
         try:
             table_request = self.build_table_request(request, route_kwargs=route_kwargs)
@@ -210,7 +234,9 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return html_response(await self.render_html_fragment(table_request, result))
 
     async def check_auth(self, table_request: TableRequest) -> bool:
-        """要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
+        """Check request- or database-dependent access, allowing by default and returning 403 on denial.
+
+        要看请求参数或查库才能决定的整体拒绝,默认允许;拒绝时 403。
 
         在参数解析之后执行,SQLAlchemy 表格的只读会话此时已经打开(``self.db_session``),可以用
         ``table_request`` 里的用户(``table_request.request``)、路径参数(``route_kwargs``)、筛选与搜索
@@ -221,11 +247,17 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return True
 
     async def get_object_list(self) -> Sequence[object]:
-        """返回结构化数据源。"""
+        """Return the structured data source.
+
+        返回结构化数据源。
+        """
         return []
 
     async def query_result(self, table_request: TableRequest) -> TableResult:
-        """执行结构化数据源查询生命周期。"""
+        """Run the structured-source query lifecycle.
+
+        执行结构化数据源查询生命周期。
+        """
         rows = list(await self.apply_base_filters(list(await self.get_object_list()), table_request))
         total = len(rows)  # like the SQL lifecycle: base filters shape the data, user filters narrow it
         rows = list(await self.apply_filters(rows, table_request))
@@ -255,11 +287,17 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=1, page_size=max(1, len(rows)))
 
     async def apply_base_filters(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
-        """应用服务端固定限制;第一个参数只按位置传,SQLAlchemy 表格的子类可以把它叫 ``query``。"""
+        """Apply fixed server-side restrictions using a positional-only first argument that SQLAlchemy subclasses may name query.
+
+        应用服务端固定限制;第一个参数只按位置传,SQLAlchemy 表格的子类可以把它叫 ``query``。
+        """
         return rows
 
     async def apply_filters(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
-        """按 filter_xxx 方法应用请求筛选。"""
+        """Apply requested filters through filter_xxx methods.
+
+        按 filter_xxx 方法应用请求筛选。
+        """
         current: Sequence[object] = rows
         for name, value in table_request.filters.items():
             method = getattr(self, f"filter_{safe_method_name(name)}", None)
@@ -269,7 +307,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return current
 
     async def apply_search(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
-        """按 search_fields 对结构化数据做大小写不敏感搜索。"""
+        """Search structured data case-insensitively using search_fields.
+
+        按 search_fields 对结构化数据做大小写不敏感搜索。
+        """
         term = table_request.q.strip().lower()
         if not term:
             return rows
@@ -322,7 +363,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return str(column.field_path), descending
 
     async def apply_ordering(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
-        """按 sort 参数对结构化数据排序。"""
+        """Sort structured data according to the sort parameter.
+
+        按 sort 参数对结构化数据排序。
+        """
         resolved = self.resolve_sort_field(table_request)
         if resolved is None:
             return rows
@@ -330,13 +374,19 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return sorted(rows, key=lambda row: sort_key(resolve_field_path(row, field)), reverse=descending)
 
     async def paginate(self, rows: Sequence[object], /, table_request: TableRequest) -> Sequence[object]:
-        """按页码和分页大小返回当前页数据。"""
+        """Return current-page data by page number and page size.
+
+        按页码和分页大小返回当前页数据。
+        """
         start = (table_request.page - 1) * table_request.page_size
         end = start + table_request.page_size
         return rows[start:end]
 
     async def preload_record_data(self, row: object) -> dict[str, object]:
-        """预加载当前行多个列共享的派生数据。"""
+        """Preload derived data shared by several columns in the current row.
+
+        预加载当前行多个列共享的派生数据。
+        """
         return {}
 
     async def build_row_contexts(self, rows: Sequence[object]) -> list[Mapping[str, object]]:
@@ -348,19 +398,31 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return [await self.preload_record_data(row) for row in rows]
 
     async def render_html_fragment(self, table_request: TableRequest, result: TableResult) -> Markup:
-        """渲染 HTML Table 局部片段。"""
+        """Render an HTML Table fragment.
+
+        渲染 HTML Table 局部片段。
+        """
         return await self.get_renderer().render_html_fragment(table_request, result)
 
     async def render_html_head(self) -> str:
-        """渲染带列 metadata 的表头。"""
+        """Render table headings with column metadata.
+
+        渲染带列 metadata 的表头。
+        """
         return str(await self.get_renderer().render_html_head())
 
     async def render_error_fragment(self, message: str) -> str:
-        """渲染表格错误局部片段。"""
+        """Render a table-error fragment.
+
+        渲染表格错误局部片段。
+        """
         return str(await self.get_renderer().render_error_fragment(message))
 
     async def render_request_error_response(self, request: Any, message: str, *, status: int):
-        """按请求头把表格请求错误转换为局部 HTML 或 JSON。"""
+        """Convert table request errors to partial HTML or JSON according to request headers.
+
+        按请求头把表格请求错误转换为局部 HTML 或 JSON。
+        """
         if self.resolve_response_type(request) == "json":
             response = DefaultApiResponse(
                 error_code=ApiErrorCode.INVALID_REQUEST,
@@ -371,7 +433,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return html_response(await self.render_error_fragment(message), status=status)
 
     async def render_permission_denied_response(self, request: Any, message: str | None = None):
-        """按请求头把表格权限错误转换为局部 HTML 或 JSON;没给消息时用通用的「没有权限」。"""
+        """Return partial HTML or JSON permission errors according to headers, defaulting to translated Permission denied.
+
+        按请求头把表格权限错误转换为局部 HTML 或 JSON;没给消息时用通用的「没有权限」。
+        """
         message = message or gettext("Permission denied", request=request)
         if self.resolve_response_type(request) == "json":
             response = DefaultApiResponse(
@@ -383,24 +448,39 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return html_response(await self.render_error_fragment(message), status=403)
 
     async def on_permission_denied(self, request: Any, response_mode: str, *, message: str, method_name: str):
-        """endpoint 级权限失败复用表格局部错误协议,并带上 check_permission 给的消息(与图表、HTTPMethodView 一致)。"""
+        """Use table-fragment errors for endpoint permission denial, preserving check_permission messages like charts and HTTPMethodView.
+
+        endpoint 级权限失败复用表格局部错误协议,并带上 check_permission 给的消息(与图表、HTTPMethodView 一致)。
+        """
         del response_mode, method_name
         return await self.render_permission_denied_response(request, message)
 
     async def render_html_row(self, row: object, context: Mapping[str, object], *, row_index: int, request: Any) -> str:
-        """渲染 HTML Table 单行。"""
+        """Render one HTML Table row.
+
+        渲染 HTML Table 单行。
+        """
         return str(await self.get_renderer().render_html_row(row, context, row_index=row_index, request=request))
 
     async def render_html_summary(self, result: TableResult) -> str:
-        """渲染表格总数摘要。"""
+        """Render the table-count summary.
+
+        渲染表格总数摘要。
+        """
         return str(await self.get_renderer().render_html_summary(result))
 
     async def render_html_pagination(self, result: TableResult) -> str:
-        """渲染服务端分页按钮。"""
+        """Render server-side pagination buttons.
+
+        渲染服务端分页按钮。
+        """
         return str(await self.get_renderer().render_html_pagination(result))
 
     def pagination_window(self, current_page: int, page_count: int) -> list[int]:
-        """返回分页窗口页码，避免大结果集输出过多按钮撑开页面。"""
+        """Return a page-number window to avoid excessive pagination buttons for large results.
+
+        返回分页窗口页码，避免大结果集输出过多按钮撑开页面。
+        """
         if page_count <= 9:
             return list(range(1, page_count + 1))
 
@@ -417,11 +497,17 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
     async def render_html_cell(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> str:
-        """渲染 HTML Table 单元格。"""
+        """Render an HTML Table cell.
+
+        渲染 HTML Table 单元格。
+        """
         return str(await self.get_renderer().render_html_cell(row, column, context, row_index=row_index, column_index=column_index, request=request))
 
     async def render_json_payload(self, table_request: TableRequest, result: TableResult[Any]) -> TableJsonPayload:
-        """渲染 JSON Table 协议 payload。"""
+        """Render the JSON Table protocol payload.
+
+        渲染 JSON Table 协议 payload。
+        """
         columns = self.get_columns()
         rows: list[TableRowPayload] = []
         for row_index, (row, context) in enumerate(zip(result.rows, result.row_contexts, strict=True)):
@@ -522,7 +608,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return "" if raw_value is None else str(raw_value)
 
     def get_row_data(self, row: object) -> dict[str, object]:
-        """返回安全的行级前端元数据。"""
+        """Return safe row-level browser metadata.
+
+        返回安全的行级前端元数据。
+        """
         row_id = self.get_row_id(row)
         return {"id": row_id} if row_id is not None else {}
 
@@ -538,7 +627,10 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
     async def get_cell_values(
         self, row: object, column: Column, context: Mapping[str, object], *, row_index: int, column_index: int, request: Any
     ) -> tuple[CellDisplayValue, CellRawValue]:
-        """读取单元格显示值和 raw 值。"""
+        """Read cell display and raw values.
+
+        读取单元格显示值和 raw 值。
+        """
         display_value, raw_value, _explicit = await self.resolve_cell_values(
             row, column, context, row_index=row_index, column_index=column_index, request=request
         )
@@ -590,12 +682,18 @@ class BaseTableView(DataEndpointMixin, HTTPMethodView):
         return normalize_display_value(default_value)
 
     def resolve_response_type(self, request: Any) -> str:
-        """根据 response_mode 参数优先、Accept 兜底判断响应类型。"""
+        """Choose response type from response_mode first, falling back to Accept.
+
+        根据 response_mode 参数优先、Accept 兜底判断响应类型。
+        """
         return resolve_response_mode(request)
 
 
 class SQLAlchemyTableView(BaseTableView):
-    """SQLAlchemy Table adapter 的占位基类。"""
+    """Placeholder base class for SQLAlchemy Table adapters.
+
+    SQLAlchemy Table adapter 的占位基类。
+    """
 
     # 多数据库业务通过子类覆盖该属性；默认对象仍由 DB 模块惰性初始化。
     database_manager: DatabaseManager = default_db_manager
@@ -605,11 +703,17 @@ class SQLAlchemyTableView(BaseTableView):
     db_session: AsyncSession | None = None
 
     async def get_queryset(self):
-        """返回基础 SQLAlchemy 查询。"""
+        """Return the base SQLAlchemy query.
+
+        返回基础 SQLAlchemy 查询。
+        """
         raise NotImplementedError("SQLAlchemyTableView.get_queryset() must be implemented by subclasses")
 
     async def get(self, request: Any, **route_kwargs: object):
-        """在同一个只读数据库 session 内完成表格查询和响应渲染。"""
+        """Query and render table responses within one read-only database session.
+
+        在同一个只读数据库 session 内完成表格查询和响应渲染。
+        """
         try:
             self.build_table_request(request, route_kwargs=route_kwargs)
         except TableInvalidRequest as exc:
@@ -622,7 +726,10 @@ class SQLAlchemyTableView(BaseTableView):
                 self.db_session = None
 
     async def query_result(self, table_request: TableRequest) -> TableResult:
-        """使用当前请求 session 完成 SQLAlchemy 表格查询生命周期。"""
+        """Run SQLAlchemy table queries using the current request session.
+
+        使用当前请求 session 完成 SQLAlchemy 表格查询生命周期。
+        """
         query = await self.get_queryset()
         query = self.apply_loader_options(query)
         query = await self.apply_base_filters(query, table_request)
@@ -658,13 +765,19 @@ class SQLAlchemyTableView(BaseTableView):
         return TableResult(rows=rows, row_contexts=row_contexts, total=total, filtered_total=filtered_total, page=1, page_size=max(1, len(rows)))
 
     def apply_loader_options(self, query: Any) -> Any:
-        """统一应用关系预加载配置，避免业务 get_queryset 重复手写 options。"""
+        """Apply relationship-preloading configuration centrally without repeated options in business get_queryset methods.
+
+        统一应用关系预加载配置，避免业务 get_queryset 重复手写 options。
+        """
         if not self.loader_options:
             return query
         return query.options(*self.loader_options)
 
     async def apply_search(self, query: Any, /, table_request: TableRequest) -> Any:
-        """把 search_fields 转换为 SQL LIKE 条件。"""
+        """Convert search_fields to SQL LIKE conditions.
+
+        把 search_fields 转换为 SQL LIKE 条件。
+        """
         term = table_request.q.strip()
         if not term or not self.search_fields:
             return query
@@ -677,7 +790,10 @@ class SQLAlchemyTableView(BaseTableView):
         return current_query.where(or_(*expressions))
 
     async def apply_ordering(self, query: Any, /, table_request: TableRequest) -> Any:
-        """把 sort 或默认 ordering 转换为 SQL ORDER BY。"""
+        """Convert sort or default ordering to SQL ORDER BY.
+
+        把 sort 或默认 ordering 转换为 SQL ORDER BY。
+        """
         resolved = self.resolve_sort_field(table_request)
         if resolved is None:
             return query
@@ -690,14 +806,20 @@ class SQLAlchemyTableView(BaseTableView):
         return joined_query.order_by(sql_field.desc() if descending else sql_field.asc())
 
     async def paginate(self, query: Any, /, table_request: TableRequest) -> list[object]:
-        """执行分页查询。"""
+        """Execute a paginated query.
+
+        执行分页查询。
+        """
         result = await self.require_db_session().execute(
             query.limit(table_request.page_size).offset((table_request.page - 1) * table_request.page_size)
         )
         return list(result.scalars().all())
 
     async def get_total_count(self, query: Any) -> int:
-        """执行去掉排序和分页的 count 查询。"""
+        """Execute a count query without ordering or pagination.
+
+        执行去掉排序和分页的 count 查询。
+        """
         count_query = select(func.count()).select_from(query.order_by(None).subquery())
         return int((await self.require_db_session().execute(count_query)).scalar_one() or 0)
 
@@ -709,7 +831,9 @@ class SQLAlchemyTableView(BaseTableView):
         terminal_relationship_local_key: bool = False,
         isouter: bool = True,
     ) -> tuple[Any, Any]:
-        """解析字段路径，并为关系字段补齐显式 JOIN。
+        """Resolve field paths and add explicit JOINs for relationship fields.
+
+        解析字段路径，并为关系字段补齐显式 JOIN。
 
         JOIN 在这里只为读到关联表的某一列，所以默认是 LEFT OUTER JOIN：没有关联记录的行仍然留在
         列表里（搜索时它们匹配不到这一列，排序时排在一端）。想用 JOIN 顺带过滤掉这些行时传

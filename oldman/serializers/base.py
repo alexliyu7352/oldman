@@ -72,7 +72,8 @@ class MsgspecModel(msgspec.Struct):
 
 
 class DataclassModelMixin:
-    """
+    """Consistent dataclass encoding/decoding APIs and JSON file access.
+
     给 dataclass 提供一致的编解码 API，以及 JSON 文件读写。
     编码：JSON 用 orjson，MsgPack 用 msgspec。解码与 MsgspecModel 一致，由 msgspec 按字段类型还原
     （枚举、时间、嵌套 dataclass 都还原成原类型）；多余的键忽略，类型不符抛 msgspec.ValidationError。
@@ -111,7 +112,10 @@ class DataclassModelMixin:
 
     # ---- JSON 文件 ----
     def to_json_file(self, path: str | os.PathLike[str]) -> None:
-        """写成缩进两格的 UTF-8 JSON，整体替换原文件（见 atomic_write）；父目录不存在时创建，失败抛异常。"""
+        """Atomically replace a file with two-space-indented UTF-8 JSON, creating missing parent directories and propagating failures.
+
+        写成缩进两格的 UTF-8 JSON，整体替换原文件（见 atomic_write）；父目录不存在时创建，失败抛异常。
+        """
         payload = orjson.dumps(asdict(self), option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE)  # type: ignore[arg-type]
         atomic_write(path, payload, follow_symlinks=True)
 
@@ -120,7 +124,9 @@ class DataclassModelMixin:
 
     @classmethod
     def from_json_file(cls, path: str | os.PathLike[str]) -> Self:
-        """从 JSON 文件读取。
+        """Read from a JSON file.
+
+        从 JSON 文件读取。
 
         文件不存在抛 FileNotFoundError，要不要用默认值由调用方决定；内容不是合法 JSON 抛
         msgspec.DecodeError，字段类型不符抛 msgspec.ValidationError（它是 DecodeError 的子类）。

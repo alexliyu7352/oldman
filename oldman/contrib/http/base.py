@@ -22,10 +22,16 @@ if TYPE_CHECKING:
 
 
 class BaseHttpClient:
-    """所有HTTP客户端实现必须遵循的基础接口"""
+    """Base interface required of all HTTP client implementations.
+
+    所有HTTP客户端实现必须遵循的基础接口
+    """
 
     async def init_client(self) -> None:
-        """初始化 backend，但不要求立即建立网络连接。"""
+        """Initialize the backend without requiring an immediate network connection.
+
+        初始化 backend，但不要求立即建立网络连接。
+        """
 
         raise NotImplementedError
 
@@ -47,12 +53,17 @@ class BaseHttpClient:
             raise RuntimeError("HTTP 客户端已经关闭，不再新建会话")
 
     async def close_session(self, session: Any) -> None:
-        """关闭一个活动会话。子类用自己的关闭调用覆盖它。"""
+        """Close an active session using the subclass-specific implementation.
+
+        关闭一个活动会话。子类用自己的关闭调用覆盖它。
+        """
 
         raise NotImplementedError
 
     async def reset_client(self) -> bool:
-        """丢弃当前会话，下次请求会重新建立。失败向上抛，由调用方决定冷却。
+        """Discard the session for recreation on the next request, propagating failures so callers can choose a cooldown.
+
+        丢弃当前会话，下次请求会重新建立。失败向上抛，由调用方决定冷却。
 
         **先摘引用，再关闭。** `close_session` 抛错或被取消时，属性已经是 None，下一次请求
         会新建会话；反过来先关后清，那个关不掉的会话会被继续复用，而上层挡不住——
@@ -73,7 +84,9 @@ class BaseHttpClient:
         return True
 
     async def close_client(self) -> bool:
-        """释放会话资源。
+        """Release session resources.
+
+        释放会话资源。
 
         永远不抛普通异常：调用方大多是业务里的收尾代码，不应该被迫去 catch。失败时
         记日志、返回 False，并且**保留会话**——上层据此保留 backend 引用，退出清理或
@@ -94,16 +107,25 @@ class BaseHttpClient:
         return True
 
     def export_cookie_jar(self, destination: CookieJar) -> None:
-        """把 backend 运行态 Cookie 导出到标准库 jar；直接使用该 jar 的实现无需处理。"""
+        """Export backend Cookies to the standard-library jar unless the backend already uses it directly.
+
+        把 backend 运行态 Cookie 导出到标准库 jar；直接使用该 jar 的实现无需处理。
+        """
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
-        """执行普通请求并返回统一的缓冲响应。"""
+        """Execute an ordinary request and return a common buffered response.
+
+        执行普通请求并返回统一的缓冲响应。
+        """
 
         raise NotImplementedError
 
     @asynccontextmanager
     async def stream(self, method: HttpMethod, url: str, **kwargs: Any) -> AsyncIterator[HttpStreamResponse]:
-        """打开统一的流式响应上下文。"""
+        """Open a common streaming-response context.
+
+        打开统一的流式响应上下文。
+        """
 
         raise NotImplementedError
         yield  # pragma: no cover
@@ -116,25 +138,40 @@ class BaseHttpClient:
         live_stream: bool = False,
         **kwargs: Any,
     ) -> AsyncIterator[Any]:
-        """打开供断点续传包装器管理的 backend 流上下文。"""
+        """Open a backend stream context managed by the resumption wrapper.
+
+        打开供断点续传包装器管理的 backend 流上下文。
+        """
 
         raise NotImplementedError
         yield  # pragma: no cover
 
     async def get(self, url: str, **kwargs: Any) -> HttpResponse:
-        """GET请求"""
+        """Send a GET request.
+
+        GET请求
+        """
         return await self.request(HttpMethod.GET, url, **kwargs)
 
     async def post(self, url: str, **kwargs: Any) -> HttpResponse:
-        """POST请求"""
+        """Send a POST request.
+
+        POST请求
+        """
         return await self.request(HttpMethod.POST, url, **kwargs)
 
     async def put(self, url: str, **kwargs: Any) -> HttpResponse:
-        """PUT请求"""
+        """Send a PUT request.
+
+        PUT请求
+        """
         return await self.request(HttpMethod.PUT, url, **kwargs)
 
     async def delete(self, url: str, **kwargs: Any) -> HttpResponse:
-        """DELETE请求"""
+        """Send a DELETE request.
+
+        DELETE请求
+        """
         return await self.request(HttpMethod.DELETE, url, **kwargs)
 
 

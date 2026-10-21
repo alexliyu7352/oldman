@@ -104,7 +104,7 @@ class · defined in `oldman.conf.containers`
 class AsyncConfigDict
 ```
 
-轻量级异步配置缓存。已废弃：改用 YamlStore，值由 MsgspecModel schema 声明。
+Deprecated: use YamlStore with a MsgspecModel schema instead of this lightweight asynchronous configuration cache.
 
 Constructor:
 
@@ -114,11 +114,11 @@ AsyncConfigDict(config_path: str | Path, check_interval: float=5.0, auto_reload:
 
 Members:
 
-- `def get_empty_data() -> dict[str, Any]` — 获取一个空的数据结构
-- `def on_file_changed(old_data: dict, new_data: dict) -> None` — 子类重写此方法来感知数据变化并更新内部缓存
-- `async def get_data(force_check: bool=False) -> dict[str, Any]` — 获取配置数据
-- `def get_data_sync() -> dict[str, Any]` — 同步获取数据(不检查更新)
-- `async def save_data(data: dict[str, Any]) -> None` — 保存数据
+- `def get_empty_data() -> dict[str, Any]` — Return an empty data structure.
+- `def on_file_changed(old_data: dict, new_data: dict) -> None` — Override to detect data changes and update the internal cache.
+- `async def get_data(force_check: bool=False) -> dict[str, Any]` — Return configuration data.
+- `def get_data_sync() -> dict[str, Any]` — Return configuration data synchronously without checking for updates.
+- `async def save_data(data: dict[str, Any]) -> None` — Save configuration data.
 
 ### `RedisSet`
 
@@ -128,7 +128,7 @@ class · defined in `oldman.conf.containers`
 class RedisSet
 ```
 
-Redis 原生集合 ``<服务命名空间>:store:<name>``，成员是 str 或 int。
+A native Redis set at ``<service namespace>:store:<name>`` with str or int members.
 
 Constructor:
 
@@ -186,7 +186,7 @@ class · defined in `oldman.conf.containers`
 class RedisStore(TypedStore[T])
 ```
 
-存在一个 Redis 键里的类型化配置：``<服务命名空间>:store:<name>``，值是整个 schema 的 msgpack。
+Typed configuration stored as whole-schema MessagePack at Redis key ``<service namespace>:store:<name>``.
 
 Constructor:
 
@@ -197,7 +197,7 @@ RedisStore(schema: type[T], name: str, *, client: BinaryRedisClient | None=None)
 Members:
 
 - `property key: str` — The Redis key; building it needs the service settings.
-- `async def get() -> T` — 当前值。每次都是新解码的对象，改了再 save 即可。
+- `async def get() -> T` — Return a freshly decoded current value that can be modified and saved.
 
 ### `YamlStore`
 
@@ -207,7 +207,7 @@ class · defined in `oldman.conf.containers`
 class YamlStore(TypedStore[T])
 ```
 
-存在一个 YAML 文件里的类型化配置。
+Typed configuration stored in one YAML file.
 
 Constructor:
 
@@ -217,8 +217,8 @@ YamlStore(schema: type[T], config_path: str | Path, *, check_interval: float=5.0
 
 Members:
 
-- `async def get() -> T` — 当前值。它是共享对象：改了就 save；只想临时换个值用，先复制一份（msgspec.structs.replace）。
-- `def on_file_changed(old: T, new: T) -> None` — 文件被外部修改（包括删除）并重新加载之后调用；子类在这里重置由配置派生的状态。
+- `async def get() -> T` — Return the shared current value; save mutations or copy with msgspec.structs.replace for temporary changes.
+- `def on_file_changed(old: T, new: T) -> None` — Reset configuration-derived state after external file changes, including deletion, have been reloaded.
 
 ## Module `oldman.conf.manager`
 

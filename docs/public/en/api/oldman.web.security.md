@@ -14,7 +14,7 @@ class · defined in `oldman.web.security.decryptors`
 class AESGcmDecrypt
 ```
 
-解密前端 Web Crypto API 加密的数据。
+Decrypt data encrypted by the browser Web Crypto API.
 
 Members:
 
@@ -79,7 +79,7 @@ function · defined in `oldman.web.security.fingerprint`
 def get_fingerprint_from_front(encrypted_b64: str, aes_secret_key: str, max_diff: int) -> tuple[str, str]
 ```
 
-从解密后的数据中提取指纹
+Extract the fingerprint from decrypted data.
 
 ## `get_stats`
 
@@ -89,7 +89,7 @@ function · defined in `oldman.web.security.fingerprint`
 async def get_stats(fingerprint: str)
 ```
 
-管理接口 - 查看指纹统计
+Management endpoint for fingerprint statistics.
 
 ## `log_fake_fingerprint_attempt`
 
@@ -99,7 +99,7 @@ function · defined in `oldman.web.security.fingerprint`
 async def log_fake_fingerprint_attempt(ip: str, reason: str)
 ```
 
-记录伪造指纹尝试
+Record a forged-fingerprint attempt.
 
 ## `validate_payload`
 
@@ -109,7 +109,7 @@ function · defined in `oldman.web.security.fingerprint`
 def validate_payload(payload: dict, max_diff: int) -> tuple[bool, str, str]
 ```
 
-验证解密后的数据
+Validate decrypted data.
 
 ## `WebSecurityPurpose`
 

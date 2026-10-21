@@ -14,12 +14,18 @@ from oldman.utils.crypto import constant_time_equals
 
 
 class SelectBindError(ValueError):
-    """远程选择器绑定签名无效。"""
+    """Invalid remote-selector binding signature.
+
+    远程选择器绑定签名无效。
+    """
 
 
 @dataclass(frozen=True)
 class SelectContext:
-    """远程选择器签名绑定上下文。"""
+    """Signed remote-selector binding context.
+
+    远程选择器签名绑定上下文。
+    """
 
     provider: str
     field_name: str
@@ -31,14 +37,20 @@ class SelectContext:
 
 
 def sign_select_context(context: SelectContext, *, secret_key: str) -> str:
-    """签名远程选择器上下文并返回前端 bind 值。"""
+    """Sign a remote-selector context and return the browser bind value.
+
+    签名远程选择器上下文并返回前端 bind 值。
+    """
     payload = _encode_json(_context_payload(context))
     signature = _signature(payload, secret_key=secret_key)
     return f"{payload}.{signature}"
 
 
 def verify_select_context(bind: str, *, secret_key: str) -> SelectContext:
-    """验证 bind 签名并恢复 SelectContext。"""
+    """Verify the bind signature and restore SelectContext.
+
+    验证 bind 签名并恢复 SelectContext。
+    """
     try:
         payload, signature = bind.rsplit(".", 1)
     except ValueError as exc:

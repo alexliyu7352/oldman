@@ -28,7 +28,10 @@ class TaskStatus(StrEnum):
 
 
 class BaseTask(ABC):
-    """简化的任务基类 - 只包含核心功能"""
+    """A minimal task base class containing only core functionality.
+
+    简化的任务基类 - 只包含核心功能
+    """
 
     def __init__(self, task_id: str, **kwargs):
         self.task_id = task_id
@@ -37,16 +40,25 @@ class BaseTask(ABC):
 
     @abstractmethod
     async def execute(self) -> Any:
-        """执行任务的抽象方法"""
+        """Abstract method for task execution.
+
+        执行任务的抽象方法
+        """
         pass
 
     def get_running_status(self) -> dict:
         return {}
 
     async def cleanup(self) -> None:
-        """任务清理（默认实现，子类可重写）"""
+        """Clean up the task, with a default implementation that subclasses may override.
+
+        任务清理（默认实现，子类可重写）
+        """
         logger.debug(f"任务 {self.task_id} 清理完成")
 
     def update_status(self, status: TaskStatus) -> None:
-        """更新任务状态"""
+        """Update task status.
+
+        更新任务状态
+        """
         self.status = status

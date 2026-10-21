@@ -27,18 +27,27 @@ class SelectPermissionDenied(PermissionError):
 
 
 class SelectProviderConfigError(RuntimeError):
-    """Provider 配置错误。"""
+    """Provider configuration error.
+
+    Provider 配置错误。
+    """
 
 
 class SelectProvider:
-    """Select/Autocomplete provider 基类。"""
+    """Base class for Select/Autocomplete providers.
+
+    Select/Autocomplete provider 基类。
+    """
 
     page_size: int = 20
     max_page_size: int = 100
     db_session: AsyncSession | None = None
 
     async def handle_request(self, request: Any, *, context: SelectContext) -> dict[str, Any]:
-        """处理请求并把 provider 级业务错误转换为统一 API payload。"""
+        """Handle requests and convert provider business errors to common API payloads.
+
+        处理请求并把 provider 级业务错误转换为统一 API payload。
+        """
         try:
             return await self.handle_valid_request(request, context=context)
         except SelectInvalidRequest as exc:
@@ -47,7 +56,10 @@ class SelectProvider:
             return provider_api_error(ApiErrorCode.PERMISSION_DENIED, str(exc), {"permission": str(exc)})
 
     async def handle_valid_request(self, request: Any, *, context: SelectContext) -> dict[str, Any]:
-        """处理搜索分页或初始值回显请求。"""
+        """Handle paginated searches or initial-value display requests.
+
+        处理搜索分页或初始值回显请求。
+        """
         depends = self.read_depends(request, context)
         values = self.read_initial_values(request)
         if values:
@@ -66,7 +78,10 @@ class SelectProvider:
         return result.to_json(label_mode=context.label_mode)
 
     async def check_auth(self, request: Any, context: SelectContext) -> bool:
-        """检查当前请求是否允许访问 provider。"""
+        """Check whether the current request may access the provider.
+
+        检查当前请求是否允许访问 provider。
+        """
         return True
 
     async def search(
@@ -79,19 +94,31 @@ class SelectProvider:
         page: int,
         page_size: int,
     ) -> SelectResult:
-        """执行搜索分页查询。"""
+        """Run a paginated search query.
+
+        执行搜索分页查询。
+        """
         raise NotImplementedError
 
     async def get_initial(self, request: Any, context: SelectContext, values: list[str], depends: dict[str, str]) -> list[SelectChoice]:
-        """按输入顺序返回初始值可见候选。"""
+        """Return visible initial-value candidates in input order.
+
+        按输入顺序返回初始值可见候选。
+        """
         raise NotImplementedError
 
     def get_option(self, obj: object) -> SelectChoice:
-        """把候选对象转换为 SelectChoice。"""
+        """Convert a candidate object to SelectChoice.
+
+        把候选对象转换为 SelectChoice。
+        """
         raise NotImplementedError
 
     def read_depends(self, request: Any, context: SelectContext) -> dict[str, str]:
-        """读取并校验白名单依赖字段。"""
+        """Read and validate allowlisted dependent fields.
+
+        读取并校验白名单依赖字段。
+        """
         depends: dict[str, str] = {}
         for key, value in iter_args(getattr(request, "args", {})):
             if not key.startswith("depends[") or not key.endswith("]"):
@@ -105,7 +132,10 @@ class SelectProvider:
         return depends
 
     def read_initial_values(self, request: Any) -> list[str]:
-        """读取单选 value 或多选 values 初始值。"""
+        """Read initial single value or multiple values.
+
+        读取单选 value 或多选 values 初始值。
+        """
         values = getlist_arg(request.args, "values")
         if values:
             return [str(value) for value in values if str(value) != ""]
@@ -113,16 +143,25 @@ class SelectProvider:
         return [str(value)] if value not in {"", None} else []
 
     def resolve_page_size(self, request: Any, context: SelectContext) -> int:
-        """解析分页大小并应用 provider 与签名上下文上限。"""
+        """Parse page size and apply provider and signed-context limits.
+
+        解析分页大小并应用 provider 与签名上下文上限。
+        """
         maximum = min(self.max_page_size, self.page_size, context.page_size)
         return read_positive_int_arg(request.args, "page_size", default=maximum, maximum=maximum)
 
 
 class DataSelectProvider(SelectProvider):
-    """结构化数据 Select/Autocomplete provider。"""
+    """Select/Autocomplete provider for structured data.
+
+    结构化数据 Select/Autocomplete provider。
+    """
 
     async def get_choices(self, request: Any, context: SelectContext) -> Sequence[object]:
-        """返回结构化候选数据。"""
+        """Return structured candidate data.
+
+        返回结构化候选数据。
+        """
         return []
 
     async def search(
@@ -135,7 +174,10 @@ class DataSelectProvider(SelectProvider):
         page: int,
         page_size: int,
     ) -> SelectResult:
-        """在 Python 层完成结构化数据搜索和分页。"""
+        """Search and paginate structured data in Python.
+
+        在 Python 层完成结构化数据搜索和分页。
+        """
         choices = await self.filter_queryset(request, context, await self.get_choices(request, context), term, depends)
         start = (page - 1) * page_size
         window = list(choices)[start : start + page_size + 1]
@@ -149,20 +191,29 @@ class DataSelectProvider(SelectProvider):
         term: str,
         depends: dict[str, str],
     ) -> Sequence[object]:
-        """按文本标签执行默认大小写不敏感搜索。"""
+        """Search text labels case-insensitively by default.
+
+        按文本标签执行默认大小写不敏感搜索。
+        """
         if not term.strip():
             return choices
         normalized = term.strip().lower()
         return [choice for choice in choices if normalized in self.get_option(choice).text.lower()]
 
     async def get_initial(self, request: Any, context: SelectContext, values: list[str], depends: dict[str, str]) -> list[SelectChoice]:
-        """按输入 values 顺序回显当前可见候选。"""
+        """Display currently visible candidates in supplied values order.
+
+        按输入 values 顺序回显当前可见候选。
+        """
         options = [self.get_option(item) for item in await self.get_choices(request, context)]
         by_id = {str(option.id): option for option in options}
         return [by_id[value] for value in values if value in by_id]
 
     def get_option(self, obj: object) -> SelectChoice:
-        """默认支持 (value, label)、dict 和普通对象。"""
+        """Support value/label pairs, dicts, and ordinary objects by default.
+
+        默认支持 (value, label)、dict 和普通对象。
+        """
         if isinstance(obj, SelectChoice):
             return obj
         if isinstance(obj, tuple):
@@ -177,7 +228,10 @@ class DataSelectProvider(SelectProvider):
 
 
 class ModelSelectProvider(SelectProvider):
-    """SQLAlchemy Select/Autocomplete provider 基类。"""
+    """Base class for SQLAlchemy Select/Autocomplete providers.
+
+    SQLAlchemy Select/Autocomplete provider 基类。
+    """
 
     # 多数据库业务通过子类覆盖该属性；默认对象仍由 DB 模块惰性初始化。
     database_manager: DatabaseManager = default_db_manager
@@ -187,7 +241,10 @@ class ModelSelectProvider(SelectProvider):
     value_field: str = "id"
 
     async def handle_request(self, request: Any, *, context: SelectContext) -> dict[str, Any]:
-        """在同一个只读 session 内处理数据库型 provider 请求。"""
+        """Handle database-provider requests within one read-only session.
+
+        在同一个只读 session 内处理数据库型 provider 请求。
+        """
         async with self.database_manager.get_read_session() as session:
             self.db_session = session
             try:
@@ -196,7 +253,10 @@ class ModelSelectProvider(SelectProvider):
                 self.db_session = None
 
     async def get_queryset(self, request: Any, context: SelectContext):
-        """返回基础 SQLAlchemy 查询。"""
+        """Return the base SQLAlchemy query.
+
+        返回基础 SQLAlchemy 查询。
+        """
         raise NotImplementedError("ModelSelectProvider.get_queryset() must be implemented")
 
     async def search(
@@ -209,7 +269,10 @@ class ModelSelectProvider(SelectProvider):
         page: int,
         page_size: int,
     ) -> SelectResult:
-        """执行数据库搜索分页查询。"""
+        """Run a paginated database search.
+
+        执行数据库搜索分页查询。
+        """
         query = await self.get_queryset(request, context)
         query = await self.filter_queryset(request, context, query, term, depends)
         session = self.require_db_session()
@@ -218,7 +281,10 @@ class ModelSelectProvider(SelectProvider):
         return SelectResult(results=[self.get_option(row) for row in rows[:page_size]], more=len(rows) > page_size)
 
     async def filter_queryset(self, request: Any, context: SelectContext, query: Any, term: str, depends: dict[str, str]):
-        """按 search_fields 生成默认 SQL LIKE 搜索。"""
+        """Build default SQL LIKE searches from search_fields.
+
+        按 search_fields 生成默认 SQL LIKE 搜索。
+        """
         if not term.strip() or not self.search_fields:
             return query
         like = f"%{term.strip()}%"
@@ -228,7 +294,10 @@ class ModelSelectProvider(SelectProvider):
         return query.where(or_(*expressions))
 
     async def get_initial(self, request: Any, context: SelectContext, values: list[str], depends: dict[str, str]) -> list[SelectChoice]:
-        """按输入顺序读取初始值候选。"""
+        """Read initial-value candidates in input order.
+
+        按输入顺序读取初始值候选。
+        """
         query = await self.get_queryset(request, context)
         if self.model is None:
             raise SelectProviderConfigError("ModelSelectProvider.model must be set")
@@ -239,7 +308,10 @@ class ModelSelectProvider(SelectProvider):
         return [by_id[value] for value in values if value in by_id]
 
     def get_option(self, obj: object) -> SelectChoice:
-        """把 SQLAlchemy model 实例转换为 SelectChoice。"""
+        """Convert a SQLAlchemy model instance to SelectChoice.
+
+        把 SQLAlchemy model 实例转换为 SelectChoice。
+        """
         return SelectChoice(id=getattr(obj, self.value_field), text=str(getattr(obj, self.label_field)))
 
     def require_db_session(self) -> AsyncSession:

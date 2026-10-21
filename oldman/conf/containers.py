@@ -64,7 +64,10 @@ async def _replace_file_text(
 
 
 class AsyncConfigDict:
-    """轻量级异步配置缓存。已废弃：改用 YamlStore，值由 MsgspecModel schema 声明。"""
+    """Deprecated: use YamlStore with a MsgspecModel schema instead of this lightweight asynchronous configuration cache.
+
+    轻量级异步配置缓存。已废弃：改用 YamlStore，值由 MsgspecModel schema 声明。
+    """
 
     def __init__(
         self,
@@ -96,7 +99,10 @@ class AsyncConfigDict:
             return await f.read()
 
     def get_empty_data(self) -> dict[str, Any]:
-        """获取一个空的数据结构"""
+        """Return an empty data structure.
+
+        获取一个空的数据结构
+        """
         return {}
 
     def _should_check(self, force: bool = False) -> bool:
@@ -195,7 +201,9 @@ class AsyncConfigDict:
                 return False
 
     def on_file_changed(self, old_data: dict, new_data: dict) -> None:
-        """子类重写此方法来感知数据变化并更新内部缓存
+        """Override to detect data changes and update the internal cache.
+
+        子类重写此方法来感知数据变化并更新内部缓存
 
         Args:
             old_data: 旧数据
@@ -204,7 +212,9 @@ class AsyncConfigDict:
         pass
 
     async def get_data(self, force_check: bool = False) -> dict[str, Any]:
-        """获取配置数据
+        """Return configuration data.
+
+        获取配置数据
 
         Args:
             force_check: 是否强制检查更新(忽略时间间隔)
@@ -213,12 +223,18 @@ class AsyncConfigDict:
         return self._data
 
     def get_data_sync(self) -> dict[str, Any]:
-        """同步获取数据(不检查更新)"""
+        """Return configuration data synchronously without checking for updates.
+
+        同步获取数据(不检查更新)
+        """
         with self._thread_lock:
             return self._data  # 直接返回引用
 
     async def save_data(self, data: dict[str, Any]) -> None:
-        """保存数据"""
+        """Save configuration data.
+
+        保存数据
+        """
         async with self._reload_lock:
             await self._write_data_unlocked(data)
 
@@ -285,7 +301,9 @@ class TypedStore[T: MsgspecModel](ABC):
 
 
 class YamlStore[T: MsgspecModel](TypedStore[T]):
-    """存在一个 YAML 文件里的类型化配置。
+    """Typed configuration stored in one YAML file.
+
+    存在一个 YAML 文件里的类型化配置。
 
     进程内保存解码好的值：check_interval 秒内不碰磁盘，到期只 stat 一次，文件变了才重新解析。
     文件不存在时把 schema 默认值写成文件。外部修改文件后调用 on_file_changed；自己的 save / update 不调用。
@@ -303,7 +321,9 @@ class YamlStore[T: MsgspecModel](TypedStore[T]):
         self._resync = False
 
     async def get(self) -> T:
-        """当前值。它是共享对象：改了就 save；只想临时换个值用，先复制一份（msgspec.structs.replace）。
+        """Return the shared current value; save mutations or copy with msgspec.structs.replace for temporary changes.
+
+        当前值。它是共享对象：改了就 save；只想临时换个值用，先复制一份（msgspec.structs.replace）。
 
         第一次加载时文件内容不合法，抛出解析或校验的错误；之后外部改坏的内容不采用，保留上次的合法值并记 ERROR。
         """
@@ -314,7 +334,10 @@ class YamlStore[T: MsgspecModel](TypedStore[T]):
             return await self._read()
 
     def on_file_changed(self, old: T, new: T) -> None:
-        """文件被外部修改（包括删除）并重新加载之后调用；子类在这里重置由配置派生的状态。"""
+        """Reset configuration-derived state after external file changes, including deletion, have been reloaded.
+
+        文件被外部修改（包括删除）并重新加载之后调用；子类在这里重置由配置派生的状态。
+        """
 
     async def _latest(self) -> T:
         # 不管 check_interval：另一个进程（多 worker 时每个 worker 各有一个实例）几秒前保存的修改，
@@ -424,7 +447,9 @@ def _store_key_name(name: str) -> str:
 
 
 class RedisStore[T: MsgspecModel](TypedStore[T]):
-    """存在一个 Redis 键里的类型化配置：``<服务命名空间>:store:<name>``，值是整个 schema 的 msgpack。
+    """Typed configuration stored as whole-schema MessagePack at Redis key ``<service namespace>:store:<name>``.
+
+    存在一个 Redis 键里的类型化配置：``<服务命名空间>:store:<name>``，值是整个 schema 的 msgpack。
 
     不做本地缓存：每次 get() 读一次 Redis，别的进程写入后下一次读取即可见。键不存在时取 schema 的默认值，不写入。
     存的值与 schema 对不上抛 msgspec.ValidationError，不回落默认值；schema 删掉的字段忽略，新加的字段取默认值。
@@ -444,7 +469,10 @@ class RedisStore[T: MsgspecModel](TypedStore[T]):
         return redis_key("store", self.name)
 
     async def get(self) -> T:
-        """当前值。每次都是新解码的对象，改了再 save 即可。"""
+        """Return a freshly decoded current value that can be modified and saved.
+
+        当前值。每次都是新解码的对象，改了再 save 即可。
+        """
         return await self._read()
 
     async def _read(self) -> T:
@@ -456,7 +484,9 @@ class RedisStore[T: MsgspecModel](TypedStore[T]):
 
 
 class RedisSet[E: (str, int)]:
-    """Redis 原生集合 ``<服务命名空间>:store:<name>``，成员是 str 或 int。
+    """A native Redis set at ``<service namespace>:store:<name>`` with str or int members.
+
+    Redis 原生集合 ``<服务命名空间>:store:<name>``，成员是 str 或 int。
 
     每个操作直接落到 Redis（SADD、SISMEMBER、SRANDMEMBER…），不把整个集合读出来，适合在请求路径上判断名单。
     成员按类型编码，按精确类型检查：int 集合不收 True 或 "1"。与 RedisStore 共用 ``store`` 下的键名，名字不能重复。

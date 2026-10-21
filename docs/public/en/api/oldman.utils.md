@@ -20,7 +20,7 @@ function · defined in `oldman.utils.crypto`
 def aes_decrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, ciphertext: bytes) -> bytes
 ```
 
-AES-CBC + PKCS7 解密，只为与已有协议互通；填充不合法时抛 ValueError。
+Decrypt with AES-CBC and PKCS7 only for protocol compatibility, raising ValueError for invalid padding.
 
 ### `aes_encrypt_cbc_pkcs7`
 
@@ -30,7 +30,7 @@ function · defined in `oldman.utils.crypto`
 def aes_encrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, plaintext: bytes) -> bytes
 ```
 
-AES-CBC + PKCS7 加密，只为与已有协议互通。
+Encrypt with AES-CBC and PKCS7 only for compatibility with existing protocols.
 
 ### `aes_gcm_decrypt`
 
@@ -80,7 +80,7 @@ function · defined in `oldman.utils.crypto`
 def pad_pkcs7(data: bytes, block_size: int=128) -> bytes
 ```
 
-PKCS7 填充到 block_size 的整数倍。block_size 的单位是**比特**（cryptography 的约定），AES 为 128。
+Apply PKCS7 padding to a multiple of block_size bits, using 128 for AES as required by cryptography.
 
 ### `pbkdf2_sha256`
 
@@ -108,7 +108,7 @@ function · defined in `oldman.utils.crypto`
 def unpad_pkcs7(data: bytes, block_size: int=128) -> bytes
 ```
 
-去掉 PKCS7 填充；填充不合法时抛 ValueError。block_size 的单位是比特，AES 为 128。
+Remove PKCS7 padding, raising ValueError if invalid; block_size is in bits, with 128 for AES.
 
 ### `UrlSealer`
 
@@ -143,7 +143,7 @@ function · defined in `oldman.utils.date`
 def naive_utcnow() -> datetime
 ```
 
-当前 UTC 时间，去掉 tzinfo。
+Return the current UTC time without tzinfo.
 
 ## Module `oldman.utils.module_loading`
 

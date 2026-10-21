@@ -8,21 +8,30 @@ from .renderers import TailwindFieldRenderer, TailwindFormRenderer
 
 
 class TailwindForm(Form):
-    """业务默认 Tailwind 普通表单基类。"""
+    """Default Tailwind base for ordinary business forms.
+
+    业务默认 Tailwind 普通表单基类。
+    """
 
     renderer_class = TailwindFormRenderer
     field_renderer_class = TailwindFieldRenderer
 
 
 class TailwindTableFilterForm(TableFilterForm):
-    """业务默认 Tailwind 表格筛选表单基类。"""
+    """Default Tailwind base for business table-filter forms.
+
+    业务默认 Tailwind 表格筛选表单基类。
+    """
 
     renderer_class = TailwindFormRenderer
     field_renderer_class = TailwindFieldRenderer
 
 
 class TailwindModelForm(ModelForm):
-    """业务默认 Tailwind 模型表单基类。"""
+    """Default Tailwind base for business model forms.
+
+    业务默认 Tailwind 模型表单基类。
+    """
 
     renderer_class = TailwindFormRenderer
     field_renderer_class = TailwindFieldRenderer

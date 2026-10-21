@@ -12,7 +12,9 @@ _CANCEL_LABEL = gettext_lazy("Cancel")
 
 @dataclass(frozen=True)
 class FieldLayout:
-    """表单字段布局定义。
+    """Form field-layout definitions.
+
+    表单字段布局定义。
 
     ``advanced`` 只对筛选表单的 inline 布局有意义：这类字段收进"更多筛选"面板。
     ``range_end`` 由 ``Row(..., as_range=True)`` 生成：本字段是范围起点，对应字段是终点，两者渲染成一个范围控件。
@@ -27,7 +29,10 @@ class FieldLayout:
 
 @dataclass(frozen=True)
 class Row:
-    """声明一行字段及其默认栅格宽度；``as_range=True`` 把恰好两个字段合成一个范围控件。"""
+    """Declare a row and default grid widths, combining exactly two fields into a range control with as_range=True.
+
+    声明一行字段及其默认栅格宽度；``as_range=True`` 把恰好两个字段合成一个范围控件。
+    """
 
     fields: tuple[str, ...]
     width: str = "md:col-span-12"
@@ -57,7 +62,10 @@ class Row:
 
 @dataclass(frozen=True)
 class Actions:
-    """声明表单底部动作按钮。"""
+    """Declare bottom form-action buttons.
+
+    声明表单底部动作按钮。
+    """
 
     submit: str | LazyTranslation = _SAVE_LABEL
     cancel_url: str | None = None
@@ -66,7 +74,10 @@ class Actions:
 
 @dataclass(frozen=True)
 class FormStep:
-    """声明多步骤表单中的一个字段分组。"""
+    """Declare a field group in a multi-step form.
+
+    声明多步骤表单中的一个字段分组。
+    """
 
     title: str | LazyTranslation
     items: tuple[object, ...]
@@ -81,7 +92,10 @@ class FormStep:
 
 @dataclass(frozen=True)
 class FieldGroup:
-    """声明一组带标题（和可选说明）的字段；渲染为 fieldset，字段仍在同一张表单里。"""
+    """Declare a titled field group with an optional description, rendered as a fieldset within the same form.
+
+    声明一组带标题（和可选说明）的字段；渲染为 fieldset，字段仍在同一张表单里。
+    """
 
     title: str | LazyTranslation
     items: tuple[object, ...]
@@ -96,7 +110,10 @@ class FieldGroup:
 
 @dataclass(frozen=True)
 class FormLayout:
-    """声明式表单布局。"""
+    """Declarative form layout.
+
+    声明式表单布局。
+    """
 
     items: tuple[object, ...]
 

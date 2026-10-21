@@ -76,7 +76,9 @@ def _sanic_response_headers(
 
 
 class BaseStreamProxy:
-    """流媒体代理基类。
+    """Base class for media streaming proxies.
+
+    流媒体代理基类。
 
     部署约束：只在内网/localhost 使用，不要绑定到公网 IP。
     ==========================================================================
@@ -147,16 +149,23 @@ class BaseStreamProxy:
     @classmethod
     @lru_cache(maxsize=100)
     def generate_channel_id(cls, url: str) -> str:
-        """生成频道ID (使用LRU缓存减少重复计算)"""
+        """Generate a channel ID with LRU caching to reduce repeated computation.
+
+        生成频道ID (使用LRU缓存减少重复计算)
+        """
         return hashlib.blake2b(url.encode("utf8"), digest_size=32).hexdigest()
 
     @classmethod
     def is_use_curl(cls, user_agent: str | None = None) -> bool:
-        """判断是否使用curl_cffi, 根据user_agent起始字符串判断"""
+        """Choose curl_cffi from the user_agent prefix.
+
+        判断是否使用curl_cffi, 根据user_agent起始字符串判断
+        """
         return user_agent is not None and user_agent.lower().startswith(tuple(CURL_HEADERS))
 
     def get_client_type(self, user_agent: str | None = None) -> ClientType:
-        """
+        """Return the client type.
+
         获取客户端类型
         :param user_agent: 用户代理字符串
         :return: 客户端类型
@@ -182,7 +191,10 @@ class BaseStreamProxy:
     async def get_client(
         self, user_agent: str | None = None, proxy_url: str | None = None, content_decoding: bool = False, client_remark: str | None = None
     ) -> MultiHttpClient:
-        """获取或创建HTTP客户端"""
+        """Return or create the HTTP client.
+
+        获取或创建HTTP客户端
+        """
         if not client_remark:
             client_remark = ""
         client_type = self.get_client_type(user_agent)  # 获取客户端类型
@@ -209,17 +221,26 @@ class BaseStreamProxy:
             return self._http_clients[client_key]
 
     async def get_request_headers(self, request: Request | None = None, base_headers: dict | None = None) -> dict:
-        """获取请求头,合并基础头和客户端重要头信息"""
+        """Build request headers by merging base headers with important client headers.
+
+        获取请求头,合并基础头和客户端重要头信息
+        """
         headers = base_headers.copy() if base_headers else self.DEFAULT_HEADERS.copy()
         return headers
 
     async def delete_cached_channel_url(self, channel_id: str):
-        """删除缓存的频道URL"""
+        """Delete the cached channel URL.
+
+        删除缓存的频道URL
+        """
         conn = await self._redis_connection()
         await conn.delete(self.CACHED_URL_KEY.format(channel_id=channel_id))
 
     async def save_cached_channel_url(self, channel_id: str, url: str, ttl: int = 60 * 60 * 24 * 7):
-        """保存频道URL到缓存"""
+        """Cache a channel URL.
+
+        保存频道URL到缓存
+        """
         conn = await self._redis_connection()
         await conn.set(
             self.CACHED_URL_KEY.format(channel_id=channel_id),
@@ -228,14 +249,20 @@ class BaseStreamProxy:
         )
 
     async def get_cached_channel_url(self, channel_id: str) -> str | None:
-        """从缓存获取频道URL"""
+        """Return a cached channel URL.
+
+        从缓存获取频道URL
+        """
         conn = await self._redis_connection()
         url: str | None = await conn.get(self.CACHED_URL_KEY.format(channel_id=channel_id))
         return url
 
     @staticmethod
     def generate_hash_url(current_id: str, ts_url: str) -> str:
-        """生成TS URL的哈希值"""
+        """Compute a TS URL hash.
+
+        生成TS URL的哈希值
+        """
         return hashlib.blake2b(f"{current_id}:{ts_url}".encode(), digest_size=32).hexdigest()
 
     async def save_sub_url(
@@ -250,7 +277,8 @@ class BaseStreamProxy:
         ext_name: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Save a TS URL in Redis and generate a new URL.
+
         保存TS URL到Redis并生成新URL
         :param ext_name: 扩展名
         :param cached_id: 当前m3u8的唯一ID, 用于生成子资源的哈希值
@@ -298,7 +326,10 @@ class BaseStreamProxy:
         return new_url
 
     async def get_sub_url(self, channel_id: str, hash_url: str) -> dict[str, Any] | Any:
-        """获取TS URL信息"""
+        """Return TS URL information.
+
+        获取TS URL信息
+        """
         # 如果包含扩展名, 则去除扩展名
         ext_name = strings_utils.get_ext_from_filename(hash_url)
         if ext_name:
@@ -327,7 +358,8 @@ class BaseStreamProxy:
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Rewrite TS paths in m3u8 content to proxy paths.
+
         处理m3u8内容,替换TS路径为代理路径
         :param sub_ttl: 子资源URL缓存时间(秒),格式为(子m3u8, ts)
         :param cached_id: 当前m3u8的唯一ID, 用于生成子资源的哈希值
@@ -405,7 +437,8 @@ class BaseStreamProxy:
         mpd_content: str,
         play_url: str,
     ) -> str:
-        """
+        """Rewrite TS paths in mpd content to proxy paths.
+
         处理mpd内容,替换TS路径为代理路径
         :param mpd_content: mpd内容
         :param play_url: 完整URL
@@ -424,7 +457,8 @@ class BaseStreamProxy:
         headers: dict[str, str] | None = None,
         **extra_context,
     ) -> tuple[str | None, str]:
-        """
+        """Fetch m3u8 content with nested-playlist support.
+
         获取m3u8内容,支持嵌套m3u8处理
         :param request: Sanic请求对象
         :param m3u8_url: m3u8 URL
@@ -456,7 +490,8 @@ class BaseStreamProxy:
             return None, m3u8_url
 
     def update_ttl_from_content(self, m3u8_content: str, current_ttl: int) -> int:
-        """
+        """Extract cache duration from m3u8 content and update its TTL.
+
         从m3u8内容中提取缓存时间并更新TTL
         :param m3u8_content: m3u8内容
         :param current_ttl: 当前TTL
@@ -477,7 +512,8 @@ class BaseStreamProxy:
         is_sub_manifest: bool = False,
         **extra_context,
     ) -> str | None:
-        """
+        """Fetch remote m3u8 content with caching.
+
         获取远程m3u8内容,支持缓存
         :param sub_ttl: 子资源缓存时间(秒),格式为(子m3u8, ts)
         :param is_sub_manifest:
@@ -573,7 +609,8 @@ class BaseStreamProxy:
         return None
 
     async def stream_response(self, request: Request, response: ReconnectStreamResponse, content_type: str = "video/mp2t") -> None:
-        """
+        """Stream response content.
+
         流式返回响应内容
         :param request: Sanic请求对象
         :param response: 代理响应对象
@@ -719,7 +756,8 @@ class BaseStreamProxy:
         live_stream: bool = False,
         **kwargs: Any,
     ) -> HTTPResponse | None:
-        """
+        """Fetch TS stream content.
+
         获取TS流内容
         :param kwargs: 原样交给 MultiHttpClient.reconnect_stream 的选项（retries、retry_backoff、no_retry_statuses 等）
         :param live_stream: 是否是直播流
@@ -762,7 +800,8 @@ class BaseStreamProxy:
         proxy_url: str | None = None,
         user_agent: str | None = None,
     ) -> HTTPResponse | None:
-        """
+        """Fetch TS content over direct TCP with optimized CPU use and chunked-encoding handling.
+
         使用直接TCP连接获取TS流内容，优化CPU使用率并处理chunked编码
         :param request: Sanic请求对象
         :param ts_url: TS URL
@@ -961,7 +1000,8 @@ class BaseStreamProxy:
     async def process_sub_manifest(
         self, request: Request, channel_id: str, ts_context: dict[str, Any], ttl: int = 2, sub_ttl: int = 0, **kwargs
     ) -> HTTPResponse | None:
-        """
+        """Process a child m3u8 playlist, allowing subclass-specific behavior.
+
         处理子m3u8的逻辑，子类可重载此方法以实现特定逻辑
         :param request: Sanic请求对象
         :param channel_id: 频道ID
@@ -993,7 +1033,8 @@ class BaseStreamProxy:
             return text("Content expired or not available", status=404)
 
     async def process_sub_stream(self, request: Request, channel_id: str, ts_context: dict[str, Any], **kwargs) -> HTTPResponse | None:
-        """
+        """Process a child stream, allowing subclass-specific behavior.
+
         处理子流的逻辑，子类可重载此方法以实现特定逻辑
         :param request:
         :param channel_id:
@@ -1012,7 +1053,8 @@ class BaseStreamProxy:
     async def fetch_sub_manifest_or_stream(
         self, request: Request, channel_id: str, hash_url: str, ttl: int = 2, sub_url_ttl: int = 0
     ) -> HTTPResponse | None:
-        """
+        """Fetch and proxy a child m3u8 playlist or TS file.
+
         获取子m3u8或ts文件 中转
         :param ttl: 缓存时间(秒)
         :param sub_url_ttl: 子资源缓存时间(秒)
@@ -1060,7 +1102,10 @@ class BaseStreamProxy:
         user_agent: str | None = None,
         headers: dict[str, str] | None = None,
     ) -> HTTPResponse | None:
-        """代理直播流媒体"""
+        """Proxy a live media stream.
+
+        代理直播流媒体
+        """
         try:
             # 处理TS文件
             if direct:
@@ -1088,7 +1133,10 @@ class BaseStreamProxy:
         headers: dict | None = None,
         http_method: HttpMethod = HttpMethod.GET,
     ) -> tuple[str | None, str | None]:
-        """获取真实URL"""
+        """Return the real URL.
+
+        获取真实URL
+        """
         channel_id = self.generate_channel_id(play_url)
         cache_key = self.REAL_URL_CACHE_KEY.format(channel_id=channel_id)
         try:
@@ -1161,7 +1209,9 @@ class BaseStreamProxy:
 
     @staticmethod
     def validate_real_url(real_url: str, included: list[str] | None = None, blacklisted: list[str] | None = None) -> tuple[bool, str | None]:
-        """验证真实URL是否符合要求。
+        """Validate whether the real URL meets requirements.
+
+        验证真实URL是否符合要求。
 
         不是一道能挡住攻击者的边界，只是一层配置过滤。见类 docstring 的部署约束：
 
@@ -1184,7 +1234,10 @@ class BaseStreamProxy:
         return True, None
 
     async def delete_real_url_cache(self, play_url: str) -> None:
-        """删除真实URL缓存"""
+        """Delete the cached real URL.
+
+        删除真实URL缓存
+        """
         channel_id = self.generate_channel_id(play_url)
         cache_key = self.REAL_URL_CACHE_KEY.format(channel_id=channel_id)
         try:
@@ -1205,7 +1258,10 @@ class BaseStreamProxy:
         user_agent: str | None = None,
         headers: dict | None = None,
     ) -> tuple[str | None, str | None]:
-        """获取真实URL, 如果有子m3u8,获取子m3u8的第一个URL"""
+        """Return the real URL, choosing the first child m3u8 URL when present.
+
+        获取真实URL, 如果有子m3u8,获取子m3u8的第一个URL
+        """
         channel_id = self.generate_channel_id(play_url)
         cache_key = self.REAL_URL_CACHE_KEY.format(channel_id=channel_id)
         try:

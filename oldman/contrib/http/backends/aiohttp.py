@@ -171,7 +171,10 @@ def _to_aiohttp_cookie_jar(cookies: CookieJar | None) -> aiohttp.CookieJar:
 
 
 class AioHttpClient(BaseHttpClient):
-    """aiohttp实现的HTTP客户端"""
+    """HTTP client implemented with aiohttp.
+
+    aiohttp实现的HTTP客户端
+    """
 
     def __init__(self, parent: "MultiHttpClient"):
         """
@@ -188,15 +191,24 @@ class AioHttpClient(BaseHttpClient):
     backend_label: ClassVar[str] = "aiohttp"
 
     async def init_client(self) -> None:
-        """初始化aiohttp客户端"""
+        """Initialize the aiohttp client.
+
+        初始化aiohttp客户端
+        """
         logger.info(f"初始化aiohttp客户端, 最大连接数: {self.parent.max_connections}")
 
     async def close_session(self, session: Any) -> None:
-        """关闭 aiohttp 会话。"""
+        """Close the aiohttp session.
+
+        关闭 aiohttp 会话。
+        """
         await session.close()
 
     async def get_client(self) -> aiohttp.ClientSession:
-        """获取或创建aiohttp会话"""
+        """Return or create the aiohttp session.
+
+        获取或创建aiohttp会话
+        """
 
         self._ensure_open()
         async with self.parent.lock:
@@ -249,13 +261,19 @@ class AioHttpClient(BaseHttpClient):
             return self.session
 
     def export_cookie_jar(self, destination: CookieJar) -> None:
-        """把 aiohttp 运行态 Cookie 导出到标准库 jar。"""
+        """Export runtime aiohttp Cookies to the standard-library jar.
+
+        把 aiohttp 运行态 Cookie 导出到标准库 jar。
+        """
 
         if self._native_cookie_jar is not None:
             _export_cookie_jar(self._native_cookie_jar, destination)
 
     def prepare_request_params(self, **kwargs: Any) -> dict[str, Any]:
-        """转换 aiohttp 参数并补充统一 User-Agent。"""
+        """Convert aiohttp parameters and supply the common User-Agent.
+
+        转换 aiohttp 参数并补充统一 User-Agent。
+        """
 
         # 处理超时参数
         timeout = kwargs.pop("timeout", None)
@@ -304,7 +322,10 @@ class AioHttpClient(BaseHttpClient):
         )
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
-        """执行aiohttp请求"""
+        """Execute an aiohttp request.
+
+        执行aiohttp请求
+        """
         session = await self.get_client()
         kwargs = self.prepare_request_params(**kwargs)  # 准备请求参数
         assert session is not None
@@ -320,7 +341,10 @@ class AioHttpClient(BaseHttpClient):
 
     @asynccontextmanager
     async def stream(self, method: HttpMethod, url: str, **kwargs: Any):
-        """流式请求上下文管理器"""
+        """Context manager for streaming requests.
+
+        流式请求上下文管理器
+        """
         session = await self.get_client()
 
         kwargs = self.prepare_request_params(**kwargs)  # 准备请求参数
@@ -342,7 +366,10 @@ class AioHttpClient(BaseHttpClient):
         live_stream: bool = False,
         **kwargs: Any,
     ):
-        """复用统一流适配器，生命周期由断点续传对象显式持有。"""
+        """Reuse the common stream adapter with lifecycle ownership held explicitly by the resumable response.
+
+        复用统一流适配器，生命周期由断点续传对象显式持有。
+        """
 
         del live_stream
         async with self.stream(method, url, **kwargs) as response:

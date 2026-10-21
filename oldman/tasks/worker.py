@@ -13,7 +13,10 @@ TaskCreator = Callable[[str, dict[str, Any]], BaseTask]
 
 
 class BaseWorker(ABC):
-    """简洁的Worker基类 - 只负责进程间通信和任务执行"""
+    """A minimal Worker base responsible only for inter-process communication and task execution.
+
+    简洁的Worker基类 - 只负责进程间通信和任务执行
+    """
 
     def __init__(self, worker_id: int, task_queue: mp.Queue):
         self.worker_id = worker_id
@@ -34,7 +37,10 @@ class BaseWorker(ABC):
         self._register_handlers()
 
     def register_task_creator(self, task_type: str, creator: TaskCreator):
-        """注册任务创建器 - 不再是async"""
+        """Register a task factory synchronously.
+
+        注册任务创建器 - 不再是async
+        """
         self.task_creators[task_type] = creator
         logger.debug(f"Worker {self.worker_id} 注册任务创建器: {task_type}")
 
@@ -45,7 +51,10 @@ class BaseWorker(ABC):
         self.comm_manager.register_handler(MessageType.SHUTDOWN, self._handle_shutdown)
 
     async def start(self):
-        """启动worker"""
+        """Start the worker.
+
+        启动worker
+        """
         self.running = True
         logger.info(f"Worker {self.worker_id} 启动，PID: {mp.current_process().pid}")
 
@@ -66,7 +75,10 @@ class BaseWorker(ABC):
 
     @abstractmethod
     async def initialize(self):
-        """子类初始化 - 在这里注册任务创建器"""
+        """Initialize the subclass and register task factories here.
+
+        子类初始化 - 在这里注册任务创建器
+        """
         pass
 
     async def _handle_task_start(self, message: TaskMessage):
@@ -132,15 +144,24 @@ class BaseWorker(ABC):
         self.comm_manager.stop()
 
     def get_task_status(self, task_id: str) -> dict[str, Any]:
-        """获取任务状态"""
+        """Return task status.
+
+        获取任务状态
+        """
         return self.task_manager.get_task_status(task_id)
 
     def get_all_task_status(self) -> dict[str, dict[str, Any]]:
-        """获取所有任务状态"""
+        """Return all task statuses.
+
+        获取所有任务状态
+        """
         return self.task_manager.get_all_status()
 
     async def cleanup(self):
-        """清理资源"""
+        """Clean up resources.
+
+        清理资源
+        """
         logger.info(f"Worker {self.worker_id} 开始清理")
         for task_id, task in self.tasks.items():
             try:

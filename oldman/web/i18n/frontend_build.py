@@ -1,4 +1,6 @@
-"""从统一的 gettext 目录生成浏览器用的 JSON 语言包与语言清单。
+"""Generate browser JSON catalogs and language manifests from the shared gettext catalog.
+
+从统一的 gettext 目录生成浏览器用的 JSON 语言包与语言清单。
 
 住在 web 层是因为它要读 `web.static.url` 并生成浏览器资源；纯粹的目录编译在 `oldman.i18n.frontend`。
 
@@ -281,7 +283,10 @@ def publish_staged_i18n(
 
 
 def project_frontend_paths(project_root: Path, *, service: str = "web") -> dict[str, Path]:
-    """项目约定的四个位置：settings、locales、浏览器目录输出、语言清单输出。"""
+    """Four conventional project locations for settings, locales, browser catalogs, and language manifests.
+
+    项目约定的四个位置：settings、locales、浏览器目录输出、语言清单输出。
+    """
     return {
         "settings_file": project_root / "data" / f"{service}_settings.yaml",
         "locales_dir": project_root / "locales",
@@ -299,7 +304,9 @@ def build_frontend_i18n(
     compiler_command: Sequence[str] | None = None,
     project_root: Path = Path.cwd(),
 ) -> None:
-    """按项目配置编译、校验并原子发布一整套浏览器语言包与清单。
+    """Compile, validate, and atomically publish complete browser catalogs and manifests using project configuration.
+
+    按项目配置编译、校验并原子发布一整套浏览器语言包与清单。
 
     清单是前端 import 的 TypeScript 模块（`frontend/src/i18n/generated.ts`），语言集合因此随
     bundle 一起到达，启动不需要再取一次；代价是新增语言后必须重新构建前端。清单必须落在 catalog

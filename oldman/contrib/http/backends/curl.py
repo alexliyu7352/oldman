@@ -174,7 +174,10 @@ async def _ensure_stream_response_started(response: Response) -> None:
 
 
 class CurlCffiClient(BaseHttpClient):
-    """curl_cffi实现的HTTP客户端"""
+    """HTTP client implemented with curl_cffi.
+
+    curl_cffi实现的HTTP客户端
+    """
 
     def __init__(self, parent: "MultiHttpClient"):
         """
@@ -210,15 +213,24 @@ class CurlCffiClient(BaseHttpClient):
     backend_label: ClassVar[str] = "curl_cffi"
 
     async def init_client(self) -> None:
-        """初始化curl_cffi客户端"""
+        """Initialize the curl_cffi client.
+
+        初始化curl_cffi客户端
+        """
         logger.info(f"初始化curl_cffi客户端, 最大连接数: {self.parent.max_connections}")
 
     async def close_session(self, session: Any) -> None:
-        """关闭 curl_cffi 会话。"""
+        """Close the curl_cffi session.
+
+        关闭 curl_cffi 会话。
+        """
         await session.close()
 
     async def get_client(self) -> AsyncSession:
-        """获取或创建curl_cffi客户端"""
+        """Return or create the curl_cffi client.
+
+        获取或创建curl_cffi客户端
+        """
 
         self._ensure_open()
         async with self.parent.lock:
@@ -236,7 +248,10 @@ class CurlCffiClient(BaseHttpClient):
             return self.client
 
     def update_impersonate(self, **kwargs: Any) -> dict[str, Any]:
-        """解析 curl impersonate User-Agent，并保留普通 User-Agent。"""
+        """Resolve curl impersonation User-Agents while preserving ordinary User-Agents.
+
+        解析 curl impersonate User-Agent，并保留普通 User-Agent。
+        """
 
         # 添加用户代理
         headers = dict(kwargs.get("headers", {}))
@@ -260,7 +275,10 @@ class CurlCffiClient(BaseHttpClient):
         return kwargs
 
     def prepare_request_params(self, **kwargs: Any) -> dict[str, Any]:
-        """转换 curl_cffi 请求参数。"""
+        """Convert curl_cffi request parameters.
+
+        转换 curl_cffi 请求参数。
+        """
 
         # 处理超时参数
         timeout = kwargs.pop("timeout", None)
@@ -371,7 +389,10 @@ class CurlCffiClient(BaseHttpClient):
         )
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
-        """执行curl_cffi请求"""
+        """Execute a curl_cffi request.
+
+        执行curl_cffi请求
+        """
         client = await self.get_client()
         kwargs = self.prepare_request_params(**kwargs)  # 准备请求参数
         self._prepare_request_cookies(kwargs, url)
@@ -393,7 +414,10 @@ class CurlCffiClient(BaseHttpClient):
 
     @asynccontextmanager
     async def stream(self, method: HttpMethod, url: str, **kwargs: Any):
-        """流式请求上下文管理器"""
+        """Context manager for streaming requests.
+
+        流式请求上下文管理器
+        """
         client = await self.get_client()
 
         kwargs = self.prepare_request_params(**kwargs)  # 准备请求参数
@@ -426,7 +450,8 @@ class CurlCffiClient(BaseHttpClient):
         live_stream: bool = False,
         **kwargs: Any,
     ):
-        """
+        """Match stream behavior for interface compatibility.
+
         应该与stream方法一致，只是为了兼容接口
         :param method:
         :param url:

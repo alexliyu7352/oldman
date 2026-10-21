@@ -24,19 +24,27 @@ from oldman.utils.strings_utils import random_string
 
 
 def pad_pkcs7(data: bytes, block_size: int = 128) -> bytes:
-    """PKCS7 填充到 block_size 的整数倍。block_size 的单位是**比特**（cryptography 的约定），AES 为 128。"""
+    """Apply PKCS7 padding to a multiple of block_size bits, using 128 for AES as required by cryptography.
+
+    PKCS7 填充到 block_size 的整数倍。block_size 的单位是**比特**（cryptography 的约定），AES 为 128。
+    """
     padder = padding.PKCS7(block_size).padder()
     return padder.update(data) + padder.finalize()
 
 
 def unpad_pkcs7(data: bytes, block_size: int = 128) -> bytes:
-    """去掉 PKCS7 填充；填充不合法时抛 ValueError。block_size 的单位是比特，AES 为 128。"""
+    """Remove PKCS7 padding, raising ValueError if invalid; block_size is in bits, with 128 for AES.
+
+    去掉 PKCS7 填充；填充不合法时抛 ValueError。block_size 的单位是比特，AES 为 128。
+    """
     unpadder = padding.PKCS7(block_size).unpadder()
     return unpadder.update(data) + unpadder.finalize()
 
 
 def aes_encrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, plaintext: bytes) -> bytes:
-    """AES-CBC + PKCS7 加密，只为与已有协议互通。
+    """Encrypt with AES-CBC and PKCS7 only for compatibility with existing protocols.
+
+    AES-CBC + PKCS7 加密，只为与已有协议互通。
 
     **CBC 不带认证**：密文被篡改时解密不会发现，只会得到错乱的明文或填充错误；如果对方能看出
     “填充错误”与“其他错误”的区别，就能借此逐字节解出明文（padding oracle）。新协议用
@@ -48,7 +56,9 @@ def aes_encrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, plaintext: bytes) -
 
 
 def aes_decrypt_cbc_pkcs7(key_bytes: bytes, iv_bytes: bytes, ciphertext: bytes) -> bytes:
-    """AES-CBC + PKCS7 解密，只为与已有协议互通；填充不合法时抛 ValueError。
+    """Decrypt with AES-CBC and PKCS7 only for protocol compatibility, raising ValueError for invalid padding.
+
+    AES-CBC + PKCS7 解密，只为与已有协议互通；填充不合法时抛 ValueError。
 
     不带认证，风险见 aes_encrypt_cbc_pkcs7：不要把解密失败的具体原因返回给请求方。
     """

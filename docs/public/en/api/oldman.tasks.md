@@ -44,7 +44,7 @@ class · defined in `oldman.tasks.manager`
 class BaseManager(ABC)
 ```
 
-极简管理器基类 - 只发送任务，不等待结果
+A minimal manager base that sends tasks without waiting for results.
 
 Constructor:
 
@@ -54,11 +54,11 @@ BaseManager(worker_class: type[BaseWorker], num_workers: int=4, max_worker_resta
 
 Members:
 
-- `async def start()` — 启动管理器
-- `async def add_task(task_data: dict[str, Any], task_type: TaskType=TaskType.PERSISTENT, restart_delay: int=5, max_restarts: int=-1, auto_remove_on_complete: bool | None=None) -> str | None` — 添加任务
-- `async def stop_task(task_id: str, worker_id: int=-1)` — 停止任务
-- `def get_manager_status() -> dict[str, Any]` — 获取管理器状态
-- `async def shutdown()` — 关闭管理器
+- `async def start()` — Start the manager.
+- `async def add_task(task_data: dict[str, Any], task_type: TaskType=TaskType.PERSISTENT, restart_delay: int=5, max_restarts: int=-1, auto_remove_on_complete: bool | None=None) -> str | None` — Add a task.
+- `async def stop_task(task_id: str, worker_id: int=-1)` — Stop a task.
+- `def get_manager_status() -> dict[str, Any]` — Return manager status.
+- `async def shutdown()` — Shut down the manager.
 
 ## `BaseTask`
 
@@ -68,7 +68,7 @@ class · defined in `oldman.tasks.base`
 class BaseTask(ABC)
 ```
 
-简化的任务基类 - 只包含核心功能
+A minimal task base class containing only core functionality.
 
 Constructor:
 
@@ -78,10 +78,10 @@ BaseTask(task_id: str, **kwargs)
 
 Members:
 
-- `async def execute() -> Any` — 执行任务的抽象方法
+- `async def execute() -> Any` — Abstract method for task execution.
 - `def get_running_status() -> dict`
-- `async def cleanup() -> None` — 任务清理（默认实现，子类可重写）
-- `def update_status(status: TaskStatus) -> None` — 更新任务状态
+- `async def cleanup() -> None` — Clean up the task, with a default implementation that subclasses may override.
+- `def update_status(status: TaskStatus) -> None` — Update task status.
 
 ## `BaseWorker`
 
@@ -91,7 +91,7 @@ class · defined in `oldman.tasks.worker`
 class BaseWorker(ABC)
 ```
 
-简洁的Worker基类 - 只负责进程间通信和任务执行
+A minimal Worker base responsible only for inter-process communication and task execution.
 
 Constructor:
 
@@ -101,12 +101,12 @@ BaseWorker(worker_id: int, task_queue: mp.Queue)
 
 Members:
 
-- `def register_task_creator(task_type: str, creator: TaskCreator)` — 注册任务创建器 - 不再是async
-- `async def start()` — 启动worker
-- `async def initialize()` — 子类初始化 - 在这里注册任务创建器
-- `def get_task_status(task_id: str) -> dict[str, Any]` — 获取任务状态
-- `def get_all_task_status() -> dict[str, dict[str, Any]]` — 获取所有任务状态
-- `async def cleanup()` — 清理资源
+- `def register_task_creator(task_type: str, creator: TaskCreator)` — Register a task factory synchronously.
+- `async def start()` — Start the worker.
+- `async def initialize()` — Initialize the subclass and register task factories here.
+- `def get_task_status(task_id: str) -> dict[str, Any]` — Return task status.
+- `def get_all_task_status() -> dict[str, dict[str, Any]]` — Return all task statuses.
+- `async def cleanup()` — Clean up resources.
 
 ## `TaskInfo`
 
@@ -160,7 +160,7 @@ class · defined in `oldman.tasks.manager`
 class WorkerInfo
 ```
 
-Worker信息
+Worker information.
 
 Constructor:
 

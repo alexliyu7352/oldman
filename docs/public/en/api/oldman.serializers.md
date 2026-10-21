@@ -46,7 +46,7 @@ class · defined in `oldman.serializers.base`
 class DataclassModelMixin
 ```
 
-给 dataclass 提供一致的编解码 API，以及 JSON 文件读写。
+Consistent dataclass encoding/decoding APIs and JSON file access.
 
 Members:
 
@@ -58,9 +58,9 @@ Members:
 - `classmethod def from_json_str(s: str) -> Self`
 - `def to_dict() -> dict[str, Any]`
 - `classmethod def from_dict(data: dict[str, Any]) -> Self`
-- `def to_json_file(path: str | os.PathLike[str]) -> None` — 写成缩进两格的 UTF-8 JSON，整体替换原文件（见 atomic_write）；父目录不存在时创建，失败抛异常。
+- `def to_json_file(path: str | os.PathLike[str]) -> None` — Atomically replace a file with two-space-indented UTF-8 JSON, creating missing parent directories and propagating failures.
 - `async def to_json_file_async(path: str | os.PathLike[str]) -> None`
-- `classmethod def from_json_file(path: str | os.PathLike[str]) -> Self` — 从 JSON 文件读取。
+- `classmethod def from_json_file(path: str | os.PathLike[str]) -> Self` — Read from a JSON file.
 - `classmethod async def from_json_file_async(path: str | os.PathLike[str]) -> Self`
 
 ## `JsonSerializer`

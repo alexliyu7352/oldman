@@ -98,7 +98,8 @@ def _add_csrf_token():
 
 
 def csrf_exempt(func):
-    """
+    """CSRF-exemption decorator.
+
     CSRF 豁免装饰器
 
     只有在 `web.security.csrf.enforce` 打开、全局中间件生效时才有意义：中间件会跳过被它标记的

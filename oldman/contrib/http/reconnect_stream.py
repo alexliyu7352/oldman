@@ -81,7 +81,9 @@ class _ReconnectClient(Protocol):
 
 
 class ReconnectStreamResponse:
-    """读取中断后自动重连的流式响应。上层业务先拿响应头、再读正文，所以底层上下文跨 connect 和 aiter_bytes 保存。
+    """A stream response that reconnects after interrupted reads, retaining backend context between connection and body consumption.
+
+    读取中断后自动重连的流式响应。上层业务先拿响应头、再读正文，所以底层上下文跨 connect 和 aiter_bytes 保存。
 
     对外的状态码和响应头在首次响应时确定，内部重连不改变它们。底层始终读未经解压的实体字节，Range 的偏移和长度都按它算。
     首次的 206 必须从调用方要的起点开始、落在要的区间之内（可以只是一部分，见 _check_requested_range），正文长度以 Content-Range 为准。
@@ -185,7 +187,10 @@ class ReconnectStreamResponse:
         self._complete = False
 
     async def connect(self) -> None:
-        """建立首次响应；读取中断后也由它建立恢复响应。连接失败、错误状态码和读取中断共用一份连续的重试预算。"""
+        """Establish initial or resumed responses using a shared consecutive retry budget for connection, status, and read failures.
+
+        建立首次响应；读取中断后也由它建立恢复响应。连接失败、错误状态码和读取中断共用一份连续的重试预算。
+        """
 
         if self.client is None:
             raise RuntimeError("流式响应已经释放")
@@ -296,7 +301,10 @@ class ReconnectStreamResponse:
         return client.reconnect_stream(self.method, self.url, live_stream=self.live_stream, **kwargs)
 
     def incr_timeout(self, reset: bool = False) -> None:
-        """更新父客户端记录的连续超时次数。"""
+        """Update the parent client's consecutive-timeout count.
+
+        更新父客户端记录的连续超时次数。
+        """
 
         if self.client:
             if reset:
@@ -305,7 +313,9 @@ class ReconnectStreamResponse:
                 self.client.parent.timeout_count += 1
 
     async def aiter_bytes(self, chunk_size: int = 512 * 1024) -> AsyncIterator[bytes]:
-        """输出本次响应的连续字节；读取中断后按续传规则恢复。
+        """Yield contiguous response bytes, recovering interrupted reads under resumption rules.
+
+        输出本次响应的连续字节；读取中断后按续传规则恢复。
 
         chunk_size 是每块的上限，不是下限：收到多少交多少，不为凑满它等待（curl 的短暂攒批见 _iter_response）。
         """
@@ -446,7 +456,10 @@ class ReconnectStreamResponse:
             raise HttpContentDecodingError(f"响应正文解码失败: {exc}") from exc
 
     async def release_response(self) -> None:
-        """退出 backend 上下文，由统一流响应完成幂等关闭。"""
+        """Exit the backend context through idempotent common-response closure.
+
+        退出 backend 上下文，由统一流响应完成幂等关闭。
+        """
 
         context = self._response_context
         response = self.current_response
@@ -461,7 +474,9 @@ class ReconnectStreamResponse:
             logger.error(f"释放流响应时出错: {type(e).__name__}")
 
     def detach_response(self) -> AbstractAsyncContextManager[HttpStreamResponse] | None:
-        """把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
+        """Transfer the current response context to the caller for closure, leaving release nothing to await.
+
+        把当前这条底层响应的上下文交出去，由调用方负责退出它；之后 release 没有东西要等。
 
         给中转层在最终失败时用：它要立刻把异常抛给调用方，不能在处理请求的任务里等上游的响应放掉，
         于是把上下文拿走、放到后台去退出。没有打开的响应时返回 None。
@@ -473,7 +488,10 @@ class ReconnectStreamResponse:
         return context
 
     async def release(self) -> None:
-        """清理当前断点续传响应。"""
+        """Clean up the current resumable response.
+
+        清理当前断点续传响应。
+        """
 
         try:
             await self.release_response()
@@ -481,7 +499,10 @@ class ReconnectStreamResponse:
             self.client = None  # type: ignore[assignment] -- release 后对象与来源实现一样不可复用
 
     def update_response_status(self, response: HttpStreamResponse) -> None:
-        """首次响应确定对外状态、响应头和续传方式；之后的响应只核对能不能接上，不改对外的东西。"""
+        """Set public status, headers, and resumption mode from the first response; later responses only verify continuity.
+
+        首次响应确定对外状态、响应头和续传方式；之后的响应只核对能不能接上，不改对外的东西。
+        """
 
         status = response.status_code
         headers = response.headers

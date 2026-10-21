@@ -45,7 +45,10 @@ class SwitchCardWidget(SwitchWidget):
 
 
 class TagsInputWidget(TextInput):
-    """输出原生文本框，并声明 TagsInput 渐进增强。"""
+    """Emit a native text input declaring progressive TagsInput enhancement.
+
+    输出原生文本框，并声明 TagsInput 渐进增强。
+    """
 
     def __init__(self, *, delimiter: str = ",") -> None:
         self.delimiter = delimiter
@@ -58,7 +61,10 @@ class TagsInputWidget(TextInput):
 
 
 class TagsSelectWidget(SelectWidget):
-    """用现有 Select 组件把本地多选项显示为可移除标签。"""
+    """Display local multiple selections as removable tags through the existing Select component.
+
+    用现有 Select 组件把本地多选项显示为可移除标签。
+    """
 
     def __init__(self) -> None:
         super().__init__(multiple=True)
@@ -73,13 +79,19 @@ class TagsSelectWidget(SelectWidget):
 
 
 class ColorPickerWidget:
-    """输出原生颜色输入，并声明可选的 Pickr 渐进增强。"""
+    """Emit a native color input declaring optional progressive Pickr enhancement.
+
+    输出原生颜色输入，并声明可选的 Pickr 渐进增强。
+    """
 
     def __init__(self, *, allow_alpha: bool = True) -> None:
         self.allow_alpha = allow_alpha
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
-        """原生 input 负责无脚本提交，挂载后由隐藏字段承载完整 HEXA 值。"""
+        """Use the native input without scripts and a hidden field for full HEXA values after mounting.
+
+        原生 input 负责无脚本提交，挂载后由隐藏字段承载完整 HEXA 值。
+        """
         value = str(cast(Any, field)._value() or "")
         native_value = value[:7] if re.fullmatch(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?", value) else "#000000"
         classes = " ".join(filter(None, (str(kwargs.pop("class", "")), "om-color-picker-native")))
@@ -108,10 +120,16 @@ class ColorPickerWidget:
 
 
 class InputSpinnerWidget:
-    """为 WTForms 数字字段输出可渐进增强的加减控件。"""
+    """Emit progressively enhanced increment/decrement controls for WTForms numeric fields.
+
+    为 WTForms 数字字段输出可渐进增强的加减控件。
+    """
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
-        """保留原生 number input，并在外层声明 InputSpinner 组件。"""
+        """Retain a native number input and declare an outer InputSpinner component.
+
+        保留原生 number input，并在外层声明 InputSpinner 组件。
+        """
         return await render_component_template(
             form,
             f"{form.get_field_renderer().template_namespace}/widgets/input_spinner.html",
@@ -135,10 +153,16 @@ class InputSpinnerWidget:
 
 
 class RichTextWidget:
-    """输出可由 Quill 渐进增强的原生 textarea。"""
+    """Emit a native textarea supporting progressive Quill enhancement.
+
+    输出可由 Quill 渐进增强的原生 textarea。
+    """
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
-        """保留 textarea 作为真实提交控件，并提供编辑器挂载点。"""
+        """Retain textarea as the actual submission control and provide an editor mount point.
+
+        保留 textarea 作为真实提交控件，并提供编辑器挂载点。
+        """
         classes = " ".join(filter(None, (str(kwargs.pop("class", "")), "om-rich-text-value")))
         return await render_component_template(
             form,
@@ -161,7 +185,10 @@ class RichTextWidget:
 
 
 class AjaxSelectWidget(SelectWidget):
-    """远程 Select provider 的 WTForms widget。"""
+    """WTForms widget for remote Select providers.
+
+    远程 Select provider 的 WTForms widget。
+    """
 
     def __init__(
         self,
@@ -195,7 +222,10 @@ class AjaxSelectWidget(SelectWidget):
             raise ValueError("AjaxSelectWidget label_mode='html' requires enhance_choices=True")
 
     def bind_attrs(self, field: Field, form: Any) -> dict[str, Any]:
-        """生成前端 Select 组件需要的 data 属性。"""
+        """Generate data attributes required by the browser Select component.
+
+        生成前端 Select 组件需要的 data 属性。
+        """
         if not form.select_secret_key:
             raise RuntimeError("AjaxSelectWidget requires form.select_secret_key")
 
@@ -222,7 +252,10 @@ class AjaxSelectWidget(SelectWidget):
         }
 
     def resolve_endpoint(self, form: Any) -> str:
-        """返回远程 provider endpoint，优先使用显式 URL，其次使用 route name 反解。"""
+        """Return the remote provider endpoint, prioritizing an explicit URL over reverse route-name lookup.
+
+        返回远程 provider endpoint，优先使用显式 URL，其次使用 route name 反解。
+        """
         if self.endpoint:
             return self.endpoint
         request = getattr(form, "request", None)
@@ -241,7 +274,10 @@ class AjaxSelectWidget(SelectWidget):
         raise RuntimeError("AjaxSelectWidget must be rendered through async form.render() or form.render_field()")
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
-        """通过模板渲染远程 select 控件。"""
+        """Render a remote select control through a template.
+
+        通过模板渲染远程 select 控件。
+        """
         return await render_component_template(
             form,
             f"{form.get_field_renderer().template_namespace}/widgets/ajax_select.html",
@@ -254,7 +290,10 @@ class AjaxSelectWidget(SelectWidget):
 
 
 class AjaxAutocompleteWidget:
-    """远程 Autocomplete provider 的 WTForms widget。"""
+    """WTForms widget for remote Autocomplete providers.
+
+    远程 Autocomplete provider 的 WTForms widget。
+    """
 
     def __init__(
         self,
@@ -281,7 +320,10 @@ class AjaxAutocompleteWidget:
             raise ValueError("AjaxAutocompleteWidget label_mode must be 'text' or 'html'")
 
     def bind_attrs(self, field: Field, form: Any) -> dict[str, Any]:
-        """生成前端 Autocomplete 组件需要的 data 属性。"""
+        """Generate data attributes required by the browser Autocomplete component.
+
+        生成前端 Autocomplete 组件需要的 data 属性。
+        """
         if not form.select_secret_key:
             raise RuntimeError("AjaxAutocompleteWidget requires form.select_secret_key")
 
@@ -304,7 +346,10 @@ class AjaxAutocompleteWidget:
         }
 
     def resolve_endpoint(self, form: Any) -> str:
-        """返回远程 autocomplete provider endpoint。"""
+        """Return the remote autocomplete provider endpoint.
+
+        返回远程 autocomplete provider endpoint。
+        """
         if self.endpoint:
             return self.endpoint
         request = getattr(form, "request", None)
@@ -319,7 +364,10 @@ class AjaxAutocompleteWidget:
             return app.url_for(f"{app_name}.{self.route_name}", **route_kwargs)
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
-        """通过模板渲染 autocomplete 控件。"""
+        """Render an autocomplete control through a template.
+
+        通过模板渲染 autocomplete 控件。
+        """
         return await render_component_template(
             form,
             f"{form.get_field_renderer().template_namespace}/widgets/ajax_autocomplete.html",
@@ -337,7 +385,10 @@ class AjaxAutocompleteWidget:
 
 
 class DateTimePickerWidget:
-    """显式 opt-in 的 Oldman flatpickr 日期时间 widget。"""
+    """An explicitly enabled Oldman flatpickr date/time widget.
+
+    显式 opt-in 的 Oldman flatpickr 日期时间 widget。
+    """
 
     def __init__(
         self,
@@ -356,7 +407,10 @@ class DateTimePickerWidget:
         self.extra_attrs = dict(extra_attrs or {})
 
     def bind_attrs(self, field: Field, form: Any) -> dict[str, Any]:
-        """生成前端 DateTimePicker 组件需要的 data 属性。"""
+        """Generate data attributes required by the browser DateTimePicker component.
+
+        生成前端 DateTimePicker 组件需要的 data 属性。
+        """
         attrs: dict[str, Any] = {
             "type": self.input_type,
             "autocomplete": "off",

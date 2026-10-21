@@ -1,4 +1,5 @@
-"""
+"""HTTP client backend implementations.
+
 HTTP客户端后端实现
 @author:alex
 @date:2025/8/10

@@ -13,7 +13,10 @@ class HTTPClientError(Exception):
 
 
 class HttpStatusError(HTTPClientError):
-    """携带统一响应对象的非成功 HTTP 状态错误。"""
+    """An unsuccessful HTTP-status error carrying the common response object.
+
+    携带统一响应对象的非成功 HTTP 状态错误。
+    """
 
     def __init__(self, response: HttpResponse | HttpStreamResponse) -> None:
         """Retain backend-neutral response metadata for error handling."""

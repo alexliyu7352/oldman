@@ -92,17 +92,17 @@ class · defined in `oldman.web.http`
 class HTTPMethodView(SanicHTTPMethodView)
 ```
 
-Sanic 的 HTTPMethodView 加上 Oldman 的登录协议与权限钩子。
+Sanic HTTPMethodView with Oldman sign-in protocols and permission hooks.
 
 Members:
 
 - `response_mode: ResponseMode = 'auto'`
-- `async def dispatch_request(request: Any, *args: object, **kwargs: object)` — 执行认证/权限检查后按 Sanic HTTPMethodView 规则分派 method。
-- `def is_authenticated(request: Any) -> bool` — 判断请求是否来自已登录用户,不论它凭什么认证。
-- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — endpoint 级权限 hook,默认允许;返回 (是否允许, 拒绝时的提示)。
-- `async def resolve_hook_response(response: Any) -> Any` — 兼容同步和异步权限响应 hook。
-- `def on_authentication_required(request: Any, response_mode: Literal['html', 'json'], *, method_name: str) -> Any` — 未登录响应 hook;可以返回响应,也可以返回待 await 的响应(分派时两种都接受)。
-- `async def on_permission_denied(request: Any, response_mode: Literal['html', 'json'], *, message: str, method_name: str)` — 无权限响应 hook。
+- `async def dispatch_request(request: Any, *args: object, **kwargs: object)` — Check authentication/permissions, then dispatch by Sanic HTTPMethodView rules.
+- `def is_authenticated(request: Any) -> bool` — Check whether a user is signed in, regardless of authentication method.
+- `async def check_permission(request: Any, *, method_name: str, route_kwargs: dict[str, object]) -> tuple[bool, str | None]` — Check endpoint permissions, allowing by default and returning an allowed flag and denial message.
+- `async def resolve_hook_response(response: Any) -> Any` — Support synchronous and asynchronous permission-response hooks.
+- `def on_authentication_required(request: Any, response_mode: Literal['html', 'json'], *, method_name: str) -> Any` — Return an unauthenticated response directly or as an awaitable, both supported by dispatch.
+- `async def on_permission_denied(request: Any, response_mode: Literal['html', 'json'], *, message: str, method_name: str)` — Return a permission-denied response.
 
 ## `import_app_modules`
 
@@ -212,20 +212,20 @@ class · defined in `oldman.web.routing`
 class Router
 ```
 
-注册路由的入口。应用在 ``views.py`` 里用它,不接触底层服务器实例。
+Route-registration entry point used in views.py without accessing the underlying server instance.
 
 Members:
 
-- `def add_route(handler: _Handler, uri: str, *, name: str | None=None, **kwargs: object) -> _Handler` — 注册一个处理器,通常是类视图的 ``as_view()`` 结果。
-- `def route(uri: str, methods: Iterable[str], *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 按给定方法集注册。单一方法优先用下面的同名快捷方法。
-- `def websocket(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 WebSocket 路由。
-- `def get(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 GET 路由。
-- `def post(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 POST 路由。
-- `def put(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 PUT 路由。
-- `def patch(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 PATCH 路由。
-- `def delete(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 DELETE 路由。
-- `def head(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 HEAD 路由。
-- `def options(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — 注册 OPTIONS 路由。
+- `def add_route(handler: _Handler, uri: str, *, name: str | None=None, **kwargs: object) -> _Handler` — Register a handler, usually the result of a class view's as_view().
+- `def route(uri: str, methods: Iterable[str], *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a set of methods, preferring same-named shortcuts for single methods.
+- `def websocket(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a WebSocket route.
+- `def get(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a GET route.
+- `def post(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a POST route.
+- `def put(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a PUT route.
+- `def patch(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a PATCH route.
+- `def delete(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a DELETE route.
+- `def head(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register a HEAD route.
+- `def options(uri: str, *, name: str | None=None, **kwargs: object) -> Callable[[_Handler], _Handler]` — Register an OPTIONS route.
 
 ## `router`
 
@@ -235,7 +235,7 @@ value · defined in `oldman.web.routing`
 router = Router()
 ```
 
-进程级路由注册入口。``from oldman.web import router``
+Process-wide route registration through ``from oldman.web import router``.
 
 ## `stream_response`
 
@@ -359,7 +359,7 @@ CSRFFailure(message: str, *, page_description: str) -> None
 
 ## Module `oldman.web.http`
 
-Oldman 后端组件 HTTP 视图基类。
+Base HTTP view for Oldman backend components.
 
 Import with `from oldman.web.http import <name>`.
 
@@ -381,7 +381,7 @@ function · defined in `oldman.web.http`
 def authentication_required_response(request: Any, response_mode: Literal['html', 'json'], *, login_url: str | None=None)
 ```
 
-返回未登录响应;`login_url` 省略时用站点的 `web.account.login_url`。
+Return an unauthenticated response, defaulting login_url to site web.account.login_url.
 
 ### `build_login_url`
 
@@ -391,7 +391,7 @@ function · defined in `oldman.web.http`
 def build_login_url(request: Any, login_url: str | None=None) -> str
 ```
 
-构造包含原始 path/query 的登录跳转地址;`login_url` 省略时用站点的 `web.account.login_url`。
+Build a sign-in redirect preserving path/query, defaulting login_url to site web.account.login_url.
 
 ### `permission_denied_response`
 
@@ -401,7 +401,7 @@ function · defined in `oldman.web.http`
 async def permission_denied_response(request: Any, response_mode: Literal['html', 'json'], *, message: str | None=None)
 ```
 
-返回 JSON 403 或项目可覆盖的 HTML 403 页面;没给 message 时用翻译后的"没有权限"。
+Return JSON 403 or project-overridable HTML 403, defaulting to translated Permission denied.
 
 ### `resolve_response_mode`
 
@@ -411,7 +411,7 @@ function · defined in `oldman.web.http`
 def resolve_response_mode(request: Any, default: ResponseMode='auto') -> Literal['html', 'json']
 ```
 
-按 response_mode 参数优先、Accept 兜底解析响应模式。
+Resolve response mode from response_mode first, falling back to Accept.
 
 ## Module `oldman.web.package_data`
 
@@ -507,7 +507,7 @@ Whether the request body is JSON, by its Content-Type: ``application/json`` or a
 
 ## Module `oldman.web.shortcuts`
 
-读取一个对象或者返回 404 的快捷函数。
+Shortcut for fetching an object or returning 404.
 
 Import with `from oldman.web.shortcuts import <name>`.
 
@@ -519,4 +519,4 @@ function · defined in `oldman.web.shortcuts`
 async def get_object_or_404(session: Any, model: type[TModel], object_id: Any, *, message: str | None=None) -> TModel
 ```
 
-在调用方的事务里按主键读一个对象，读不到就抛 `NotFound`。
+Read an object by primary key in the caller's transaction, raising NotFound when absent.

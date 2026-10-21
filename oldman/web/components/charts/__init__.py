@@ -1,4 +1,7 @@
-"""后端 Chart 组件封装入口。"""
+"""Backend Chart component entry point.
+
+后端 Chart 组件封装入口。
+"""
 
 from .config import ChartConfig, ChartField
 from .exceptions import ChartInvalidRequest

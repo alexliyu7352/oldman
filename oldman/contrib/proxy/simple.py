@@ -34,7 +34,8 @@ excluded_headers = ["content-length", "transfer-encoding", "connection", "host"]
 
 
 class SimpleStreamProxy(BaseStreamProxy):
-    """
+    """A simple stream proxy forwarding requests locally without encryption or caching.
+
     简单的流代理, 不进行任何的加密和缓存, 直接转发请求到本地的代理上
     """
 
@@ -202,7 +203,8 @@ class SimpleStreamProxy(BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Rewrite m3u8 TS paths, generating a playlist containing the actual proxy path when there are no child playlists.
+
         处理m3u8内容,替换TS路径为代理路径, 如果本身不包含子m3u8, 那么就生成一个包含实际代理路径的m3u8内容
          :param local_proxy:
          :param direct:
@@ -228,7 +230,8 @@ class SimpleStreamProxy(BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Serialize request parameters as a base64 string.
+
         序列化请求参数到base64字符串
         :param direct:
         :param proxy_url:
@@ -248,7 +251,8 @@ class SimpleStreamProxy(BaseStreamProxy):
 
     @staticmethod
     def load_params(params_str: str) -> dict[str, Any] | None:
-        """
+        """Deserialize request parameters from a base64 string.
+
         反序列化请求参数从base64字符串
         :param params_str:
         :return:
@@ -275,7 +279,8 @@ class SimpleStreamProxy(BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str | None:
-        """
+        """Proxy remote m3u8 content directly without caching.
+
         直接代理远程m3u8内容, 不进行任何缓存
         :param local_proxy: 本地代理路径或者代理地址
         :param channel_id: 频道ID
@@ -345,7 +350,8 @@ class SimpleStreamProxy(BaseStreamProxy):
         return None
 
     def get_client_remark(self, stream_url: str) -> str:
-        """
+        """Return the URL's MD5 digest as the client label.
+
         返回url的md5值作为客户端备注
         :param stream_url:
         :return:
@@ -362,7 +368,8 @@ class SimpleStreamProxy(BaseStreamProxy):
         local_proxy: str | None = None,
         client_type: str | None = None,
     ) -> HTTPResponse | None:
-        """
+        """Proxy a child request.
+
         代理子请求
         :param local_proxy:
         :param client_type: 客户端类型
@@ -465,7 +472,8 @@ class SimpleStreamProxy(BaseStreamProxy):
 
 
 class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
-    """
+    """A simple encrypted stream proxy that seals real URLs and forwards locally without caching.
+
     简单加密的流代理, 加密真实URL, 但是不进行任何缓存, 直接转发请求到本地的代理上
     """
 
@@ -473,12 +481,18 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
     # 密封是确定性的，所以两个方向都能缓存，下游 HTTP 缓存也仍然有效。
     @lru_cache(maxsize=4096)  # noqa: B019
     def encrypt_url(self, url: str) -> str:
-        """把真实 URL 封成不可伪造的路径段。"""
+        """Seal the real URL into an unforgeable path segment.
+
+        把真实 URL 封成不可伪造的路径段。
+        """
         return self.seal_url(url)
 
     @lru_cache(maxsize=2048)  # noqa: B019
     def decrypt_url(self, encrypted_url: str) -> str | None:
-        """还原真实 URL；被改写或伪造的路径段返回 None。"""
+        """Restore the real URL, returning None for modified or forged path segments.
+
+        还原真实 URL；被改写或伪造的路径段返回 None。
+        """
         return self.unseal_url(encrypted_url)
 
     def get_encrypt_path(self, base_url: str, url: str, proxy_params_str: str | None = None, local_proxy: str | None = None) -> str:
@@ -511,7 +525,8 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Rewrite m3u8 TS paths, generating a playlist containing the actual proxy path when there are no child playlists.
+
         处理m3u8内容,替换TS路径为代理路径, 如果本身不包含子m3u8, 那么就生成一个包含实际代理路径的m3u8内容
          :param local_proxy:
          :param direct:
@@ -531,7 +546,8 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
         return self.process_m3u8_ts_path(m3u8_content, base_url, params_str, local_proxy)
 
     def process_m3u8_ts_path(self, m3u8_content: str, base_url: str, proxy_params_str: str | None = None, local_proxy: str | None = None) -> str:
-        """
+        """Rewrite TS paths in m3u8 content to proxy paths.
+
         处理m3u8内容,替换TS路径为代理路径
         :param local_proxy:
         :param base_url:
@@ -569,7 +585,8 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
         local_proxy: str | None = None,
         client_type: str | None = None,
     ) -> HTTPResponse | None:
-        """
+        """Proxy a child request.
+
         代理子请求
         :param local_proxy:
         :param client_type: 客户端类型

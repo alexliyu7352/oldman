@@ -1,4 +1,6 @@
-"""在真实浏览器里验证持久化通知的完整链路，供每个宿主项目的门禁复用。
+"""Verify the full persistent-notification flow in a real browser for reuse by host-project gates.
+
+在真实浏览器里验证持久化通知的完整链路，供每个宿主项目的门禁复用。
 
 Chrome 走 CDP：登录、topbar 下拉、未读计数、标记已读、删除、通知中心分页、SSE 实时推送；
 Firefox 走 BiDi，做同一套壳层与 EventSource 冒烟。两边断言的都是框架自己的通知 UI，所以实现放在框架，
@@ -1051,7 +1053,10 @@ def notification_gate_main(
     argv: list[str] | None = None,
     extra_firefox_steps: ExtraFirefoxSteps | None = None,
 ) -> int:
-    """门禁入口：解析运行参数，跑选定的浏览器，打印一条可机读的结果。"""
+    """Parse gate arguments, run the selected browser, and print one machine-readable result.
+
+    门禁入口：解析运行参数，跑选定的浏览器，打印一条可机读的结果。
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", choices=("chrome", "firefox"), required=True)
     parser.add_argument("--url", required=True)

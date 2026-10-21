@@ -26,7 +26,8 @@ class CsrfExtension(Extension):
     tags = {"csrf_token"}
 
     def parse(self, parser):
-        """
+        """Parse the {% csrf_token %} tag.
+
         解析 {% csrf_token %} 标签
 
         关键点：

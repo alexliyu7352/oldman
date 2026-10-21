@@ -19,7 +19,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.cli.tui`](oldman.cli.tui.md) | 25 | Terminal interaction for Oldman commands and ops tools. |
 | [`oldman.conf`](oldman.conf.md) | 53 | Application settings bootstrap and public configuration API. |
 | [`oldman.contrib.http`](oldman.contrib.http.md) | 16 | @author:alex |
-| [`oldman.contrib.http.backends`](oldman.contrib.http.backends.md) | 3 | HTTP客户端后端实现 |
+| [`oldman.contrib.http.backends`](oldman.contrib.http.backends.md) | 3 | HTTP client backend implementations. |
 | [`oldman.contrib.proxy`](oldman.contrib.proxy.md) | 7 | @author:alex |
 | [`oldman.db`](oldman.db.md) | 23 | Public database models and lazy sessions; deployments use migrations. |
 | [`oldman.db.sqlalchemy`](oldman.db.sqlalchemy.md) | 6 | @author:alex |
@@ -40,17 +40,17 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.storage.backends`](oldman.storage.backends.md) | 2 |  |
 | [`oldman.tasks`](oldman.tasks.md) | 8 | @author:alex |
 | [`oldman.tasks.distributed`](oldman.tasks.distributed.md) | 2 | Native task declaration and scheduling objects for the configured process. |
-| [`oldman.testing`](oldman.testing.md) | 55 | 本地校验门禁用的测试工具：真实浏览器、进程树、PNG 证据。 |
+| [`oldman.testing`](oldman.testing.md) | 55 | Local verification tools for real browsers, process trees, and PNG evidence. |
 | [`oldman.utils`](oldman.utils.md) | 14 | @author:alex |
 | [`oldman.web`](oldman.web.md) | 45 | Lightweight public Web primitives for Oldman applications. |
 | [`oldman.web.api`](oldman.web.api.md) | 24 | Public browser response protocol. |
 | [`oldman.web.auth`](oldman.web.auth.md) | 72 | Public Web authentication adapters. |
 | [`oldman.web.authentication`](oldman.web.authentication.md) | 39 | Request authentication: who is calling, and how they proved it. |
 | [`oldman.web.components`](oldman.web.components.md) | 4 | @author:alex |
-| [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | 后端 Chart 组件封装入口。 |
-| [`oldman.web.components.forms`](oldman.web.components.forms.md) | 46 | 后端 Form 组件包入口。 |
-| [`oldman.web.components.selects`](oldman.web.components.selects.md) | 13 | Oldman 后端 Select/Autocomplete 组件入口。 |
-| [`oldman.web.components.tables`](oldman.web.components.tables.md) | 26 | Oldman 后端 Table 组件入口。 |
+| [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | Backend Chart component entry point. |
+| [`oldman.web.components.forms`](oldman.web.components.forms.md) | 46 | Backend Form component package entry point. |
+| [`oldman.web.components.selects`](oldman.web.components.selects.md) | 13 | Backend Oldman Select/Autocomplete component entry point. |
+| [`oldman.web.components.tables`](oldman.web.components.tables.md) | 26 | Backend Oldman Table component entry point. |
 | [`oldman.web.i18n`](oldman.web.i18n.md) | 22 | Web internationalization service. |
 | [`oldman.web.messages`](oldman.web.messages.md) | 17 | Public browser user-message APIs. |
 | [`oldman.web.messages.notifications`](oldman.web.messages.notifications.md) | 20 | Public strong types for persistent and realtime user notifications. |

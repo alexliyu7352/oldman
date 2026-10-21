@@ -118,7 +118,8 @@ class _StructDISerializer(Serializer):
 
 
 class MsgspecJsonNatsSerializer(SerializerProto):
-    """
+    """Serialize with MsgspecModel's built-in JSON encoder without an intermediate stdlib json layer.
+
     用 MsgspecModel 内置 JSON 编码器完成序列化，消除 stdlib json 中间层。
 
     encode: message.to_json_bytes()   — MsgspecModel 内置 JSON bytes 编码
@@ -139,7 +140,8 @@ class MsgspecJsonNatsSerializer(SerializerProto):
 
 
 async def msgspec_json_decoder(msg: StreamMessage[Any]) -> Any:
-    """
+    """Replace FastStream's default decode_message based on stdlib json.loads.
+
     替换 FastStream 默认的 decode_message（stdlib json.loads）。
     使用 msgspec.json.decode 将 msg.body bytes → dict/value。
 
@@ -161,7 +163,8 @@ async def msgspec_json_decoder(msg: StreamMessage[Any]) -> Any:
 
 
 class MsgpackNatsSerializer(SerializerProto):
-    """
+    """Serialize with MsgspecModel's built-in MessagePack encoder, using binary throughout without JSON overhead.
+
     用 MsgspecModel 内置 Msgpack 编码器完成序列化，全链路二进制，零 JSON 开销。
 
     encode: message.to_msgpack()     — MsgspecModel 内置 msgpack 编码
@@ -183,7 +186,8 @@ class MsgpackNatsSerializer(SerializerProto):
 
 
 async def msgpack_decoder(msg: StreamMessage[Any]) -> Any:
-    """
+    """Replace FastStream's default decode_message with msgspec.msgpack decoding.
+
     替换 FastStream 默认的 decode_message，使用 msgspec.msgpack 解码。
     传给 NatsBroker(decoder=msgpack_decoder)
 

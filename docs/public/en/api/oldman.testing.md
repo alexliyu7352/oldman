@@ -2,7 +2,7 @@
 
 Generated from the source by `scripts/api_index.py`; do not edit by hand. [All packages](README.md)
 
-本地校验门禁用的测试工具：真实浏览器、进程树、PNG 证据。
+Local verification tools for real browsers, process trees, and PNG evidence.
 
 Import with `from oldman.testing import <name>`.
 
@@ -14,7 +14,7 @@ class · defined in `oldman.testing.gates`
 class BrowserGateError(RuntimeError)
 ```
 
-门禁的准备、运行或清理失败。
+Gate setup, execution, or cleanup failure.
 
 ## `BrowserResult`
 
@@ -127,7 +127,7 @@ function · defined in `oldman.testing.duplication`
 def duplicate_functions(left_root: Path, right_root: Path, *, min_lines: int=6, exclude_names: Sequence[str]=(), exclude_directories: Iterable[str]=()) -> list[DuplicateFunction]
 ```
 
-两棵源码树里同名且结构相同的函数。
+Find same-named, structurally identical functions across two source trees.
 
 ## `ensure_gate_admin`
 
@@ -137,7 +137,7 @@ function · defined in `oldman.testing.gates`
 def ensure_gate_admin(config_file: Path, *, environment: Mapping[str, str], project_root: Path, username: str, password: str, email: str='oldman@example.com', service: str='web') -> None
 ```
 
-通过公开的 bootstrap 与 ensure_superuser 建出门禁要用的管理员。
+Create the gate administrator through public bootstrap and ensure_superuser APIs.
 
 ## `find_chrome`
 
@@ -165,7 +165,7 @@ function · defined in `oldman.testing.duplication`
 def forbidden_attributes(root: Path, *, attributes: Sequence[str], exclude_directories: Iterable[str]=()) -> list[SourceReference]
 ```
 
-找出形如 `a.b.c` 的属性访问链，用来挡住绕开公开入口的写法。
+Find attribute chains such as a.b.c to prevent bypassing public entry points.
 
 ## `forbidden_imports`
 
@@ -175,7 +175,7 @@ function · defined in `oldman.testing.duplication`
 def forbidden_imports(root: Path, *, modules: Sequence[str], allowed_names: Sequence[str]=(), exclude_directories: Iterable[str]=()) -> list[SourceReference]
 ```
 
-找出从指定模块（前缀匹配）导入的地方，`allowed_names` 里的名字放行。
+Find imports from prefix-matched modules, permitting names in allowed_names.
 
 ## `gate_settings`
 
@@ -185,7 +185,7 @@ function · defined in `oldman.testing.gates`
 def gate_settings(example_file: Path, state_root: Path, *, service_port: int, redis_url: str, namespace: str, database_name: str='gate.sqlite3', static_dir: Path | None=None, host: str=DEFAULT_HOST, customize: Callable[[dict], None] | None=None) -> Path
 ```
 
-把项目的 `web_settings.example.yaml` 改写成一份只指向临时目录的完整配置。
+Rewrite project web_settings.example.yaml as complete configuration pointing only to temporary directories.
 
 ## `identical_files`
 
@@ -195,7 +195,7 @@ function · defined in `oldman.testing.duplication`
 def identical_files(left_root: Path, right_root: Path, *, suffixes: Sequence[str]=('.py', '.ts', '.html'), exclude_directories: Iterable[str]=(), min_bytes: int=200) -> list[IdenticalFile]
 ```
 
-两棵源码树里内容逐字节相同的文件（按同名文件比对）。
+Find byte-identical same-named files across two source trees.
 
 ## `launch_chrome`
 
@@ -225,7 +225,7 @@ function · defined in `oldman.testing.gates`
 def minimal_environment(source: Mapping[str, str] | None=None) -> dict[str, str]
 ```
 
-只保留启动本机工具需要的环境变量，并固定 hash 种子、时区和语言。
+Keep only environment variables needed by local tools and fix the hash seed, timezone, and language.
 
 ## `navigate`
 
@@ -243,7 +243,7 @@ function · defined in `oldman.testing.gates`
 def owned_redis_server(state_root: Path, *, environment: Mapping[str, str], host: str=DEFAULT_HOST) -> Iterator[str]
 ```
 
-起一个不落盘的 Redis，并在退出时证明进程组和端口都已释放。
+Start nonpersistent Redis and verify process-group and port release on exit.
 
 ## `owned_service`
 
@@ -253,7 +253,7 @@ function · defined in `oldman.testing.gates`
 def owned_service(config_file: Path, *, environment: Mapping[str, str], project_root: Path, service: str='web', name: str='service') -> Iterator[subprocess.Popen[bytes]]
 ```
 
-起一个门禁自有的前台服务进程组，退出时确认整组已经回收。
+Start a gate-owned foreground service group and confirm its complete cleanup on exit.
 
 ## `PngEvidence`
 
@@ -335,7 +335,7 @@ function · defined in `oldman.testing.gates`
 def run_browser_child(command: Sequence[str], *, environment: Mapping[str, str], project_root: Path, browser: str, timeout: float=180, label: str='gate') -> dict
 ```
 
-跑真实浏览器子进程，并要求它输出干净的成功载荷。
+Run a real-browser child process and require a clean success payload.
 
 ## `save_screenshot`
 
@@ -385,7 +385,7 @@ function · defined in `oldman.testing.gates`
 def wait_for_service(process: subprocess.Popen[bytes], service_port: int, *, host: str=DEFAULT_HOST, timeout: float=30, name: str='service') -> None
 ```
 
-等服务开始监听；进程提前退出算失败，不能一直等到超时。
+Wait for service listening, failing immediately on early process exit rather than waiting until timeout.
 
 ## `WebSocket`
 
@@ -411,7 +411,7 @@ Members:
 
 ## Module `oldman.testing.duplication`
 
-把“这段代码在别处已经有了”变成一条测试，而不是靠人记得。
+Detect existing duplicate implementations through tests rather than relying on memory.
 
 Import with `from oldman.testing.duplication import <name>`.
 
@@ -431,7 +431,7 @@ class · defined in `oldman.testing.duplication`
 class DuplicateFunction
 ```
 
-同一个函数名在两棵源码树里有结构相同的实现。
+A same-named function with structurally identical implementations in two source trees.
 
 Members:
 
@@ -439,7 +439,7 @@ Members:
 - `left: Path`
 - `right: Path`
 - `lines: int`
-- `def describe(*, left_root: Path | None=None, right_root: Path | None=None) -> str` — 一行可读描述，供断言失败时直接打印。
+- `def describe(*, left_root: Path | None=None, right_root: Path | None=None) -> str` — Return a readable one-line description for assertion failures.
 
 ### `function_digests`
 
@@ -449,7 +449,7 @@ function · defined in `oldman.testing.duplication`
 def function_digests(root: Path, *, min_lines: int=6, exclude_names: Sequence[str]=(), exclude_directories: Iterable[str]=()) -> dict[tuple[str, str], list[tuple[Path, int]]]
 ```
 
-一棵源码树里每个够长的函数的 (名字, 指纹) → 出现位置。
+Map names and fingerprints of sufficiently long functions to their source-tree locations.
 
 ### `IdenticalFile`
 
@@ -459,7 +459,7 @@ class · defined in `oldman.testing.duplication`
 class IdenticalFile
 ```
 
-两棵源码树里内容完全相同的文件。
+Files with identical contents in two source trees.
 
 Members:
 
@@ -475,7 +475,7 @@ function · defined in `oldman.testing.duplication`
 def iter_python_files(root: Path, *, exclude_directories: Iterable[str]=()) -> Iterator[Path]
 ```
 
-遍历一棵源码树里的 .py 文件，跳过缓存、虚拟环境和迁移目录。
+Iterate Python files in a source tree, excluding caches, virtual environments, and migrations.
 
 ### `SourceReference`
 
@@ -485,7 +485,7 @@ class · defined in `oldman.testing.duplication`
 class SourceReference
 ```
 
-一处不该出现的 import 或属性访问。
+An import or attribute access that must not appear.
 
 Members:
 
@@ -496,7 +496,7 @@ Members:
 
 ## Module `oldman.testing.gates`
 
-起一套完全自有的临时环境来跑浏览器门禁：空闲端口、独立 Redis、临时配置、前台服务。
+Run browser gates in fully owned temporary environments with free ports, Redis, configuration, and foreground services.
 
 Import with `from oldman.testing.gates import <name>`.
 
@@ -524,7 +524,7 @@ function · defined in `oldman.testing.gates`
 def find_free_port(host: str=DEFAULT_HOST) -> int
 ```
 
-当前没人用的一个 loopback 端口。
+Return a currently unused loopback port.
 
 ### `FirstUseInteraction`
 
@@ -534,7 +534,7 @@ class · defined in `oldman.testing.gates`
 class FirstUseInteraction
 ```
 
-迁移只允许回答“这是首次使用”，其它询问都算门禁接线错误。
+Allow only first-use confirmation during migration, treating other questions as gate wiring errors.
 
 Members:
 
@@ -550,7 +550,7 @@ function · defined in `oldman.testing.gates`
 def migrate_gate_database(config_file: Path, state_root: Path, *, project_root: Path, service: str='web') -> None
 ```
 
-在临时目录里搭一个最小项目，把已评审的迁移应用到门禁自己的数据库。
+Build a minimal temporary project and apply reviewed migrations to the gate-owned database.
 
 ### `port_is_open`
 
@@ -560,7 +560,7 @@ function · defined in `oldman.testing.gates`
 def port_is_open(port: int, host: str=DEFAULT_HOST) -> bool
 ```
 
-端口是否已经有人在监听。
+Check whether a port already has a listener.
 
 ### `process_group_exists`
 
@@ -570,7 +570,7 @@ function · defined in `oldman.testing.gates`
 def process_group_exists(process_group: int) -> bool
 ```
 
-进程组是否还存在（清理后必须为 False）。
+Check whether a process group still exists, which must be False after cleanup.
 
 ### `redis_database_url`
 
@@ -580,7 +580,7 @@ function · defined in `oldman.testing.gates`
 def redis_database_url(redis_url: str, database: int) -> str
 ```
 
-在门禁自有的 Redis 上选一个逻辑库。
+Select a logical database on gate-owned Redis.
 
 ### `service_command`
 
@@ -590,11 +590,11 @@ function · defined in `oldman.testing.gates`
 def service_command(config_file: Path, *, service: str='web') -> list[str]
 ```
 
-前台启动一个服务的命令，走的是正常的 bootstrap 与服务发现路径。
+Build a foreground service command using normal bootstrap and service discovery.
 
 ## Module `oldman.testing.notifications`
 
-在真实浏览器里验证持久化通知的完整链路，供每个宿主项目的门禁复用。
+Verify the full persistent-notification flow in a real browser for reuse by host-project gates.
 
 Import with `from oldman.testing.notifications import <name>`.
 
@@ -653,7 +653,7 @@ function · defined in `oldman.testing.notifications`
 def notification_gate_main(*, host: HostContract, project_root: Path, argv: list[str] | None=None, extra_firefox_steps: ExtraFirefoxSteps | None=None) -> int
 ```
 
-门禁入口：解析运行参数，跑选定的浏览器，打印一条可机读的结果。
+Parse gate arguments, run the selected browser, and print one machine-readable result.
 
 ### `run_verification`
 

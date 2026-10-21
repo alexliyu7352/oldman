@@ -25,19 +25,26 @@ from oldman.utils import strings_utils
 
 
 class EncryptStreamProxy(UrlSealingMixin, BaseStreamProxy):
-    """
+    """Proxy class with encryption support.
+
     支持加密的代理类
     主要用于使用加密url来替代缓存Url
     """
 
     @alru_cache(maxsize=4096)
     async def encrypt_url(self, url: str) -> str:
-        """把上下文串封成不可伪造的路径段。"""
+        """Seal a context string into an unforgeable path segment.
+
+        把上下文串封成不可伪造的路径段。
+        """
         return self.seal_url(url)
 
     @alru_cache(maxsize=4096)
     async def decrypt_url(self, encrypted_url: str) -> str | None:
-        """还原上下文串；被改写或伪造的路径段返回 None。"""
+        """Restore a context string, returning None for modified or forged path segments.
+
+        还原上下文串；被改写或伪造的路径段返回 None。
+        """
         return self.unseal_url(encrypted_url)
 
     async def save_sub_url(  # type: ignore[override]
@@ -50,7 +57,8 @@ class EncryptStreamProxy(UrlSealingMixin, BaseStreamProxy):
         ext_name: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Save a TS URL in Redis and generate a new URL.
+
         保存TS URL到Redis并生成新URL
         :param ext_name: 扩展名
         :param channel_id: 频道ID
@@ -113,7 +121,8 @@ class EncryptStreamProxy(UrlSealingMixin, BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Rewrite m3u8 TS paths to proxy paths with optional encrypted TS paths.
+
         处理m3u8内容,替换TS路径为代理路径, 并支持加密TS路径
         :param direct:
         :param user_agent:
@@ -192,7 +201,8 @@ class EncryptStreamProxy(UrlSealingMixin, BaseStreamProxy):
 
 
 class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
-    """
+    """Proxy class supporting encryption and caching.
+
     支持加密和缓存的代理类,
     主要用于使用加密url来替代缓存Url, 但是代理,UA等参数缓存, 避免URL过长
     流程是: 请求m3u8时, 生成加密URL并缓存参数; 请求TS时, 解密URL并从缓存获取参数
@@ -205,12 +215,18 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
 
     @alru_cache(maxsize=4096)
     async def encrypt_url(self, url: str) -> str:
-        """把真实 URL 封成不可伪造的路径段；代理、UA 等参数仍走缓存。"""
+        """Seal the real URL into an unforgeable path segment while retaining proxy, UA, and other parameters in cache.
+
+        把真实 URL 封成不可伪造的路径段；代理、UA 等参数仍走缓存。
+        """
         return self.seal_url(url)
 
     @alru_cache(maxsize=2048)
     async def decrypt_url(self, encrypted_url: str) -> str | None:
-        """还原真实 URL；被改写或伪造的路径段返回 None。"""
+        """Restore the real URL, returning None for modified or forged path segments.
+
+        还原真实 URL；被改写或伪造的路径段返回 None。
+        """
         return self.unseal_url(encrypted_url)
 
     async def get_encrypt_sub_url(
@@ -219,7 +235,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
         ts_url: str,
         ext_name: str | None = None,
     ) -> str:
-        """
+        """Save a TS URL in Redis and generate a new URL.
+
         保存TS URL到Redis并生成新URL
         :param ext_name: 扩展名
         :param channel_id: 频道ID
@@ -244,7 +261,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> str:
-        """
+        """Rewrite m3u8 TS paths to proxy paths with optional encrypted TS paths.
+
         处理m3u8内容,替换TS路径为代理路径, 并支持加密TS路径
          :param sub_ttl: 这里不需要,采用计算的TTL
          :param cached_id: 用于缓存的ID
@@ -315,7 +333,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
         user_agent: str | None = None,
         **extra_context,
     ) -> None:
-        """
+        """Save TS request parameters in Redis.
+
         保存TS请求参数到Redis
         :param channel_id:
         :param sub_ttl:
@@ -341,7 +360,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
         await conn.setex(cache_key, sub_ttl, data)
 
     async def load_params(self, channel_id: str) -> dict[str, Any] | None:
-        """
+        """Load TS request parameters from Redis.
+
         从Redis加载TS请求参数
         :param channel_id:
         :return:
@@ -359,7 +379,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
         return params
 
     def calculate_m3u8_ttl(self, channel_id: str, m3u8_content: str) -> int:
-        """
+        """Compute TTL efficiently with fast type checks.
+
         优化的 TTL 计算：快速判断类型和计算
         :param channel_id:
         :param m3u8_content: m3u8 或 mpd 内容
@@ -450,7 +471,8 @@ class EncryptMixStreamProxy(UrlSealingMixin, BaseStreamProxy):
     async def fetch_sub_manifest_or_stream(
         self, request: Request, channel_id: str, hash_url: str, ttl: int = 2, sub_url_ttl: int = 0
     ) -> HTTPResponse | None:
-        """
+        """Fetch and proxy a child m3u8 playlist or TS file.
+
         获取子m3u8或ts文件 中转
         :param ttl: 缓存时间(秒)
         :param sub_url_ttl: 子资源缓存时间(秒)

@@ -8,7 +8,10 @@ from dataclasses import asdict, dataclass, field
 
 @dataclass(frozen=True)
 class ChartSeries:
-    """ApexCharts series 数据。"""
+    """ApexCharts series data.
+
+    ApexCharts series 数据。
+    """
 
     name: str
     data: Sequence[object]
@@ -16,7 +19,10 @@ class ChartSeries:
 
 @dataclass(frozen=True)
 class ChartSummary:
-    """图表旁边的摘要项。"""
+    """A summary item beside the chart.
+
+    图表旁边的摘要项。
+    """
 
     label: str
     value: object
@@ -25,7 +31,10 @@ class ChartSummary:
 
 @dataclass(frozen=True)
 class ChartResult:
-    """图表查询结果，不是 HTTP 响应对象。"""
+    """Chart query results, not an HTTP response.
+
+    图表查询结果，不是 HTTP 响应对象。
+    """
 
     series: Sequence[ChartSeries] | Sequence[int | float]
     labels: Sequence[object] = field(default_factory=list)
@@ -35,7 +44,10 @@ class ChartResult:
     options: dict[str, object] = field(default_factory=dict)
 
     def to_apex_options(self) -> dict[str, object]:
-        """转换为前端 ApexChart 组件可消费的 JSON 配置。"""
+        """Convert to JSON options consumed by the browser ApexChart component.
+
+        转换为前端 ApexChart 组件可消费的 JSON 配置。
+        """
         payload = dict(self.options)
         payload.update(
             {

@@ -10,7 +10,10 @@ from oldman.web.template import render_component_template
 
 
 class ChartRenderer:
-    """无主题 Chart renderer，负责把图表状态转换为模板上下文。"""
+    """Unthemed Chart renderer converting chart state into template context.
+
+    无主题 Chart renderer，负责把图表状态转换为模板上下文。
+    """
 
     template_namespace = "oldman/charts/default"
 
@@ -19,11 +22,17 @@ class ChartRenderer:
         self.chart = chart
 
     def template_name(self, name: str) -> str:
-        """返回当前 renderer 使用的模板路径。"""
+        """Return the current renderer's template path.
+
+        返回当前 renderer 使用的模板路径。
+        """
         return f"{self.template_namespace}/{name}"
 
     async def render_shell(self, *, route_kwargs: dict[str, object], html_id: str | None = None) -> Markup:
-        """渲染图表外壳和前端挂载属性。"""
+        """Render the chart shell and browser mounting attributes.
+
+        渲染图表外壳和前端挂载属性。
+        """
         return await render_component_template(
             self.chart,
             self.template_name("shell.html"),
@@ -33,7 +42,10 @@ class ChartRenderer:
         )
 
     def shell_attrs(self, route_kwargs: dict[str, object], *, html_id: str | None) -> dict[str, object]:
-        """生成图表外层容器属性。"""
+        """Build outer chart-container attributes.
+
+        生成图表外层容器属性。
+        """
         return {
             "id": html_id,
             "data-om-component": "apex-chart",
@@ -42,7 +54,10 @@ class ChartRenderer:
 
 
 class TailwindChartRenderer(ChartRenderer):
-    """Tailwind/Oldman 图表 renderer。"""
+    """Tailwind/Oldman chart renderer.
+
+    Tailwind/Oldman 图表 renderer。
+    """
 
     template_namespace = "oldman/charts/default"
 

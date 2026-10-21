@@ -41,7 +41,9 @@ def _register_pending_routes(app: WebApp) -> None:
 
 
 class Router:
-    """注册路由的入口。应用在 ``views.py`` 里用它,不接触底层服务器实例。
+    """Route-registration entry point used in views.py without accessing the underlying server instance.
+
+    注册路由的入口。应用在 ``views.py`` 里用它,不接触底层服务器实例。
 
     这一层存在的理由是**边界**,不是便利。它取代的 ``get_app()`` 返回的是整个
     Sanic 实例,于是三件事同时发生:``app`` 一词在项目里有了两个意思(``apps.py``
@@ -84,48 +86,79 @@ class Router:
         return decorator
 
     def add_route(self, handler: _Handler, uri: str, *, name: str | None = None, **kwargs: object) -> _Handler:
-        """注册一个处理器,通常是类视图的 ``as_view()`` 结果。"""
+        """Register a handler, usually the result of a class view's as_view().
+
+        注册一个处理器,通常是类视图的 ``as_view()`` 结果。
+        """
         self._register(lambda server: server.add_route(handler, uri, name=name, **kwargs))  # type: ignore[arg-type]
         return handler
 
     def route(self, uri: str, methods: Iterable[str], *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """按给定方法集注册。单一方法优先用下面的同名快捷方法。"""
+        """Register a set of methods, preferring same-named shortcuts for single methods.
+
+        按给定方法集注册。单一方法优先用下面的同名快捷方法。
+        """
         return self._decorator(lambda server: server.route(uri, methods=methods, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def websocket(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 WebSocket 路由。"""
+        """Register a WebSocket route.
+
+        注册 WebSocket 路由。
+        """
         return self._decorator(lambda server: server.websocket(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def get(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 GET 路由。"""
+        """Register a GET route.
+
+        注册 GET 路由。
+        """
         return self._decorator(lambda server: server.get(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def post(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 POST 路由。"""
+        """Register a POST route.
+
+        注册 POST 路由。
+        """
         return self._decorator(lambda server: server.post(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def put(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 PUT 路由。"""
+        """Register a PUT route.
+
+        注册 PUT 路由。
+        """
         return self._decorator(lambda server: server.put(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def patch(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 PATCH 路由。"""
+        """Register a PATCH route.
+
+        注册 PATCH 路由。
+        """
         return self._decorator(lambda server: server.patch(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def delete(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 DELETE 路由。"""
+        """Register a DELETE route.
+
+        注册 DELETE 路由。
+        """
         return self._decorator(lambda server: server.delete(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def head(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 HEAD 路由。"""
+        """Register a HEAD route.
+
+        注册 HEAD 路由。
+        """
         return self._decorator(lambda server: server.head(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
     def options(self, uri: str, *, name: str | None = None, **kwargs: object) -> Callable[[_Handler], _Handler]:
-        """注册 OPTIONS 路由。"""
+        """Register an OPTIONS route.
+
+        注册 OPTIONS 路由。
+        """
         return self._decorator(lambda server: server.options(uri, name=name, **kwargs))  # type: ignore[arg-type,return-value]
 
 
-#: 进程级路由注册入口。``from oldman.web import router``
+# 进程级路由注册入口。``from oldman.web import router``
+#: Process-wide route registration through ``from oldman.web import router``.
 router = Router()
 
 

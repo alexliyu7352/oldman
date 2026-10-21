@@ -23,7 +23,10 @@ class FakeLog(MsgspecModel):
 
 
 def validate_payload(payload: dict, max_diff: int) -> tuple[bool, str, str]:
-    """验证解密后的数据"""
+    """Validate decrypted data.
+
+    验证解密后的数据
+    """
     if "vid" not in payload or "ts" not in payload:
         return False, "missing_fields", ""
 
@@ -49,7 +52,10 @@ def validate_payload(payload: dict, max_diff: int) -> tuple[bool, str, str]:
 
 
 async def log_fake_fingerprint_attempt(ip: str, reason: str):
-    """记录伪造指纹尝试"""
+    """Record a forged-fingerprint attempt.
+
+    记录伪造指纹尝试
+    """
     log_key = redis_key("fingerprint", "fake_attempts", ip)
     log_data = FakeLog(timestamp=int(time.time()), reason=reason)
     conn = await security_redis_connection()
@@ -67,7 +73,10 @@ async def log_fake_fingerprint_attempt(ip: str, reason: str):
 
 
 def get_fingerprint_from_front(encrypted_b64: str, aes_secret_key: str, max_diff: int) -> tuple[str, str]:
-    """从解密后的数据中提取指纹"""
+    """Extract the fingerprint from decrypted data.
+
+    从解密后的数据中提取指纹
+    """
     success, msg, payload = AESGcmDecrypt.decrypt(encrypted_b64, aes_secret_key)
     if not success:
         logger.warning(f"Fingerprint decryption failed: {msg}")
@@ -80,7 +89,10 @@ def get_fingerprint_from_front(encrypted_b64: str, aes_secret_key: str, max_diff
 
 
 async def get_stats(fingerprint: str):
-    """管理接口 - 查看指纹统计"""
+    """Management endpoint for fingerprint statistics.
+
+    管理接口 - 查看指纹统计
+    """
     conn = await security_redis_connection()
 
     # 获取关联IP

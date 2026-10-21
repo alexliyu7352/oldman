@@ -2,7 +2,7 @@
 
 Generated from the source by `scripts/api_index.py`; do not edit by hand. [All packages](README.md)
 
-后端 Form 组件包入口。
+Backend Form component package entry point.
 
 Import with `from oldman.web.components.forms import <name>`.
 
@@ -14,7 +14,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class Actions
 ```
 
-声明表单底部动作按钮。
+Declare bottom form-action buttons.
 
 Members:
 
@@ -30,7 +30,7 @@ class · defined in `oldman.web.components.forms.fields`
 class AjaxAutocompleteField(RemoteChoiceValidationMixin, StringField)
 ```
 
-远程 Autocomplete provider 的便捷字段封装：提交的是 ID，输入框显示标签。
+Convenience remote Autocomplete field submitting IDs while displaying labels.
 
 Constructor:
 
@@ -40,7 +40,7 @@ AjaxAutocompleteField(*args: Any, provider: str, endpoint: str | None=None, rout
 
 Members:
 
-- `def initial_choice(value: Any, label: Any) -> None` — 编辑页首屏回显：字段值放 ID，输入框里显示给用户看的标签。
+- `def initial_choice(value: Any, label: Any) -> None` — Display initial edit values with the ID in the field and a user-facing label in the input.
 
 ## `AjaxAutocompleteWidget`
 
@@ -50,7 +50,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class AjaxAutocompleteWidget
 ```
 
-远程 Autocomplete provider 的 WTForms widget。
+WTForms widget for remote Autocomplete providers.
 
 Constructor:
 
@@ -60,9 +60,9 @@ AjaxAutocompleteWidget(*, provider: str, endpoint: str | None=None, route_name: 
 
 Members:
 
-- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — 生成前端 Autocomplete 组件需要的 data 属性。
-- `def resolve_endpoint(form: Any) -> str` — 返回远程 autocomplete provider endpoint。
-- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — 通过模板渲染 autocomplete 控件。
+- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — Generate data attributes required by the browser Autocomplete component.
+- `def resolve_endpoint(form: Any) -> str` — Return the remote autocomplete provider endpoint.
+- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Render an autocomplete control through a template.
 
 ## `AjaxSelectField`
 
@@ -72,7 +72,7 @@ class · defined in `oldman.web.components.forms.fields`
 class AjaxSelectField(RemoteChoiceValidationMixin, SelectField)
 ```
 
-远程 Select provider 的便捷字段封装。
+Convenience field for remote Select providers.
 
 Constructor:
 
@@ -82,8 +82,8 @@ AjaxSelectField(*args: Any, provider: str, endpoint: str | None=None, route_name
 
 Members:
 
-- `def process_formdata(valuelist: list[Any]) -> None` — 清空远程 select 是合法提交：空值存成 None，由 validators 决定是否必填。
-- `def initial_choice(value: Any, label: Any) -> None` — 编辑页首屏回显当前值。
+- `def process_formdata(valuelist: list[Any]) -> None` — Accept cleared remote selects as None, leaving requiredness to validators.
+- `def initial_choice(value: Any, label: Any) -> None` — Display the current value on the initial edit page.
 
 ## `AjaxSelectMultipleField`
 
@@ -93,7 +93,7 @@ class · defined in `oldman.web.components.forms.fields`
 class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField)
 ```
 
-远程多选 Select provider 的便捷字段封装。
+Convenience field for remote multiple-selection providers.
 
 Constructor:
 
@@ -103,8 +103,8 @@ AjaxSelectMultipleField(*args: Any, provider: str, endpoint: str | None=None, ro
 
 Members:
 
-- `def process_formdata(valuelist: list[Any]) -> None` — 清空远程多选是合法提交：空值丢掉，结果是空列表。
-- `def initial_choices(choices: Sequence[tuple[Any, Any]]) -> None` — 编辑页首屏回显已选的多个值，顺序就是传入顺序。空值会被跳过。
+- `def process_formdata(valuelist: list[Any]) -> None` — Accept cleared remote multiple selections, dropping empty values to produce an empty list.
+- `def initial_choices(choices: Sequence[tuple[Any, Any]]) -> None` — Display initial multiple selections in input order, skipping empty values.
 
 ## `AjaxSelectWidget`
 
@@ -114,7 +114,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class AjaxSelectWidget(SelectWidget)
 ```
 
-远程 Select provider 的 WTForms widget。
+WTForms widget for remote Select providers.
 
 Constructor:
 
@@ -124,9 +124,9 @@ AjaxSelectWidget(*, provider: str, endpoint: str | None=None, route_name: str | 
 
 Members:
 
-- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — 生成前端 Select 组件需要的 data 属性。
-- `def resolve_endpoint(form: Any) -> str` — 返回远程 provider endpoint，优先使用显式 URL，其次使用 route name 反解。
-- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — 通过模板渲染远程 select 控件。
+- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — Generate data attributes required by the browser Select component.
+- `def resolve_endpoint(form: Any) -> str` — Return the remote provider endpoint, prioritizing an explicit URL over reverse route-name lookup.
+- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Render a remote select control through a template.
 
 ## `CheckboxGroupField`
 
@@ -156,7 +156,7 @@ class · defined in `oldman.web.components.forms.fields`
 class ColorPickerField(StringField)
 ```
 
-保存规范化的六位 RGB 或八位 RGBA HEX 颜色。
+Store normalized six-digit RGB or eight-digit RGBA hex colors.
 
 Constructor:
 
@@ -166,8 +166,8 @@ ColorPickerField(*args: Any, allow_alpha: bool=True, **kwargs: Any) -> None
 
 Members:
 
-- `def process_formdata(valuelist: list[Any]) -> None` — 统一输出小写 HEX，便于模型和前端稳定比较。
-- `def pre_validate(form: BaseForm) -> None` — 拒绝浏览器或客户端提交的非 HEX 值。
+- `def process_formdata(valuelist: list[Any]) -> None` — Emit lowercase hex consistently for stable model/browser comparisons.
+- `def pre_validate(form: BaseForm) -> None` — Reject non-hex browser or client submissions.
 
 ## `ColorPickerWidget`
 
@@ -177,7 +177,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class ColorPickerWidget
 ```
 
-输出原生颜色输入，并声明可选的 Pickr 渐进增强。
+Emit a native color input declaring optional progressive Pickr enhancement.
 
 Constructor:
 
@@ -187,7 +187,7 @@ ColorPickerWidget(*, allow_alpha: bool=True) -> None
 
 Members:
 
-- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — 原生 input 负责无脚本提交，挂载后由隐藏字段承载完整 HEXA 值。
+- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Use the native input without scripts and a hidden field for full HEXA values after mounting.
 
 ## `DateTimePickerWidget`
 
@@ -197,7 +197,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class DateTimePickerWidget
 ```
 
-显式 opt-in 的 Oldman flatpickr 日期时间 widget。
+An explicitly enabled Oldman flatpickr date/time widget.
 
 Constructor:
 
@@ -207,7 +207,7 @@ DateTimePickerWidget(*, date_format: str='Y-m-d\\TH:i', enable_time: bool=True, 
 
 Members:
 
-- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — 生成前端 DateTimePicker 组件需要的 data 属性。
+- `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — Generate data attributes required by the browser DateTimePicker component.
 
 ## `EmailField`
 
@@ -238,7 +238,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class FieldGroup
 ```
 
-声明一组带标题（和可选说明）的字段；渲染为 fieldset，字段仍在同一张表单里。
+Declare a titled field group with an optional description, rendered as a fieldset within the same form.
 
 Constructor:
 
@@ -260,7 +260,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class FieldLayout
 ```
 
-表单字段布局定义。
+Form field-layout definitions.
 
 Members:
 
@@ -278,7 +278,7 @@ class · defined in `oldman.web.components.forms.renderers`
 class FieldRenderer
 ```
 
-无主题字段 renderer，负责字段上下文和 widget attrs。
+Unthemed field renderer managing field context and widget attributes.
 
 Constructor:
 
@@ -288,25 +288,25 @@ FieldRenderer(form: Any) -> None
 
 Members:
 
-- `async def render(field: Any) -> Markup` — 渲染单个字段 HTML。
-- `async def render_radio_field(field: RadioField) -> Markup` — 把 RadioField 渲染为可正常布局的原生单选组。
+- `async def render(field: Any) -> Markup` — Render one field's HTML.
+- `async def render_radio_field(field: RadioField) -> Markup` — Render RadioField as a normally laid-out native radio group.
 - `async def render_checkbox_group_field(field: CheckboxGroupField) -> Markup` — Render a CheckboxGroupField as native checkboxes; grouped choices get a heading per group.
-- `async def render_json_list_field(field: JSONListField) -> Markup` — 渲染标量列表现有行和供前端克隆的空白模板。
-- `async def render_password_field(field: PasswordField) -> Markup` — 渲染带共享可见性控件的密码字段。
-- `def password_toggle_enabled(field: PasswordField) -> bool` — 返回字段是否启用共享密码可见性控件。
-- `def boolean_presentation(field: BooleanField) -> str` — 返回布尔字段的呈现方式：widget 自带的优先，否则用 renderer 默认。
-- `async def render_boolean_field(field: BooleanField) -> Markup` — 渲染布尔字段：复选框行、开关行或开关卡片。
-- `async def render_widget(field: Field, **extra_attrs: Any) -> Markup` — 渲染字段 widget，远程组件走可替换模板。
-- `def template_name(name: str) -> str` — 返回当前字段 renderer 使用的模板路径。
-- `async def render_range_field(start: Field, end: Field, *, label: object=None) -> Markup` — 栅格布局里的范围字段：范围标签（默认取起点字段标签）+ 两个控件并排。
-- `async def render_filter_search(field: Field) -> Markup` — inline 筛选条的搜索框：无前缀，占满剩余宽度。
-- `async def render_filter_control(field: Field) -> Markup` — inline 筛选条的控件：标签是控件左侧的前缀段。
-- `async def render_filter_range(start: Field, end: Field, *, label: object=None) -> Markup` — inline 筛选条的范围控件：一个前缀（默认取起点字段标签），起止两个输入。
-- `async def render_help(field: Field) -> Markup` — 渲染字段帮助文本。
-- `async def render_field_errors(field: Field, *, error_id: str | None=None) -> Markup` — 渲染字段级错误。
-- `def widget_attrs(field: Field) -> dict[str, Any]` — 根据字段类型返回控件属性。
-- `def widget_base_class(field: Field) -> str` — 返回无主题默认控件 class。
-- `def invalid_class() -> str` — 返回字段错误状态 class。
+- `async def render_json_list_field(field: JSONListField) -> Markup` — Render scalar-list rows and an empty template for browser cloning.
+- `async def render_password_field(field: PasswordField) -> Markup` — Render a password field with shared visibility controls.
+- `def password_toggle_enabled(field: PasswordField) -> bool` — Return whether the field enables shared password-visibility controls.
+- `def boolean_presentation(field: BooleanField) -> str` — Return boolean presentation, prioritizing widget settings over renderer defaults.
+- `async def render_boolean_field(field: BooleanField) -> Markup` — Render booleans as checkbox rows, switch rows, or switch cards.
+- `async def render_widget(field: Field, **extra_attrs: Any) -> Markup` — Render field widgets, using replaceable templates for remote components.
+- `def template_name(name: str) -> str` — Return the current field renderer's template path.
+- `async def render_range_field(start: Field, end: Field, *, label: object=None) -> Markup` — Render a grid range with a label defaulting to the start field's label and two adjacent controls.
+- `async def render_filter_search(field: Field) -> Markup` — Render an inline-filter search input without a prefix, filling remaining width.
+- `async def render_filter_control(field: Field) -> Markup` — Render an inline-filter control with its label as a left prefix.
+- `async def render_filter_range(start: Field, end: Field, *, label: object=None) -> Markup` — Render an inline-filter range with one prefix defaulting to the start label and two inputs.
+- `async def render_help(field: Field) -> Markup` — Render field help text.
+- `async def render_field_errors(field: Field, *, error_id: str | None=None) -> Markup` — Render field-level errors.
+- `def widget_attrs(field: Field) -> dict[str, Any]` — Return control attributes according to field type.
+- `def widget_base_class(field: Field) -> str` — Return default unthemed control classes.
+- `def invalid_class() -> str` — Return field-error state classes.
 
 ## `FileExtension`
 
@@ -316,7 +316,7 @@ class · defined in `oldman.web.components.forms.fields`
 class FileExtension
 ```
 
-限制上传文件名最后一个扩展名。
+Restrict the final extension in uploaded filenames.
 
 Constructor:
 
@@ -332,7 +332,7 @@ class · defined in `oldman.web.components.forms.fields`
 class FileSize
 ```
 
-限制上传文件的字节数。
+Limit upload size in bytes.
 
 Constructor:
 
@@ -348,7 +348,7 @@ class · defined in `oldman.web.components.forms.base`
 class Form(WTForm)
 ```
 
-Oldman 后端渲染表单基类。
+Base class for Oldman server-rendered forms.
 
 Constructor:
 
@@ -360,33 +360,33 @@ Members:
 
 - `field_layout: tuple[FieldLayout | str, ...] = ()`
 - `layout: FormLayout | None = None`
-- `def configure_remote_select_fields() -> None` — 配置远程 Select widget 的字段校验边界。
-- `def add_error(field_name: str, message: str | LazyTranslation) -> None` — 向真实字段添加一条错误，拒绝拼错或伪造的字段名。
-- `classmethod def from_request(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', csrf_token: str='', select_secret_key: str='', **kwargs: Any) -> Self` — 从 Sanic 请求创建表单实例。
-- `classmethod def from_query(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Form` — 从 Sanic 查询参数创建 GET 筛选表单实例。
-- `async def render(*, action: str='', method: str='post', form_mode: str='html', target: str | None=None, swap: str | None=None, submit_label: str | LazyTranslation=_SAVE_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='', form_class: str='', component_name: str | None='form', validate: bool=False, feedback_target: str | None=None) -> Markup` — 渲染完整表单 HTML。
-- `def get_renderer() -> FormRenderer` — 返回当前表单的整体渲染器实例。
-- `def get_field_renderer() -> FieldRenderer` — 返回当前表单的字段渲染器实例。
-- `async def render_field(field: Field | str) -> Markup` — 渲染单个字段的 label、控件和错误。
-- `async def render_actions(*, submit_label: str | LazyTranslation=_SAVE_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='') -> Markup` — 渲染表单底部操作区，供模板局部调用。
-- `def visible_fields() -> list[Field]` — 返回可见字段列表。
-- `def hidden_fields() -> list[Field]` — 返回隐藏字段列表。
-- `def iter_layout() -> Iterable[FieldLayout]` — 返回表单布局字段。
-- `def get_layout_steps() -> tuple[FormStep, ...]` — 返回布局中声明的多步骤字段分组。
-- `def iter_step_layout(step: FormStep) -> Iterable[FieldLayout]` — 展开一个步骤中的字段布局。
-- `def iter_layout_segments() -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — 按分组切分顶层布局：连续的散字段成一段，每个 FieldGroup 自成一段。
-- `def iter_step_segments(step: FormStep) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — 按分组切分一个步骤里的布局。
-- `def get_layout_actions() -> Actions | None` — 返回布局中声明的 actions 配置。
-- `async def is_valid() -> bool` — 执行异步表单校验并返回是否通过。
-- `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — 执行 WTForms 同步校验和 Oldman 异步 clean 生命周期。
-- `async def clean() -> dict[str, Any] | None` — 执行跨字段校验，业务子类可覆盖。
-- `property data: dict[str, Any]` — 返回原始输入数据，和 cleaned_data 区分。
-- `property cleaned_data: dict[str, Any]` — 返回通过验证后的字段数据。
-- `def populate_obj(obj: Any) -> None` — 把 cleaned_data 中的字段写回普通对象。
-- `property errors: dict[str, list[str | LazyTranslation]]` — 返回每个真实字段的完整错误列表。
-- `property error_message: str | LazyTranslation | None` — 返回无法归属到具体字段的顶部校验消息。
-- `def to_api_response() -> DefaultApiFormResponse` — 把当前表单状态转换为统一 API 响应对象。
-- `async def prepare_async_fields() -> None` — 准备需要异步数据源的字段。
+- `def configure_remote_select_fields() -> None` — Configure field-validation boundaries for remote Select widgets.
+- `def add_error(field_name: str, message: str | LazyTranslation) -> None` — Add an error to an actual field, rejecting misspelled or fabricated field names.
+- `classmethod def from_request(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', csrf_token: str='', select_secret_key: str='', **kwargs: Any) -> Self` — Create a form instance from a Sanic request.
+- `classmethod def from_query(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Form` — Create a GET filter form from Sanic query parameters.
+- `async def render(*, action: str='', method: str='post', form_mode: str='html', target: str | None=None, swap: str | None=None, submit_label: str | LazyTranslation=_SAVE_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='', form_class: str='', component_name: str | None='form', validate: bool=False, feedback_target: str | None=None) -> Markup` — Render complete form HTML.
+- `def get_renderer() -> FormRenderer` — Return the current form renderer instance.
+- `def get_field_renderer() -> FieldRenderer` — Return the current form's field renderer instance.
+- `async def render_field(field: Field | str) -> Markup` — Render a field's label, control, and errors.
+- `async def render_actions(*, submit_label: str | LazyTranslation=_SAVE_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='') -> Markup` — Render the bottom action area for partial template use.
+- `def visible_fields() -> list[Field]` — Return visible fields.
+- `def hidden_fields() -> list[Field]` — Return hidden fields.
+- `def iter_layout() -> Iterable[FieldLayout]` — Return form-layout fields.
+- `def get_layout_steps() -> tuple[FormStep, ...]` — Return multi-step field groups declared in the layout.
+- `def iter_step_layout(step: FormStep) -> Iterable[FieldLayout]` — Expand field layouts within one step.
+- `def iter_layout_segments() -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — Split the top-level layout into consecutive ungrouped-field sections and individual FieldGroup sections.
+- `def iter_step_segments(step: FormStep) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — Split one step's layout into grouped sections.
+- `def get_layout_actions() -> Actions | None` — Return actions configuration declared in the layout.
+- `async def is_valid() -> bool` — Run asynchronous form validation and return whether it passes.
+- `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — Run WTForms synchronous validation and Oldman's asynchronous cleaning lifecycle.
+- `async def clean() -> dict[str, Any] | None` — Run cross-field validation, allowing business subclasses to override it.
+- `property data: dict[str, Any]` — Return raw input separately from cleaned_data.
+- `property cleaned_data: dict[str, Any]` — Return validated field data.
+- `def populate_obj(obj: Any) -> None` — Write cleaned_data fields back to an ordinary object.
+- `property errors: dict[str, list[str | LazyTranslation]]` — Return complete error lists for every actual field.
+- `property error_message: str | LazyTranslation | None` — Return the top-level validation message not attributable to one field.
+- `def to_api_response() -> DefaultApiFormResponse` — Convert current form state to a common API response object.
+- `async def prepare_async_fields() -> None` — Prepare fields requiring asynchronous data sources.
 
 ## `FormLayout`
 
@@ -396,7 +396,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class FormLayout
 ```
 
-声明式表单布局。
+Declarative form layout.
 
 Constructor:
 
@@ -416,7 +416,7 @@ class · defined in `oldman.web.components.forms.renderers`
 class FormRenderer
 ```
 
-无主题表单整体 renderer。
+Unthemed whole-form renderer.
 
 Constructor:
 
@@ -426,15 +426,15 @@ FormRenderer(form: Any) -> None
 
 Members:
 
-- `async def render(**kwargs: Any) -> Markup` — 渲染完整表单 HTML。
-- `async def render_table_filter(**kwargs: Any) -> Markup` — 渲染 TableFilterForm 专用 HTML。
-- `async def render_inline_filter(attrs: dict[str, Any], *, submit_label: object, extra_buttons: Markup | str) -> Markup` — 一行式筛选条：搜索框、带前缀标签的控件、范围控件、"更多筛选"面板和右端动作。
-- `async def render_with_attrs(attrs: dict[str, Any], *, method: str, submit_label: object, cancel_url: str | None, cancel_label: object, extra_buttons: Markup | str, validator: bool=False) -> Markup` — 使用指定 form 属性渲染完整表单模板。
-- `def template_name(name: str) -> str` — 返回当前 renderer 使用的模板路径。
-- `async def render_fields() -> Markup` — 按字段布局渲染表单字段。
-- `async def render_status() -> Markup` — 渲染前端 Form 组件用于显示提交状态的锚点。
-- `async def render_actions(*, submit_label: object, cancel_url: str | None, cancel_label: object, extra_buttons: Markup | str) -> Markup` — 渲染表单底部按钮。
-- `async def render_message() -> Markup` — 渲染唯一的表单顶部校验消息区域。
+- `async def render(**kwargs: Any) -> Markup` — Render complete form HTML.
+- `async def render_table_filter(**kwargs: Any) -> Markup` — Render HTML specifically for TableFilterForm.
+- `async def render_inline_filter(attrs: dict[str, Any], *, submit_label: object, extra_buttons: Markup | str) -> Markup` — Render an inline filter bar with search, prefixed controls, ranges, a More filters panel, and right-aligned actions.
+- `async def render_with_attrs(attrs: dict[str, Any], *, method: str, submit_label: object, cancel_url: str | None, cancel_label: object, extra_buttons: Markup | str, validator: bool=False) -> Markup` — Render the complete form template with specified form attributes.
+- `def template_name(name: str) -> str` — Return the current renderer's template path.
+- `async def render_fields() -> Markup` — Render form fields according to their layout.
+- `async def render_status() -> Markup` — Render the submission-status anchor used by the browser Form component.
+- `async def render_actions(*, submit_label: object, cancel_url: str | None, cancel_label: object, extra_buttons: Markup | str) -> Markup` — Render bottom form buttons.
+- `async def render_message() -> Markup` — Render the single top-level form-validation message area.
 
 ## `FormStep`
 
@@ -444,7 +444,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class FormStep
 ```
 
-声明多步骤表单中的一个字段分组。
+Declare a field group in a multi-step form.
 
 Constructor:
 
@@ -466,11 +466,11 @@ class · defined in `oldman.web.components.forms.widgets`
 class InputSpinnerWidget
 ```
 
-为 WTForms 数字字段输出可渐进增强的加减控件。
+Emit progressively enhanced increment/decrement controls for WTForms numeric fields.
 
 Members:
 
-- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — 保留原生 number input，并在外层声明 InputSpinner 组件。
+- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Retain a native number input and declare an outer InputSpinner component.
 
 ## `JSONListField`
 
@@ -480,7 +480,7 @@ class · defined in `oldman.web.components.forms.fields`
 class JSONListField(FieldList)
 ```
 
-把 Text 中的 JSON 数组绑定为 WTForms 标量字段列表。
+Bind a JSON array in Text to a WTForms scalar-field list.
 
 Constructor:
 
@@ -490,10 +490,10 @@ JSONListField(unbound_field: Any, *args: Any, **kwargs: Any) -> None
 
 Members:
 
-- `def process(formdata: Any, data: Any=unset_value, extra_filters: Any=None) -> None` — 解码模型值，并在 WTForms 截断前检查提交索引和数量。
-- `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — 保留子字段错误，并把列表级失败交给表单顶部消息。
-- `def template_entry(index: str='__index__') -> Any` — 创建不写入 entries 的空白子字段，供 HTML template 克隆。
-- `staticmethod def encode(value: list[Any]) -> str` — 返回数据库 Text 使用的稳定紧凑 JSON。
+- `def process(formdata: Any, data: Any=unset_value, extra_filters: Any=None) -> None` — Decode model values and check submitted indexes/counts before WTForms truncation.
+- `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Preserve child-field errors and pass list-level failures to the top form message.
+- `def template_entry(index: str='__index__') -> Any` — Create an empty child field outside entries for HTML-template cloning.
+- `staticmethod def encode(value: list[Any]) -> str` — Return stable compact JSON for database Text storage.
 
 ## `ModelChoice`
 
@@ -503,7 +503,7 @@ class · defined in `oldman.web.components.forms.choices`
 class ModelChoice
 ```
 
-本地模型选择器配置。
+Local model-choice configuration.
 
 Members:
 
@@ -513,9 +513,9 @@ Members:
 - `order_by: Sequence[str] = dataclass_field(default_factory=tuple)`
 - `max_choices: int = 200`
 - `empty_label: str | None = None`
-- `async def get_queryset(request: Any, session: Any) -> Sequence[Any]` — 返回当前 request/session 可见的本地候选对象。
-- `def value_from_instance(obj: Any) -> Any` — 从候选对象读取提交值。
-- `def label_from_instance(obj: Any) -> str` — 从候选对象读取显示文本。
+- `async def get_queryset(request: Any, session: Any) -> Sequence[Any]` — Return local candidate objects visible to the current request/session.
+- `def value_from_instance(obj: Any) -> Any` — Read the submitted value from a candidate object.
+- `def label_from_instance(obj: Any) -> str` — Read display text from a candidate object.
 
 ## `ModelChoiceField`
 
@@ -525,7 +525,7 @@ class · defined in `oldman.web.components.forms.fields`
 class ModelChoiceField(SelectField)
 ```
 
-本地模型外键选择字段。
+Local model foreign-key choice field.
 
 Constructor:
 
@@ -535,8 +535,8 @@ ModelChoiceField(*args: Any, model_choice: ModelChoice, coerce: Any=int, **kwarg
 
 Members:
 
-- `async def prepare_choices(form: Any) -> None` — 加载本地候选项并写入 WTForms choices。
-- `def pre_validate(form: BaseForm) -> None` — 校验提交值必须来自当前可见 choices。
+- `async def prepare_choices(form: Any) -> None` — Load local candidates into WTForms choices.
+- `def pre_validate(form: BaseForm) -> None` — Require submitted values to belong to currently visible choices.
 
 ## `ModelForm`
 
@@ -546,7 +546,7 @@ class · defined in `oldman.web.components.forms.models`
 class ModelForm(Form)
 ```
 
-Oldman 无主题模型表单基类。
+Base class for unthemed Oldman model forms.
 
 Constructor:
 
@@ -556,15 +556,15 @@ ModelForm(*args: Any, instance: Any=None, **kwargs: Any) -> None
 
 Members:
 
-- `classmethod def from_request(request, *, instance: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', csrf_token: str='', select_secret_key: str='', **kwargs: Any) -> Self` — 从 Sanic 请求创建模型表单实例。
-- `classmethod def from_query(request, *, instance: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Self` — 从 Sanic 查询参数创建模型筛选表单实例。
-- `classmethod def get_model() -> type[Any]` — 返回 Meta.model 声明的模型类。
-- `classmethod def get_model_fields() -> tuple[str, ...]` — 返回 Meta.fields 声明的可编辑字段。
-- `classmethod def inject_model_fields() -> None` — 把 SQLAlchemy 模型字段映射为 WTForms 字段。
-- `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — 校验普通字段，并补充非空文件列的“新建必传、编辑可沿用”规则。
-- `def populate_obj(obj: Any) -> None` — 把 cleaned_data 中允许的字段写回模型实例。
-- `async def save(*, commit: bool=False, session: Any=None) -> Any` — 保存模型表单并返回模型实例，事务提交由外部负责。
-- `async def before_save(instance: Any) -> None` — 派生字段的钩子：实例已经装好表单值和上传文件名，还没有写库。
+- `classmethod def from_request(request, *, instance: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', csrf_token: str='', select_secret_key: str='', **kwargs: Any) -> Self` — Create a model form from a Sanic request.
+- `classmethod def from_query(request, *, instance: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Self` — Create a model filter form from Sanic query parameters.
+- `classmethod def get_model() -> type[Any]` — Return the model class declared by Meta.model.
+- `classmethod def get_model_fields() -> tuple[str, ...]` — Return editable fields declared by Meta.fields.
+- `classmethod def inject_model_fields() -> None` — Map SQLAlchemy model fields to WTForms fields.
+- `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — Validate ordinary fields and require new uploads for non-nullable file columns while allowing retained files on edit.
+- `def populate_obj(obj: Any) -> None` — Write permitted cleaned_data fields back to the model instance.
+- `async def save(*, commit: bool=False, session: Any=None) -> Any` — Save the model form and return its instance, leaving transaction commit to the caller.
+- `async def before_save(instance: Any) -> None` — Maintain derived fields after form values and uploaded filenames are assigned but before database writes.
 
 ## `RichTextField`
 
@@ -574,7 +574,7 @@ class · defined in `oldman.web.components.forms.fields`
 class RichTextField(TextAreaField)
 ```
 
-使用原生 textarea 提交 HTML，并可在服务端显式清洗。
+Submit HTML through a native textarea with explicit optional server-side sanitization.
 
 Constructor:
 
@@ -584,7 +584,7 @@ RichTextField(*args: Any, sanitizer: Callable[[str], str] | None=None, **kwargs:
 
 Members:
 
-- `def process_formdata(valuelist: list[Any]) -> None` — 只在配置 sanitizer 时清洗提交值，不猜测业务信任策略。
+- `def process_formdata(valuelist: list[Any]) -> None` — Sanitize submissions only when a sanitizer is configured, without guessing business trust policies.
 
 ## `RichTextWidget`
 
@@ -594,11 +594,11 @@ class · defined in `oldman.web.components.forms.widgets`
 class RichTextWidget
 ```
 
-输出可由 Quill 渐进增强的原生 textarea。
+Emit a native textarea supporting progressive Quill enhancement.
 
 Members:
 
-- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — 保留 textarea 作为真实提交控件，并提供编辑器挂载点。
+- `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Retain textarea as the actual submission control and provide an editor mount point.
 
 ## `Row`
 
@@ -608,7 +608,7 @@ class · defined in `oldman.web.components.forms.layouts`
 class Row
 ```
 
-声明一行字段及其默认栅格宽度；``as_range=True`` 把恰好两个字段合成一个范围控件。
+Declare a row and default grid widths, combining exactly two fields into a range control with as_range=True.
 
 Constructor:
 
@@ -632,7 +632,7 @@ class · defined in `oldman.web.components.forms.base`
 class SanicFormData
 ```
 
-把 Sanic 表单数据适配为 WTForms 需要的 `getlist` 协议。
+Adapt Sanic form data to the WTForms getlist protocol.
 
 Constructor:
 
@@ -642,10 +642,10 @@ SanicFormData(data: Mapping[str, Any] | None, files: Mapping[str, Any] | None=No
 
 Members:
 
-- `def getlist(key: str) -> list[Any]` — 返回字段的多值列表。
-- `def get(key: str, default: Any=None) -> Any` — 返回字段的第一个值，兼容普通 mapping 和 Sanic 参数对象。
-- `def items()` — 返回原始字段项，供调试和测试读取。
-- `def to_dict() -> dict[str, Any]` — 把原始输入转换为普通 dict，保留多值字段列表。
+- `def getlist(key: str) -> list[Any]` — Return the field's list of values.
+- `def get(key: str, default: Any=None) -> Any` — Return the first field value from ordinary mappings or Sanic parameter objects.
+- `def items()` — Return original field items for debugging and tests.
+- `def to_dict() -> dict[str, Any]` — Convert raw input to an ordinary dict while preserving multi-value lists.
 
 ## `SlugField`
 
@@ -655,7 +655,7 @@ class · defined in `oldman.web.components.forms.fields`
 class SlugField(StringField)
 ```
 
-把提交值规范为 URL slug，并可从同一表单的其他字段补全空值。
+Normalize submissions as URL slugs, optionally filling empty values from another form field.
 
 Constructor:
 
@@ -665,8 +665,8 @@ SlugField(*args: Any, source_field: str | None=None, allow_unicode: bool=False, 
 
 Members:
 
-- `def process_formdata(valuelist: list[Any]) -> None` — 只规范用户提交的值，不改写用于编辑展示的模型初始值。
-- `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — 空值可从指定源字段生成；用户已填写时始终保留其语义。
+- `def process_formdata(valuelist: list[Any]) -> None` — Normalize only submitted values without rewriting model initial values used for editing.
+- `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Generate empty values from a source field while preserving the meaning of user-supplied values.
 
 ## `SwitchCardWidget`
 
@@ -696,12 +696,12 @@ class · defined in `oldman.web.components.forms.base`
 class TableFilterForm(Form)
 ```
 
-专门用于驱动 Table API 的筛选表单。
+A filter form specifically for driving Table APIs.
 
 Members:
 
 - `layout_style: str = 'inline'`
-- `async def render(*, table_target: str='', action: str='', method: str='get', submit_label: str | LazyTranslation=_FILTER_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='', form_class: str='') -> Markup` — 渲染 Table 筛选组件 HTML。
+- `async def render(*, table_target: str='', action: str='', method: str='get', submit_label: str | LazyTranslation=_FILTER_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='', form_class: str='') -> Markup` — Render Table filter-component HTML.
 
 ## `TagsField`
 
@@ -711,7 +711,7 @@ class · defined in `oldman.web.components.forms.fields`
 class TagsField(StringField)
 ```
 
-以单个字符串保存可渐进增强的文本标签。
+Store progressively enhanced text tags as one string.
 
 Constructor:
 
@@ -721,8 +721,8 @@ TagsField(*args: Any, delimiter: str=',', **kwargs: Any) -> None
 
 Members:
 
-- `def process_data(value: Any) -> None` — 规范模型或默认值，确保首次渲染与提交结果一致。
-- `def process_formdata(valuelist: list[Any]) -> None` — 规范浏览器提交值，保留字符串数据合同。
+- `def process_data(value: Any) -> None` — Normalize model/default values so initial rendering matches submission results.
+- `def process_formdata(valuelist: list[Any]) -> None` — Normalize browser submissions while preserving the string-data contract.
 
 ## `TagsInputWidget`
 
@@ -732,7 +732,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class TagsInputWidget(TextInput)
 ```
 
-输出原生文本框，并声明 TagsInput 渐进增强。
+Emit a native text input declaring progressive TagsInput enhancement.
 
 Constructor:
 
@@ -748,7 +748,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class TagsSelectWidget(SelectWidget)
 ```
 
-用现有 Select 组件把本地多选项显示为可移除标签。
+Display local multiple selections as removable tags through the existing Select component.
 
 Constructor:
 
@@ -764,12 +764,12 @@ class · defined in `oldman.web.components.forms.renderers`
 class TailwindFieldRenderer(FieldRenderer)
 ```
 
-Tailwind/Oldman 字段 renderer。
+Tailwind/Oldman field renderer.
 
 Members:
 
-- `def widget_base_class(field: Field) -> str` — 返回 Tailwind 控件 class。
-- `def invalid_class() -> str` — 返回字段错误 class。
+- `def widget_base_class(field: Field) -> str` — Return Tailwind control classes.
+- `def invalid_class() -> str` — Return field-error classes.
 
 ## `TailwindForm`
 
@@ -779,7 +779,7 @@ class · defined in `oldman.web.components.forms.tailwind`
 class TailwindForm(Form)
 ```
 
-业务默认 Tailwind 普通表单基类。
+Default Tailwind base for ordinary business forms.
 
 ## `TailwindFormRenderer`
 
@@ -789,7 +789,7 @@ class · defined in `oldman.web.components.forms.renderers`
 class TailwindFormRenderer(FormRenderer)
 ```
 
-Tailwind/Oldman 表单整体 renderer。
+Tailwind/Oldman whole-form renderer.
 
 ## `TailwindModelForm`
 
@@ -799,7 +799,7 @@ class · defined in `oldman.web.components.forms.tailwind`
 class TailwindModelForm(ModelForm)
 ```
 
-业务默认 Tailwind 模型表单基类。
+Default Tailwind base for business model forms.
 
 ## `TailwindTableFilterForm`
 
@@ -809,7 +809,7 @@ class · defined in `oldman.web.components.forms.tailwind`
 class TailwindTableFilterForm(TableFilterForm)
 ```
 
-业务默认 Tailwind 表格筛选表单基类。
+Default Tailwind base for business table-filter forms.
 
 ## `UploadField`
 
@@ -819,15 +819,15 @@ class · defined in `oldman.web.components.forms.fields`
 class UploadField(FileField)
 ```
 
-绑定 Sanic 单个上传文件的 WTForms 字段。
+A WTForms field binding one Sanic upload.
 
 Members:
 
-- `def process_data(value: Any) -> None` — 编辑模型时不把数据库中的逻辑文件名当作本次上传。
+- `def process_data(value: Any) -> None` — Do not treat the database's logical filename as a new upload when editing models.
 
 ## Module `oldman.web.components.forms.models`
 
-ModelForm 基类。
+ModelForm base class.
 
 Import with `from oldman.web.components.forms.models import <name>`.
 
@@ -839,7 +839,7 @@ function · defined in `oldman.web.components.forms.models`
 def humanize_model_field_name(name: str) -> str
 ```
 
-把模型字段名转换为默认表单标签。
+Convert a model field name to a default form label.
 
 ### `model_field_for_column`
 
@@ -849,11 +849,11 @@ function · defined in `oldman.web.components.forms.models`
 def model_field_for_column(column: Any, *, mapper: Any=None, label: str | None=None, description: str | None=None, model_choice: ModelChoice | None=None) -> Any
 ```
 
-把 SQLAlchemy Column 转换为 WTForms 字段定义。
+Convert a SQLAlchemy Column to a WTForms field declaration.
 
 ## Module `oldman.web.components.forms.renderers`
 
-Form renderer 协议和模板化主题输出。
+Form renderer protocols and template-based theme output.
 
 Import with `from oldman.web.components.forms.renderers import <name>`.
 
@@ -865,4 +865,4 @@ function · defined in `oldman.web.components.forms.renderers`
 def layout_width_classes(width: str) -> str
 ```
 
-返回声明式 Tailwind grid column span。
+Return declarative Tailwind grid-column spans.

@@ -8,7 +8,10 @@ from typing import Any
 
 @dataclass(frozen=True)
 class TableRequest:
-    """标准化后的表格请求。"""
+    """Normalized table request.
+
+    标准化后的表格请求。
+    """
 
     request: Any
     q: str
