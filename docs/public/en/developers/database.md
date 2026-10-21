@@ -182,4 +182,4 @@ The creator of an explicit DatabaseManager likewise owns its shutdown. `enable_s
 
 `create_db_and_tables()` only creates current managed metadata for isolated low-level tests. It neither upgrades existing tables nor establishes migration history. Production and tutorial deployments use db migrate. For additional handling of file replacement, deletion, and rollback, see [the file lifecycle](storage.md#model-file-replacement-and-deletion).
 
-<!-- source: zh/developers/database.md @ fe264663 -->
+<!-- source: zh/developers/database.md @ eb6d1968 -->

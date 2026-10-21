@@ -149,4 +149,4 @@ The template is at `templates/pages/examples/`, not `templates/examples/`. The f
 
 Next read [real data and migrations](tutorial-tasks.md), then read [tables and Modal forms](tutorial-dashboard.md). For other pages and source codes that have implemented functions, see [Demo page and source index](demo-examples.md).
 
-<!-- source: zh/users/getting-started.md @ 6a3c1971 -->
+<!-- source: zh/users/getting-started.md @ eb6d1968 -->

@@ -177,4 +177,4 @@ User tutorials, the Developer Reference, and Agent Guides take examples from the
 
 If a capability has only a reference interface and no complete demo scenario, state the gap and add a real example before documenting it as runnable. Do not invent a similar interface with the same name or change established demo behavior merely to match documentation.
 
-<!-- source: zh/users/demo-examples.md @ d06f9281 -->
+<!-- source: zh/users/demo-examples.md @ eb6d1968 -->

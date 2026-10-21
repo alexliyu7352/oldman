@@ -201,4 +201,4 @@ The [provider reference](../developers/providers.md) explains named Redis connec
 
 When adding demo coverage, provide an actual source, visible results, a failure path, and shutdown cleanup for each scenario. A fake upstream returning a fixed dictionary does not verify network wiring. See [Demo page and source index](demo-examples.md) for existing interactive pages.
 
-<!-- source: zh/users/cache-and-http.md @ d06f9281 -->
+<!-- source: zh/users/cache-and-http.md @ eb6d1968 -->
