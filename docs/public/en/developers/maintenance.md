@@ -153,7 +153,7 @@ pnpm verify:docs
 - web-package verifies current npm artifacts and real consumers.
 - python-package checks wheel and sdist contents, installation on Python 3.12 through 3.14, and built-in Admin in Chrome. The Release workflow runs the parts that do not require a browser.
 - scaffold-matrix creates projects from actual release artifacts and verifies generated services, including browser checks where needed. API projects also create an App using the mcp template in `startapp`, wire `install_mcp` according to [MCP server](mcp.md), and invoke its tools with the generated API key using both the handshake generation and 2026-07-28 protocols.
-- docs installs `website/` dependencies and builds the English and Chinese documentation sites. Dead links fail the build. Invalid anchors currently warn because untranslated pages fall back to Chinese during translation and temporarily do not match translated anchors. CI also runs this on 3.12.
+- docs installs `website/` dependencies and builds the documentation site in three languages: English, Simplified Chinese, and Traditional Chinese. Traditional Chinese is not translated: staging converts the Simplified pages with OpenCC using Taiwan vocabulary, leaving code blocks and inline code unchanged. Dead links fail the build. Invalid anchors currently warn because untranslated pages fall back to Chinese during translation and temporarily do not match translated anchors. CI also runs this on 3.12.
 
 Package and scaffold stages create isolated environments, download dependencies, and build, consuming substantially more disk and memory than ordinary unit tests. Check available disk space, memory, and running services first, and run only one Chrome task at a time. No fixed space limit applies to every machine; environments and download caches change actual usage.
 
@@ -169,4 +169,4 @@ Building and verification do not upload automatically. Before publication, expli
 
 Report stages not run, known failures, deprecation warnings, and manual operations not performed. Rewritten documentation or a few passing targeted checks do not establish full acceptance for that invocation, nor prove that an external package registry contains the version.
 
-<!-- source: zh/developers/maintenance.md @ b6431891 -->
+<!-- source: zh/developers/maintenance.md @ d1b215e4 -->
