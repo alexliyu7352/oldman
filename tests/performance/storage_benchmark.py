@@ -152,7 +152,6 @@ def _git_tracked_dirty(repository: Path | None = None) -> bool | None:
         "--untracked-files=no",
         "--",
         ".",
-        ":(exclude)docs/internal/benchmarks/**",
         repository=repository,
     )
     return None if status is None else bool(status)

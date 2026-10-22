@@ -96,7 +96,7 @@ class StorageBenchmarkTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("git_revision", record)
         self.assertIn("git_tracked_dirty", record)
 
-    def test_git_dirty_ignores_generated_benchmark_artifacts(self) -> None:
+    def test_git_dirty_counts_only_tracked_changes(self) -> None:
         tracked_dirty = getattr(benchmark, "_git_tracked_dirty", None)
         self.assertTrue(callable(tracked_dirty))
         if not callable(tracked_dirty):
@@ -104,10 +104,7 @@ class StorageBenchmarkTest(unittest.IsolatedAsyncioTestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             repository = Path(directory)
-            artifact = repository / "docs/internal/benchmarks/result.ndjson"
             source = repository / "source.py"
-            artifact.parent.mkdir(parents=True)
-            artifact.write_text("old\n", encoding="utf-8")
             source.write_text("old\n", encoding="utf-8")
             subprocess.run(("git", "init", "-q"), cwd=repository, check=True)
             subprocess.run(("git", "add", "."), cwd=repository, check=True)
@@ -126,7 +123,8 @@ class StorageBenchmarkTest(unittest.IsolatedAsyncioTestCase):
                 check=True,
             )
 
-            artifact.write_text("new\n", encoding="utf-8")
+            # A benchmark's own output file is untracked, so writing it does not make the revision dirty.
+            (repository / "result.ndjson").write_text("new\n", encoding="utf-8")
             self.assertFalse(tracked_dirty(repository))
 
             source.write_text("new\n", encoding="utf-8")
