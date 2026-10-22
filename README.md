@@ -6,6 +6,8 @@ English | [简体中文](https://github.com/alexliyu7352/oldman/blob/main/README
 
 ![The channel list in the EPG dashboard demo: a table with search, column and export menus and pagination, in the dashboard shell with its sidebar](https://raw.githubusercontent.com/alexliyu7352/oldman/main/website/static/img/epg-channels-light.webp)
 
+**For coding agents:** start with the [Agent Guide](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md), read the documentation of the installed version's tag, and look up every `oldman` import in the [API index](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/api/README.md). A project not created by `oldman startproject` has no `AGENTS.md`; paste [this section](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md#existing-projects-a-section-for-your-own-instruction-file) into the project's own `AGENTS.md` or `CLAUDE.md`.
+
 ## Why Oldman
 
 ### One framework for the whole back end
@@ -61,7 +63,7 @@ The built-in Admin and your dashboards use the same components, styles and respo
 ### Built for the AI era
 
 - **A built-in MCP server.** Apps declare tools, resources and prompts with decorators, and the Web service offers them to AI agents such as Claude Code and Cursor behind the same authentication, permissions and rate limits. It is a route in your Web service: no second server and no dependency on the official SDK.
-- **Material written for coding agents.** Every generated project has an `AGENTS.md`, and the framework has English agent guides and an API index generated from the source, so an agent can wire new features correctly.
+- **Material written for coding agents.** A project created by `oldman startproject` has an `AGENTS.md`; an existing project pastes a ready-made section into its own `AGENTS.md` or `CLAUDE.md`. The framework has English agent guides and an API index generated from the source, so an agent can wire new features correctly.
 
 ```python
 @mcp.tool(permission=ReportPermissions.view)

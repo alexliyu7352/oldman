@@ -6,6 +6,8 @@
 
 ![EPG Dashboard 示例的频道列表：带搜索、列与导出菜单、分页的表格，位于带侧栏的 Dashboard 外壳中](https://raw.githubusercontent.com/alexliyu7352/oldman/main/website/static/img/epg-channels-light.webp)
 
+**给编码 agent**：先读 [Agent 应用开发指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/README.md)，文档以已安装版本的 tag 为准，每个 `oldman` import 先查 [API 索引](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/api/README.md)。不是用 `oldman startproject` 建的项目没有 `AGENTS.md`，可以把[这一段](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/README.md#已有项目在自己的指令文件里加一段)贴进项目自己的 `AGENTS.md` 或 `CLAUDE.md`。
+
 ## 为什么选 Oldman
 
 ### 一个框架，做完整个后台
@@ -61,7 +63,7 @@ class ChannelsEpgTable(SQLAlchemyTableView):
 ### 为 AI 时代设计
 
 - **内置 MCP 服务端**：App 用装饰器声明工具、resource 和 prompt，Web 服务在同一套认证、权限和限流之后，把它们提供给 Claude Code、Cursor 等 AI agent。它是 Web 服务里的一个路由，不另起服务器，也不依赖官方 SDK。
-- **写给编码 agent 的资料**：生成的项目自带 `AGENTS.md`；框架有英文的 agent 开发指南和从源码生成的 API 索引，agent 照着就能把新功能接对。
+- **写给编码 agent 的资料**：`oldman startproject` 生成的项目自带 `AGENTS.md`，已有项目把一段现成的说明贴进自己的 `AGENTS.md` 或 `CLAUDE.md`；框架有英文的 agent 开发指南和从源码生成的 API 索引，agent 照着就能把新功能接对。
 
 ```python
 @mcp.tool(permission=ReportPermissions.view)
