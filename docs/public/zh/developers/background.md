@@ -6,12 +6,12 @@ Agent 写代码前先读[后台任务指南](https://github.com/alexliyu7352/old
 
 | 需求 | 入口 |
 | --- | --- |
-| 同一事件循环周期采样 | `BackgroundTaskManager`，或 SimpleApplication 自己的 `main()` |
-| 请求或命令里即发即忘的一次性协程（发邮件、写审计） | `BackgroundTaskManager().spawn()`；Web 处理器用 `request.app.ctx.tasks.spawn()` |
-| 限并发执行同步 Python 计算 | `AsyncProcessManager` |
-| 启动外部程序，对面没有人（Web 服务、taskiq worker、命令里的机器任务），要超时和整组清理 | `run_subprocess_exec` / `create_subprocess_exec` |
+| 同一事件循环周期采样 | [`BackgroundTaskManager`](#同进程协程)，或 SimpleApplication 自己的 `main()` |
+| 请求或命令里即发即忘的一次性协程（发邮件、写审计） | [`BackgroundTaskManager().spawn()`](#限时的一次性任务)；Web 处理器用 `request.app.ctx.tasks.spawn()` |
+| 限并发执行同步 Python 计算 | [`AsyncProcessManager`](#短期-python-进程) |
+| 启动外部程序，对面没有人（Web 服务、taskiq worker、命令里的机器任务），要超时和整组清理 | [`run_subprocess_exec` / `create_subprocess_exec`](#外部命令) |
 | 启动外部程序，可能要人在终端上回答（`sudo` 问密码、脚本里的 `read`） | [`run_foreground`](#前台命令) |
-| 多个长期 Worker 接收启动/停止任务指令 | `BaseManager`、`BaseWorker`、`BaseTask` |
+| 多个长期 Worker 接收启动/停止任务指令 | [`BaseManager`、`BaseWorker`、`BaseTask`](#长期-worker真实项目快照) |
 | 异步函数持久排队、多个执行进程、结果和定时投递 | [Taskiq](distributed-tasks.md) |
 | 不同独立服务之间的消息/RPC | [NATS provider](providers.md#nats-连接与发布) |
 

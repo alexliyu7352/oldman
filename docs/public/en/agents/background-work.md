@@ -10,11 +10,11 @@ repository (your `.oldman-docs/` clone). Look up every `oldman` import in the [A
 | --- | --- |
 | is fire-and-forget inside a web request (send a mail, write an audit line, handle a webhook) | `request.app.ctx.tasks.spawn(...)` — below |
 | has a status or result someone will ask for, or must survive a restart or run in another process | Taskiq plus a database record — below |
-| runs periodically inside one process | `BackgroundTaskManager`, or a `SimpleApplication` service's own `main()` |
-| is synchronous CPU work that should not block the loop | `AsyncProcessManager` |
-| is an external program nobody answers (a web service, a Taskiq worker, a machine job) | `run_subprocess_exec` / `create_subprocess_exec` |
-| is an external program a person may answer (`sudo` asking for a password, a script with `read`) | `run_foreground` |
-| needs several long-lived workers taking start/stop instructions | `BaseManager`, `BaseWorker`, `BaseTask` |
+| runs periodically inside one process | `BackgroundTaskManager`, or a `SimpleApplication` service's own `main()` — [Other background work](#other-background-work) |
+| is synchronous CPU work that should not block the loop | `AsyncProcessManager` — [Other background work](#other-background-work) |
+| is an external program nobody answers (a web service, a Taskiq worker, a machine job) | `run_subprocess_exec` / `create_subprocess_exec` — [Other background work](#other-background-work) |
+| is an external program a person may answer (`sudo` asking for a password, a script with `read`) | `run_foreground` — [Other background work](#other-background-work) |
+| needs several long-lived workers taking start/stop instructions | `BaseManager`, `BaseWorker`, `BaseTask` — [Other background work](#other-background-work) |
 | is a message or RPC between separate services | the NATS provider (`docs/public/en/developers/providers.md`) |
 
 Never call `asyncio.create_task` in a view and never keep job state in a module-level dict: the task is not tracked,
