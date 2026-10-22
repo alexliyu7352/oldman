@@ -2,6 +2,8 @@
 
 Oldman reads project configuration, loads models, manages each App's migration directory, and then calls Alembic. The output remains readable Python revisions. Users do not need to write alembic.ini, env.py, asynchronous engine wiring, or version_locations. The framework does not modify the database automatically at service startup.
 
+Agents: before writing code, read the [data and files guide](../agents/data-and-files.md). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Commands and scope
 
 Run these commands at the application project root containing pyproject.toml, services/, and data/:
@@ -124,4 +126,4 @@ Recovery cannot prove that handwritten data operations or empty migrations ever 
 
 DDL atomicity depends on the database. Not every database can roll back an entire revision transactionally. A failure retains the original error and may require inspecting SQL already executed. Back up, review, and verify formal changes against the relevant database. One SQLite example does not replace MySQL/PostgreSQL deployment acceptance testing.
 
-<!-- source: zh/developers/migrations.md @ 877dcb4e -->
+<!-- source: zh/developers/migrations.md @ 84e6ddf1 -->

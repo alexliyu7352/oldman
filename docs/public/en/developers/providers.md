@@ -2,6 +2,8 @@
 
 Providers manage external infrastructure connections without defining business-message semantics. Caching uses the Redis provider; Sessions and SSE can use it too, but are not cache submodules. The NATS provider offers inter-service publish/subscribe and request/reply. It is neither a browser notification center nor a durable task scheduler.
 
+Agents: before writing code, read the [caching and networking guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/cache-and-network.md) (`docs/public/zh/agents/cache-and-network.md`). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Redis connections
 
 The public object is `oldman.providers.redis.redis_client`. METRICS, read_metric, and the YAML below are **API reference examples** showing minimal named-connection wiring, not commands or services registered in the demo. For actual business use, compare the EPG [cache example](cache.md#actual-use-in-the-demo) and [retry_summary in tasks.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py). The former uses CACHE through RedisCache; the latter uses the task service's actual alias through `redis_client.using(settings.taskiq.redis_alias)`. Do not invent a METRICS alias as a new demo prerequisite.
@@ -299,4 +301,4 @@ connection = NATSConnection(
 
 Use async with connection and connection.request in the same query function. Demo receiving services and message structures stay unchanged; a communication-only script need not bootstrap Web. For reception, declare @connection.subscriber before starting, prepare business resources, await connection.start(), then in finally await connection.stop() before closing handler dependencies. async with does not replace receiver startup, and Application must not assume global bus owns an independent object.
 
-<!-- source: zh/developers/providers.md @ 69532437 -->
+<!-- source: zh/developers/providers.md @ 84e6ddf1 -->

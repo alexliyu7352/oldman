@@ -2,6 +2,8 @@
 
 This chapter covers services using `WebApplication`. Read [the application lifecycle](applications.md) for configuration/App loading and [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md) for complete wiring. Business excerpts come from EPG services/web.py, apps/dashboard/views.py, and apps/examples/session.py. Account pages use framework `oldman/web/auth`, without another tasks App.
 
+Agents: before writing code, read the guide for the task: the [services and endpoints guide](../agents/create-service.md) for endpoints and routes, the [dashboard CRUD guide](../agents/dashboard-crud.md) for dashboard pages.
+
 ## Routes and request objects
 
 Internally this uses Sanic directly. Common public imports:
@@ -480,4 +482,4 @@ Jinja escapes ordinary variables by default, and Tables escape ordinary strings.
 
 A Form's JSON `message` and field errors are displayed as text, as are the Feedback Action's `title/text` fields. Use templates and `ReplaceHtmlAction` for complex business HTML; do not put HTML into plain-text fields. Cookie flash messages, persistent notifications, and response Feedback are distinct capabilities. Their similar names do not imply a shared display contract.
 
-<!-- source: zh/developers/web.md @ 6a3c1971 -->
+<!-- source: zh/developers/web.md @ 84e6ddf1 -->

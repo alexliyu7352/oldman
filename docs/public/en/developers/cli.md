@@ -2,6 +2,8 @@
 
 `oldman` is the command entry point supplied by the Python package. Its first two levels distinguish **project operations** from **operations on a selected service**, rather than putting every capability in one service.
 
+Agents: before writing code, read the [services and endpoints guide](../agents/create-service.md). It says which interface the task needs, how to wire it and what counts as done.
+
 The EPG demo's [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/run.sh) only enters its project directory, executes that project's `.venv/bin/oldman`, and forwards arguments unchanged. Service examples below use its actual `web` service; `oldman` in the same environment behaves identically. See [Run the EPG dashboard demo](../users/getting-started.md) for installation, data, and asset preparation. Invoking `run.sh` does not chain these steps automatically.
 
 ## Project-level commands
@@ -261,4 +263,4 @@ App command help uses `gettext_lazy()` and translates at runtime. Python, Jinja,
 
 Missing translations fall back to original text. After command-copy changes, extract, complete simplified/traditional Chinese translations, and compile. Framework CLI messages live in `oldman/locales`; see instructions at the start of [scripts/framework_i18n.py](https://github.com/alexliyu7352/oldman/blob/main/scripts/framework_i18n.py).
 
-<!-- source: zh/developers/cli.md @ e4ae4bd4 -->
+<!-- source: zh/developers/cli.md @ 84e6ddf1 -->

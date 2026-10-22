@@ -2,6 +2,8 @@
 
 Storage holds file contents; the database stores only logical names, such as `examples/assets/...` in the demo. Do not store local absolute paths or a deployment-specific domain in file fields. Storage does not share a transaction with the database and is not a browser Form component.
 
+Agents: before writing code, read the [data and files guide](../agents/data-and-files.md). It says which interface the task needs, how to wire it and what counts as done.
+
 This chapter uses ExampleAsset in the EPG demo. Follow [Run the EPG dashboard demo](../users/getting-started.md) to prepare configuration, the database, accounts, and static assets, then open `/examples/storage/upload`, `/examples/storage/lifecycle`, and `/examples/storage/api`. These pages create, replace, and delete real test files. Operate only on your own demo data; see [the file tutorial](../users/data-and-files.md) for step-by-step instructions.
 
 ## Configuration, objects, and initialization
@@ -176,4 +178,4 @@ Subclass `Storage` and implement five asynchronous methods: `_save(name, content
 
 Set the alias's backend to the full class path so the Registry can instantiate it. The current Registry has no universal close/aclose hook. If a custom backend holds a remote client, the application must explicitly manage its lifecycle. Configuring backend does not automatically close all connections.
 
-<!-- source: zh/developers/storage.md @ e4ae4bd4 -->
+<!-- source: zh/developers/storage.md @ 84e6ddf1 -->

@@ -2,6 +2,8 @@
 
 SSE is a one-way connection for browsers to receive server events, not a reliable message queue or notification business layer. `oldman.web.sse` supports both data generated directly by the current request and data published through Redis by other processes. Ordinary notifications are only one consumer.
 
+Agents: before writing code, read the [real-time page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md) (`docs/public/zh/agents/realtime.md`). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Direct output from the current request
 
 The actual example is EPG demo `/examples/tables/realtime`, routed in [apps/examples/views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py). WebApplication already initializes public `sse`; do not create an extension per request. This is the module's complete route method. The file imports `router`, `asyncio`, `itertools.cycle`, `apps.examples.services`, `login_required` (from `oldman.web.auth`), and SSE types:
@@ -186,4 +188,4 @@ async def echo(request: Request, ws: WebSocket) -> None:
 
 Register during App view loading. `websocket(path, *, name=None, subprotocols=None, strict_slashes=None)` delegates to Sanic. Connections support recv/send/close, asynchronous iteration, and ping/pong. WebSocket size/ping settings live in `settings.web`. The example is echo only, without business permissions. Real endpoints must validate identity, Origin, and resource access before handshake and validate input too. It has no built-in Redis routing, reliable offline delivery, or SSE-style periodic Session checks.
 
-<!-- source: zh/developers/sse.md @ db5eb607 -->
+<!-- source: zh/developers/sse.md @ 84e6ddf1 -->

@@ -2,14 +2,16 @@
 
 `oldman.runtime` manages lifecycles. `oldman.processes` runs short-lived Python processes, controlled external commands, and interactive foreground commands. `oldman.tasks` manages coroutines within the same process and long-lived Workers. The separately enabled `oldman.tasks.distributed` handles durable queues. Local interfaces do not publish to NATS or share an ambiguous MessageBus.
 
+Agents: before writing code, read the [background work guide](../agents/background-work.md). It says which interface the task needs, how to wire it and what counts as done.
+
 | Requirement | Entry point |
 | --- | --- |
-| Periodic sampling within one event loop | Use `BackgroundTaskManager`, or implement it in SimpleApplication's own `main()`. |
-| A one-off coroutine that a request or command starts without waiting, such as sending mail or writing an audit record | Use `BackgroundTaskManager().spawn()`. Web handlers use `request.app.ctx.tasks.spawn()`. |
-| Synchronous Python computation with limited concurrency | Use `AsyncProcessManager`. |
-| An external program without a person at the terminal, such as a Web service, a taskiq worker, or a command's machine job, requiring a timeout and process-group cleanup | Use `run_subprocess_exec` or `create_subprocess_exec`. |
+| Periodic sampling within one event loop | Use [`BackgroundTaskManager`](#same-process-coroutines), or implement it in SimpleApplication's own `main()`. |
+| A one-off coroutine that a request or command starts without waiting, such as sending mail or writing an audit record | Use [`BackgroundTaskManager().spawn()`](#time-limited-one-off-tasks). Web handlers use `request.app.ctx.tasks.spawn()`. |
+| Synchronous Python computation with limited concurrency | Use [`AsyncProcessManager`](#short-lived-python-processes). |
+| An external program without a person at the terminal, such as a Web service, a taskiq worker, or a command's machine job, requiring a timeout and process-group cleanup | Use [`run_subprocess_exec` or `create_subprocess_exec`](#external-commands). |
 | An external program that may ask a person for input, such as `sudo` requesting a password or a script using `read` | Use [`run_foreground`](#foreground-commands). |
-| Several long-lived Workers receiving instructions to start or stop tasks | Use `BaseManager`, `BaseWorker`, and `BaseTask`. |
+| Several long-lived Workers receiving instructions to start or stop tasks | Use [`BaseManager`, `BaseWorker`, and `BaseTask`](#long-lived-workers-real-project-snapshots). |
 | Durable queuing of asynchronous functions, multiple execution processes, results, and scheduled delivery | Use [Taskiq](distributed-tasks.md). |
 | Messages or RPC between independent services | Use the [NATS provider](providers.md#nats-connections-and-publishing). |
 
@@ -194,4 +196,4 @@ The parent's `get_manager_status()` reports Worker process health only. A Worker
 
 There is currently no job database, completion ACK, result backend, failure queue, recovery after power loss, or automatic task replay following Worker restart. Persist business state yourself when reliable completion records are required. Use providers for cross-service RPC; do not treat this start-and-stop control protocol as a reliable task platform.
 
-<!-- source: zh/developers/background.md @ 8c13fdcf -->
+<!-- source: zh/developers/background.md @ eb01bd54 -->

@@ -21,8 +21,38 @@ This directory helps agents develop applications with the current Oldman without
 | Hand asynchronous work to a durable queue or schedule it | [Taskiq wiring (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/distributed-tasks.md): follow the demo's configuration, tasks, services, permissions, and actual execution |
 | Update Tables with SSE or integrate notifications | [Realtime page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md): reuse stable DOM, request permissions, user connections, and persistent notification APIs |
 | Integrate an admin site or extend ModelAdmin | [Admin guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/admin.md): distinguish App registration, model administration, and route installation |
+| Offer tools, resources, and prompts to AI agents over MCP | [MCP guide](mcp.md): turn the endpoint on in an existing Web service, decide who may call it, and verify with real requests |
 | Prepare application deployment | [Deployment and operation](../users/deployment.md) and [Security boundaries and rate limiting](../developers/security.md): check actual dependencies, permissions, and cleanup responsibilities |
 | Maintain the framework and verify release artifacts | [Source development, verification, and releases](../developers/maintenance.md) and [Test isolation requirements](../developers/testing.md): keep these separate from application development tasks |
+
+## Existing projects: a section for your own instruction file
+
+A project created by `oldman startproject` has an `AGENTS.md` (its `CLAUDE.md` is the single line `@AGENTS.md`), which the agent reads at the start of every session. A project that started using Oldman later has no such file; a project's own `AGENTS.md` and `CLAUDE.md` belong to the project, and the framework neither generates nor rewrites them. When needed, paste this section into them:
+
+```markdown
+## Oldman
+
+This project is built on the Oldman framework (Python package `oldman`).
+
+1. Get the installed framework version: `./run.sh --version` or `uv run oldman --version` (prints
+   `oldman X.Y.Z`, written as its release tag is, a prerelease too: `oldman 0.6.0-rc.1` is tag
+   `v0.6.0-rc.1`). Get the framework docs for exactly that version, once per project:
+   `git clone --depth 1 --branch vX.Y.Z https://github.com/alexliyu7352/oldman.git .oldman-docs`
+   and add `/.oldman-docs/` to `.gitignore`. If `.oldman-docs` exists for another version, delete it
+   and clone again. A framework checkout on another branch or version is not the reference; do not
+   switch its branch to make it one.
+2. Before you propose a design or write code for a feature, open
+   `.oldman-docs/docs/public/en/agents/README.md`, find the task in its table and read that guide
+   completely. Use what the framework already provides before writing your own.
+3. Look up every `oldman` import in the public API index before using it: start at
+   `.oldman-docs/docs/public/en/api/README.md`, then open the package's page.
+   Do not guess module paths, class names or attributes.
+4. When the installed version changes, read the release notes of every version in between
+   (https://github.com/alexliyu7352/oldman/releases) before going on, and check the code that uses
+   what changed.
+```
+
+Pasted text does not change when the framework is upgraded, so it gives only the entry point and the version rules, not individual guides: guide paths and contents follow the documentation of the installed version.
 
 ## Establish only the necessary facts before starting
 
@@ -57,4 +87,4 @@ Actual choices for the user include the service's purpose, whether access is pub
 
 These rules do not authorize deleting user data, resetting the workspace, or starting sub-agents. Changes in the framework repository must also follow that repository's contribution rules.
 
-<!-- source: zh/agents/README.md @ 8079563f -->
+<!-- source: zh/agents/README.md @ 2a4eb6a4 -->

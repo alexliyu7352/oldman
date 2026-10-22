@@ -2,6 +2,8 @@
 
 Oldman distinguishes two objects: **Application is the runtime that starts a service; App is a reusable feature package installed by that service.** The `app` exported by an App's `apps.py` is an AppConfig instance, not a Sanic application. In views, `from oldman.web import router` supplies a route registration entry point, not AppConfig.
 
+Agents: before writing code, read the [services and endpoints guide](../agents/create-service.md). It says which interface the task needs, how to wire it and what counts as done.
+
 The wiring below comes from the EPG demo's [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) and [apps/examples](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/apps/examples). Public signature tables describe interfaces; class method excerpts help you follow existing services and are not complete new service files.
 
 ## Public entry points
@@ -349,4 +351,4 @@ Repeated calls with the same service and resolved path return the existing conte
 
 Pure functions without configuration dependencies remain directly importable in ordinary Python Shells. Run asynchronous database operations inside the debugging session's event loop and close used connections. Bootstrap itself is not a database connection entry point.
 
-<!-- source: zh/developers/applications.md @ 31aa114e -->
+<!-- source: zh/developers/applications.md @ 84e6ddf1 -->

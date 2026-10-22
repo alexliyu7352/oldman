@@ -2,6 +2,8 @@
 
 Start by running the EPG demo through [the user tutorial](../users/distributed-tasks.md). This page explains where objects come from, who opens and closes connections, and which boundaries maintenance must preserve. It does not introduce another execution engine.
 
+Agents: before writing code, read the [background work guide](../agents/background-work.md) to decide whether the work belongs in Taskiq at all; if it does, wire it up with the [Taskiq wiring guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/distributed-tasks.md) (`docs/public/zh/agents/distributed-tasks.md`).
+
 ## Public objects and import timing
 
 ```python
@@ -123,4 +125,4 @@ pyproject.toml pins Taskiq 0.12.6, taskiq-nats 0.6.0, taskiq-redis 1.2.3, and na
 
 Verified single-node results under small concurrency do not establish cluster fault tolerance, arbitrary load support, or recovery from power loss. Record unfinished work in implementation and acceptance documents rather than stating it as a public guarantee.
 
-<!-- source: zh/developers/distributed-tasks.md @ 60ab2b58 -->
+<!-- source: zh/developers/distributed-tasks.md @ 84e6ddf1 -->

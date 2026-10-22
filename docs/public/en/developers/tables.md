@@ -2,6 +2,8 @@
 
 The three approaches serve different situations without requiring three backend business implementations.
 
+Agents: before writing code, read the [dashboard CRUD guide](../agents/dashboard-crud.md). It says which interface the task needs, how to wire it and what counts as done. For a table updated live over SSE, read the [real-time page guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/realtime.md) (`docs/public/zh/agents/realtime.md`).
+
 | Approach | Suitable use | Where data is processed |
 | --- | --- | --- |
 | Static HTML table | Known small lists or explanatory tables | Business views/templates render once, without automatic pagination |
@@ -237,4 +239,4 @@ Ordinary Forms and Modals handle creation/editing. Demo success emits feedback, 
 
 Actually verify search, ascending/descending sorting, pagination, refresh after editing, empty data, and request failure in both HTML/JSON modes. Checking only initial shells or rows arrays is insufficient. Complete runnable wiring is in [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md). These are developer verification steps, not a claim that this documentation change reran browser acceptance tests.
 
-<!-- source: zh/developers/tables.md @ ee7652fb -->
+<!-- source: zh/developers/tables.md @ 84e6ddf1 -->

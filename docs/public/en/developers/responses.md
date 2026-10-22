@@ -2,6 +2,8 @@
 
 This protocol serves browsers with an active Oldman Page. Pure data APIs need not execute UI actions. See [Pages, components, and dynamic content](frontend.md) for page and object origins.
 
+Agents: before writing code, read the [dashboard CRUD guide](../agents/dashboard-crud.md). It says which interface the task needs, how to wire it and what counts as done.
+
 Runnable examples are at `/examples/modals/actions` and `/examples/modals/workflows` in the EPG demo; project saving appears at `/examples/tables/html` and `/examples/tables/json`. Follow [Run the EPG dashboard demo](../users/getting-started.md) to prepare data and sign in first. Do not copy functions below while omitting demo App, Page, component, or permission wiring.
 
 ## Backend types
@@ -189,4 +191,4 @@ These existing-page operations let developers recheck changes. This documentatio
 - `/examples/forms/basics`: compare HTML/JSON validation failures: 422 HTML versus 200 plus a business code. Browser constraints may prevent submission first. Inspect Network to distinguish "not requested yet" from "backend validation failed."
 - `/examples/tables/json`: creation/editing completes the actual transaction before executing the three actions in this chapter's first function. Distinguish network, database, and action failures. A reload error, for example, does not undo the preceding database transaction.
 
-<!-- source: zh/developers/responses.md @ 0ac5ebd9 -->
+<!-- source: zh/developers/responses.md @ 84e6ddf1 -->

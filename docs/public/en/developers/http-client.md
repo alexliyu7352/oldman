@@ -2,6 +2,8 @@
 
 `oldman.contrib.http.MultiHttpClient` lets Python services make outbound requests to other HTTP services. It does not handle inbound Sanic requests or interpret browser DefaultApiResponse.actions. Business code chooses a backend but consumes the common HttpResponse/HttpStreamResponse interfaces.
 
+Agents: before writing code, read the [caching and networking guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/cache-and-network.md) (`docs/public/zh/agents/cache-and-network.md`). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Actual use in the demo
 
 The `/examples/http/client` page offers four buttons: JSON, upstream 404, timeout, and byte stream. See [the user tutorial](../users/cache-and-http.md#running-the-backend-http-example) for instructions. Below is the demo's complete [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py):
@@ -234,4 +236,4 @@ aiohttp uses its own runtime jar and writes back to the supplied standard-librar
 
 BaseHttpClient defines the common init_client/reset_client/close_client/request/stream interfaces. Concrete backend constructors receive MultiHttpClient. The factory recognizes only three ClientType values; it has no configuration-path plugin registration interface for arbitrary backends. Prefer composing existing clients for application extensions rather than copying Cookie, streaming, or retry implementations.
 
-<!-- source: zh/developers/http-client.md @ 50b31e8c -->
+<!-- source: zh/developers/http-client.md @ 84e6ddf1 -->

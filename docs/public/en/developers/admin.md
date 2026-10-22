@@ -2,6 +2,8 @@
 
 Admin is the `oldman.apps.admin` App, depending on base Web, Auth, and Sessions. Its browser uses Dashboard, Form, Table, Modal, and Feedback from `oldman-web`. See [Run and understand the Admin demo](../users/admin.md) for a complete application example.
 
+Agents: before writing code, read the [Admin guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/admin.md) (`docs/public/zh/agents/admin.md`). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Entry point and registration
 
 ```python
@@ -138,4 +140,4 @@ For CSS extensions, register an application `StaticBundle` with current `app.ctx
 
 Static directories, global Settings, App Settings, bundles, and templates are distinct objects. Do not add another Settings to app.ctx to resolve missing configuration/builds.
 
-<!-- source: zh/developers/admin.md @ 70734786 -->
+<!-- source: zh/developers/admin.md @ 84e6ddf1 -->

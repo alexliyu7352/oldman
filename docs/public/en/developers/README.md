@@ -2,6 +2,8 @@
 
 This reference defines public entry points, loading order, and extension contracts. For your first project, start with [Run the EPG dashboard demo](../users/getting-started.md); you need not read every reference first.
 
+Agents developing an application start at the [agent guide](../agents/README.md): find the guide for the task and read it before writing code, then come back here for exact interfaces.
+
 A name is public when included in its exporting package/module's `__all__`; import it there. Any module path segment starting with an underscore, such as `oldman.cli._main`, is internal. The source-generated API index `docs/public/en/api/README.md` lists public names, signatures, and import locations.
 
 | Topic | Contents |
@@ -46,4 +48,4 @@ Before extending, decide whether code belongs to a service, App, or request. Ser
 
 Start from [Demo page and source index](../users/demo-examples.md) for complete usage scenarios, then consult topic-specific APIs. Examples should come from actual demo files and identify excerpts/dependencies. ExampleProjectForm and similar names are demo business classes, not public framework APIs. Inspect specific implementations only for highly customized behavior not covered here.
 
-<!-- source: zh/developers/README.md @ f65caa13 -->
+<!-- source: zh/developers/README.md @ 84e6ddf1 -->

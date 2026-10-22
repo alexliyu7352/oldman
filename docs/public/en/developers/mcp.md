@@ -2,6 +2,8 @@
 
 `oldman.mcp` exposes tools, resources, and prompts from installed Apps to AI agents through the [Model Context Protocol](https://modelcontextprotocol.io/). Clients include Claude Code, Claude Desktop, and Cursor. MCP is a route within a Web service: Sanic remains the server, and requests still pass through authentication, middleware, logging, and proxy settings for `client_ip`. Multiple workers continue to work normally. Protocol data models come from `mcp-types`. The official `mcp` SDK is not a runtime dependency, and the framework does not import it.
 
+Agents: before writing code, read the [MCP guide](../agents/mcp.md). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Installation
 
 Call this in the Web service's `init()`, after `super().init()`. Like `install_admin(app)`, it requires explicit wiring:
@@ -130,4 +132,4 @@ The server supports both MCP 2026-07-28 and the handshake generations 2024-11-05
 
 Tools, resources, and prompts are ordinary async functions that unit tests can call directly. Supply an object with `ctx.user` as the `request` argument. The framework's own tests use official SDK clients, available only in development dependencies, against real Sanic services for both protocol generations. Handcrafted negative requests additionally cover every protocol validation. See `tests/test_oldman_mcp_*.py`.
 
-<!-- source: zh/developers/mcp.md @ ca60929c -->
+<!-- source: zh/developers/mcp.md @ 84e6ddf1 -->

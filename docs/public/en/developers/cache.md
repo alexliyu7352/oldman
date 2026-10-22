@@ -2,6 +2,8 @@
 
 `oldman.cache` caches data that can be recomputed. It does not manage Sessions, task queues, or browser messages. Redis connections themselves belong to the [Redis provider](providers.md#redis-connections). A successful cache write does not mean business data has been durably stored.
 
+Agents: before writing code, read the [caching and networking guide (in Chinese)](https://github.com/alexliyu7352/oldman/blob/main/docs/public/zh/agents/cache-and-network.md) (`docs/public/zh/agents/cache-and-network.md`). It says which interface the task needs, how to wire it and what counts as done.
+
 Database model rows and query results are cached by `oldman.db.sqlalchemy.cache`, with automatic invalidation after writes commit; see [model caching](#model-caching).
 
 ## Choosing objects and settings
@@ -358,4 +360,4 @@ Inspect actual hit rates through `Programme.get_cache_manager().stats`. It retur
 
 Counters only increase. Compare snapshots to measure an interval; each process counts independently. Counter overhead is about 0.1 µs per increment, with no observable effect on measured hit time.
 
-<!-- source: zh/developers/cache.md @ d2d7dd40 -->
+<!-- source: zh/developers/cache.md @ 84e6ddf1 -->

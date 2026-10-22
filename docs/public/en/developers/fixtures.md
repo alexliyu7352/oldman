@@ -2,6 +2,8 @@
 
 Fixtures are for example data, development/test data, and deliberate small data transfers. They are not database backups, schema migrations, Excel tools, or seed services that automatically populate business data. Prepare tables with [`db migrate`](migrations.md) before importing JSON.
 
+Agents: before writing code, read the [data and files guide](../agents/data-and-files.md). It says which interface the task needs, how to wire it and what counts as done.
+
 ## Commands belong to a service
 
 The following uses the [EPG demo's](../users/tutorial-tasks.md#4-import-repeatable-real-data) services and models directly. Run it at the demo root. Before exporting, check that the output path will not overwrite a file you need to retain:
@@ -74,4 +76,4 @@ registry comes from `bootstrap_service("web").apps` or an existing service conte
 
 For practical data preparation, see [Real demo data, migrations, and queries](../users/tutorial-tasks.md). For uploads and file-column usage, see [Demo data import and file upload](../users/data-and-files.md).
 
-<!-- source: zh/developers/fixtures.md @ 60ab2b58 -->
+<!-- source: zh/developers/fixtures.md @ 84e6ddf1 -->

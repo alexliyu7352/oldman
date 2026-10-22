@@ -2,6 +2,8 @@
 
 The backend owns fields, validation, and HTML. The browser submits and enhances forms rather than generating an entire form from backend field schemas. Ordinary pages and Modals use the same Form. For complete CRUD wiring, see [Demo HTML/JSON tables and Modal forms](../users/tutorial-dashboard.md).
 
+Agents: before writing code, read the [dashboard CRUD guide](../agents/dashboard-crud.md). It says which interface the task needs, how to wire it and what counts as done.
+
 Business code in this chapter comes from the EPG demo's [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py), without another example App. Follow [the getting-started instructions](../users/getting-started.md) to load fixtures and sign in, then compare these pages:
 
 | Page | Class and actual behavior |
@@ -361,4 +363,4 @@ LogoMultipleSelectForm demonstrates multiple initial selections, image/text sear
 
 Remote choices are absent from initial HTML choices, so fields disable WTForms local-choice validation. **Saving must still verify that submitted IDs exist and are selectable by the current user**. Signatures prove Widget binding rather than object permissions. A filtered search list does not justify trusting a hand-crafted POST.
 
-<!-- source: zh/developers/forms.md @ db5eb607 -->
+<!-- source: zh/developers/forms.md @ 84e6ddf1 -->

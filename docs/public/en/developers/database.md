@@ -2,6 +2,8 @@
 
 Oldman uses SQLAlchemy mappings and asynchronous database drivers, without introducing another query language. Declaring models, generating database schemas, and running request transactions are separate operations. For first-time setup, see [Real demo data, migrations, and queries](../users/tutorial-tasks.md); for schema changes, see [Project database migrations](migrations.md).
 
+Agents: before writing code, read the [data and files guide](../agents/data-and-files.md). It says which interface the task needs, how to wire it and what counts as done.
+
 This chapter uses ExampleTeam/ExampleProject and the real-time charts in the EPG demo. All code runs inside Apps registered with that demo. First follow the tutorial to run migrations, import fixtures, and create an account. Importing a class alone does not mean its database schema exists.
 
 ## Where models are loaded from
@@ -182,4 +184,4 @@ The creator of an explicit DatabaseManager likewise owns its shutdown. `enable_s
 
 `create_db_and_tables()` only creates current managed metadata for isolated low-level tests. It neither upgrades existing tables nor establishes migration history. Production and tutorial deployments use db migrate. For additional handling of file replacement, deletion, and rollback, see [the file lifecycle](storage.md#model-file-replacement-and-deletion).
 
-<!-- source: zh/developers/database.md @ eb6d1968 -->
+<!-- source: zh/developers/database.md @ 84e6ddf1 -->
