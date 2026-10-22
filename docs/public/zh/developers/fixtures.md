@@ -2,6 +2,8 @@
 
 fixture 用于示例数据、开发测试数据及明确的小批数据搬运，不是数据库备份、结构迁移、Excel 工具或自动填充业务数据的种子服务。先用 [db migrate](migrations.md) 准备表，再导入 JSON。
 
+Agent 写代码前先读[数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)（`docs/public/en/agents/data-and-files.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 ## 入口属于服务
 
 下面直接使用 [EPG Demo](../users/tutorial-tasks.md#4-导入可重复的真实数据) 的服务和模型。在 Demo 根目录执行；导出前核对输出路径不会覆盖要保留的文件：

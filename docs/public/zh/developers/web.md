@@ -2,6 +2,8 @@
 
 本章面向使用 `WebApplication` 的服务。配置和 App 加载先读[应用生命周期](applications.md)；完整接线见[Demo 项目管理教程](../users/tutorial-dashboard.md)。下文业务节选来自 EPG Demo 的 services/web.py、apps/dashboard/views.py 和 apps/examples/session.py，账户页面引用框架的 `oldman/web/auth`，不另外建立 tasks App。
 
+Agent 写代码前先读对应的任务指南：接口与路由读[创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)（`docs/public/en/agents/create-service.md`），Dashboard 页面读[Dashboard CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)（`docs/public/en/agents/dashboard-crud.md`）。
+
 ## 路由和请求对象
 
 内部直接使用 Sanic。常用公开入口：

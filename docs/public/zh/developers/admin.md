@@ -2,6 +2,8 @@
 
 Admin 是 `oldman.apps.admin` App，依赖基础 Web、Auth 和 Session；浏览器端使用 `oldman-web` 的 Dashboard、Form、Table、Modal 和 Feedback。完整应用示例见[Admin 教程](../users/admin.md)。
 
+Agent 写代码前先读[Admin 指南](../agents/admin.md)，它按任务给出该用的接口、接线步骤和完成标准。
+
 ## 入口与注册
 
 ```python

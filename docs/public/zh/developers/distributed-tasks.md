@@ -2,6 +2,8 @@
 
 先从[用户教程](../users/distributed-tasks.md)运行 EPG Demo。本页说明对象从哪里来、谁打开和关闭连接，以及维护时不能改变的边界；不是另一个执行引擎。
 
+Agent 写代码前先读[后台任务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/background-work.md)（`docs/public/en/agents/background-work.md`），确认这项工作该不该用 Taskiq；要用，再按[Taskiq 接线指南](../agents/distributed-tasks.md)接线。
+
 ## 公开对象和导入时机
 
 ```python

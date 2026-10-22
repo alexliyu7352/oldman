@@ -2,6 +2,8 @@
 
 后端负责字段、校验和 HTML；浏览器负责提交与增强，不根据后端字段 schema 自动创建整张表单。普通页面与 Modal 内使用同一个 Form。完整 CRUD 接线见[Demo 的项目表格与 Modal](../users/tutorial-dashboard.md)。
 
+Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)（`docs/public/en/agents/dashboard-crud.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 本章业务代码摘自 EPG Demo 的 [apps/examples/forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py)，不另建示例 App。按[入门步骤](../users/getting-started.md)加载 fixture 并登录后，可在以下页面对照：
 
 | 页面 | 对应类与实际效果 |

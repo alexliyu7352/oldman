@@ -2,6 +2,8 @@
 
 SSE 是浏览器接收服务器事件的单向连接，不是可靠消息队列，也不是通知业务本身。`oldman.web.sse` 同时支持当前请求直接产生数据、以及其他进程通过 Redis 发布数据。普通通知只是其消费者之一。
 
+Agent 写代码前先读[实时页面指南](../agents/realtime.md)，它按任务给出该用的接口、接线步骤和完成标准。
+
 ## 当前请求直接输出
 
 实际例子是 EPG Demo 的 `/examples/tables/realtime`，路由在 [apps/examples/views/tables.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/views/tables.py)。WebApplication 已初始化公开实例 `sse`，不要为每个请求新建 extension。下面是该模块的完整路由方法；`router`、`asyncio`、`itertools.cycle`、`apps.examples.services`、`login_required`（来自 `oldman.web.auth`）和 SSE 类型都由该文件导入：

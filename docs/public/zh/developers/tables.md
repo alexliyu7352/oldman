@@ -2,6 +2,8 @@
 
 三种方式服务不同场景，不需要三个后端业务实现。
 
+Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)（`docs/public/en/agents/dashboard-crud.md`），它按任务给出该用的接口、接线步骤和完成标准；表格要用 SSE 实时更新时读[实时页面指南](../agents/realtime.md)。
+
 | 方式 | 适用场景 | 数据在哪里处理 |
 | --- | --- | --- |
 | 静态 HTML table | 已经知道的小列表或说明表 | 业务视图/模板一次渲染，不自动分页 |

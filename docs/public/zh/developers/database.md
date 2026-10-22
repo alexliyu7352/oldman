@@ -2,6 +2,8 @@
 
 Oldman 使用 SQLAlchemy 映射和异步数据库驱动，不另造查询语言。声明模型、生成数据库结构、执行请求事务是三件事；首次使用见[Demo 真实数据教程](../users/tutorial-tasks.md)，结构变更见[迁移参考](migrations.md)。
 
+Agent 写代码前先读[数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)（`docs/public/en/agents/data-and-files.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 本章从 EPG Demo 的 ExampleTeam/ExampleProject 和实时图表取例。所有代码都在该 Demo 已注册的 App 中运行；首次先按教程执行迁移、导入 fixture、创建账户，不能仅导入一个类就假定数据库结构已存在。
 
 ## 模型从哪里加载

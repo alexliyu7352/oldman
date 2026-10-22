@@ -2,6 +2,8 @@
 
 `oldman.cache` 缓存可重新计算的数据。它不负责 Session、任务队列或浏览器消息；Redis 连接本身由 [provider](providers.md#redis-连接)管理。不要把缓存成功写入当作业务数据已经持久保存。
 
+Agent 写代码前先读[缓存与网络指南](../agents/cache-and-network.md)，它按任务给出该用的接口、接线步骤和完成标准。
+
 数据库模型的行与查询结果由 `oldman.db.sqlalchemy.cache` 缓存，写入提交后自动失效，见[模型缓存](#模型缓存)。
 
 ## 选择对象和配置

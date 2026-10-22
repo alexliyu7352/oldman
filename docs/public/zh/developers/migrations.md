@@ -2,6 +2,8 @@
 
 Oldman 统一读取项目配置、加载模型、管理各 App 的迁移目录，再调用 Alembic。生成物仍是可阅读的 Python revision。框架不要求用户手写 alembic.ini、env.py、异步 engine 接线或 version_locations；也不在服务启动时自动修改数据库。
 
+Agent 写代码前先读[数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)（`docs/public/en/agents/data-and-files.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 ## 命令与范围
 
 在含 pyproject.toml、services/、data/ 的应用项目根运行：

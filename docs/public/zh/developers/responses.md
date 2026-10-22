@@ -2,6 +2,8 @@
 
 本协议服务于已经启动 Oldman Page 的浏览器，不要求纯数据 API 执行 UI 动作。页面与对象来源见[前端运行时](frontend.md)。
 
+Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)（`docs/public/en/agents/dashboard-crud.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 可运行示例位于 EPG Demo 的 `/examples/modals/actions` 和 `/examples/modals/workflows`，项目保存链在 `/examples/tables/html`、`/examples/tables/json`。先按[入门步骤](../users/getting-started.md)准备数据和登录；不要只复制下面的函数，而漏掉 Demo 的 App、Page、组件和权限接线。
 
 ## 后端类型

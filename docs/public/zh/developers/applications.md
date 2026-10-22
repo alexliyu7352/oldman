@@ -2,6 +2,8 @@
 
 Oldman 区分两种对象：**Application 是启动一个服务的运行时；App 是被该服务安装的可复用功能包。** App 的 `apps.py` 导出的 `app` 是 AppConfig 实例，不是 Sanic 应用；视图中 `from oldman.web import router` 得到的是路由注册入口，不是 AppConfig。
 
+Agent 写代码前先读[创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)（`docs/public/en/agents/create-service.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 以下实际接线取自 EPG Demo 的 [services/web.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/services/web.py) 和 [apps/examples](https://github.com/alexliyu7352/oldman-epg-dashboard/tree/main/apps/examples)。公开签名表用于查接口；类内方法节选用于对照现有服务，不是完整的新服务文件。
 
 ## 公开入口

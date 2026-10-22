@@ -2,6 +2,8 @@
 
 `oldman.runtime` 管生命周期；`oldman.processes` 执行短期 Python 进程、受控外部命令或前台交互命令；`oldman.tasks` 管同进程协程和长期 Worker。另有显式启用的 oldman.tasks.distributed 管持久队列；本地接口不向 NATS 投递，也不共用一个含糊的 MessageBus。
 
+Agent 写代码前先读[后台任务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/background-work.md)（`docs/public/en/agents/background-work.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 | 需求 | 入口 |
 | --- | --- |
 | 同一事件循环周期采样 | `BackgroundTaskManager`，或 SimpleApplication 自己的 `main()` |

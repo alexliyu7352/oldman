@@ -2,6 +2,8 @@
 
 `oldman-web` 是原生 TypeScript 浏览器包，不要求 React/Vue。后端 HTML 声明页面和组件，入口启动运行时，组件管理器负责挂载与清理。安装与构建见[资源和样式](assets.md)，真实 CRUD 接线见 [EPG Demo 的表格与 Modal](../users/tutorial-dashboard.md)。
 
+Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/dashboard-crud.md)（`docs/public/en/agents/dashboard-crud.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 ## Demo 的 Dashboard 页面入口
 
 实际入口是 [EPG frontend/src/main.ts](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/frontend/src/main.ts)，不是每页各自调用一次 startOldman。它和 `startproject` 生成的 dashboard 骨架一样调用框架的 `startDashboard()`（见下文[框架的启动入口](#框架的启动入口)），自己只提供样式入口、语言契约、兜底页面和按需加载的页面清单。完整文件：

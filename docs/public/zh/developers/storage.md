@@ -2,6 +2,8 @@
 
 Storage 保存文件内容，数据库只保存逻辑名称，例如 Demo 的 `examples/assets/...`。不要把本机绝对路径或某次部署的域名写成文件字段。它与数据库不是一个事务，也不是浏览器 Form 组件。
 
+Agent 写代码前先读[数据与文件指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/data-and-files.md)（`docs/public/en/agents/data-and-files.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 本章使用 EPG Demo 的 ExampleAsset。按[入门步骤](../users/getting-started.md)准备配置、数据库、账户和静态资源后，打开 `/examples/storage/upload`、`/examples/storage/lifecycle`、`/examples/storage/api`。这些页面会创建、替换和删除真实测试文件，只操作自己的 Demo 数据；逐步操作说明见[文件教程](../users/data-and-files.md)。
 
 ## 配置、对象与初始化

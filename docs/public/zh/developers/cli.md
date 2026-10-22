@@ -2,6 +2,8 @@
 
 `oldman` 是 Python 包提供的命令入口。命令的前两级区分**项目操作**和**选定服务的操作**，不是把所有功能都放在一个服务里。
 
+Agent 写代码前先读[创建服务指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/create-service.md)（`docs/public/en/agents/create-service.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 EPG Demo 的 [run.sh](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/run.sh) 只进入项目目录并执行该项目 `.venv/bin/oldman`，原样转发参数。下文服务操作都使用其真实 `web` 服务；换成相同环境中的 `oldman` 语义不变。安装、数据和资源准备顺序见[入门教程](../users/getting-started.md)，这些命令不会因执行 `run.sh` 而自动连跑。
 
 ## 项目级命令

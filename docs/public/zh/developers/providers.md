@@ -2,6 +2,8 @@
 
 Provider 管理外部基础设施连接，不定义业务消息含义。缓存使用 Redis provider；Session、SSE 也可以使用它，但不是缓存子模块。NATS provider 提供服务之间的发布、订阅和请求响应，不是浏览器通知中心，也不是持久任务调度器。
 
+Agent 写代码前先读[缓存与网络指南](../agents/cache-and-network.md)，它按任务给出该用的接口、接线步骤和完成标准。
+
 ## Redis 连接
 
 公开对象是 `oldman.providers.redis.redis_client`。下面的 METRICS、read_metric 和 YAML 是 **API 参考**，用于说明命名连接的最小接线，不是 Demo 中已注册的命令或服务。实际业务可对照 EPG [缓存示例](cache.md#demo-中的实际使用)和 [tasks.py 的 retry_summary](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/tasks.py)：前者通过 RedisCache 使用 CACHE，后者通过 `redis_client.using(settings.taskiq.redis_alias)` 使用任务服务的实际别名；不要给 Demo 凭空新增 METRICS 作为运行前置。

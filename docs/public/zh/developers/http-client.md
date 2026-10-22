@@ -2,6 +2,8 @@
 
 `oldman.contrib.http.MultiHttpClient` 用于 Python 服务主动请求其他 HTTP 服务。它不是 Sanic 的入站请求处理，也不解释浏览器 DefaultApiResponse.actions。业务选择一个 backend，但读取统一的 HttpResponse/HttpStreamResponse。
 
+Agent 写代码前先读[缓存与网络指南](../agents/cache-and-network.md)，它按任务给出该用的接口、接线步骤和完成标准。
+
 ## Demo 中的实际使用
 
 页面 `/examples/http/client` 提供 JSON、上游 404、超时和字节流四个按钮，操作顺序见[用户教程](../users/cache-and-http.md#运行后端-http-示例)。下面完整引用 Demo 的 [http_example.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/http_example.py)：

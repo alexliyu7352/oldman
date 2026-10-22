@@ -2,6 +2,8 @@
 
 `oldman.mcp` 把已安装 App 的工具（tool）、resource 和 prompt 通过 [Model Context Protocol](https://modelcontextprotocol.io/) 提供给 AI agent（Claude Code、Claude Desktop、Cursor 等 MCP 客户端）。MCP 是 Web 服务里的一个路由：服务器仍是 Sanic，请求照常经过认证流水线、中间件、日志和 `client_ip` 的代理设置，多 worker 照常工作。协议的数据模型来自 `mcp-types`；官方的 `mcp` SDK 不在运行依赖里，框架也不导入它。
 
+Agent 写代码前先读[MCP 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/mcp.md)（`docs/public/en/agents/mcp.md`），它按任务给出该用的接口、接线步骤和完成标准。
+
 ## 装上
 
 在 Web 服务的 `init()` 里、`super().init()` 之后调用，和 `install_admin(app)` 一样是显式接线：
