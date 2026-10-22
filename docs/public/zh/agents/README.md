@@ -21,8 +21,38 @@
 | 将异步工作交给持久队列/定时执行 | [Taskiq 接线](distributed-tasks.md)，对照 Demo 配置、任务、服务、权限和真实运行 |
 | SSE 更新 Table 或接入通知 | [实时页面指南](realtime.md)，复用稳定 DOM、请求权限、用户连接和持久通知 API |
 | 接入管理站点或扩展 ModelAdmin | [Admin 指南](admin.md)，区分 App 注册、模型管理与路由安装 |
+| 通过 MCP 把工具、resource、prompt 提供给 AI agent | [MCP 指南](https://github.com/alexliyu7352/oldman/blob/main/docs/public/en/agents/mcp.md)，在现有 Web 服务开启端点、决定谁能调用，用真实请求验证 |
 | 准备应用部署 | [部署指南](../users/deployment.md)及[安全边界](../developers/security.md)，核对真实依赖、权限与关闭责任 |
 | 维护框架与验证产物 | [源码维护](../developers/maintenance.md)和[测试隔离](../developers/testing.md)，不混进业务开发任务 |
+
+## 已有项目：在自己的指令文件里加一段
+
+用 `oldman startproject` 新建的项目自带 `AGENTS.md`（`CLAUDE.md` 只有一行 `@AGENTS.md`），agent 每次开始工作都会读到它。后来才用上 Oldman 的项目没有这份文件；项目已有的 `AGENTS.md`、`CLAUDE.md` 归项目自己，框架不生成也不改写。需要时把下面这段贴进去：
+
+```markdown
+## Oldman
+
+This project is built on the Oldman framework (Python package `oldman`).
+
+1. Get the installed framework version: `./run.sh --version` or `uv run oldman --version` (prints
+   `oldman X.Y.Z`, written as its release tag is, a prerelease too: `oldman 0.6.0-rc.1` is tag
+   `v0.6.0-rc.1`). Get the framework docs for exactly that version, once per project:
+   `git clone --depth 1 --branch vX.Y.Z https://github.com/alexliyu7352/oldman.git .oldman-docs`
+   and add `/.oldman-docs/` to `.gitignore`. If `.oldman-docs` exists for another version, delete it
+   and clone again. A framework checkout on another branch or version is not the reference; do not
+   switch its branch to make it one.
+2. Before you propose a design or write code for a feature, open
+   `.oldman-docs/docs/public/en/agents/README.md`, find the task in its table and read that guide
+   completely. Use what the framework already provides before writing your own.
+3. Look up every `oldman` import in the public API index before using it: start at
+   `.oldman-docs/docs/public/en/api/README.md`, then open the package's page.
+   Do not guess module paths, class names or attributes.
+4. When the installed version changes, read the release notes of every version in between
+   (https://github.com/alexliyu7352/oldman/releases) before going on, and check the code that uses
+   what changed.
+```
+
+贴进去的文字不会随框架升级更新，所以它只给入口和版本规则，不列具体指南：指南的路径和内容以已安装版本的文档为准。
 
 ## 开始前只确定必要信息
 
