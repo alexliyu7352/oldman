@@ -1,6 +1,6 @@
 /* 首页版式。颜色、字体、圆角都用 src/css/custom.css 里的 --om-* token，亮暗两种自动跟随。
-   节奏：首屏两栏（文字 / 快速开始），其后每个区块之间一条发丝线；“框架提供什么”与“文档入口”标题在左、
-   内容在右，“两个包”与“示例”标题在上、内容铺满，避免每个区块一个样。 */
+   节奏：首屏两栏（文字 / 快速开始）和整幅截图之后是“为什么选 Oldman”：每个卖点左文右图、下一段左右互换，
+   右边是真实代码或实测图表；之后比较表与示例标题在上、内容铺满，文档入口标题在左、内容在右，避免每个区块一个样。 */
 
 .page {
   max-width: 76rem;
@@ -170,80 +170,239 @@
   line-height: 1.65;
 }
 
-/* 框架提供什么：一张两栏的规格表，不是卡片墙。 */
-.capabilities {
-  margin: 0;
-  border-bottom: 1px solid var(--om-border);
-}
-
-.capability {
-  display: grid;
-  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
-  gap: 1.5rem;
-  padding: 1rem 0;
+/* 为什么选 Oldman：每个卖点一段，左文右图；featureFlip 把图放到左边。不用卡片，段与段之间一条发丝线。 */
+.why {
+  padding: 4.5rem 0 1rem;
   border-top: 1px solid var(--om-border);
 }
 
-.capability dt {
+/* 区块标题比各卖点标题大一级：卖点是它的下一层。 */
+.whyTitle {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.875rem, 1.35rem + 1.5vw, 2.5rem);
+  letter-spacing: -0.02em;
+}
+
+.feature {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 2rem 4rem;
+  align-items: center;
+  padding: 3.5rem 0;
+}
+
+.feature + .feature {
+  border-top: 1px solid var(--om-border);
+}
+
+/* 图放左边时列宽跟着换，代码块始终在宽的那一列。 */
+.featureFlip {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.featureFlip .featureText {
+  order: 2;
+}
+
+.featureText,
+.featureVisual {
+  min-width: 0;
+}
+
+.featureVisual :global(.theme-code-block) {
+  margin-bottom: 0;
+}
+
+.featureTitle {
+  margin: 0 0 1rem;
+  color: var(--om-text-strong);
+  font-size: clamp(1.375rem, 1.1rem + 0.8vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.featureLead {
+  max-width: 34rem;
+  margin: 0 0 1rem;
+  color: var(--om-text);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.featureList {
+  max-width: 34rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--om-border);
+}
+
+.featureList li {
+  margin: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--om-border);
+  color: var(--om-text);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+/* 性能：强调式横条图，Oldman 用链接蓝，其余用灰；每根都直接标数值，不需要坐标轴和图例。
+   条宽不超过 20px，数据端 4px 圆角、基线端方角。颜色已用 dataviz 的校验脚本在亮暗两面核过。 */
+.bench {
+  --bench-ours: var(--om-link);
+  --bench-other: #94a3b8;
+  margin: 0;
+}
+
+:global(html[data-theme="dark"]) .bench {
+  --bench-other: #64748b;
+}
+
+.benchTitle {
+  margin: 0 0 1rem;
+  color: var(--om-text-strong);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.benchRows {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 11.5rem) minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  margin: 0;
+}
+
+.benchLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.benchName {
+  color: var(--om-text-strong);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.benchNote {
+  color: var(--om-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.benchTrack {
+  display: block;
+  height: 20px;
+}
+
+.benchBar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--bench-other);
+  transform-origin: left center;
+  animation: grow 900ms var(--om-ease-enter) both;
+}
+
+.benchOurs .benchBar {
+  background: var(--bench-ours);
+}
+
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .benchBar {
+    animation: none;
+  }
+}
+
+.benchValue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 4.5rem;
+  color: var(--om-text-strong);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.benchLatency {
+  color: var(--om-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.benchMethod {
+  margin: 1.25rem 0 0;
+  color: var(--om-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* 比较表：Oldman 一列加重文字，不用底色。窄屏上每行变成一块（见文件末尾的窄屏规则）。 */
+.compare {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.compare th,
+.compare td {
+  padding: 0.875rem 1rem 0.875rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--om-border);
+  background: none;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.compare thead th {
+  border-bottom-color: var(--om-border-strong);
+  color: var(--om-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.compare tbody th {
+  width: 24%;
   color: var(--om-text-strong);
   font-weight: 600;
 }
 
-.capability dt a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: var(--om-border-strong);
-  text-underline-offset: 0.2em;
-}
-
-.capability dt a:hover {
-  text-decoration-color: currentColor;
-}
-
-.capability dd {
-  margin: 0;
+.compare td {
   color: var(--om-text);
-  line-height: 1.6;
 }
 
-/* 两个包。 */
-.packages {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.package {
-  padding: 1.25rem 1.5rem;
-  border: 1px solid var(--om-border);
-  border-radius: 12px;
-}
-
-.packageName {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin: 0 0 0.5rem;
-}
-
-.packageName code {
-  padding: 0;
+/* Infima 给表格加了表头底色和斑马纹，这张表只用发丝线分行。 */
+.compare thead tr,
+.compare tbody tr,
+.compare tbody tr:nth-child(2n) {
   border: 0;
   background: none;
+}
+
+.compare .compareOurs {
   color: var(--om-text-strong);
-  font-size: 1.0625rem;
-  font-weight: 600;
-}
-
-.packageWhere {
-  font-size: 0.875rem;
-}
-
-.packageText {
-  margin: 0;
-  color: var(--om-text);
-  line-height: 1.6;
+  font-weight: 500;
 }
 
 /* 文档入口：整行可点的列表。 */
@@ -343,6 +502,23 @@
     padding: 3rem 0;
   }
 
+  .why {
+    padding-top: 3rem;
+  }
+
+  .feature {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 2.5rem 0;
+  }
+
+  .featureFlip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .featureFlip .featureText {
+    order: 0;
+  }
+
   .demos {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
@@ -354,13 +530,50 @@
     padding: 0 1rem 1.5rem;
   }
 
-  .packages {
-    grid-template-columns: minmax(0, 1fr);
+  .benchRow {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .capability {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.25rem;
+  .benchTrack {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .compare thead {
+    display: none;
+  }
+
+  .compare tbody,
+  .compare tr,
+  .compare tbody th,
+  .compare td {
+    display: block;
+    width: auto;
+  }
+
+  .compare tr {
+    padding: 0.875rem 0;
+    border-bottom: 1px solid var(--om-border);
+  }
+
+  .compare tbody th,
+  .compare td {
+    padding: 0.125rem 0;
+    border-bottom: 0;
+  }
+
+  .compare tbody th {
+    margin-bottom: 0.25rem;
+  }
+
+  .compare td::before {
+    content: attr(data-label) "：";
+    color: var(--om-text-muted);
+    font-weight: 400;
+  }
+
+  :global(html[lang="en"]) .compare td::before {
+    content: attr(data-label) ": ";
   }
 
   .guide {
@@ -382,7 +595,8 @@
 
 /* 中文：标题不收字距，行高放宽。 */
 :global(html[lang|="zh"]) .title,
-:global(html[lang|="zh"]) .sectionTitle {
+:global(html[lang|="zh"]) .sectionTitle,
+:global(html[lang|="zh"]) .featureTitle {
   letter-spacing: 0;
   /* 只在空格与标点处换行，"管理后台"这样的词不被拆到两行。 */
   word-break: keep-all;
@@ -394,7 +608,7 @@
 }
 
 :global(html[lang|="zh"]) .lead,
-:global(html[lang|="zh"]) .capability dd,
+:global(html[lang|="zh"]) .featureLead,
 :global(html[lang|="zh"]) .sectionText {
   line-height: 1.8;
 }
