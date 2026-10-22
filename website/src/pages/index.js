@@ -56,7 +56,7 @@ async def count_reports(request: Request, status: str) -> int:
     async with db_manager.get_read_session() as session:
         ...`;
 
-// 2026-10-21 实测（docs/internal/2026-10-21-positioning-and-benchmark.md）：1 个 worker、oha 64 连接、3 轮各 15 秒取中位数。
+// 2026-10-21 实测：1 个 worker、oha 64 连接、3 轮各 15 秒取中位数；条件写在下面的 home.fast.method 和 README「快」一节，数字两边一致。
 const BENCHMARK = [
   {
     name: "Oldman 0.8.0",
