@@ -2,9 +2,11 @@ import asyncio
 import multiprocessing as mp
 import time
 from abc import ABC
+from pathlib import Path
 from typing import Any, Literal
 
 from oldman.logging import ChildLoggingContext, logger, resolve_child_logging_context
+from oldman.runtime.bootstrap import _get_bootstrap_context, bootstrap_service
 from oldman.tasks.base import TaskType
 from oldman.tasks.messages import MessageType, TaskMessage
 from oldman.tasks.worker import BaseWorker
@@ -68,14 +70,29 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
     def _create_worker_process(self, worker_id: int, task_queue: mp.Queue) -> mp.Process:
         """创建worker进程 - 统一实现"""
         logging_context = self._resolve_logging_context()
+        service = self._resolve_service()
         return self._mp_context.Process(
             target=self._worker_process_entry,
-            args=(self.worker_class, worker_id, task_queue, logging_context),
+            args=(self.worker_class, worker_id, task_queue, logging_context, service),
         )
 
     def _resolve_logging_context(self) -> ChildLoggingContext | None:
         """Resolve the active application context immediately before Process.start()."""
         return resolve_child_logging_context(self._logging_context)
+
+    @staticmethod
+    def _resolve_service() -> tuple[str, Path] | None:
+        """Return the service and settings file this process was bootstrapped with, if any.
+
+        A spawned child starts without settings. Passing these lets it load the same file
+        the parent used instead of the service's default one; a parent that never called
+        bootstrap_service() passes nothing and its workers start exactly as before.
+        """
+        try:
+            context = _get_bootstrap_context()
+        except RuntimeError:
+            return None
+        return context.service_module, context.config_file
 
     @staticmethod
     def _close_task_queue(task_queue: mp.Queue) -> None:
@@ -89,12 +106,17 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         worker_id: int,
         task_queue: mp.Queue,
         logging_context: ChildLoggingContext | None,
+        service: tuple[str, Path] | None,
     ) -> None:
-        """Install process-local logging before constructing and running one worker."""
+        """Install process-local logging and the parent's settings before constructing and running one worker."""
         child_runtime = None
         try:
             if logging_context is not None:
                 child_runtime = logging_context.install()
+            if service is not None:
+                # Same order as the Taskiq child: logging first, so a bootstrap failure is logged.
+                service_module, config_file = service
+                bootstrap_service(service_module, config_file=config_file)
             worker = worker_class(worker_id, task_queue)
             asyncio.run(worker.start())
         except Exception as e:

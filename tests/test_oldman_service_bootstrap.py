@@ -270,6 +270,66 @@ class ServiceBootstrapTest(unittest.TestCase):
 
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
 
+    def test_base_manager_worker_starts_with_the_parent_service_settings(self) -> None:
+        completed = _run_project(
+            """
+            import asyncio
+            from pathlib import Path
+
+            from oldman import bootstrap_service
+            from oldman.tasks import BaseManager
+            from probe_worker import SettingsProbeWorker
+
+            # Not the default data/worker_settings.yaml, which the child would read by itself.
+            bootstrap_service("worker", config_file=Path.cwd() / "temporary" / "worker.yaml")
+
+            manager = BaseManager(SettingsProbeWorker, num_workers=1)
+            assert asyncio.run(manager._start_worker(0))
+            worker_info = manager.workers[0]
+            try:
+                worker_info.process.join(10)
+                assert not worker_info.process.is_alive()
+            finally:
+                if worker_info.process.is_alive():
+                    worker_info.process.kill()
+                    worker_info.process.join()
+                worker_info.task_queue.close()
+                worker_info.task_queue.join_thread()
+            """,
+            extra_files={
+                # Spawn imports the Worker class by module path, so it cannot live in the -c source.
+                "probe_worker.py": """
+                    import oldman.conf as conf
+                    from oldman.tasks import BaseWorker
+
+                    class SettingsProbeWorker(BaseWorker):
+                        def __init__(self, worker_id, task_queue):
+                            self.worker_id = worker_id
+
+                        async def initialize(self):
+                            pass
+
+                        async def start(self):
+                            from reports_app.apps import app
+
+                            print(f"child settings: {conf.settings.core.app_name} {app.settings.page_size}", flush=True)
+                """,
+                "temporary/worker.yaml": """
+                    apps:
+                      - reports_app
+                    app_settings:
+                      reports:
+                        page_size: 41
+                    core:
+                      app_name: explicit-worker
+                    project_marker: yaml-value
+                """,
+            },
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("child settings: explicit-worker 41", completed.stdout, completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

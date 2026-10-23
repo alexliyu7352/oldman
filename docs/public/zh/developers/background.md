@@ -190,7 +190,11 @@ success/error 使用 ONE_TIME；stop 使用 PERSISTENT，输出报告后 await E
 
 `add_task(task_data, task_type=PERSISTENT, restart_delay=5, max_restarts=-1, auto_remove_on_complete=None)` 返回任务 ID 或 `None`。字典的 `task_type` 是业务创建器名称；方法参数的 `task_type` 是 `TaskType` 生命周期枚举，两者不是同一个字段含义。任务 ID 表示指令放入本地队列，**不是 Worker 已执行成功的确认**。
 
-`BaseTask.execute()` 是异步业务入口，`cleanup()` 是任务级清理。任务协程自己的资源仍应使用 `try/finally`：不要依赖同步状态字段或 cleanup 顺序推断所有协程已停止。`BaseWorker.initialize()` 注册同步创建器，资源在该子进程内初始化并关闭；spawn 不自动绑定父进程服务 Settings，若业务确实依赖配置，在 Worker 初始化中调用统一 `bootstrap_service()`，不要带入父进程已打开的连接。
+`BaseTask.execute()` 是异步业务入口，`cleanup()` 是任务级清理。任务协程自己的资源仍应使用 `try/finally`：不要依赖同步状态字段或 cleanup 顺序推断所有协程已停止。`BaseWorker.initialize()` 注册同步创建器，资源在该子进程内初始化并关闭，不要带入父进程已打开的连接。
+
+Worker 子进程的配置来自父进程。父进程已经初始化服务时（`start`、CLI 命令，或自己调用了 `bootstrap_service(..., config_file=...)`），管理器在启动每个子进程前取出服务名和配置文件；子进程先装日志，再用同一份文件调用 `bootstrap_service()`（只加载配置、模型和权限声明，不建立连接），然后才构造 Worker。所以 Worker 的 `__init__`、`initialize()` 和任务里可以直接使用 settings 与模型，监控替换上来的新进程也一样。初始化失败时子进程记录“进程异常退出”后结束，按 `max_worker_restarts` 重启。父进程没有初始化服务时什么都不传，子进程没有配置。
+
+两点限制：spawn 在这之前就按模块路径导入 Worker 类所在的模块，模块顶层不能读配置；Worker 里不要再调用 `bootstrap_service()`，同一服务、同一文件只会拿回现有结果，而父进程用的是非默认文件时，不带 `config_file` 的调用会因为已经用另一份文件初始化而报错。
 
 父进程 `get_manager_status()` 只报告 Worker 进程健康情况；Worker 的 `get_task_status()` 是其本地状态，不是父进程 RPC。控制消息 `TaskMessage`/`MessageType` 使用 multiprocessing Queue 与 MsgPack，不使用 Redis/NATS。
 

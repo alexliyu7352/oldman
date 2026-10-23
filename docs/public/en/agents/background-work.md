@@ -227,8 +227,8 @@ there instead of building a collector or reporter service from scratch.
 - **Short Python processes** (`apps/examples/process_jobs.py`, `process_examples.py::PythonProcessDemo`, command
   `python-process --scenario ...`): the parent queries and passes plain lists; the child module imports no ORM or
   settings. Targets, worker classes and synchronous task creators are top-level functions so spawn can pickle them. A
-  child that needs models calls `bootstrap_service("<service>")` itself; never pass the parent's session, Redis or HTTP
-  client.
+  process target that needs models calls `bootstrap_service("<service>")` itself; never pass the parent's session, Redis
+  or HTTP client.
 - **External programs** (`SubprocessDemo`, `apps/examples/external_job.py`): `run_subprocess_exec` with `stdin` bytes,
   `capture_output` and `check` for programs nobody answers; `run_foreground` when a person may need to answer (it keeps
   the terminal and does no group cleanup). Use a fixed program and argv; never build shell commands from input. Show
@@ -236,7 +236,10 @@ there instead of building a collector or reporter service from scratch.
   success.
 - **Fixed workers** (`worker_examples.py::WorkerDemo`, `worker_jobs.py`): the command counts as done only after reading
   the worker's report; a queued instruction is not business success. Manager, temporary directory and database belong
-  to the same command and are always shut down, closed and removed.
+  to the same command and are always shut down, closed and removed. Started from a command or service, each worker
+  process already has that process's settings and models, loaded from the same settings file, in `__init__`,
+  `initialize()` and its tasks: do not call `bootstrap_service()` in a worker, and do not read settings at module level
+  (spawn imports the worker's module before that).
 
 ## Done means
 
