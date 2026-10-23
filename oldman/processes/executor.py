@@ -202,7 +202,7 @@ class AsyncProcessManager:
 
                     # 如果还活着，强制杀死
                     if process.is_alive():
-                        logger.error(f"进程 {process.pid} 未能正常终止，强制杀死")
+                        logger.error(f"Process {process.pid} did not terminate; killing it")
                         try:
                             os.kill(process.pid, signal.SIGKILL)  # type: ignore
                         except ProcessLookupError:
@@ -223,7 +223,7 @@ class AsyncProcessManager:
                     # 等待进程退出（最多 5 秒）
                     await asyncio.to_thread(process.join, timeout=5)
                 except Exception as e:
-                    logger.error(f"进程 {process.pid} join 失败: {e}")
+                    logger.error(f"Joining process {process.pid} failed: {e}")
 
                 # 如果还活着，最后尝试强制杀死
                 if process.is_alive():
@@ -233,7 +233,7 @@ class AsyncProcessManager:
                     except ProcessLookupError:
                         pass  # 进程已经不存在了
                     except Exception as e:
-                        logger.error(f"强制杀死进程 {process.pid} 失败: {e}")
+                        logger.error(f"Killing process {process.pid} failed: {e}")
 
                     # 再次等待
                     try:
@@ -267,7 +267,7 @@ class AsyncProcessManager:
             except ProcessTimeoutError:
                 raise
             except Exception as e:
-                logger.error(f"监控任务异常: {e}")
+                logger.error(f"Monitoring task error: {e}")
             finally:
                 self.active_processes.discard((process, monitor_task))
 
@@ -368,10 +368,10 @@ class AsyncProcessManager:
         if self.shutting_down.is_set():
             return None
 
-        logger.info(f"当前任务数量: {len(self.active_processes)}, 是否需要等待: {len(self.active_processes) >= self.workers}")
+        logger.info(f"Current tasks: {len(self.active_processes)}, must wait: {len(self.active_processes) >= self.workers}")
         # 异步等待信号量
         await self.semaphore.acquire()
-        logger.info(f"等待结束, 当前任务数量: {len(self.active_processes)}")
+        logger.info(f"Wait finished, current tasks: {len(self.active_processes)}")
 
         process = None
         pipe_reader = None
@@ -536,22 +536,22 @@ class AsyncProcessManager:
         4. 强制杀死仍存活的进程（SIGKILL）
         5. 清理资源
         """
-        logger.info("开始优雅关闭进程管理器")
+        logger.info("Shutting down the process manager gracefully")
         self.shutting_down.set()
 
         if not self.active_processes:
-            logger.info("没有活动进程，直接退出")
+            logger.info("No active processes; exiting")
             return
 
         # 终止所有活动进程
         shutdown_tasks = []
         for process, monitor_task in list(self.active_processes):
             if process.is_alive():
-                logger.info(f"终止进程 {process.pid}")
+                logger.info(f"Terminating process {process.pid}")
                 try:
                     process.terminate()
                 except Exception as e:
-                    logger.error(f"终止进程 {process.pid} 失败: {e}")
+                    logger.error(f"Terminating process {process.pid} failed: {e}")
                 await asyncio.sleep(0.1)
                 if process.is_alive():
                     try:
@@ -590,4 +590,4 @@ class AsyncProcessManager:
                     logger.error(f"Error while waiting for process {process.pid} to join: {repr(e)}")
 
         self.active_processes.clear()
-        logger.info("进程管理器已关闭")
+        logger.info("Process manager shut down")
