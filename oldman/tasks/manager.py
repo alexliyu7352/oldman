@@ -115,6 +115,8 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
                 child_runtime = logging_context.install()
             if service is not None:
                 # Same order as the Taskiq child: logging first, so a bootstrap failure is logged.
+                # Accepted: like the Taskiq child, each worker start prints the parent's settings
+                # diagnostics (unknown keys) to stderr again; bootstrap has no quiet mode for children.
                 service_module, config_file = service
                 bootstrap_service(service_module, config_file=config_file)
             worker = worker_class(worker_id, task_queue)
