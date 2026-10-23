@@ -623,7 +623,11 @@ class HostnameValidation:
     This is not a validator in and of itself, and as such is not exported.
     """
 
-    hostname_part = re.compile(r"^(xn-|[a-z0-9_]+)(-[a-z0-9_-]+)*$", re.IGNORECASE)
+    # Upstream repeats the tail group (`(-[a-z0-9_-]+)*`). Its class already contains "-", so one
+    # group matches every longer tail and both patterns accept the same labels, but the repeated
+    # group backtracks exponentially on labels such as "a" + "-" * 40 + "!": about a second at 36
+    # dashes and growing ~1.6x per dash, while a label may hold 63 characters.
+    hostname_part = re.compile(r"^(xn-|[a-z0-9_]+)(-[a-z0-9_-]+)?$", re.IGNORECASE)
     tld_part = re.compile(r"^([a-z]{2,20}|xn--([a-z0-9]+-)*[a-z0-9]+)$", re.IGNORECASE)
 
     def __init__(self, require_tld=True, allow_ip=False):
