@@ -238,8 +238,9 @@ there instead of building a collector or reporter service from scratch.
   the worker's report; a queued instruction is not business success. Manager, temporary directory and database belong
   to the same command and are always shut down, closed and removed. Started from a command or service, each worker
   process already has that process's settings and models, loaded from the same settings file, in `__init__`,
-  `initialize()` and its tasks: do not call `bootstrap_service()` in a worker, and do not read settings at module level
-  (spawn imports the worker's module before that).
+  `initialize()` and its tasks: do not call `bootstrap_service()` in a worker, and do not read settings at module level,
+  neither in the worker's module nor in the modules it imports at the top (spawn imports them before that, and the
+  child exits without a log line).
 
 ## Done means
 
