@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 
 from sqlalchemy import Text, select
@@ -90,6 +91,18 @@ class BackendFormJSONListTest(unittest.IsolatedAsyncioTestCase):
                 form = JSONListForm(data=data)
                 self.assertFalse(await form.validate())
                 self.assertIsNotNone(form.error_message)
+
+    async def test_prefixed_form_resubmits_the_names_it_rendered(self) -> None:
+        """重新渲染的输入框名字带着表单前缀，按它再提交一次，列表数据不丢。"""
+        failed = JSONListForm(data={"profile-sources-0": "one", "profile-sources-1": "x"}, prefix="profile")
+        self.assertFalse(await failed.validate())
+        html = str(await failed.render())
+
+        names = sorted(set(re.findall(r'name="(profile-sources-\d+)"', html)))
+        self.assertEqual(["profile-sources-0", "profile-sources-1"], names)
+        resubmitted = JSONListForm(data=dict.fromkeys(names, "fixed"), prefix="profile")
+        self.assertTrue(await resubmitted.validate())
+        self.assertEqual(["fixed", "fixed"], resubmitted.cleaned_data["sources"])
 
     async def test_renders_rows_template_and_reindex_hooks(self) -> None:
         """Renderer 输出现有行、模板和前端重排所需的完整 hook。"""
