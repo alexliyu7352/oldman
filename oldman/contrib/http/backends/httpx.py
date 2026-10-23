@@ -69,7 +69,7 @@ class HttpxClient(BaseHttpClient):
 
         初始化HTTPX客户端
         """
-        logger.info(f"初始化HTTPX客户端, 最大连接数: {self.parent.max_connections}")
+        logger.info(f"Initializing the HTTPX client, max connections: {self.parent.max_connections}")
 
     async def close_session(self, session: Any) -> None:
         """Close the HTTPX client.

@@ -154,7 +154,7 @@ class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
                 await client.init_client()
         finally:
             await client.close_client()
-        self.assertEqual(1, sum("最大连接数: 3" in line for line in logs.output), logs.output)
+        self.assertEqual(1, sum("max connections: 3" in line for line in logs.output), logs.output)
 
     def test_headers_preserve_duplicates_and_ignore_name_case(self) -> None:
         """Headers expose joined and repeated views without mutation."""

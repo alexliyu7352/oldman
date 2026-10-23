@@ -178,7 +178,7 @@ class MultiHttpClient(BaseHttpClient):
         """清理退出时仍持有 backend 的实例；从未初始化或已关闭的实例没有要关的东西，不计入日志"""
         instances = [instance for instance in cls._instances if instance._impl is not None]
         if instances:
-            logger.info(f"程序退出时清理 {len(instances)} 个HTTP客户端实例")
+            logger.info(f"Closing {len(instances)} HTTP client instance(s) at exit")
 
             try:
                 loop = asyncio.new_event_loop()
@@ -191,7 +191,7 @@ class MultiHttpClient(BaseHttpClient):
                 loop.run_until_complete(cleanup_all())
                 loop.close()
             except Exception as e:
-                logger.warning(f"批量清理HTTP客户端失败: {type(e).__name__}")
+                logger.warning(f"Closing HTTP clients at exit failed: {type(e).__name__}")
 
     @property
     def client(self):
@@ -243,23 +243,23 @@ class MultiHttpClient(BaseHttpClient):
         """
         if self.timeout_count > self.max_timeout_count:
             # 如果连续超时次数过多，重置客户端
-            logger.error(f"连续超时次数: {self.timeout_count}, 重置HTTP客户端")
+            logger.error(f"{self.timeout_count} consecutive timeouts, resetting the HTTP client")
             self.timeout_count = 0
             reset_success = await self.reset_client()
         elif time.time() - self.last_client_reset > self.soft_reset_interval:
             # 如果客户端运行时间超过1小时，定期重置以防止内存泄漏
-            logger.debug(f"客户端运行时间: {time.time() - self.last_client_reset}秒, 定期重置")
+            logger.debug(f"Client has run for {time.time() - self.last_client_reset}s, periodic reset")
             reset_success = await self.reset_client()
         else:
             reset_success = False
         if time.time() - self.last_gc_time > self.gc_interval:
             async with self.gc_lock:
                 if time.time() - self.last_gc_time > self.gc_interval:
-                    logger.info("执行垃圾回收以释放内存")
+                    logger.info("Running garbage collection to free memory")
                     try:
                         gc.collect()
                     except Exception as e:
-                        logger.error(f"显式垃圾回收失败: {type(e).__name__}")
+                        logger.error(f"Garbage collection failed: {type(e).__name__}")
                     self.last_gc_time = time.time()
         return reset_success
 
@@ -278,7 +278,7 @@ class MultiHttpClient(BaseHttpClient):
 
         # 正常情况下，如果有活跃请求且不是强制重置就跳过
         if not rough_check_force_reset and self.active_requests > 0:
-            logger.debug(f"有 {self.active_requests} 个请求正在进行，跳过客户端重置")
+            logger.debug(f"Skipping the client reset: {self.active_requests} request(s) in progress")
             return False
 
         # 尝试获取锁
@@ -291,20 +291,20 @@ class MultiHttpClient(BaseHttpClient):
                 force_reset = current_time - self.last_client_reset > self.hard_reset_interval
                 # logger.info(f"锁内重新检查: force_reset={force_reset}, active_requests={self.active_requests}")
                 if not force_reset and self.active_requests > 0:
-                    logger.debug("在获取重置锁后发现有新请求，跳过重置")
+                    logger.debug("New requests started while waiting for the reset lock; skipping the reset")
                     return False
                 if not force_reset and current_time - self.last_client_reset < self.soft_reset_interval:
-                    logger.debug("在获取重置锁后发现不需要重置，跳过重置")
+                    logger.debug("No reset needed after acquiring the reset lock; skipping the reset")
                     return False
                 # 强制重置模式：等待活跃请求完成
                 if force_reset and self.active_requests > 0:
-                    logger.warning(f"客户端运行时间过长，强制重置模式：等待 {self.active_requests} 个请求完成...")
+                    logger.warning(f"Client has run too long, forcing a reset: waiting for {self.active_requests} request(s) to finish...")
                     try:
                         await asyncio.wait_for(self._no_active_requests.wait(), timeout=5.0)
                     except TimeoutError:
                         pass
                     if self.active_requests > 0:
-                        logger.error(f"强制重置超时，仍有 {self.active_requests} 个活跃请求，继续执行重置")
+                        logger.error(f"Forced reset timed out with {self.active_requests} active request(s); resetting anyway")
                 if self._impl:
                     try:
                         reset_start = time.time()
@@ -313,26 +313,26 @@ class MultiHttpClient(BaseHttpClient):
                             # backend 用 False 明确报告未完成时，与抛出普通异常采用相同
                             # 冷却语义，避免后续每个请求立即重复 reset。
                             self.last_client_reset = time.time()
-                            logger.error("底层重置未成功")
+                            logger.error("Backend reset did not succeed")
                             return False
                         reset_duration = time.time() - reset_start
-                        logger.info(f"底层重置完成，耗时: {reset_duration:.2f}秒")
+                        logger.info(f"Backend reset finished in {reset_duration:.2f}s")
                     except Exception as e:
                         # 记录本次失败尝试，避免每个后续请求立即重复 reset。
                         self.last_client_reset = time.time()
-                        logger.error(f"底层重置失败: {type(e).__name__}")
+                        logger.error(f"Backend reset failed: {type(e).__name__}")
                         return False
                 self.last_client_reset = time.time()
-                logger.info(f"{self.client_type} 客户端已{'强制' if force_reset else ''}重置")
+                logger.info(f"{self.client_type} client {'force-' if force_reset else ''}reset")
                 return True
         except asyncio.CancelledError:
-            logger.warning("重置客户端任务被取消")
+            logger.warning("Client reset was cancelled")
             raise
         except Exception as e:
-            logger.error(f"重置客户端过程中发生异常: {type(e).__name__}")
+            logger.error(f"Client reset raised an exception: {type(e).__name__}")
             return False
         finally:
-            logger.info("reset_client 执行完成")
+            logger.info("reset_client finished")
         return False
 
     async def close_client(self) -> bool:
@@ -344,7 +344,7 @@ class MultiHttpClient(BaseHttpClient):
         返回 False，同时保留 backend 引用——backend 那边也保留了会话，退出清理或下一次
         关闭还能再试。取消仍然向上传递。
         """
-        logger.info(f"正在关闭 {self.client_type} 客户端...")
+        logger.info(f"Closing the {self.client_type} client...")
         if self._impl is None:
             return True
         impl = self._impl
@@ -354,7 +354,7 @@ class MultiHttpClient(BaseHttpClient):
                 impl.export_cookie_jar(self.cookie_jar)
         except Exception as exc:
             # 导出失败也不能跳过网络资源清理，更不该把异常丢给调用方。
-            logger.error(f"导出 {self.client_type} Cookie 失败: {type(exc).__name__}")
+            logger.error(f"Exporting the {self.client_type} cookies failed: {type(exc).__name__}")
         # 关闭期间和关闭以后，还在读的流去续传时不能在这个 backend 上新建会话（见 BaseHttpClient._ensure_open）。
         impl._closed_by_owner = True
         released = await impl.close_client()
@@ -362,10 +362,10 @@ class MultiHttpClient(BaseHttpClient):
         if released is False:
             # 会话还在、引用也留着：照常可用，下一次关闭再试。
             impl._closed_by_owner = False
-            logger.error(f"{self.client_type} 客户端未能释放，保留引用以便重试")
+            logger.error(f"The {self.client_type} client was not released; keeping the reference to retry")
             return False
         self._impl = None
-        logger.info("资源清理完成")
+        logger.info("HTTP client resources released")
         return True
 
     async def request(self, method: HttpMethod, url: str, **kwargs: Any) -> HttpResponse:
@@ -424,7 +424,7 @@ class MultiHttpClient(BaseHttpClient):
                     # 检查是否需要根据状态码重试
                     if response.status_code not in no_retry_statuses and attempt < retries_left:
                         logger.warning(
-                            f"收到状态码 {response.status_code}，将重试请求: {log_url}, 代理: {log_proxy}, 尝试: {attempt + 1}/{retries_left + 1}"
+                            f"Request returned status {response.status_code}, retrying: {log_url}, proxy: {log_proxy}, attempt {attempt + 1}/{retries_left + 1}"
                         )
                         response_text = response.text
                         response_status_code = response.status_code
@@ -444,7 +444,9 @@ class MultiHttpClient(BaseHttpClient):
                 except TimeoutError as e:
                     self.timeout_count += 1
                     last_exception = e
-                    logger.warning(f"请求超时 ({attempt + 1}/{retries_left + 1}): {log_url}, 代理: {log_proxy}, 累计超时次数: {self.timeout_count}")
+                    logger.warning(
+                        f"Request timed out ({attempt + 1}/{retries_left + 1}): {log_url}, proxy: {log_proxy}, consecutive timeouts: {self.timeout_count}"
+                    )
                     # 继续重试循环
                 except Exception as e:
                     request_info = getattr(e, "request_info", None)
@@ -452,7 +454,7 @@ class MultiHttpClient(BaseHttpClient):
                     if real_url is not None and str(real_url) != url:
                         url = str(real_url)
                         log_url = redact_url(url)
-                    logger.error(f"请求错误 ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url: {log_url}")
+                    logger.error(f"Request error ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url: {log_url}")
                     last_exception = e
                     # 继续重试循环
 
@@ -500,7 +502,7 @@ class MultiHttpClient(BaseHttpClient):
                         # 检查状态码是否需要重试
                         if not stream.is_success and stream.status_code not in no_retry_statuses:
                             if attempt < retries_left:
-                                logger.warning(f"流式请求收到状态码 {stream.status_code}，将重试, [{log_url}]")
+                                logger.warning(f"Stream request returned status {stream.status_code}, retrying, [{log_url}]")
                                 continue
                         connected = True
 
@@ -512,11 +514,11 @@ class MultiHttpClient(BaseHttpClient):
                 except TimeoutError as e:
                     self.timeout_count += 1
                     last_exception = e
-                    logger.warning(f"流式请求超时 ({attempt + 1}/{retries_left + 1}), [{log_url}], 代理: {log_proxy}")
+                    logger.warning(f"Stream request timed out ({attempt + 1}/{retries_left + 1}), [{log_url}], proxy: {log_proxy}")
                     # 继续重试
 
                 except Exception as e:
-                    logger.error(f"流式请求错误 ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url is {log_url}")
+                    logger.error(f"Stream request error ({attempt + 1}/{retries_left + 1}): {type(e).__name__}, url: {log_url}")
                     last_exception = e
                     # 继续重试
                     if connected:
@@ -551,7 +553,7 @@ class MultiHttpClient(BaseHttpClient):
             await stream_response.connect()
             yield stream_response
         except Exception as e:
-            logger.error(f"流式请求失败: {type(e).__name__}, [{log_url}]")
+            logger.error(f"Stream request failed: {type(e).__name__}, [{log_url}]")
             raise
         finally:
             # 确保资源被清理；释放被取消或出错时，活动请求数也要减掉（重置靠它判断有没有请求在进行）。
@@ -582,9 +584,9 @@ class MultiHttpClient(BaseHttpClient):
         self.export_cookies()
         if isinstance(self.cookie_jar, MozillaCookieJar):
             self.cookie_jar.save(filename, ignore_discard=True, ignore_expires=True)
-            logger.info(f"Cookies 已保存到: {filename or self.cookie_jar.filename}")
+            logger.info(f"Cookies saved to: {filename or self.cookie_jar.filename}")
         else:
-            logger.warning("当前 cookie_jar 不支持保存到文件，请使用 MozillaCookieJar")
+            logger.warning("This cookie_jar cannot be saved to a file; use MozillaCookieJar")
 
     def response_has_cookies(self, response: HttpResponse | HttpStreamResponse) -> bool:
         """Check whether the response contains new Cookies.

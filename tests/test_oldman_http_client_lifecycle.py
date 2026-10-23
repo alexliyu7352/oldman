@@ -236,7 +236,7 @@ class ExitCleanupTest(unittest.TestCase):
             patch("oldman.contrib.http.multi_client.logger") as logger,
         ):
             MultiHttpClient._cleanup_all_instances()
-        logger.info.assert_any_call("程序退出时清理 1 个HTTP客户端实例")
+        logger.info.assert_any_call("Closing 1 HTTP client instance(s) at exit")
         self.assertIsNone(opened._impl)
 
 

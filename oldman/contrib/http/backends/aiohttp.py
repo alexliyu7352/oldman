@@ -195,7 +195,7 @@ class AioHttpClient(BaseHttpClient):
 
         初始化aiohttp客户端
         """
-        logger.info(f"初始化aiohttp客户端, 最大连接数: {self.parent.max_connections}")
+        logger.info(f"Initializing the aiohttp client, max connections: {self.parent.max_connections}")
 
     async def close_session(self, session: Any) -> None:
         """Close the aiohttp session.

@@ -80,7 +80,7 @@ class BaseHttpClient:
         if session is not None:
             setattr(self, self.session_attribute, None)
             await self.close_session(session)
-        logger.info(f"{self.backend_label}客户端已重置")
+        logger.info(f"{self.backend_label} client reset")
         return True
 
     async def close_client(self) -> bool:
@@ -100,10 +100,10 @@ class BaseHttpClient:
         try:
             await self.close_session(session)
         except Exception as exc:
-            logger.error(f"关闭{self.backend_label}客户端时出错: {type(exc).__name__}")
+            logger.error(f"Closing the {self.backend_label} client failed: {type(exc).__name__}")
             return False
         setattr(self, self.session_attribute, None)
-        logger.info(f"{self.backend_label}资源清理完成")
+        logger.info(f"{self.backend_label} resources released")
         return True
 
     def export_cookie_jar(self, destination: CookieJar) -> None:

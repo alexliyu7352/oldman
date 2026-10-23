@@ -214,7 +214,7 @@ class ReconnectStreamResponse:
                 if not self._consume_retry():
                     raise
                 self._backoff_pending = True
-                logger.warning(f"流式连接失败，尝试重新连接: {type(error).__name__}, [{self._log_url}]")
+                logger.warning(f"Stream connection failed, reconnecting: {type(error).__name__}, [{self._log_url}]")
                 continue
             self._response_context = context
             self.current_response = response
@@ -223,7 +223,9 @@ class ReconnectStreamResponse:
                 # 上游不接受调用方带来的 Range：去掉 Range 把同一个请求再发一次，拿完整的内容（服务器本来就可以不理会 Range）。
                 # 播放器带着 Range 来（ffmpeg 默认带 bytes=0-），有的上游（没有长度的流尤其如此）见到 Range 就回 416。
                 # 只做这一次。调用方不要这个行为，就把 416 写进 no_retry_statuses，416 原样交回。
-                logger.warning(f"上游用 416 拒绝了请求里的 Range，去掉 Range 重新请求: {self.original_range_header}, [{self._log_url}]")
+                logger.warning(
+                    f"Upstream rejected the request's Range with 416; retrying without Range: {self.original_range_header}, [{self._log_url}]"
+                )
                 self._set_header(self.headers, "Range", None)
                 self._set_header(self.headers, "If-Range", None)
                 self.original_range_header = None
@@ -232,7 +234,7 @@ class ReconnectStreamResponse:
                 continue
             # 续传时的 416 不在这里重试，交给 _prepare_recovery 判断（内容其实已经收全，或者接不上）。
             if not response.is_success and status != 416 and status not in self.no_retry_statuses and self._consume_retry():
-                logger.warning(f"流式连接收到状态码 {status}，将重试: {self._log_url}")
+                logger.warning(f"Stream connection returned status {status}, retrying: {self._log_url}")
                 self._backoff_pending = True
                 continue
             try:
@@ -376,7 +378,9 @@ class ReconnectStreamResponse:
                         if isinstance(error, _ShortBody):
                             raise HttpRangeError(error.message) from error
                         raise
-                    logger.warning(f"流读取中断，尝试恢复: {type(error).__name__}, 已输出 {self.transmitted_bytes} 字节, [{self._log_url}]")
+                    logger.warning(
+                        f"Stream read interrupted, resuming: {type(error).__name__}, {self.transmitted_bytes} bytes sent so far, [{self._log_url}]"
+                    )
                     self._backoff_pending = True
                     await self.release_response()
                     continue
@@ -471,7 +475,7 @@ class ReconnectStreamResponse:
             elif response is not None:
                 await response.aclose()
         except Exception as e:
-            logger.error(f"释放流响应时出错: {type(e).__name__}")
+            logger.error(f"Releasing the stream response failed: {type(e).__name__}")
 
     def detach_response(self) -> AbstractAsyncContextManager[HttpStreamResponse] | None:
         """Transfer the current response context to the caller for closure, leaving release nothing to await.
@@ -540,7 +544,9 @@ class ReconnectStreamResponse:
                         # 调用方要的区间，必须由有效的 Content-Range 证明拿到的正是它。
                         raise
                     # 没人要求的 206、或长度不合规范的 200：照常读完，只是不做内部续传，读取中断就直接失败。
-                    logger.warning(f"首个响应的长度或范围无法解析，照常读取但不做内部续传: {error}, [{self._log_url}]")
+                    logger.warning(
+                        f"The first response's length or range could not be parsed; reading it as is without internal resumption: {error}, [{self._log_url}]"
+                    )
                     self._finite = False
                     self.supports_range = False
                     self.response_start, self.response_end, self.content_length, self.total_length = 0, None, None, None
@@ -588,7 +594,7 @@ class ReconnectStreamResponse:
             unsupported = False
         if status == 206 or unsupported:
             logger.warning(
-                f"响应无法解压，按原始字节输出并保留 Content-Encoding: status={status}, "
+                f"Response could not be decompressed; passing the raw bytes through with Content-Encoding kept: status={status}, "
                 f"content-encoding={headers.get('content-encoding')!r}, [{self._log_url}]"
             )
             return None
