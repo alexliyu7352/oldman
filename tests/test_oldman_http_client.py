@@ -620,7 +620,7 @@ class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(500, response.status_code)
         self.assertIn("https://example.test/path", output)
         self.assertIn("http://proxy.test:8080", output)
-        self.assertIn("状态码: 500", output)
+        self.assertIn("status 500, retries exhausted", output)
         for secret in (
             "url-user",
             "url-password",
@@ -635,6 +635,49 @@ class HttpResponseContractTest(unittest.IsolatedAsyncioTestCase):
             "response-body-secret",
         ):
             self.assertNotIn(secret, output)
+
+    async def test_only_exhausted_retries_warn_about_a_returned_status(self) -> None:
+        """A status the caller does not retry is an ordinary answer; running out of retries is not."""
+
+        class StatusBackend:
+            """Answer every request with one fixed status."""
+
+            def __init__(self, status_code: int) -> None:
+                self.status_code = status_code
+
+            async def request(self, method: HttpMethod, url: str, **kwargs: object) -> HttpResponse:
+                """Return the fixed status without a body."""
+
+                del method, kwargs
+                return HttpResponse(status_code=self.status_code, url=url, headers={}, raw_content=b"")
+
+        client = MultiHttpClient(ClientType.HTTPX, retry_count=1, retry_backoff_factor=0)
+        cases = (
+            # (status, per-request options, expected (level, message fragment) records)
+            (404, {}, [("DEBUG", "status 404, not retried")]),
+            (503, {"no_retry_statuses": [503]}, [("DEBUG", "status 503, not retried")]),
+            (
+                500,
+                {},
+                [
+                    ("WARNING", "500"),
+                    ("DEBUG", "Retrying request 1/1"),
+                    ("WARNING", "status 500, retries exhausted (2/2 attempts)"),
+                ],
+            ),
+        )
+        for status, options, expected in cases:
+            with self.subTest(status=status, options=options):
+                client._impl = StatusBackend(status)  # type: ignore[assignment]
+                with self.assertLogs("default", level="DEBUG") as captured:
+                    response = await client.get("https://example.test/manifest.m3u8", **options)
+                self.assertEqual(status, response.status_code)
+                records = [(record.levelname, record.getMessage()) for record in captured.records]
+                self.assertEqual(len(expected), len(records), records)
+                for (level, fragment), (actual_level, message) in zip(expected, records, strict=True):
+                    self.assertEqual(level, actual_level, records)
+                    self.assertIn(fragment, message)
+        client._impl = None
 
     async def test_aiohttp_native_jar_preserves_stdlib_cookie_scope(self) -> None:
         """The aiohttp seed adapter retains host, domain, path, and secure rules."""

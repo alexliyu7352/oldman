@@ -411,7 +411,7 @@ class MultiHttpClient(BaseHttpClient):
                     if attempt > 0:
                         # 计算退避时间: {backoff} * (2 ^ {attempt - 1})
                         wait_time = retry_backoff * (2 ** (attempt - 1))
-                        logger.info(f"重试请求 {attempt}/{retries_left}, 等待 {wait_time:.2f}秒: {log_url}")
+                        logger.debug(f"Retrying request {attempt}/{retries_left} in {wait_time:.2f}s: {log_url}")
                         await asyncio.sleep(wait_time)
 
                     response = await self.client.request(method, url, **kwargs)
@@ -430,9 +430,16 @@ class MultiHttpClient(BaseHttpClient):
                         response_status_code = response.status_code
                         continue
                     else:
-                        # 如果状态码不需要重试, 比如404，直接返回响应
+                        # 不再重试，原样返回给调用方
                         self.timeout_count = 0
-                        logger.warning(f"请求未成功, 状态码: {response.status_code}, 不需要重试: {log_url}, 代理: {log_proxy}")
+                        if response.status_code in no_retry_statuses:
+                            # 调用方声明不重试的状态码（默认 404）是它预期的答复，不是异常
+                            logger.debug(f"Request returned status {response.status_code}, not retried: {log_url}, proxy: {log_proxy}")
+                        else:
+                            logger.warning(
+                                f"Request returned status {response.status_code}, retries exhausted "
+                                f"({attempt + 1}/{retries_left + 1} attempts): {log_url}, proxy: {log_proxy}"
+                            )
                         return response
                 except TimeoutError as e:
                     self.timeout_count += 1

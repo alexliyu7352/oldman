@@ -181,6 +181,8 @@ TLS verify 仅接受构造级 bool，默认验证服务端证书。单次请求�
 
 默认 retry_count=3 表示首次加最多三次重试，指数等待从 0.5 秒开始。默认 no_retry_statuses 为 [404]。单次请求可用 retries、no_retry_statuses、retry_backoff 覆盖；构造传空列表仍会使用默认 [404]，不是关闭状态过滤。
 
+原样返回的非 2xx 这样记日志：状态码在 no_retry_statuses 里（含单次覆盖）是调用方预期的答复，只记 DEBUG；可重试的状态码把次数用完（含 retries=0）时记一条 WARNING，写明 retries exhausted。每次重试前另有一条 WARNING 写明状态码和第几次尝试，退避等待只记 DEBUG。stream() 原样交出非 2xx 时不记日志。
+
 当前重试不按 HTTP 方法判断幂等性，POST 也可能重发。写入、付款、创建资源等普通请求应显式 `retries=0`，或给该实例设置 retry_count=0；需要重试时必须由业务确认幂等。error_code 是响应 JSON 的业务字段，HTTP 客户端不会自动解释或据此重试。
 
 aiohttp 对幂等请求另有一次自己的重发（服务器一个响应都没回就断开时换连接再发一次），不计入 retry_count：上游每次都不回响应就断开时，retry_count=N 实际发出 2×(N+1) 个请求，httpx、curl 是 N+1 个。连接和读取异常在预算耗尽后通常原样抛出 backend 异常；取消继续传播。不要只捕获 HTTPClientError 就宣称覆盖所有网络异常，RequestFailedError 本身也不继承它。协议定义的状态、解压、流消费和 Range 错误分别为 HttpStatusError、HttpContentDecodingError、HttpStreamConsumedError、HttpRangeError。reconnect_stream 还有两种：声明直播的流，上游一直按关连接结束、重试用完时抛内置的 ConnectionError；close_client() 之后还在读的流去续传时抛 RuntimeError。
