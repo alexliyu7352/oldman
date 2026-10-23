@@ -74,6 +74,8 @@ build-backend = "hatchling.build"
 dev = [
     "aiosmtpd>=1.4.6",
     "Babel>=2.15",
+    # The form core's Email validator imports it on use; only its tests need it here.
+    "email-validator>=2.0",
     "hatchling==1.31.0",
     # The official MCP SDK, only as the client tests connect with; oldman.mcp never imports it.
     "mcp>=2.3.0,<3",
@@ -88,9 +90,10 @@ dev = [
 
 [tool.pyright]
 include = ["oldman", "tests", "scripts"]
-# The form core is adapted from WTForms 3.2.2 and still untyped; it gets types when the
-# framework's form overrides are folded into it, and leaves both exclude lists then.
-exclude = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core"]
+# The form core is adapted from WTForms 3.2.2 and still untyped, and its ported tests lean on
+# that (a declared field reads as an UnboundField); both get types when the framework's form
+# overrides are folded into the core, and leave both exclude lists then.
+exclude = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core", "tests/form_core"]
 extraPaths = ["."]
 executionEnvironments = [
     { root = ".", extraPaths = ["."] },
@@ -103,7 +106,7 @@ venv = ".venv"
 [tool.pyrefly]
 # The same scope as [tool.pyright].
 project-includes = ["oldman", "tests", "scripts"]
-project-excludes = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core"]
+project-excludes = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core", "tests/form_core"]
 search-path = ["."]
 python-version = "3.12"
 infer-with-first-use = false
