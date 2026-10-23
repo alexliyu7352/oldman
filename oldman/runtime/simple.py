@@ -37,7 +37,7 @@ class SimpleApplication(BaseApplication):
         """初始化应用"""
         storages.init_app()
         self.bootstrap_context.apps.load_models()
-        logger.info(f"{self.app_name} 初始化完成")
+        logger.info(f"{self.app_name} initialized")
         self._setup_system_signals()
 
     @abstractmethod
@@ -77,12 +77,12 @@ class SimpleApplication(BaseApplication):
             if self._nats_error is not None and not isinstance(self._nats_error, asyncio.CancelledError):
                 raise self._nats_error from error
         except KeyboardInterrupt:
-            logger.info(f"{self.app_name} 收到中断信号，准备退出")
+            logger.info(f"{self.app_name} received an interrupt; exiting")
         except Exception:
             # With the traceback: an ExceptionGroup's own message only counts its sub-exceptions.
             # Raised on, as a Web service does, so the process exits non-zero and a manager that
             # restarts on failure sees it; a requested stop above still ends normally.
-            logger.exception(f"{self.app_name} 运行异常")
+            logger.exception(f"{self.app_name} failed while running")
             raise
         finally:
             self._cleanup()
@@ -127,18 +127,18 @@ class SimpleApplication(BaseApplication):
 
     async def before_start(self) -> None:
         """服务启动前钩子"""
-        logger.info(f"{self.app_name} 启动前准备完成")
+        logger.info(f"{self.app_name} pre-start preparation finished")
 
     async def before_command(self, command_name: str, *args: Any, **kwargs: Any) -> None:
         """一次性命令执行前的轻量生命周期钩子。"""
-        logger.info(f"{self.app_name} 命令 {command_name} 启动前准备完成")
+        logger.info(f"{self.app_name} command {command_name} pre-start preparation finished")
 
     async def before_stop(self) -> None:
         """服务停止前钩子"""
         self._should_exit = True
         # 停止任务管理器（等待每个任务的取消真正落地）
         await self.task_manager.stop_all()
-        logger.info(f"{self.app_name} 停止前清理完成")
+        logger.info(f"{self.app_name} pre-stop cleanup finished")
 
     async def after_stop(self) -> None:
         """服务停止后钩子，运行时 taskiq/NATS 仍开着；框架在它之后关闭它们和缓存、Redis、数据库，覆盖时不必调用 super()。"""
@@ -152,7 +152,7 @@ class SimpleApplication(BaseApplication):
 
     def _handle_exit_signal(self, sig) -> None:
         """Request ordered async shutdown, without interrupting an active cleanup."""
-        logger.info(f"{self.app_name} 收到信号 {sig}，准备退出")
+        logger.info(f"{self.app_name} received signal {sig}; exiting")
         self._request_shutdown()
 
     def _request_shutdown(self) -> None:
@@ -175,7 +175,7 @@ class SimpleApplication(BaseApplication):
                     if pending:
                         self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
                 except Exception as e:
-                    logger.error(f"清理任务时出错: {e}")
+                    logger.error(f"Cleaning up tasks failed: {e}")
                 finally:
                     self.loop.close()
         finally:

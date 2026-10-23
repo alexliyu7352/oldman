@@ -186,7 +186,7 @@ class OldmanApplicationLifecycleTest(unittest.TestCase):
             self.assertRaises(ExceptionGroup),
         ):
             application.run()
-        failure = next(record for record in logs.records if "运行异常" in record.getMessage())
+        failure = next(record for record in logs.records if "failed while running" in record.getMessage())
         self.assertIsNotNone(failure.exc_info)
         self.assertIn("RuntimeError: Redis password is wrong", logging.Formatter().format(failure))
 

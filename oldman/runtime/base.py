@@ -337,7 +337,7 @@ class BaseApplication(ABC):
                 if command_error is None:
                     command_error = error
                     raise
-                logger.exception("%s 异步命令 %s 清理失败，保留命令原始异常", self.app_name, command_name)
+                logger.exception("%s: cleanup of async command %s failed; the command's original exception is kept", self.app_name, command_name)
             finally:
                 try:
                     await self._close_services(command_error)
@@ -443,7 +443,7 @@ class BaseApplication(ABC):
                 if original_error is None and first_error is None:
                     first_error = error
                 else:
-                    logger.exception("%s 收尾失败，保留最先出现的异常", self.app_name)
+                    logger.exception("%s: shutdown cleanup failed; the first exception is kept", self.app_name)
         if first_error is not None:
             raise first_error
 
@@ -463,7 +463,7 @@ class BaseApplication(ABC):
                 await redis_client.close()
             finally:
                 await db_manager.close()
-        logger.info("%s 的缓存、Redis 与数据库连接已关闭", self.app_name)
+        logger.info("%s: cache, Redis and database connections closed", self.app_name)
 
     async def _start_taskiq(self) -> None:
         """Manage publication only; task discovery belongs to Worker/Scheduler."""
