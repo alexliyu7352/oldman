@@ -42,7 +42,7 @@ class BaseWorker(ABC):
         注册任务创建器 - 不再是async
         """
         self.task_creators[task_type] = creator
-        logger.debug(f"Worker {self.worker_id} 注册任务创建器: {task_type}")
+        logger.debug(f"Worker {self.worker_id} registered task creator: {task_type}")
 
     def _register_handlers(self):
         """注册消息处理器"""
@@ -56,7 +56,7 @@ class BaseWorker(ABC):
         启动worker
         """
         self.running = True
-        logger.info(f"Worker {self.worker_id} 启动，PID: {mp.current_process().pid}")
+        logger.info(f"Worker {self.worker_id} started, PID: {mp.current_process().pid}")
 
         try:
             # 启动通信
@@ -113,12 +113,12 @@ class BaseWorker(ABC):
             if success:
                 self.tasks[task_id] = task_instance
                 task_instance.update_status(TaskStatus.RUNNING)
-                logger.info(f"Worker {self.worker_id} 启动任务: {task_id} (类型: {task_type_name})")
+                logger.info(f"Worker {self.worker_id} started task: {task_id} (type: {task_type_name})")
             else:
-                logger.error(f"Worker {self.worker_id} 启动任务失败: {task_id}")
+                logger.error(f"Worker {self.worker_id} failed to start task: {task_id}")
 
         except Exception as e:
-            logger.error(f"Worker {self.worker_id} 处理任务启动失败: {e}")
+            logger.error(f"Worker {self.worker_id} failed to handle a task start: {e}")
 
     async def _handle_task_stop(self, message: TaskMessage):
         """处理任务停止"""
@@ -130,16 +130,16 @@ class BaseWorker(ABC):
                     await task.cleanup()
             success = await self.task_manager.remove_task(task_id)
             if success:
-                logger.info(f"Worker {self.worker_id} 停止任务: {task_id}")
+                logger.info(f"Worker {self.worker_id} stopped task: {task_id}")
             else:
-                logger.warning(f"Worker {self.worker_id} 停止任务失败: {task_id}")
+                logger.warning(f"Worker {self.worker_id} failed to stop task: {task_id}")
 
         except Exception as e:
-            logger.error(f"Worker {self.worker_id} 处理任务停止失败: {e}")
+            logger.error(f"Worker {self.worker_id} failed to handle a task stop: {e}")
 
     async def _handle_shutdown(self, message: TaskMessage):
         """处理关闭信号"""
-        logger.info(f"Worker {self.worker_id} 收到关闭信号")
+        logger.info(f"Worker {self.worker_id} received the shutdown signal")
         self.running = False
         self.comm_manager.stop()
 
@@ -162,19 +162,19 @@ class BaseWorker(ABC):
 
         清理资源
         """
-        logger.info(f"Worker {self.worker_id} 开始清理")
+        logger.info(f"Worker {self.worker_id} cleaning up")
         for task_id, task in self.tasks.items():
             try:
                 task.update_status(TaskStatus.STOPPED)
                 await task.cleanup()
-                logger.info(f"Worker {self.worker_id} 清理任务: {task_id}")
+                logger.info(f"Worker {self.worker_id} cleaning up task: {task_id}")
             except Exception as e:
-                logger.error(f"Worker {self.worker_id} 清理任务失败: {task_id}, 错误: {e}")
+                logger.error(f"Worker {self.worker_id} failed to clean up task: {task_id}, error: {e}")
         try:
             # 停止所有任务
             await self.task_manager.stop_all()
         except Exception as e:
-            logger.error(f"Worker {self.worker_id} 停止任务管理器失败: {e}")
+            logger.error(f"Worker {self.worker_id} failed to stop its task manager: {e}")
         # 任务最后的提交还要让模型缓存失效；asyncio.run 结束时会取消没做完的失效。
         from oldman.db.sqlalchemy.cache import wait_for_invalidations
 
@@ -184,4 +184,4 @@ class BaseWorker(ABC):
             # 等待被取消也照常清理通信
             self.tasks.clear()
             self.comm_manager.cleanup()
-        logger.info(f"Worker {self.worker_id} 清理完成")
+        logger.info(f"Worker {self.worker_id} cleaned up")

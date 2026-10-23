@@ -120,7 +120,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
             worker = worker_class(worker_id, task_queue)
             asyncio.run(worker.start())
         except Exception as e:
-            logger.error(f"Worker {worker_id} 进程异常退出: {e}")
+            logger.error(f"Worker {worker_id} process exited with an error: {e}")
         finally:
             if child_runtime is not None:
                 child_runtime.close()
@@ -131,7 +131,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         启动管理器
         """
         self.running = True
-        logger.info(f"启动管理器，{self.num_workers} 个worker")
+        logger.info(f"Starting the manager with {self.num_workers} worker(s)")
 
         # 启动所有worker
         for worker_id in range(self.num_workers):
@@ -142,7 +142,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
 
         # 等待worker启动；被取消时取消照常抛给调用方，由它在 finally 里调用 shutdown() 收尾
         await asyncio.sleep(3)
-        logger.info("管理器启动完成")
+        logger.info("Manager started")
 
     async def _start_worker(self, worker_id: int) -> bool:
         """启动单个worker"""
@@ -162,18 +162,18 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
                 try:
                     self._close_task_queue(task_queue)
                 except Exception as cleanup_error:
-                    logger.error(f"清理启动失败的Worker {worker_id} 队列时出错: {cleanup_error}")
+                    logger.error(f"Worker {worker_id} failed to start, and closing its queue failed: {cleanup_error}")
                 raise
 
             # 记录worker信息
             worker_info = WorkerInfo(worker_id, process, task_queue)
             self.workers[worker_id] = worker_info
 
-            logger.info(f"启动Worker {worker_id}, PID: {process.pid}")
+            logger.info(f"Started Worker {worker_id}, PID: {process.pid}")
             return True
 
         except Exception as e:
-            logger.error(f"启动Worker {worker_id} 失败: {e}")
+            logger.error(f"Starting Worker {worker_id} failed: {e}")
             return False
 
     async def _stop_worker(self, worker_id: int) -> None:
@@ -202,14 +202,14 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
                         worker_info.process.join()
 
         except Exception as e:
-            logger.error(f"停止Worker {worker_id} 时出错: {e}")
+            logger.error(f"Stopping Worker {worker_id} failed: {e}")
         finally:
             try:
                 self._close_task_queue(worker_info.task_queue)
             except Exception as e:
-                logger.error(f"清理Worker {worker_id} 队列时出错: {e}")
+                logger.error(f"Closing the queue of Worker {worker_id} failed: {e}")
             self.workers.pop(worker_id, None)
-            logger.info(f"Worker {worker_id} 已停止")
+            logger.info(f"Worker {worker_id} stopped")
 
     async def _restart_worker(self, worker_id: int) -> bool:
         """重启worker"""
@@ -220,7 +220,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
 
         # 检查重启限制
         if worker_info.restart_count >= self.max_worker_restarts >= 0:
-            logger.error(f"Worker {worker_id} 超过最大重启次数 ({self.max_worker_restarts})")
+            logger.error(f"Worker {worker_id} exceeded the maximum restarts ({self.max_worker_restarts})")
             worker_info.is_healthy = False
             return False
 
@@ -229,7 +229,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         if current_time - worker_info.last_restart < self.worker_restart_delay:
             return False
 
-        logger.warning(f"重启Worker {worker_id} (第 {worker_info.restart_count + 1} 次)")
+        logger.warning(f"Restarting Worker {worker_id} (restart {worker_info.restart_count + 1})")
 
         # 执行重启
         await self._stop_worker(worker_id)
@@ -249,31 +249,31 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         """监控worker进程"""
         while self.running:
             try:
-                logger.info(f"监控 {len(self.workers)} 个worker进程")
+                logger.info(f"Monitoring {len(self.workers)} worker process(es)")
 
                 # 检查每个worker状态
                 for worker_id, worker_info in list(self.workers.items()):
                     if not worker_info.process.is_alive():
-                        logger.warning(f"检测到Worker {worker_id} 进程已退出 (PID: {worker_info.process.pid})")
+                        logger.warning(f"Worker {worker_id} process has exited (PID: {worker_info.process.pid})")
 
                         if worker_info.is_healthy:
                             # 尝试重启
                             restart_success = await self._restart_worker(worker_id)
                             if restart_success:
-                                logger.info(f"Worker {worker_id} 重启成功")
+                                logger.info(f"Worker {worker_id} restarted")
                             else:
-                                logger.error(f"Worker {worker_id} 重启失败")
+                                logger.error(f"Restarting Worker {worker_id} failed")
                         else:
-                            logger.error(f"Worker {worker_id} 标记为不健康，不再重启")
+                            logger.error(f"Worker {worker_id} is marked unhealthy and will not be restarted")
 
                 # 报告状态
                 healthy_workers = sum(1 for w in self.workers.values() if w.is_healthy and w.process.is_alive())
-                logger.info(f"健康worker数量: {healthy_workers}/{self.num_workers}")
+                logger.info(f"Healthy workers: {healthy_workers}/{self.num_workers}")
 
                 await asyncio.sleep(self.monitor_interval)
 
             except Exception as e:
-                logger.error(f"Worker监控出错: {e}")
+                logger.error(f"Worker monitoring error: {e}")
                 await asyncio.sleep(self.monitor_interval)
 
     def _select_worker(self) -> int | None:
@@ -303,7 +303,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         # 选择worker
         worker_id = self._select_worker()
         if worker_id is None:
-            logger.error("没有可用的健康worker")
+            logger.error("No healthy worker available")
             return None
         task_id = f"{worker_id}_{self.task_counter}_{int(time.time())}"
         self.task_counter += 1
@@ -327,10 +327,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         try:
             worker_info = self.workers[worker_id]
             worker_info.task_queue.put_nowait(task_msg.to_msgpack())
-            logger.info(f"发送任务 {task_id} 到 Worker {worker_id}")
+            logger.info(f"Sent task {task_id} to Worker {worker_id}")
             return task_id
         except Exception as e:
-            logger.error(f"发送任务失败: {e}")
+            logger.error(f"Sending the task failed: {e}")
             return None
 
     async def stop_task(self, task_id: str, worker_id: int = -1):
@@ -343,10 +343,10 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
             try:
                 worker_id = int(task_id.split("_")[0])
             except (IndexError, ValueError):
-                logger.error(f"无法从任务ID {task_id} 中提取Worker ID")
+                logger.error(f"Cannot extract the Worker ID from task ID {task_id}")
                 return
         if worker_id not in self.workers:
-            logger.warning(f"Worker {worker_id} 不存在")
+            logger.warning(f"Worker {worker_id} does not exist")
             return
 
         stop_msg = TaskMessage(type=MessageType.TASK_STOP, task_id=task_id, worker_id=worker_id)
@@ -354,9 +354,9 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         try:
             worker_info = self.workers[worker_id]
             worker_info.task_queue.put_nowait(stop_msg.to_msgpack())
-            logger.info(f"发送停止命令 {task_id} 到 Worker {worker_id}")
+            logger.info(f"Sent the stop command for {task_id} to Worker {worker_id}")
         except Exception as e:
-            logger.error(f"发送停止命令失败: {e}")
+            logger.error(f"Sending the stop command failed: {e}")
 
     def get_manager_status(self) -> dict[str, Any]:
         """Return manager status.
@@ -382,7 +382,7 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
 
         关闭管理器
         """
-        logger.info("关闭管理器...")
+        logger.info("Shutting down the manager...")
         self.running = False
 
         # 停止监控任务
@@ -397,4 +397,4 @@ class BaseManager(ABC):  # noqa: B024 -- retained source boundary has no abstrac
         for worker_id in list(self.workers.keys()):
             await self._stop_worker(worker_id)
 
-        logger.info("管理器已关闭")
+        logger.info("Manager shut down")

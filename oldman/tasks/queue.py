@@ -35,9 +35,9 @@ class AsyncQueue:
             # 注册文件描述符到事件循环
             self._loop.add_reader(self.queue._reader.fileno(), self._data_available.set)  # type: ignore
             self._is_setup = True
-            logger.debug("AsyncQueue设置完成")
+            logger.debug("AsyncQueue set up")
         except Exception as e:
-            logger.error(f"AsyncQueue设置失败: {e}")
+            logger.error(f"AsyncQueue setup failed: {e}")
             raise
 
     async def get(self) -> TaskMessage:
@@ -48,12 +48,12 @@ class AsyncQueue:
         while True:
             # 检查是否有数据可读
             try:
-                logger.debug("检查队列是否有数据")
+                logger.debug("Checking whether the queue has data")
                 if not self.queue.empty():
-                    logger.debug("队列有数据，准备读取")
+                    logger.debug("Queue has data; reading")
                     # 获取序列化的数据并解码
                     serialized_data = self.queue.get_nowait()
-                    logger.debug("队列数据读取成功，准备反序列化")
+                    logger.debug("Queue data read; deserializing")
                     # 直接使用消息类型的反序列化方法
                     return TaskMessage.from_msgpack(serialized_data)
             except queue.Empty:
@@ -61,7 +61,7 @@ class AsyncQueue:
                 # 这是正常竞态，不是故障：继续等待下一个信号，而不是把它报给调用方。
                 pass
             except Exception:
-                logger.exception("从队列获取消息失败")
+                logger.exception("Getting a message from the queue failed")
                 raise
 
             # 等待数据可用信号
@@ -76,7 +76,7 @@ class AsyncQueue:
             serialized_data = message.to_msgpack()
             self.queue.put_nowait(serialized_data)
         except Exception as e:
-            logger.error(f"队列放入消息失败: {e}")
+            logger.error(f"Putting a message on the queue failed: {e}")
             raise
 
     def put_nowait_raw(self, serialized_data: bytes) -> None:
@@ -84,7 +84,7 @@ class AsyncQueue:
         try:
             self.queue.put_nowait(serialized_data)
         except Exception as e:
-            logger.error(f"队列放入原始数据失败: {e}")
+            logger.error(f"Putting raw data on the queue failed: {e}")
             raise
 
     def cleanup(self) -> None:
@@ -93,6 +93,6 @@ class AsyncQueue:
             try:
                 self._loop.remove_reader(self.queue._reader.fileno())  # type: ignore
                 self._is_setup = False
-                logger.debug("AsyncQueue清理完成")
+                logger.debug("AsyncQueue cleaned up")
             except Exception as e:
-                logger.warning(f"队列清理时出错: {e}")
+                logger.warning(f"Queue cleanup failed: {e}")

@@ -54,7 +54,7 @@ class BaseTask(ABC):
 
         任务清理（默认实现，子类可重写）
         """
-        logger.debug(f"任务 {self.task_id} 清理完成")
+        logger.debug(f"Task {self.task_id} cleaned up")
 
     def update_status(self, status: TaskStatus) -> None:
         """Update task status.
