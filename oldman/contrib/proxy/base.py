@@ -484,9 +484,9 @@ class BaseStreamProxy:
             return content, real_url
         except Exception as e:
             if self._debug:
-                logger.exception(f"获取m3u8失败: url={m3u8_url}", exc_info=True)
+                logger.exception(f"Fetching m3u8 failed: url={m3u8_url}", exc_info=True)
             else:
-                logger.error(f"获取m3u8失败: url={m3u8_url}, error={repr(e)}")
+                logger.error(f"Fetching m3u8 failed: url={m3u8_url}, error={repr(e)}")
             return None, m3u8_url
 
     def update_ttl_from_content(self, m3u8_content: str, current_ttl: int) -> int:
@@ -552,7 +552,7 @@ class BaseStreamProxy:
                     if m3u8_content:
                         return m3u8_content
 
-                logger.debug(f"从远程获取m3u8: url={play_url}")
+                logger.debug(f"Fetching m3u8 from upstream: url={play_url}")
                 # 检查extra_context是否包含headers, 并提取
                 if "headers" in extra_context:
                     headers = extra_context.pop("headers")  # type: dict[str, str] | None
@@ -603,7 +603,7 @@ class BaseStreamProxy:
                 if m3u8_content:
                     return m3u8_content
         except Exception as e:
-            logger.error(f"获取m3u8失败: {repr(e)}")
+            logger.error(f"Fetching m3u8 failed: {repr(e)}")
             raise e
 
         return None
@@ -672,12 +672,12 @@ class BaseStreamProxy:
                         response_stream = await start_response()
                     await response_stream.send(chunk)
         except asyncio.CancelledError:
-            logger.debug("流式响应被取消")
+            logger.debug("Streaming response cancelled")
             if response_stream is not None:
                 self._close_client_connection(request)
             raise
         except Exception as e:
-            logger.error(f"流式响应异常: {repr(e)}, url={response.url}")
+            logger.error(f"Streaming response error: {repr(e)}, url={response.url}")
             if response_stream is None:
                 raise
             # 从这里到异常回到调用方之间不能有任何等待：请求方的连接一关，只要让出一次事件循环，Sanic 就会取消
@@ -720,9 +720,9 @@ class BaseStreamProxy:
         try:
             await asyncio.wait_for(context.__aexit__(None, None, None), timeout=cls.RELEASE_TIMEOUT)
         except TimeoutError:
-            logger.warning(f"上游的响应 {cls.RELEASE_TIMEOUT} 秒内没有放掉，已取消释放: url={url}")
+            logger.warning(f"Upstream response was not released within {cls.RELEASE_TIMEOUT}s; release cancelled: url={url}")
         except Exception as error:
-            logger.warning(f"释放上游响应时出错: {error!r}, url={url}")
+            logger.warning(f"Releasing the upstream response failed: {error!r}, url={url}")
 
     @staticmethod
     def _is_upstream_failure(error: BaseException) -> bool:
@@ -744,7 +744,7 @@ class BaseStreamProxy:
                 close()
         except Exception as error:
             # 关不掉也不能盖住真正的原因：调用方接下来还会收到 RequestCancelled。
-            logger.warning(f"关闭请求方连接时出错: {error!r}")
+            logger.warning(f"Closing the requester's connection failed: {error!r}")
 
     async def get_ts_stream(
         self,
@@ -781,16 +781,16 @@ class BaseStreamProxy:
             async with client.reconnect_stream(HttpMethod.GET, ts_url, headers=request_headers, live_stream=live_stream, **kwargs) as stream:
                 # last_response 保持 500：正文一个字节都没读到就失败时（stream_response 抛出），换成上游的状态码
                 # 等于给请求方一个状态正常、内容为空的响应。
-                logger.debug(f"获取TS流成功: ts_url={ts_url}, status={stream.status_code}")
+                logger.debug(f"Fetched TS stream: ts_url={ts_url}, status={stream.status_code}")
                 # 流式返回内容
                 await self.stream_response(request, stream)
                 return None
         except asyncio.CancelledError as e:
             if not self._is_upstream_failure(e):
-                logger.warning(f"协程取消: ts_url={ts_url}")
+                logger.warning(f"Coroutine cancelled: ts_url={ts_url}")
             raise
         except Exception as e:
-            logger.error(f"获取TS失败: {repr(e)}")
+            logger.error(f"Fetching TS failed: {repr(e)}")
             return last_response
 
     async def get_ts_stream_direct(
@@ -895,12 +895,12 @@ class BaseStreamProxy:
 
             # 检查状态码，确保成功响应
             if status_code not in [200, 206]:
-                logger.error(f"TS请求返回非成功状态码: {status_code} - {ts_url}")
+                logger.error(f"TS request returned a non-success status: {status_code} - {ts_url}")
                 return HTTPResponse(f"上游服务器返回错误: {status_code}".encode(), status=status_code)
 
             # 检查是否为分块传输编码
             is_chunked = headers.get("transfer-encoding", "").lower() == "chunked"
-            logger.debug(f"TS流传输编码: {'chunked' if is_chunked else '标准'}")
+            logger.debug(f"TS stream transfer encoding: {'chunked' if is_chunked else 'standard'}")
 
             # 只有在成功解析头部后，才创建响应流
             response_stream = await request.respond(content_type=headers.get("content-type", ""))
@@ -968,16 +968,16 @@ class BaseStreamProxy:
                     if 0 < content_length <= bytes_received:
                         break
 
-            logger.debug(f"TS流完成: {bytes_received} 字节，来自 {ts_url}")
+            logger.debug(f"TS stream finished: {bytes_received} bytes from {ts_url}")
             return None
 
         except TimeoutError:
-            logger.error(f"连接超时: {host}:{port} - {ts_url}")
+            logger.error(f"Connection timed out: {host}:{port} - {ts_url}")
             if not response_stream:
                 return HTTPResponse("连接上游服务器超时".encode(), status=504)
             return None
         except Exception as e:
-            logger.error(f"代理TS流错误: {repr(e)} - {ts_url}")
+            logger.error(f"Proxying TS stream failed: {repr(e)} - {ts_url}")
             if not response_stream:
                 return HTTPResponse(f"代理错误: {repr(e)}".encode(), status=502)
             return None
@@ -988,7 +988,7 @@ class BaseStreamProxy:
                     writer.close()
                     await asyncio.shield(writer.wait_closed())
                 except Exception as e:
-                    logger.debug(f"关闭写入器错误: {repr(e)}")
+                    logger.debug(f"Closing the writer failed: {repr(e)}")
 
             # 确保响应流正确关闭
             if response_stream:
@@ -1087,10 +1087,10 @@ class BaseStreamProxy:
 
         except asyncio.CancelledError as e:
             if not self._is_upstream_failure(e):
-                logger.warning(f"协程取消: url is {ts_url}, lock_key is {lock_key}")
+                logger.warning(f"Coroutine cancelled: url is {ts_url}, lock_key is {lock_key}")
             return None
         except Exception as e:
-            logger.error(f"获取内容失败: {repr(e)}")
+            logger.error(f"Fetching content failed: {repr(e)}")
             return text("获取内容失败", status=500)
 
     async def proxy_stream(
@@ -1114,11 +1114,11 @@ class BaseStreamProxy:
                 return await self.get_ts_stream(request, play_url, proxy_url, user_agent, headers, True)
         except asyncio.CancelledError as e:
             if not self._is_upstream_failure(e):
-                logger.warning(f"协程取消: play_url={play_url}")
+                logger.warning(f"Coroutine cancelled: play_url={play_url}")
             # 客户端断开时返回None，避免Sanic尝试发送响应
             return None
         except Exception as e:
-            logger.error(f"获取流失败: {repr(e)}")
+            logger.error(f"Fetching stream failed: {repr(e)}")
             return text("获取流失败", status=500)
 
     async def get_real_url(
@@ -1174,7 +1174,7 @@ class BaseStreamProxy:
                             real_url = str(response.url)
                             status_code = response.status_code
                         except Exception as e:
-                            logger.warning(f"HEAD请求失败: {repr(e)}, url is {play_url}")
+                            logger.warning(f"HEAD request failed: {repr(e)}, url is {play_url}")
                             # HEAD请求失败时降级为GET请求但立即关闭
                             real_url = ""
                     if not real_url or real_url == play_url:
@@ -1184,7 +1184,7 @@ class BaseStreamProxy:
                             real_url = str(stream.url)
                             status_code = stream.status_code
                     if status_code not in (200, 206, 301, 302, 303, 307, 308):
-                        logger.error(f"获取真实URL时上游返回错误状态码: {status_code}, url is {play_url}")
+                        logger.error(f"Upstream returned an error status while resolving the real URL: {status_code}, url is {play_url}")
                         return None, f"Upstream returned error status code: {status_code}"
                     check_result, error_msg = self.validate_real_url(real_url, included, blacklisted)
                     if not check_result:
@@ -1197,14 +1197,14 @@ class BaseStreamProxy:
                 # 如果获取锁失败但有缓存内容，仍然返回缓存内容
                 cached_url = await conn.get(cache_key)
                 if cached_url:
-                    logger.debug(f"使用缓存的URL（可能过期）: {cached_url}")
+                    logger.debug(f"Using the cached URL (it may be stale): {cached_url}")
                     return cached_url, None
                 return None, "Failed to acquire the lock"
         except asyncio.CancelledError:
-            logger.warning(f"协程取消: play_url={play_url}")
+            logger.warning(f"Coroutine cancelled: play_url={play_url}")
             return None, "Request cancelled"
         except Exception as e:
-            logger.error(f"获取真实URL失败: {repr(e)}")
+            logger.error(f"Resolving the real URL failed: {repr(e)}")
             return None, f"Failed to get the real URL: {repr(e)}"
 
     @staticmethod
@@ -1225,11 +1225,11 @@ class BaseStreamProxy:
         """
         # 检查 real_url 是否匹配调用方传入的黑名单规则。
         if blacklisted and any(strings_utils.match_url(real_url, pattern) for pattern in blacklisted):
-            logger.error(f"真实URL匹配黑名单: {real_url}")
+            logger.error(f"Real URL matches the blocklist: {real_url}")
             return False, f"Real URL matching blacklist: {real_url}"
         # 检查是否包含指定的字符串
         if included and not any(strings_utils.match_url(real_url, pattern) for pattern in included):
-            logger.error(f"真实URL不包含指定字符串: {real_url}")
+            logger.error(f"Real URL does not contain the required string: {real_url}")
             return False, f"Real URL does not contain specified strings: {real_url}"
         return True, None
 
@@ -1309,14 +1309,14 @@ class BaseStreamProxy:
                                     sub_m3u8_url = line
                                 break
                         if sub_m3u8_url:
-                            logger.debug(f"发现子m3u8, 获取第一个子m3u8的URL: {sub_m3u8_url}")
+                            logger.debug(f"Found variant m3u8 playlists; using the first one: {sub_m3u8_url}")
                             try:
                                 sub_response = await client.request(
                                     HttpMethod.GET, sub_m3u8_url, headers=request_headers, follow_redirects=True, no_retry_statuses=[403, 404, 401]
                                 )
                                 real_url = str(sub_response.url)
                             except Exception as e:
-                                logger.warning(f"获取子m3u8失败: {repr(e)}, url is {sub_m3u8_url}")
+                                logger.warning(f"Fetching the variant m3u8 failed: {repr(e)}, url is {sub_m3u8_url}")
                                 # 获取子m3u8失败时继续使用主m3u8的URL
                     check_result, error_msg = self.validate_real_url(real_url, included, blacklisted)
                     if not check_result:
@@ -1329,12 +1329,12 @@ class BaseStreamProxy:
                 # 如果获取锁失败但有缓存内容，仍然返回缓存内容
                 cached_url = await conn.get(cache_key)
                 if cached_url:
-                    logger.debug(f"使用缓存的URL（可能过期）: {cached_url}")
+                    logger.debug(f"Using the cached URL (it may be stale): {cached_url}")
                     return cached_url, None
                 return None, "Failed to acquire the lock"
         except asyncio.CancelledError:
-            logger.warning(f"协程取消: play_url={play_url}")
+            logger.warning(f"Coroutine cancelled: play_url={play_url}")
             return None, "Request cancelled"
         except Exception as e:
-            logger.error(f"获取真实URL失败: {repr(e)}")
+            logger.error(f"Resolving the real URL failed: {repr(e)}")
             return None, f"Failed to get the real URL: {repr(e)}"

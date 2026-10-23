@@ -66,7 +66,7 @@ class SimpleStreamProxy(BaseStreamProxy):
             if final_url:
                 return str(final_url)
         except Exception:
-            logger.error("获取最终URL失败")
+            logger.error("Resolving the final URL failed")
             return None
 
     @classmethod
@@ -265,7 +265,7 @@ class SimpleStreamProxy(BaseStreamProxy):
             params["direct"] = params.get("direct") in (1, "1")
             return params
         except Exception as e:
-            logger.error(f"解析参数失败: {repr(e)}")
+            logger.error(f"Parsing parameters failed: {repr(e)}")
             return None
 
     async def proxy_remote_manifest(
@@ -299,7 +299,7 @@ class SimpleStreamProxy(BaseStreamProxy):
             lock_name = redis_key("lock", self.CACHE_PREFIX, "m3u8", self.proxy_name, cached_id)
             # 使用分布式锁防止缓存雪崩
             async with conn.lock(lock_name, timeout=30, blocking_timeout=10):
-                logger.debug(f"从远程获取m3u8: url={play_url}")
+                logger.debug(f"Fetching m3u8 from upstream: url={play_url}")
                 # 检查extra_context是否包含headers, 并提取
                 if "headers" in extra_context:
                     headers = extra_context.pop("headers")  # type: dict[str, str] | None
@@ -329,7 +329,7 @@ class SimpleStreamProxy(BaseStreamProxy):
                     elif m3u8_content.startswith("http"):
                         # 说明返回的内容是一个重定向URL
                         redirect_url = m3u8_content.strip()
-                        logger.info(f"m3u8内容为重定向URL, 返回代理重定向: {play_url} -> {m3u8_content} -> {redirect_url}")
+                        logger.info(f"m3u8 content is a redirect URL; returning a proxy redirect: {play_url} -> {m3u8_content} -> {redirect_url}")
                         return self.proxy_m3u8_process(
                             "",
                             redirect_url,
@@ -344,7 +344,7 @@ class SimpleStreamProxy(BaseStreamProxy):
         except LockError as e:
             logger.error(f"Failed to acquire the m3u8 lock: {repr(e)}, url is {play_url}")
         except Exception as e:
-            logger.error(f"获取m3u8失败: {repr(e)}")
+            logger.error(f"Fetching m3u8 failed: {repr(e)}")
             raise e
 
         return None
@@ -387,7 +387,7 @@ class SimpleStreamProxy(BaseStreamProxy):
             context = self.load_params(params_str) or {}
         proxy_url = context.pop("proxy_url", None)
         user_agent = context.pop("user_agent", None)
-        logger.debug(f"获取流: {stream_url}, proxy_url={proxy_url}, user_agent={user_agent}")
+        logger.debug(f"Fetching stream: {stream_url}, proxy_url={proxy_url}, user_agent={user_agent}")
         client_remark = self.get_client_remark(stream_url)
         # 获取请求头信息
         request_headers = await self.get_request_headers(request, user_headers or self.DEFAULT_HEADERS)
@@ -428,7 +428,7 @@ class SimpleStreamProxy(BaseStreamProxy):
                         proxy_params_str=params_str,
                         local_proxy=local_proxy,
                     )
-                    logger.info(f"检测到上游重定向,返回代理重定向: {stream_url} -> {final_url} -> {proxy_redirect_url}")
+                    logger.info(f"Upstream redirected; returning a proxy redirect: {stream_url} -> {final_url} -> {proxy_redirect_url}")
                     return redirect(proxy_redirect_url)
 
                 if not any(media_type in content_type for media_type in ["video", "audio", "octet-stream"]):
@@ -459,15 +459,15 @@ class SimpleStreamProxy(BaseStreamProxy):
                     return None
         except RequestCancelled as e:
             if not self._is_upstream_failure(e):
-                logger.warning(f"协程取消: ts_url={stream_url}")
+                logger.warning(f"Coroutine cancelled: ts_url={stream_url}")
                 return None
             # stream_response 已经发出一部分正文后最终失败（连接它已经关掉）：原样上抛，不当成普通的取消返回 None。
             raise
         except asyncio.CancelledError:
-            logger.warning(f"协程取消: ts_url={stream_url}")
+            logger.warning(f"Coroutine cancelled: ts_url={stream_url}")
             return None
         except Exception as e:
-            logger.error(f"获取TS失败: {repr(e)}")
+            logger.error(f"Fetching TS failed: {repr(e)}")
             return last_response
 
 
@@ -604,12 +604,12 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
             context = self.load_params(params_str) or {}
         decrypted_url = self.decrypt_url(stream_url)
         if not decrypted_url:
-            logger.error(f"解密URL失败: {decrypted_url}")
+            logger.error(f"Decrypting the URL failed: {decrypted_url}")
             return text(status=400, body="Invalid URL")
         stream_url = decrypted_url
         proxy_url = context.pop("proxy_url", None)
         user_agent = context.pop("user_agent", None)
-        logger.debug(f"获取流: {stream_url}, proxy_url={proxy_url}, user_agent={user_agent}")
+        logger.debug(f"Fetching stream: {stream_url}, proxy_url={proxy_url}, user_agent={user_agent}")
         client_remark = self.get_client_remark(stream_url)
         # 获取请求头信息
         request_headers = await self.get_request_headers(request, user_headers or self.DEFAULT_HEADERS)
@@ -650,7 +650,7 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
                         proxy_params_str=params_str,
                         local_proxy=local_proxy,
                     )
-                    logger.info(f"检测到上游重定向,返回代理重定向: {stream_url} -> {final_url} -> {proxy_redirect_url}")
+                    logger.info(f"Upstream redirected; returning a proxy redirect: {stream_url} -> {final_url} -> {proxy_redirect_url}")
                     return redirect(proxy_redirect_url)
 
                 if not any(media_type in content_type for media_type in ["video", "audio", "octet-stream"]):
@@ -681,15 +681,15 @@ class SimpleEncryptedStreamProxy(UrlSealingMixin, SimpleStreamProxy):
                     return None
         except RequestCancelled as e:
             if not self._is_upstream_failure(e):
-                logger.warning(f"协程取消: ts_url={stream_url}")
+                logger.warning(f"Coroutine cancelled: ts_url={stream_url}")
                 return None
             # stream_response 已经发出一部分正文后最终失败（连接它已经关掉）：原样上抛，不当成普通的取消返回 None。
             raise
         except asyncio.CancelledError:
-            logger.warning(f"协程取消: ts_url={stream_url}")
+            logger.warning(f"Coroutine cancelled: ts_url={stream_url}")
             return None
         except Exception as e:
-            logger.error(f"获取TS失败: {repr(e)}")
+            logger.error(f"Fetching TS failed: {repr(e)}")
             return last_response
 
 

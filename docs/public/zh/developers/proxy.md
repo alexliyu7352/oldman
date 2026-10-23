@@ -17,14 +17,14 @@
 `stream_response` 收到的读取异常都已经是最终失败（内部续传救不回来），按已经发出多少处理：
 
 - **一个字节都还没发**：异常原样抛给入口，`get_ts_stream` 和 `SimpleStreamProxy` 返回 500，不是空的 200。
-- **已经发出一部分**：关掉播放器的这条连接，不发结束标记（分块传输没有结束块；带 Content-Length 的比声明的短），播放器据此知道内容不完整、去重新请求；上游的响应交给后台任务放掉（最多等 `RELEASE_TIMEOUT`，2 秒），然后立刻抛出 `RequestCancelled`，原因在 `__cause__` 里。日志记一条带地址的"流式响应异常"，不记成"协程取消"。
-- **请求被取消**（播放器断开，或者太久没读走数据、到了 Sanic 的 `RESPONSE_TIMEOUT`）：已经发出一部分的，同样关掉连接、不发结束标记，再把取消原样抛出；入口照常记"协程取消"。
+- **已经发出一部分**：关掉播放器的这条连接，不发结束标记（分块传输没有结束块；带 Content-Length 的比声明的短），播放器据此知道内容不完整、去重新请求；上游的响应交给后台任务放掉（最多等 `RELEASE_TIMEOUT`，2 秒），然后立刻抛出 `RequestCancelled`，原因在 `__cause__` 里。日志记一条带地址的"Streaming response error"，不记成"Coroutine cancelled"。
+- **请求被取消**（播放器断开，或者太久没读走数据、到了 Sanic 的 `RESPONSE_TIMEOUT`）：已经发出一部分的，同样关掉连接、不发结束标记，再把取消原样抛出；入口照常记"Coroutine cancelled"。
 
 连接在 `stream_response` 里就关掉，所以结果不取决于路由处理函数怎么处理这个异常。路由处理函数要知道的：
 
 - 连接一关，Sanic 就会取消这个处理任务：**处理函数在中转调用之后遇到的第一个 await 会被取消**。中转之后还有收尾工作（写 Redis、释放并发额度等）的，放在中转调用之前做，或者接住 `CancelledError`。
 - 把取消吞掉不改变播放器收到的字节，但 Sanic 的日志会不同（原样上抛时都没有）：吞掉后返回另一个响应，上游中途失败时多一条 ERROR（"The response object returned by the route handler will not be sent…"）；返回 None，上游中途失败时没有额外日志，请求方断开、正文带 Content-Length 时多两条 ERROR（"Response was smaller than content-length"、"The error response will not be sent to the client…"）。响应超时发生在第一块正文之前、处理函数返回 None 时，Sanic 记 "Invalid response type None"，播放器收到 500。框架自己的 `proxy_stream`、`fetch_sub_manifest_or_stream`、`SimpleStreamProxy` 是返回 None 的写法。
-- 判断是不是上游失败：带原因的 `RequestCancelled`（`error.__cause__ is not None`）是上游最终失败，不带原因的是请求被取消。`SimpleStreamProxy.proxy_sub_manifest_or_stream` 把前者原样上抛，后者照旧记"协程取消"并返回 None。
+- 判断是不是上游失败：带原因的 `RequestCancelled`（`error.__cause__ is not None`）是上游最终失败，不带原因的是请求被取消。`SimpleStreamProxy.proxy_sub_manifest_or_stream` 把前者原样上抛，后者照旧记"Coroutine cancelled"并返回 None。
 
 `get_ts_stream` 的其余关键字参数原样交给 `reconnect_stream`（`retries`、`retry_backoff`、`no_retry_statuses` 等）。例如播放器的 Range 经 `headers` 转给上游、上游见到 Range 就回 416 时，默认去掉 Range 再请求一次，播放器拿到完整的 200；传 `no_retry_statuses=[404, 416]` 则把 416 原样交给播放器。
 

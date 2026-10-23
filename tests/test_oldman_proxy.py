@@ -843,8 +843,8 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                         self.assertTrue(0 < len(data) < len(_RELAY_PAYLOAD))
                         self.assertEqual(_RELAY_PAYLOAD[: len(data)], data)
                         self.assertEqual(2, len(origin.requests))
-                        self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
-                        self.assertFalse(any("协程取消" in line for line in logs.output), "an upstream failure is not a cancelled request")
+                        self.assertTrue(any("Streaming response error" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                        self.assertFalse(any("Coroutine cancelled" in line for line in logs.output), "an upstream failure is not a cancelled request")
 
     async def test_get_ts_stream_passes_stream_options_to_the_reconnect_stream(self) -> None:
         """retries / no_retry_statuses reach the wrapper: listing 416 hands the refusal back instead of re-asking."""
@@ -908,8 +908,8 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((206, b"01234"), (status, body))
                 self.assertEqual(1, len(origin.ended_at), "the upstream connection must be closed")
                 self.assertLess(origin.ended_at[0] - started, 1.5)
-                self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
-                self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
+                self.assertTrue(any("Streaming response error" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                self.assertFalse(any("Coroutine cancelled" in line for line in logs.output), logs.output)
 
     async def test_a_requester_that_goes_away_is_logged_as_a_cancellation_and_the_upstream_stops(self) -> None:
         """A real cancellation is still logged as one (only upstream failures are not), and the upstream is hung up."""
@@ -933,7 +933,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 started = time.monotonic()
                 writer.close()
                 await asyncio.sleep(1)
-        self.assertTrue(any("协程取消" in line for line in logs.output), logs.output)
+        self.assertTrue(any("Coroutine cancelled" in line for line in logs.output), logs.output)
         self.assertEqual(1, len(origin.ended_at))
         self.assertLess(origin.ended_at[0] - started, 1)
 
@@ -978,7 +978,7 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_entries_that_swallow_cancellation_do_not_log_an_upstream_failure_as_one(self) -> None:
         """proxy_stream, fetch_sub_manifest_or_stream and EncryptMix's entry return None on a cancellation: an upstream
-        failure there is logged once with its URL, not as 协程取消, and the requester still gets no end marker."""
+        failure there is logged once with its URL, not as Coroutine cancelled, and the requester still gets no end marker."""
 
         for entry, proxy_class in (("proxy_stream", BaseStreamProxy), ("sub", BaseStreamProxy), ("encrypt_sub", EncryptMixStreamProxy)):
             with self.subTest(entry=entry):
@@ -989,8 +989,8 @@ class ProxyRelayFailureTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(200, status)
                 self.assertFalse(terminated, "a half body must not carry the terminating chunk")
                 self.assertTrue(0 < len(data) < len(_RELAY_PAYLOAD))
-                self.assertTrue(any("流式响应异常" in line and "/segment.ts" in line for line in logs.output), logs.output)
-                self.assertFalse(any("协程取消" in line for line in logs.output), logs.output)
+                self.assertTrue(any("Streaming response error" in line and "/segment.ts" in line for line in logs.output), logs.output)
+                self.assertFalse(any("Coroutine cancelled" in line for line in logs.output), logs.output)
 
     async def test_a_relay_whose_user_agent_only_starts_like_a_fingerprint_still_works(self) -> None:
         """ "chrome (custom build)" picks the curl backend but is no fingerprint name: it is relayed, not a 500."""
