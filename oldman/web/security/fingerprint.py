@@ -69,7 +69,7 @@ async def log_fake_fingerprint_attempt(ip: str, reason: str):
     if attempt_count > 10:  # 10次伪造尝试
         blacklist_key = redis_key("fingerprint", "blacklist", "ip", ip)
         await conn.setex(blacklist_key, 3600, "fake_fingerprint")
-        logger.warning(f"IP已拉黑（伪造指纹）: {ip}")
+        logger.warning(f"IP blocked (forged fingerprint): {ip}")
 
 
 def get_fingerprint_from_front(encrypted_b64: str, aes_secret_key: str, max_diff: int) -> tuple[str, str]:

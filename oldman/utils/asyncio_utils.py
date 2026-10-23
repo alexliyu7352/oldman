@@ -83,7 +83,7 @@ async def safe_cancellable_sleep(delay: float, log_cancel: bool = True) -> bool:
         if log_cancel:
             from oldman.logging import logger
 
-            logger.warning("睡眠被取消（计划睡眠 %s 秒）", delay)
+            logger.warning("Sleep cancelled (planned %s s)", delay)
         return False
 
 
@@ -102,7 +102,7 @@ def _close_runner(runner: asyncio.Runner) -> None:
     except Exception:
         from oldman.logging import logger
 
-        logger.exception("关闭 run_sync 的事件循环失败")
+        logger.exception("Closing the run_sync event loop failed")
 
 
 class _ThreadRunner:

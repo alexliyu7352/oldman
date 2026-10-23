@@ -72,7 +72,7 @@ def _fingerprint_required(endpoint: str = "default", header: str = FINGERPRINT_H
 
             decision = await _rate_limiter(request).check(visitor_id, address, endpoint, config)
             if not decision.allowed:
-                logger.warning(f"指纹限流拒绝: {decision.reason}, visitor={visitor_id}, ip={address}")
+                logger.warning(f"Fingerprint rate limit rejected: {decision.reason}, visitor={visitor_id}, ip={address}")
                 window = config.rate_limits.get(endpoint, config.rate_limits["default"]).window
                 raise TooManyRequests(
                     f"Rate limited: {decision.reason}",
