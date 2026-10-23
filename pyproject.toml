@@ -88,7 +88,9 @@ dev = [
 
 [tool.pyright]
 include = ["oldman", "tests", "scripts"]
-exclude = ["**/__pycache__", ".venv", "build", "dist", "node_modules"]
+# The form core is adapted from WTForms 3.2.2 and still untyped; it gets types when the
+# framework's form overrides are folded into it, and leaves both exclude lists then.
+exclude = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core"]
 extraPaths = ["."]
 executionEnvironments = [
     { root = ".", extraPaths = ["."] },
@@ -101,7 +103,7 @@ venv = ".venv"
 [tool.pyrefly]
 # The same scope as [tool.pyright].
 project-includes = ["oldman", "tests", "scripts"]
-project-excludes = ["**/__pycache__", ".venv", "build", "dist", "node_modules"]
+project-excludes = ["**/__pycache__", ".venv", "build", "dist", "node_modules", "oldman/web/components/forms/_core"]
 search-path = ["."]
 python-version = "3.12"
 infer-with-first-use = false

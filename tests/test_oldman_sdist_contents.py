@@ -251,6 +251,7 @@ class OldmanSdistContentsTest(unittest.TestCase):
                 prefix = next(name.split("/", 1)[0] for name in names)
                 self.assertIn(f"{prefix}/LICENSES/aiocache-BSD-3-Clause.txt", names)
                 self.assertIn(f"{prefix}/LICENSES/flag-icons-LICENSE.txt", names)
+                self.assertIn(f"{prefix}/LICENSES/WTForms-BSD-3-Clause.txt", names)
                 self.assertIn(f"{prefix}/oldman/db/migrations/templates/env.py", names)
                 self.assertIn(f"{prefix}/oldman/db/migrations/templates/script.py.mako", names)
                 self.assertIn(f"{prefix}/oldman/auth/migrations/__init__.py", names)
