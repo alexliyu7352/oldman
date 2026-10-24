@@ -169,7 +169,7 @@ class Form(CoreForm):
         self.is_bound = bound_formdata is not None
         self._input_data = bound_formdata.to_dict() if isinstance(bound_formdata, SanicFormData) else {}
         super().__init__(*args, formdata=cast(Any, bound_formdata), obj=obj, prefix=prefix, **kwargs)
-        # CSRF token 由 oldman.web.csrf 装饰器写入 request.ctx，Form 只读取并输出 hook。
+        # CSRF token 由 oldman.web.security.csrf 的装饰器写入 request.ctx，Form 只读取并输出 hook。
         self.csrf_token = csrf_token or str(getattr(getattr(request, "ctx", None), "csrf_token", "") or "")
         self.select_secret_key = select_secret_key
         self._cleaned_data: dict[str, Any] = {}
