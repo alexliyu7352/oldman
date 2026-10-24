@@ -69,6 +69,7 @@ class FormField(Field):
     def populate_obj(self, obj, name):
         candidate = getattr(obj, name, None)
         if candidate is None:
+            # Nothing to fill: refuse rather than assign the cleaned dict where the model expects an object.
             if self._obj is None:
                 raise TypeError("populate_obj: cannot find a value to populate from the provided obj or input data/defaults")
             candidate = self._obj
