@@ -223,24 +223,6 @@ class JSONListField(FieldList):
                 self._process_list_errors.append(self.gettext("This field accepts at most %(max)d entries.") % {"max": self.max_entries})
         self.list_errors = list(self._process_list_errors)
         super().process(formdata, decoded, extra_filters=extra_filters)
-        self._restore_entry_prefix()
-
-    def _restore_entry_prefix(self) -> None:
-        """Give submitted entries back the form prefix that WTForms 3.3 drops when renumbering them.
-
-        WTForms 3.3.0 compacts submitted indexes and rebuilds each entry name from the
-        field's short name, so a prefixed form renders `sources-0` instead of
-        `profile-sources-0` and the next submission binds nothing. Versions that keep the
-        prefix already have the full name, so this changes nothing there.
-        """
-        separator = cast(Any, self)._separator
-        bare = f"{self.short_name}{separator}"
-        full = f"{self.name}{separator}"
-        if full == bare:
-            return
-        for entry in self.entries:
-            if entry.name.startswith(bare) and not entry.name.startswith(full):
-                entry.name = full + entry.name[len(bare) :]
 
     def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
         """Preserve child-field errors and pass list-level failures to the top form message.
