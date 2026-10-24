@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from oldman.web.components.forms import FieldList, FormField, StringField, TailwindForm
+from oldman.web.components.forms import FieldList, FormField, StringField, TailwindForm, ValidationError
 from oldman.web.components.forms.validators import DataRequired
 
 
@@ -25,6 +25,28 @@ class TripForm(TailwindForm):
     """A list of nested addresses."""
 
     stops = FieldList(FormField(AddressForm), min_entries=1)
+
+
+class CheckedAddressForm(AddressForm):
+    """A nested form whose own clean() rejects the whole address."""
+
+    async def clean(self):
+        raise ValidationError("We do not deliver there.")
+
+
+class CleanSpy(ProfileForm):
+    """Records what clean_address() and clean() were given."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.calls: list[str] = []
+
+    async def clean_address(self):
+        self.calls.append("clean_address")
+        return self.cleaned_data["address"]
+
+    async def clean(self):
+        self.calls.append("clean sees address" if "address" in self.cleaned_data else "clean without address")
 
 
 class NestedFormTest(unittest.IsolatedAsyncioTestCase):
@@ -69,3 +91,54 @@ class NestedFormTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Ann", profile.name)
         self.assertIs(address, profile.address)  # type: ignore[attr-defined]
         self.assertEqual("Paris", address.city)
+
+    async def test_clean_of_a_nested_form_field_can_reject_the_whole_nested_form(self) -> None:
+        class Profile(CleanSpy):
+            async def clean_address(self):
+                await super().clean_address()
+                raise ValidationError("Bad address.")
+
+        form = Profile(data={"name": "Ann", "address-city": "Paris"})
+
+        self.assertFalse(await form.validate())
+        self.assertEqual({"address": ["Bad address."]}, form.errors)
+        self.assertEqual(["clean_address", "clean without address"], form.calls)
+        self.assertEqual({"name": "Ann"}, form.cleaned_data)
+        self.assertEqual({"address": "Bad address."}, form.to_api_response().errors)
+
+    async def test_add_error_on_a_nested_form_field_fails_the_form(self) -> None:
+        class Profile(ProfileForm):
+            async def clean(self):
+                self.add_error("address", "Pick another address.")
+
+        form = Profile(data={"name": "Ann", "address-city": "Paris"})
+
+        self.assertFalse(await form.validate())
+        self.assertEqual({"address": ["Pick another address."]}, form.errors)
+        self.assertNotIn("address", form.cleaned_data)
+
+    async def test_errors_added_to_a_nested_form_field_do_not_outlive_the_validation(self) -> None:
+        class Profile(ProfileForm):
+            rejections = 1
+
+            async def clean_address(self):
+                if self.rejections:
+                    self.rejections -= 1
+                    raise ValidationError("Bad address.")
+                return self.cleaned_data["address"]
+
+        form = Profile(data={"name": "Ann", "address-city": "Paris"})
+
+        self.assertFalse(await form.validate())
+        self.assertTrue(await form.validate())
+        self.assertEqual({}, form.errors)
+
+    async def test_clean_of_a_field_is_skipped_when_its_nested_form_rejected_itself(self) -> None:
+        class Profile(CleanSpy):
+            address = FormField(CheckedAddressForm)
+
+        form = Profile(data={"name": "Ann", "address-city": "Paris"})
+
+        self.assertFalse(await form.validate())
+        self.assertEqual({"address": ["We do not deliver there."]}, form.errors)
+        self.assertEqual(["clean without address"], form.calls)

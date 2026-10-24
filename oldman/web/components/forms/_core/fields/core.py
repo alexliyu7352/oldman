@@ -357,6 +357,15 @@ class Field:
         if valuelist:
             self.data = valuelist[0]
 
+    def add_error(self, message):
+        """Add ``message`` to this field's errors, as the form's ``add_error()`` does.
+
+        A nested form keeps it apart from its fields' errors; see ``FormField.add_error``.
+        """
+        if not isinstance(self.errors, list):
+            self.errors = list(self.errors)
+        self.errors.append(message)
+
     def error_items(self, name):
         """The (key, messages) pairs this field adds to its form's ``errors``: its own list, under ``name``.
 

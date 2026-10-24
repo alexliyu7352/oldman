@@ -378,6 +378,7 @@ Members:
 - `def process(formdata, data: Any=unset_value, extra_filters=None)` — Process incoming data, calling process_data, process_formdata as needed,
 - `def process_data(value)` — Process the Python data applied to this field and store the result.
 - `def process_formdata(valuelist)` — Process data received over the wire from a form.
+- `def add_error(message)` — Add ``message`` to this field's errors, as the form's ``add_error()`` does.
 - `def error_items(name)` — The (key, messages) pairs this field adds to its form's ``errors``: its own list, under ``name``.
 - `def write_cleaned_value(obj, name, value)` — Write this field's cleaned value onto ``obj``, as the form's ``populate_obj()`` does.
 - `def populate_obj(obj, name)` — Populates `obj.<name>` with the field's data.
@@ -621,7 +622,8 @@ Members:
 - `def populate_obj(obj, name)`
 - `property data`
 - `def errors(value)`
-- `def error_items(name)` — Report each nested field under its HTML input name, and the nested form's top message under ``name``.
+- `def add_error(message)` — Reject the nested form as a whole: ``message`` is listed under this field's name in ``errors``.
+- `def error_items(name)` — Report each nested field under its HTML input name; the nested form's top message and errors added to this field under ``name``.
 
 ## `FormLayout`
 

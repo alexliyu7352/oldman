@@ -29,6 +29,9 @@ class FormField(Field):
         self.form_class = form_class
         self.separator = separator
         self._obj = None
+        # Errors about the nested form as a whole, added by the enclosing form (its clean_<name>() or
+        # add_error()); the nested fields' own errors stay in the nested form.
+        self._own_errors = []
         if self.filters:
             raise TypeError("FormField cannot take filters, as the encapsulated data is not mutable.")
         if validators:
@@ -56,6 +59,7 @@ class FormField(Field):
     async def validate(self, form, extra_validators=()):  # pyrefly: ignore[bad-override] -- a container field validates its entries asynchronously; the form awaits it
         if extra_validators:
             raise TypeError("FormField does not accept in-line validators, as it gets errors from the enclosed form.")
+        self._own_errors = []
         return await self.form.validate()
 
     def write_cleaned_value(self, obj, name, value):
@@ -97,14 +101,23 @@ class FormField(Field):
     def errors(self, value):
         # The enclosing form resets every field's errors; for a nested form that means its fields'.
         if value:
-            raise TypeError("A FormField's errors come from its nested form; add them to the nested fields")
+            raise TypeError("A FormField's errors come from its nested form; add them with add_error()")
+        self._own_errors = []
         for field in self.form:
             field.errors = []
 
+    def add_error(self, message):
+        """Reject the nested form as a whole: ``message`` is listed under this field's name in ``errors``."""
+        # Defined here, not inherited: `errors` is the nested form's dict, and an unknown attribute
+        # would be looked up on the nested form.
+        self._own_errors.append(message)
+
     def error_items(self, name):
-        """Report each nested field under its HTML input name, and the nested form's top message under ``name``."""
+        """Report each nested field under its HTML input name; the nested form's top message and errors added to this field under ``name``."""
         for sub_name, subfield in self.form._fields.items():
             for key, messages in subfield.error_items(sub_name):
                 yield (subfield.name if key == sub_name else key), messages
-        if self.form.error_message is not None:
-            yield name, [self.form.error_message]
+        whole = [] if self.form.error_message is None else [self.form.error_message]
+        whole.extend(self._own_errors)
+        if whole:
+            yield name, whole

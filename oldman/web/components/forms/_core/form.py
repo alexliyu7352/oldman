@@ -184,8 +184,9 @@ class BaseForm:
 
         for name, field in self._fields.items():
             # A hidden field only skips rendering as a visible control; its value is data like any
-            # other, which is the point of declaring HiddenField("record_id").
-            if field.errors or getattr(field, "list_errors", None):
+            # other, which is the point of declaring HiddenField("record_id"). Whether a field has
+            # errors is what it reports, not its `errors`: a nested form's are a dict of its fields'.
+            if _has_errors(field, name) or getattr(field, "list_errors", None):
                 continue
             self._cleaned_data[name] = field.data
             cleaner = getattr(self, f"clean_{name}", None)
@@ -197,7 +198,7 @@ class BaseForm:
                 self.add_error(name, _validation_error_message(exc))
             else:
                 self._cleaned_data[name] = cleaned_value
-            if field.errors:
+            if _has_errors(field, name):
                 self._cleaned_data.pop(name, None)
 
         try:
@@ -234,9 +235,7 @@ class BaseForm:
         field = self._fields.get(field_name)
         if not field_name or field_name == "__all__" or field is None:
             raise ValueError(f"{field_name!r} is not a real form field")
-        if not isinstance(field.errors, list):
-            field.errors = list(field.errors)
-        field.errors.append(message)
+        field.add_error(message)
 
     @property
     def data(self) -> dict[str, Any]:
@@ -305,6 +304,11 @@ class BaseForm:
             if list_errors:
                 self._error_message = list_errors[0]
                 return
+
+
+def _has_errors(field: Any, name: str) -> bool:
+    """Whether ``field`` reports any error to its form's ``errors``."""
+    return any(True for _ in field.error_items(name))
 
 
 def _validation_error_message(error: ValidationError) -> str | LazyTranslation:
