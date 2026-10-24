@@ -2,6 +2,8 @@
 # Original path: tests/fields/test_select.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import validators, widgets
 from oldman.web.components.forms._core.fields import SelectField
 from oldman.web.components.forms._core.form import Form
@@ -43,7 +45,7 @@ class TestSelectFields(UpstreamTestCase):
         form = F()
         assert form.a.data == "a"
         assert form.b.data is None
-        assert form.validate() is False
+        assert asyncio.run(form.validate()) is False
         assert form.a() == '<select id="a" name="a"><option selected value="a">hello</option><option value="btest">bye</option></select>'
         assert form.b() == '<select id="b" name="b"><option value="1">Item 1</option><option value="2">Item 2</option></select>'
 
@@ -72,7 +74,7 @@ class TestSelectFields(UpstreamTestCase):
     def test_default_coerce(self):
         F = make_form(a=SelectField(choices=[("a", "Foo")]))
         form = F(DummyPostData(a=[]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.data is None
         assert len(form.a.errors) == 1
         assert form.a.errors[0] == "Not a valid choice."
@@ -80,7 +82,7 @@ class TestSelectFields(UpstreamTestCase):
     def test_validate_choices(self):
         F = make_form(a=SelectField(choices=[("a", "Foo")]))
         form = F(DummyPostData(a=["b"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.data == "b"
         assert len(form.a.errors) == 1
         assert form.a.errors[0] == "Not a valid choice."
@@ -88,7 +90,7 @@ class TestSelectFields(UpstreamTestCase):
     def test_validate_choices_when_empty(self):
         F = make_form(a=SelectField(choices=[]))
         form = F(DummyPostData(a=["b"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.data == "b"
         assert len(form.a.errors) == 1
         assert form.a.errors[0] == "Not a valid choice."
@@ -97,19 +99,19 @@ class TestSelectFields(UpstreamTestCase):
         F = make_form(a=SelectField())
         form = F(DummyPostData(a="b"))
         with raises(TypeError, match="Choices cannot be None"):
-            form.validate()
+            asyncio.run(form.validate())
 
     def test_dont_validate_choices(self):
         F = make_form(a=SelectField(choices=[("a", "Foo")], validate_choice=False))
         form = F(DummyPostData(a=["b"]))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.a.data == "b"
         assert len(form.a.errors) == 0
 
     def test_choices_can_be_none_when_choice_validation_is_disabled(self):
         F = make_form(a=SelectField(validate_choice=False))
         form = F(DummyPostData(a="b"))
-        assert form.validate()
+        assert asyncio.run(form.validate())
 
     def test_choice_shortcut(self):
         F = make_form(a=SelectField(choices=["foo", "bar"], validate_choice=False))
@@ -119,7 +121,7 @@ class TestSelectFields(UpstreamTestCase):
     def test_choice_shortcut_post(self):
         F = make_form(a=SelectField(choices=["foo", "bar"]))
         form = F(DummyPostData(a=["foo"]))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.a.data == "foo"
         assert len(form.a.errors) == 0
 
@@ -147,10 +149,11 @@ class TestSelectFields(UpstreamTestCase):
     def test_required_validator(self):
         F = make_form(c=SelectField(choices=[("a", "hello"), ("b", "bye")], validators=[validators.InputRequired()]))
         form = F(DummyPostData(c="b"))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.c.errors == []
-        form = F()
-        assert form.validate() is False
+        # Oldman: an unbound form only reports False; the required error needs a submission without the field.
+        form = F(DummyPostData())
+        assert asyncio.run(form.validate()) is False
         assert form.c.errors == ["This field is required."]
 
     def test_render_kw_preserved(self):

@@ -2,9 +2,11 @@
 # Original path: tests/test_i18n.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import StringField, form, validators
 from oldman.web.components.forms._core.i18n import get_translations
-from tests.form_core.support import UpstreamTestCase, raises
+from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
 
 def gettext_lower(self, s):
@@ -51,8 +53,9 @@ class CoreForm3(form.Form):
 def _common_test(expected_error, form_kwargs, form_class=None):
     if not form_class:
         form_class = CoreForm1
-    form = form_class(**form_kwargs)
-    assert not form.validate()
+    # Oldman: only a bound form validates; empty input keeps the initial values.
+    form = form_class(DummyPostData(), **form_kwargs)
+    assert not asyncio.run(form.validate())
     assert form.a.errors[0] == expected_error
     return form
 
@@ -99,9 +102,10 @@ class TestI18n(UpstreamTestCase):
         assert getit(2) == "antelopes"
 
     def test_translations_validator_translation(self):
-        form = TranslationsForm2(a="hellobye")
-        assert not form.validate()
+        # Oldman: only a bound form validates.
+        form = TranslationsForm2(DummyPostData(a="hellobye"))
+        assert not asyncio.run(form.validate())
         assert form.a.errors[0] == "field cannot be longer than 5 characters."
-        form = TranslationsForm1(a="hellobye")
-        assert not form.validate()
+        form = TranslationsForm1(DummyPostData(a="hellobye"))
+        assert not asyncio.run(form.validate())
         assert form.a.errors[0] == "Field cannot be longer than 5 characters."

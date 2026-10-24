@@ -2,6 +2,7 @@
 # Original path: tests/fields/test_list.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 from collections import namedtuple
 
 from oldman.web.components.forms._core import validators
@@ -37,10 +38,10 @@ class TestListFields(UpstreamTestCase):
         form = F(pdata)
         assert len(form.a.entries) == 4
         assert form.a.data == ["bleh", "yarg", "", "mmm"]
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         form = F(pdata, a=data)
         assert form.a.data == ["bleh", "yarg", "", "mmm"]
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         pdata = DummyPostData({"a-0": ["a"], "a-1": ["b"]})
         form = F(pdata, a=data)
         assert len(form.a.entries) == 2
@@ -54,18 +55,21 @@ class TestListFields(UpstreamTestCase):
 
         F = make_form(a=FieldList(FormField(make_form("FChild", a=t), default=make_inner)))
         data = [{"a": "hello"}]
-        form = F(a=data)
+        # Oldman: only a bound form validates; empty input keeps the initial values.
+        form = F(DummyPostData(), a=data)
         assert form.a.data == data
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form.a.append_entry()
         assert form.a.data == data + [{"a": None}]
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         pdata = DummyPostData({"a-0": ["fake"], "a-0-a": ["foo"], "a-1-a": ["bar"]})
         form = F(pdata, a=data)
         assert form.a.data == [{"a": "foo"}, {"a": "bar"}]
         inner_obj = make_inner()
         inner_list = [inner_obj]
         obj = AttrDict(a=inner_list)
+        # Oldman: populate_obj writes cleaned_data, so the form is validated first.
+        assert asyncio.run(form.validate())
         form.populate_obj(obj)
         assert obj.a is not inner_list
         assert len(obj.a) == 2
@@ -186,14 +190,14 @@ class TestListFields(UpstreamTestCase):
         F = make_form(a=FieldList(t, validators=[validator]))
         fdata = DummyPostData({"a-0": ["hello"], "a-1": ["bye"], "a-2": ["test3"]})
         form = F(fdata)
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors == ["too many"]
         fdata["a-0"] = ["fail"]
         form = F(fdata)
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors == ["fail"]
         form = F(DummyPostData({"a-0": [""]}))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors == [["This field is required."]]
 
     def test_no_filters(self):
@@ -215,5 +219,5 @@ class TestListFields(UpstreamTestCase):
     def test_errors(self):
         F = make_form(a=FieldList(t))
         form = F(DummyPostData({"a-0": ["a"], "a-1": ""}))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors == [[], ["This field is required."]]

@@ -2,6 +2,7 @@
 # Original path: tests/fields/test_datetimelocal.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 import os
 from datetime import datetime
 
@@ -32,12 +33,13 @@ class TestDatetimelocalFields(UpstreamTestCase):
         assert form.b() == '<input id="b" name="b" type="datetime-local" value="2008-05-05 04:30">'
         assert form.c.data == d
         assert form.c() == '<input id="c" name="c" type="datetime-local" value="5/5/2008 4:30">'
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(a=["2008-05-05"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors[0] == "Not a valid datetime value."
-        form = F(a=d, b=d, c=d)
-        assert form.validate()
+        # Oldman: only a bound form validates; empty input keeps the initial values.
+        form = F(DummyPostData(), a=d, b=d, c=d)
+        assert asyncio.run(form.validate())
         assert form.a._value() == "2008-05-05 04:30:00"
         assert form.b._value() == "2008-05-05 04:30"
         assert form.c._value() == "5/5/2008 4:30"
@@ -52,7 +54,7 @@ class TestDatetimelocalFields(UpstreamTestCase):
         dt = datetime(2008, 5, 5, 4, 30, 0, 0)
         form = F(DummyPostData(a=["2008-05-05 04:30:00"]))
         assert form.a.data == dt
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(a=["2008-05-05T04:30:00"]))
         assert form.a.data == dt
-        assert form.validate()
+        assert asyncio.run(form.validate())

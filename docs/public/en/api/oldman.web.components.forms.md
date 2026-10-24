@@ -375,6 +375,8 @@ Members:
 - `def process(formdata, data: Any=unset_value, extra_filters=None)` — Process incoming data, calling process_data, process_formdata as needed,
 - `def process_data(value)` — Process the Python data applied to this field and store the result.
 - `def process_formdata(valuelist)` — Process data received over the wire from a form.
+- `def error_items(name)` — The (key, messages) pairs this field adds to its form's ``errors``: its own list, under ``name``.
+- `def write_cleaned_value(obj, name, value)` — Write this field's cleaned value onto ``obj``, as the form's ``populate_obj()`` does.
 - `def populate_obj(obj, name)` — Populates `obj.<name>` with the field's data.
 
 ## `FieldGroup`
@@ -436,7 +438,9 @@ FieldList(unbound_field, label=None, validators=None, min_entries=0, max_entries
 Members:
 
 - `def process(formdata, data: Any=unset_value, extra_filters=None)`
-- `def validate(form, extra_validators=())` — Validate this FieldList.
+- `async def validate(form, extra_validators=())` — Validate this FieldList.
+- `def error_items(name)` — Report each entry under its HTML input name, and the list's own validators' messages under ``name``.
+- `def write_cleaned_value(obj, name, value)`
 - `def populate_obj(obj, name)`
 - `def append_entry(data: Any=unset_value)` — Create a new entry with optional default data.
 - `def pop_entry()` — Removes the last entry from the list and returns it.
@@ -573,7 +577,6 @@ Members:
 - `field_layout: tuple[FieldLayout | str, ...] = ()`
 - `layout: FormLayout | None = None`
 - `def configure_remote_select_fields() -> None` — Configure field-validation boundaries for remote Select widgets.
-- `def add_error(field_name: str, message: str | LazyTranslation) -> None` — Add an error to an actual field, rejecting misspelled or fabricated field names.
 - `classmethod def from_request(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', csrf_token: str='', select_secret_key: str='', **kwargs: Any) -> Self` — Create a form instance from a Sanic request.
 - `classmethod def from_query(request, *, obj: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Form` — Create a GET filter form from Sanic query parameters.
 - `async def render(*, action: str='', method: str='post', form_mode: str='html', target: str | None=None, swap: str | None=None, submit_label: str | LazyTranslation=_SAVE_LABEL, cancel_url: str | None=None, cancel_label: str | LazyTranslation=_CANCEL_LABEL, extra_buttons: Markup | str='', form_class: str='', component_name: str | None='form', validate: bool=False, feedback_target: str | None=None) -> Markup` — Render complete form HTML.
@@ -589,16 +592,7 @@ Members:
 - `def iter_layout_segments() -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — Split the top-level layout into consecutive ungrouped-field sections and individual FieldGroup sections.
 - `def iter_step_segments(step: FormStep) -> Iterable[tuple[FieldGroup | None, tuple[FieldLayout, ...]]]` — Split one step's layout into grouped sections.
 - `def get_layout_actions() -> Actions | None` — Return actions configuration declared in the layout.
-- `async def is_valid() -> bool` — Run asynchronous form validation and return whether it passes.
-- `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — Run WTForms synchronous validation and Oldman's asynchronous cleaning lifecycle.
-- `async def clean() -> dict[str, Any] | None` — Run cross-field validation, allowing business subclasses to override it.
-- `property data: dict[str, Any]` — Return raw input separately from cleaned_data.
-- `property cleaned_data: dict[str, Any]` — Return validated field data.
-- `def populate_obj(obj: Any) -> None` — Write cleaned_data fields back to an ordinary object.
-- `property errors: dict[str, list[str | LazyTranslation]]` — Return complete error lists for every actual field.
-- `property error_message: str | LazyTranslation | None` — Return the top-level validation message not attributable to one field.
 - `def to_api_response() -> DefaultApiFormResponse` — Convert current form state to a common API response object.
-- `async def prepare_async_fields() -> None` — Prepare fields requiring asynchronous data sources.
 
 ## `FormField`
 
@@ -619,10 +613,12 @@ FormField(form_class, label=None, validators=None, separator='-', **kwargs)
 Members:
 
 - `def process(formdata, data: Any=unset_value, extra_filters=None)`
-- `def validate(form, extra_validators=())`
+- `async def validate(form, extra_validators=())`
+- `def write_cleaned_value(obj, name, value)`
 - `def populate_obj(obj, name)`
 - `property data`
-- `property errors`
+- `def errors(value)`
+- `def error_items(name)` — Report each nested field under its HTML input name, and the nested form's top message under ``name``.
 
 ## `FormLayout`
 
@@ -768,7 +764,7 @@ JSONListField(unbound_field: Any, *args: Any, **kwargs: Any) -> None
 Members:
 
 - `def process(formdata: Any, data: Any=unset_value, extra_filters: Any=None) -> None` — Decode model values and check submitted indexes/counts before WTForms truncation.
-- `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Preserve child-field errors and pass list-level failures to the top form message.
+- `async def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Preserve child-field errors and pass list-level failures to the top form message.
 - `def template_entry(index: str='__index__') -> Any` — Create an empty child field outside entries for HTML-template cloning.
 - `staticmethod def encode(value: list[Any]) -> str` — Return stable compact JSON for database Text storage.
 
@@ -969,13 +965,13 @@ Members:
 
 ## `SanicFormData`
 
-class · defined in `oldman.web.components.forms.base`
+class · defined in `oldman.web.components.forms._core.utils`
 
 ```python
 class SanicFormData
 ```
 
-Adapt Sanic form data to the WTForms getlist protocol.
+Adapt Sanic form data to the form core's getlist protocol.
 
 Constructor:
 

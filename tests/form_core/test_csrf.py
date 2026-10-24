@@ -21,4 +21,4 @@ class CsrfFlagTest(unittest.TestCase):
         class F(Form):
             a = StringField()
 
-        self.assertEqual({"a": None}, F().data)
+        self.assertIsNone(F().a.data)

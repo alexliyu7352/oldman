@@ -2,8 +2,10 @@
 # Original path: tests/validators/test_validators.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import Form, StringField
-from tests.form_core.support import UpstreamTestCase, raises
+from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
 
 class TestValidatorsValidators(UpstreamTestCase):
@@ -19,6 +21,7 @@ class TestValidatorsValidators(UpstreamTestCase):
                 class F(Form):
                     field = StringField(validators=[validate])
 
-                f = F()
+                # Oldman: only a bound form runs its validators.
+                f = F(DummyPostData())
                 with raises(exc):
-                    f.validate()
+                    asyncio.run(f.validate())

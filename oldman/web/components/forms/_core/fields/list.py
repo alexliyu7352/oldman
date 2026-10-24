@@ -2,12 +2,14 @@
 # Original path: src/wtforms/fields/list.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import inspect
 import itertools
 from typing import Any
 
 from .. import widgets
 from ..utils import unset_value
 from .core import Field, UnboundField
+from .form import FormField
 
 __all__ = ("FieldList",)
 
@@ -106,7 +108,7 @@ class FieldList(Field):
                 if k.isdigit():
                     yield int(k)
 
-    def validate(self, form, extra_validators=()):
+    async def validate(self, form, extra_validators=()):
         """
         Validate this FieldList.
 
@@ -116,9 +118,15 @@ class FieldList(Field):
         """
         self.errors = []
 
-        # Run validators on all entries within
+        # Run validators on all entries within. An entry can fail without an error message: a nested
+        # form added with append_entry() has no input, and an unbound form never validates.
+        entries_valid = True
         for subfield in self.entries:
-            subfield.validate(form)
+            valid = subfield.validate(form)
+            if inspect.isawaitable(valid):
+                valid = await valid
+            if not valid:
+                entries_valid = False
             self.errors.append(subfield.errors)
 
         if not any(x for x in self.errors):
@@ -127,7 +135,23 @@ class FieldList(Field):
         chain = itertools.chain(self.validators, extra_validators)
         self._run_validation_chain(form, chain)
 
-        return len(self.errors) == 0
+        return entries_valid and len(self.errors) == 0
+
+    def error_items(self, name):
+        """Report each entry under its HTML input name, and the list's own validators' messages under ``name``."""
+        for entry in self.entries:
+            yield from entry.error_items(entry.name)
+        own = [error for error in self.errors if not isinstance(error, list | tuple | dict)]
+        if own:
+            yield name, own
+
+    def write_cleaned_value(self, obj, name, value):
+        # Nested forms fill the objects already in the list; plain entries write the cleaned list, which
+        # the form's clean() may have changed after the entries were validated.
+        if issubclass(self.unbound_field.field_class, FormField):
+            self.populate_obj(obj, name)
+        else:
+            setattr(obj, name, value)
 
     def populate_obj(self, obj, name):
         values = getattr(obj, name, None)

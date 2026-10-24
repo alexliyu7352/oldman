@@ -2,6 +2,8 @@
 # Original path: tests/fields/test_field.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from markupsafe import Markup
 
 from oldman.web.components.forms._core import meta, validators
@@ -34,8 +36,9 @@ def _init_field(value):
     class F(Form):
         a = PrePostTestField(validators=[validators.Length(max=1, message="too long")])
 
-    form = F(a=value)
-    form.validate()
+    # Oldman: only a bound form validates; empty input keeps the initial values.
+    form = F(DummyPostData(), a=value)
+    asyncio.run(form.validate())
     return form.a
 
 

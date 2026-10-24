@@ -2,10 +2,12 @@
 # Original path: tests/fields/test_custom.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core.fields import StringField
 from oldman.web.components.forms._core.fields.choices import SelectFieldBase
 from oldman.web.components.forms._core.form import Form
-from tests.form_core.support import UpstreamTestCase, raises
+from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
 
 class MyCustomField(StringField):
@@ -24,10 +26,11 @@ class TestCustomFields(UpstreamTestCase):
     fixture_functions = {}
 
     def test_processing_failure(self):
-        form = F(a="42")
-        assert form.validate()
-        form = F(a="fail")
-        assert not form.validate()
+        # Oldman: only a bound form validates; empty input keeps the initial values.
+        form = F(DummyPostData(), a="42")
+        assert asyncio.run(form.validate())
+        form = F(DummyPostData(), a="fail")
+        assert not asyncio.run(form.validate())
 
     def test_default_impls(self):
         f = F()

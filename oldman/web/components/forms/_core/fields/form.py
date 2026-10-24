@@ -53,10 +53,14 @@ class FormField(Field):
         else:
             self.form = self.form_class(formdata=formdata, obj=data, prefix=prefix)
 
-    def validate(self, form, extra_validators=()):
+    async def validate(self, form, extra_validators=()):
         if extra_validators:
             raise TypeError("FormField does not accept in-line validators, as it gets errors from the enclosed form.")
-        return self.form.validate()
+        return await self.form.validate()
+
+    def write_cleaned_value(self, obj, name, value):
+        # The nested form writes its own cleaned_data into the object already on ``obj``.
+        self.populate_obj(obj, name)
 
     def populate_obj(self, obj, name):
         candidate = getattr(obj, name, None)
@@ -79,8 +83,28 @@ class FormField(Field):
 
     @property
     def data(self):
-        return self.form.data
+        # What the enclosing form puts in its cleaned_data: the nested form's cleaned_data once it
+        # has validated, its field values before that. The nested form's own `data` is its raw input.
+        if self.form._validation_succeeded:
+            return self.form.cleaned_data
+        return {name: field.data for name, field in self.form._fields.items()}
 
     @property
     def errors(self):
         return self.form.errors
+
+    @errors.setter
+    def errors(self, value):
+        # The enclosing form resets every field's errors; for a nested form that means its fields'.
+        if value:
+            raise TypeError("A FormField's errors come from its nested form; add them to the nested fields")
+        for field in self.form:
+            field.errors = []
+
+    def error_items(self, name):
+        """Report each nested field under its HTML input name, and the nested form's top message under ``name``."""
+        for sub_name, subfield in self.form._fields.items():
+            for key, messages in subfield.error_items(sub_name):
+                yield (subfield.name if key == sub_name else key), messages
+        if self.form.error_message is not None:
+            yield name, [self.form.error_message]

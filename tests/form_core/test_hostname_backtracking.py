@@ -1,5 +1,6 @@
 """URL() must check a hostname label in linear time, with the labels it accepts unchanged."""
 
+import asyncio
 import time
 import unittest
 
@@ -16,7 +17,7 @@ class HostnameBacktrackingTest(unittest.TestCase):
         # Upstream's pattern needs several seconds here, and ~1.6x more for every further dash.
         form = F(DummyPostData(site="http://a" + "-" * 40 + "!.com/"))
         started = time.perf_counter()
-        self.assertFalse(form.validate())
+        self.assertFalse(asyncio.run(form.validate()))
         self.assertLess(time.perf_counter() - started, 1.0)
 
     def test_labels_keep_their_verdict(self):

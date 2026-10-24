@@ -70,6 +70,8 @@ Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/
 
 Python `form.errors` 保留完整错误列表；HTML 和 `to_api_response()` 每个字段只显示/输出第一条。跨字段错误优先挂到对应字段，无法归属时使用 `clean()` 的 ValidationError。没有独立 non-field errors 列表。
 
+嵌套表单和列表跟着外层表单一起校验：`FormField(子表单类)` 里的必填字段为空，外层表单同样不通过；`FieldList(...)` 的每个条目（包括 `FieldList(FormField(...))` 里的每个子表单）都会校验。它们的错误在 `form.errors` 里按 HTML 输入名称列出（如 `address-city`、`stops-1-city`），`to_api_response()` 用的也是这个名称；列表自身校验器的错误仍在列表字段名下。`cleaned_data` 里，`FormField` 的值是子表单的 `cleaned_data`（一个 dict），`FieldList` 的值是各条目值的列表。`populate_obj()` 只写 `cleaned_data`：`FormField`，以及条目是 `FormField` 的 `FieldList`，把值写进对象上已有的子对象而不是替换它；其他字段直接赋值。用 `append_entry()` 加出来、没有输入的嵌套表单是未绑定的，会让外层校验不通过（没有错误消息）。
+
 ## 渲染与响应
 
 `await form.render(...)` 返回完整 `<form>` 的 Markup，主要参数：

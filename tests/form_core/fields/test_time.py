@@ -2,6 +2,7 @@
 # Original path: tests/fields/test_time.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 from datetime import datetime
 
 from oldman.web.components.forms._core.fields import TimeField
@@ -24,7 +25,7 @@ class TestTimeFields(UpstreamTestCase):
         assert form.a() == '<input id="a" name="a" type="time" value="4:30">'
         assert form.b.data == d
         assert form.b() == '<input id="b" name="b" type="time" value="04:30">'
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(a=["04"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.errors[0] == "Not a valid time value."

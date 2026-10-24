@@ -2,6 +2,8 @@
 # Original path: tests/validators/test_disabled.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import Form, StringField
 from oldman.web.components.forms._core.validators import Disabled
 from tests.form_core.support import DummyPostData, UpstreamTestCase
@@ -18,8 +20,10 @@ class TestDisabledValidators(UpstreamTestCase):
         form = F(disabled="foobar")
         assert "disabled" in form.disabled.flags
         assert form.disabled() == '<input disabled id="disabled" name="disabled" type="text" value="foobar">'
-        assert form.validate()
+        # Oldman: only a bound form validates; empty input keeps the initial values.
+        form = F(DummyPostData(), disabled="foobar")
+        assert asyncio.run(form.validate())
         form = F(DummyPostData())
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(disabled=["foobar"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())

@@ -2,6 +2,7 @@
 # Original path: tests/fields/test_decimal.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 from decimal import ROUND_DOWN, ROUND_UP, Decimal
 
 from oldman.web.components.forms._core.fields import DecimalField
@@ -23,14 +24,14 @@ class TestDecimalFields(UpstreamTestCase):
         assert form.a._value() == "2.1"
         form.a.raw_data = None
         assert form.a._value() == "2.10"
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(a="2,1"), a=Decimal(5))
         assert form.a.data is None
         assert form.a.raw_data == ["2,1"]
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         form = F(DummyPostData(a="asdf"), a=Decimal(".21"))
         assert form.a._value() == "asdf"
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
 
     def test_quantize(self):
         F = make_form(a=DecimalField(places=3, rounding=ROUND_UP), b=DecimalField(places=None))

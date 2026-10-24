@@ -224,12 +224,12 @@ class JSONListField(FieldList):
         self.list_errors = list(self._process_list_errors)
         super().process(formdata, decoded, extra_filters=extra_filters)
 
-    def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
+    async def validate(self, form: BaseForm, extra_validators: Any = ()) -> bool:
         """Preserve child-field errors and pass list-level failures to the top form message.
 
         保留子字段错误，并把列表级失败交给表单顶部消息。
         """
-        valid = super().validate(form, extra_validators=extra_validators)
+        valid = await super().validate(form, extra_validators=extra_validators)
         self.list_errors = list(self._process_list_errors)
         self.list_errors.extend(error for error in self.errors if not isinstance(error, (list, tuple)))
         child_errors = [list(entry.errors) for entry in self.entries]

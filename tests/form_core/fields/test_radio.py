@@ -2,6 +2,8 @@
 # Original path: tests/fields/test_radio.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import RadioField
 from oldman.web.components.forms._core.form import Form
@@ -25,7 +27,7 @@ class TestRadioFields(UpstreamTestCase):
         form = F()
         assert form.a.data == "a"
         assert form.b.data is None
-        assert form.validate() is False
+        assert asyncio.run(form.validate()) is False
         assert (
             form.a()
             == '<ul id="a"><li><input checked id="a-0" name="a" type="radio" value="a"> <label for="a-0">hello</label></li><li><input id="a-1" name="a" type="radio" value="b"> <label for="a-1">bye</label></li></ul>'
@@ -71,10 +73,10 @@ class TestRadioFields(UpstreamTestCase):
 
     def test_required_validator(self):
         form = F(DummyPostData(b=1, c="a"))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.c.errors == []
         form = F(DummyPostData(b=1))
-        assert form.validate() is False
+        assert asyncio.run(form.validate()) is False
         assert form.c.errors == ["This field is required."]
 
     def test_render_kw_preserved(self):

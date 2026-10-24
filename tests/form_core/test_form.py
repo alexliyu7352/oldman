@@ -2,9 +2,12 @@
 # Original path: tests/test_form.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core.fields import IntegerField, StringField
 from oldman.web.components.forms._core.form import BaseForm, Form
 from oldman.web.components.forms._core.meta import DefaultMeta
+from oldman.web.components.forms._core.utils import SanicFormData
 from oldman.web.components.forms._core.validators import DataRequired, ValidationError
 from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
@@ -52,18 +55,20 @@ class TestForm(UpstreamTestCase):
     fixture_functions = {}
 
     def test_baseform_data_proxy(self):
+        # Oldman: `data` is the raw input, not the field values.
         form = get_form()
-        form.process(test="foo")
+        form.process(SanicFormData({"test": "foo"}))
         assert form.data == {"test": "foo"}
 
     def test_baseform_errors_proxy(self):
+        # Oldman: only a bound form validates; empty input keeps the initial values.
         form = get_form()
-        form.process(test="foobar")
-        form.validate()
+        form.process(DummyPostData(test="foobar"))
+        asyncio.run(form.validate())
         assert form.errors == {}
         form = get_form()
-        form.process()
-        form.validate()
+        form.process(DummyPostData())
+        asyncio.run(form.validate())
         assert form.errors == {"test": ["error"]}
 
     def test_baseform_contains(self):
@@ -96,8 +101,10 @@ class TestForm(UpstreamTestCase):
 
     def test_baseform_populate_obj(self):
         m = type("Model", (object,), {})
+        # Oldman: populate_obj writes cleaned_data, so the input is submitted and validated first.
         form = get_form()
-        form.process(test="foobar")
+        form.process(DummyPostData(test="foobar"))
+        assert asyncio.run(form.validate())
         form.populate_obj(m)
         assert m.test == "foobar"
         assert [k for k in dir(m) if not k.startswith("_")] == ["test"]
@@ -174,10 +181,11 @@ class TestForm(UpstreamTestCase):
         assert issubclass(F._wtforms_meta, MetaB)
 
     def test_validate(self):
-        form = F(test="foobar")
-        assert form.validate() is True
+        # Oldman: only a bound form validates; the unbound one below fails for that reason too.
+        form = F(DummyPostData(test="foobar"))
+        assert asyncio.run(form.validate()) is True
         form = F()
-        assert form.validate() is False
+        assert asyncio.run(form.validate()) is False
 
     def test_validate_with_extra(self):
 
@@ -188,12 +196,13 @@ class TestForm(UpstreamTestCase):
             if field.data != "extra":
                 raise ValidationError("error")
 
-        form = F2(test="foobar", other="extra")
-        assert form.validate(extra_validators={"other": [extra]})
-        form = F2(test="foobar", other="nope")
-        assert not form.validate(extra_validators={"other": [extra]})
-        form = F2(test="nope", other="extra")
-        assert not form.validate(extra_validators={"other": [extra]})
+        # Oldman: only a bound form validates.
+        form = F2(DummyPostData(test="foobar", other="extra"))
+        assert asyncio.run(form.validate(extra_validators={"other": [extra]}))
+        form = F2(DummyPostData(test="foobar", other="nope"))
+        assert not asyncio.run(form.validate(extra_validators={"other": [extra]}))
+        form = F2(DummyPostData(test="nope", other="extra"))
+        assert not asyncio.run(form.validate(extra_validators={"other": [extra]}))
 
     def test_form_level_errors(self):
 
@@ -201,20 +210,20 @@ class TestForm(UpstreamTestCase):
             a = IntegerField()
             b = IntegerField()
 
-            def validate(self):
+            # Oldman: an error that belongs to no field is raised from clean() and becomes error_message;
+            # there is no form_errors list and no "" key in errors.
+            async def clean(self):
                 if (self.a.data + self.b.data) % 2 != 0:
-                    self.form_errors.append("a + b should be even")
-                    return False
-                return True
+                    raise ValidationError("a + b should be even")
 
-        f = F(a=1, b=1)
-        assert f.validate()
-        assert not f.form_errors
+        f = F(DummyPostData(a="1", b="1"))
+        assert asyncio.run(f.validate())
+        assert f.error_message is None
         assert not f.errors
-        f = F(a=0, b=1)
-        assert not f.validate()
-        assert ["a + b should be even"] == f.form_errors
-        assert ["a + b should be even"] == f.errors[""]
+        f = F(DummyPostData(a="0", b="1"))
+        assert not asyncio.run(f.validate())
+        assert "a + b should be even" == f.error_message
+        assert not f.errors
 
     def test_field_adding_disabled(self):
         form = F()
@@ -260,9 +269,9 @@ class TestForm(UpstreamTestCase):
 
     def test_data_arg(self):
         data = {"test": "foo"}
-        form = F(data=data)
+        form = F(initial=data)
         assert form.test.data == "foo"
-        form = F(data=data, test="bar")
+        form = F(initial=data, test="bar")
         assert form.test.data == "bar"
 
     def test_empty_formdata(self):
@@ -289,14 +298,15 @@ class TestForm(UpstreamTestCase):
         class F(Form):
             foo = StringField(validators=[DataRequired()])
 
-            def validate(self):
-                super().validate()
+            # Oldman: validate() is asynchronous, so an override awaits the parent.
+            async def validate(self, extra_validators=None):
+                await super().validate(extra_validators)
                 self.errors  # noqa: B018 -- reading the property is the behaviour under test
                 self.foo.errors.append("bar")
                 return True
 
-        form = F(foo="whatever")
-        form.validate()
+        form = F(DummyPostData(foo="whatever"))
+        asyncio.run(form.validate())
         assert {"foo": ["bar"]} == form.errors
 
     def test_meta_basic(self):

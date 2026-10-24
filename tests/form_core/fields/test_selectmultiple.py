@@ -2,6 +2,8 @@
 # Original path: tests/fields/test_selectmultiple.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
+
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import SelectField, SelectMultipleField
 from oldman.web.components.forms._core.form import Form
@@ -24,8 +26,10 @@ class TestSelectmultipleFields(UpstreamTestCase):
         form = F()
         assert form.a.data == ["a"]
         assert form.b.data == [1, 3]
+        # Oldman: only a bound form validates; a submission without the fields leaves no data to check.
+        form = F(DummyPostData())
         form.a.data = None
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert list(form.a.iter_choices()) == [(value, label, False, {}) for value, label in form.a.choices]
 
     def test_with_data(self):
@@ -35,17 +39,18 @@ class TestSelectmultipleFields(UpstreamTestCase):
         assert form.b.data == []
         form = F(DummyPostData(b=["1", "2"]))
         assert form.b.data == [1, 2]
-        assert form.validate()
+        assert asyncio.run(form.validate())
         form = F(DummyPostData(b=["1", "2", "4"]))
         assert form.b.data == [1, 2, 4]
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
 
     def test_coerce_fail(self):
+        # Oldman: validation needs a bound form, where submitted input replaces the initial values; the
+        # coercion failure of an initial value is a processing matter, checked without validating.
         form = F(b=["a"])
-        assert form.validate()
         assert form.b.data is None
         form = F(DummyPostData(b=["fake"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.b.data == [1, 3]
 
     def test_callable_choices(self):
@@ -59,8 +64,9 @@ class TestSelectmultipleFields(UpstreamTestCase):
 
     def test_choice_shortcut(self):
         F = make_form(a=SelectMultipleField(choices=["foo", "bar"]))
-        form = F(a=["bar"])
-        assert form.validate()
+        # Oldman: only a bound form validates, so the chosen value is submitted.
+        form = F(DummyPostData(a=["bar"]))
+        assert asyncio.run(form.validate())
         assert '<option value="foo">foo</option>' in form.a()
 
     def test_empty_choice(self):
@@ -73,7 +79,7 @@ class TestSelectmultipleFields(UpstreamTestCase):
     def test_validate_choices_when_empty(self):
         F = make_form(a=SelectMultipleField(choices=[]))
         form = F(DummyPostData(a=["b"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert form.a.data == ["b"]
         assert len(form.a.errors) == 1
         assert form.a.errors[0] == "'b' is not a valid choice for this field."
@@ -82,19 +88,19 @@ class TestSelectmultipleFields(UpstreamTestCase):
         F = make_form(a=SelectMultipleField())
         form = F(DummyPostData(a="b"))
         with raises(TypeError, match="Choices cannot be None"):
-            form.validate()
+            asyncio.run(form.validate())
 
     def test_dont_validate_choices(self):
         F = make_form(a=SelectMultipleField(choices=[("a", "Foo")], validate_choice=False))
         form = F(DummyPostData(a=["b"]))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.a.data == ["b"]
         assert len(form.a.errors) == 0
 
     def test_choices_can_be_none_when_choice_validation_is_disabled(self):
         F = make_form(a=SelectMultipleField(validate_choice=False))
         form = F(DummyPostData(a="b"))
-        assert form.validate()
+        assert asyncio.run(form.validate())
 
     def test_requried_flag(self):
         F = make_form(c=SelectMultipleField(choices=[("a", "hello"), ("b", "bye")], validators=[validators.InputRequired()]))
@@ -106,10 +112,11 @@ class TestSelectmultipleFields(UpstreamTestCase):
     def test_required_validator(self):
         F = make_form(c=SelectMultipleField(choices=[("a", "hello"), ("b", "bye")], validators=[validators.InputRequired()]))
         form = F(DummyPostData(c=["a"]))
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.c.errors == []
-        form = F()
-        assert form.validate() is False
+        # Oldman: an unbound form only reports False; the required error needs a submission without the field.
+        form = F(DummyPostData())
+        assert asyncio.run(form.validate()) is False
         assert form.c.errors == ["This field is required."]
 
     def test_render_kw_preserved(self):
@@ -133,5 +140,5 @@ class TestSelectmultipleFields(UpstreamTestCase):
         F = make_form(a=SelectMultipleField(choices=[("1", "One"), ("2", "Two")], coerce=int))
         post_data = DummyPostData(a=["1", "2"])
         form = F(post_data)
-        assert form.validate()
+        assert asyncio.run(form.validate())
         assert form.a.data == [1, 2]

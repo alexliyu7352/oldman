@@ -2,6 +2,7 @@
 # Original path: tests/fields/test_date.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 from datetime import date
 
 from oldman.web.components.forms._core.fields import DateField
@@ -30,7 +31,7 @@ class TestDateFields(UpstreamTestCase):
 
     def test_failure(self):
         form = F(DummyPostData(a=["2008-bb-cc"], b=["hi"]))
-        assert not form.validate()
+        assert not asyncio.run(form.validate())
         assert len(form.a.process_errors) == 1
         assert len(form.a.errors) == 1
         assert len(form.b.errors) == 1

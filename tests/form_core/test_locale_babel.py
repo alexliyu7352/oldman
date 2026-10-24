@@ -2,6 +2,7 @@
 # Original path: tests/test_locale_babel.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+import asyncio
 from decimal import ROUND_UP, Decimal
 
 from oldman.web.components.forms._core import Form
@@ -33,7 +34,7 @@ def _parse_test(raw_val, expected, locales=unset_value):
     if locales is not unset_value:
         meta = {"locales": locales}
     form = F(DummyPostData(a=raw_val), meta=meta)
-    assert form.validate(), f"Expected value {raw_val} to parse as a decimal, instead got {form.a.errors}"
+    assert asyncio.run(form.validate()), f"Expected value {raw_val} to parse as a decimal, instead got {form.a.errors}"
     assert form.a.data == expected
 
 
@@ -42,7 +43,7 @@ def _fail_parse(raw_val, expected_error, locales=unset_value):
     if locales is not unset_value:
         meta = {"locales": locales}
     form = F(DummyPostData(a=raw_val), meta=meta)
-    assert not form.validate()
+    assert not asyncio.run(form.validate())
     assert form.a.errors[0] == expected_error
 
 
