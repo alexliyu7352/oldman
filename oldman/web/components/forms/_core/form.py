@@ -11,7 +11,7 @@
 
 import inspect
 from collections import OrderedDict
-from typing import Any
+from typing import Any, ClassVar
 
 from oldman.i18n import LazyTranslation
 
@@ -30,6 +30,9 @@ class BaseForm:
     validation, and data and error proxying.
     """
 
+    # The Meta instance: DefaultMeta merged with every Meta in the form class's MRO, so any attributes.
+    meta: Any
+
     def __init__(self, fields, prefix="", meta=_default_meta):
         """
         :param fields:
@@ -46,7 +49,8 @@ class BaseForm:
 
         self.meta = meta
         self._prefix = prefix
-        self._fields = OrderedDict()
+        # Whatever meta.bind_field returns for each declaration: a Field unless a Meta overrides binding.
+        self._fields: OrderedDict[str, Any] = OrderedDict()
         self.is_bound = False
         self._input_data = {}
         self._cleaned_data = {}
@@ -323,6 +327,9 @@ class FormMeta(type):
     instances are ignored by the metaclass.
     """
 
+    _unbound_fields: Any
+    _wtforms_meta: Any
+
     def __init__(cls, name, bases, attrs):
         type.__init__(cls, name, bases, attrs)
         cls._unbound_fields = None
@@ -391,7 +398,12 @@ class Form(BaseForm, metaclass=FormMeta):
     and passed to `process()`.
     """
 
-    Meta = DefaultMeta
+    # Any class: a subclass replaces it with a nested `class Meta:` (no base needed), and FormMeta merges
+    # every Meta in the MRO with DefaultMeta.
+    Meta: ClassVar[type] = DefaultMeta
+    # Set by FormMeta: the collected declarations and the Meta class merged from the MRO.
+    _unbound_fields: Any
+    _wtforms_meta: Any
 
     def __init__(
         self,

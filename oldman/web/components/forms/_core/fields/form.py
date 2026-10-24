@@ -53,7 +53,7 @@ class FormField(Field):
         else:
             self.form = self.form_class(formdata=formdata, obj=data, prefix=prefix)
 
-    async def validate(self, form, extra_validators=()):
+    async def validate(self, form, extra_validators=()):  # pyrefly: ignore[bad-override] -- a container field validates its entries asynchronously; the form awaits it
         if extra_validators:
             raise TypeError("FormField does not accept in-line validators, as it gets errors from the enclosed form.")
         return await self.form.validate()
@@ -82,7 +82,7 @@ class FormField(Field):
         return getattr(self.form, name)
 
     @property
-    def data(self):
+    def data(self):  # pyrefly: ignore[bad-override] -- computed from the entries, where a plain field stores it
         # What the enclosing form puts in its cleaned_data: the nested form's cleaned_data once it
         # has validated, its field values before that. The nested form's own `data` is its raw input.
         if self.form._validation_succeeded:

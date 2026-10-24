@@ -4,6 +4,7 @@
 
 import asyncio
 from collections import namedtuple
+from typing import Any
 
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import FieldList, FormField, StringField
@@ -15,8 +16,12 @@ class AttrDict:
     def __init__(self, *args, **kw):
         self.__dict__.update(*args, **kw)
 
+    def __getattr__(self, name: str) -> Any:
+        # Only reached for a missing attribute, which still raises; it tells type checkers any is allowed.
+        raise AttributeError(name)
 
-def make_form(name="F", **fields):
+
+def make_form(name="F", **fields) -> Any:
     return type(str(name), (Form,), fields)
 
 

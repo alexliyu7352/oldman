@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import asyncio
+from typing import Any, cast
 
 from oldman.web.components.forms._core.fields import IntegerField, StringField
 from oldman.web.components.forms._core.form import BaseForm, Form
@@ -42,12 +43,13 @@ class G(Form):
         bar = 8
 
 
+# Each Meta below is its own class, not a subclass of its parents' Meta: FormMeta merges them along the MRO.
 class Basic(H, G):
-    class Meta:
+    class Meta:  # pyrefly: ignore[bad-override]
         quux = 42
 
 
-class MissingDiamond(H, G):
+class MissingDiamond(H, G):  # pyrefly: ignore[inconsistent-inheritance]
     pass
 
 
@@ -80,7 +82,7 @@ class TestForm(UpstreamTestCase):
         form = get_form()
         del form["test"]
         with raises(AttributeError):
-            form.test  # noqa: B018 -- the access itself must raise
+            cast(Any, form).test  # noqa: B018 -- the access itself must raise
         assert "test" not in form
 
     def test_baseform_field_adding(self):
@@ -89,7 +91,8 @@ class TestForm(UpstreamTestCase):
         form["foo"] = StringField()
         assert len(list(form)) == 2
         form.process(DummyPostData(foo=["hello"]))
-        assert form["foo"].data == "hello"
+        # The item assigned was a declaration; what reads back is the field bound from it.
+        assert cast(Any, form["foo"]).data == "hello"
         form["test"] = IntegerField()
         assert isinstance(form["test"], IntegerField)
         assert len(list(form)) == 2
@@ -97,10 +100,10 @@ class TestForm(UpstreamTestCase):
             form["test"].data  # noqa: B018 -- the access itself must raise
         form.process(DummyPostData(test=["1"]))
         assert form["test"].data == 1
-        assert form["foo"].data is None
+        assert cast(Any, form["foo"]).data is None
 
     def test_baseform_populate_obj(self):
-        m = type("Model", (object,), {})
+        m: Any = type("Model", (object,), {})
         # Oldman: populate_obj writes cleaned_data, so the input is submitted and validated first.
         form = get_form()
         form.process(DummyPostData(test="foobar"))
@@ -135,14 +138,14 @@ class TestForm(UpstreamTestCase):
         F.b = StringField()
         assert F._unbound_fields is None
         F()
-        assert F._unbound_fields == [("a", F.a), ("b", F.b)]
+        assert F._unbound_fields == [("a", F.a), ("b", cast(Any, F).b)]
         del F.a
         with raises(AttributeError):
             F.a  # noqa: B018 -- the access itself must raise
         F()
-        assert F._unbound_fields == [("b", F.b)]
+        assert F._unbound_fields == [("b", cast(Any, F).b)]
         F._m = StringField()
-        assert F._unbound_fields == [("b", F.b)]
+        assert F._unbound_fields == [("b", cast(Any, F).b)]
 
     def test_form_meta_subclassing(self):
 
@@ -174,11 +177,11 @@ class TestForm(UpstreamTestCase):
 
         assert F._wtforms_meta is None
         assert isinstance(F().meta, MetaA)
-        assert issubclass(F._wtforms_meta, MetaA)
-        F.Meta = MetaB
+        assert issubclass(cast(Any, F)._wtforms_meta, MetaA)
+        cast(Any, F).Meta = MetaB
         assert F._wtforms_meta is None
         assert isinstance(F().meta, MetaB)
-        assert issubclass(F._wtforms_meta, MetaB)
+        assert issubclass(cast(Any, F)._wtforms_meta, MetaB)
 
     def test_validate(self):
         # Oldman: only a bound form validates; the unbound one below fails for that reason too.
@@ -243,7 +246,7 @@ class TestForm(UpstreamTestCase):
         form = F()
         del form.test
         assert form.test is None
-        form.foo = 9
+        cast(Any, form).foo = 9
         del form.foo
         with raises(AttributeError):
             form.__delattr__("foo")

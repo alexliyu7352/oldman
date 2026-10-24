@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import decimal
+from typing import Any
 
 from .. import widgets
 from ..fields.core import Field
@@ -116,14 +117,14 @@ class DecimalField(LocaleAwareNumberField):
 
     widget = widgets.NumberInput(step="any")
 
-    def __init__(self, label=None, validators=None, places=unset_value, rounding=None, **kwargs):
+    def __init__(self, label=None, validators=None, places: Any = unset_value, rounding: Any = None, **kwargs):
         super().__init__(label, validators, **kwargs)
         if self.use_locale and (places is not unset_value or rounding is not None):
             raise TypeError("When using locale-aware numbers, 'places' and 'rounding' are ignored.")
 
         if places is unset_value:
             places = 2
-        self.places = places
+        self.places: Any = places
         self.rounding = rounding
 
     def _value(self):

@@ -162,6 +162,8 @@ class Input:
     """
 
     html_params = staticmethod(html_params)
+    # Declared for type checkers only: each concrete input sets it; a bare Input has none, as before.
+    validation_attrs: list[str]
 
     def __init__(self, input_type=None):
         if input_type is not None:

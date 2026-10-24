@@ -33,7 +33,7 @@ class DummyField:
         id=None,
         field_type="StringField",
     ):
-        self.data = data
+        self.data: Any = data
         self.name = name
         self.errors = list(errors)
         self.raw_data = raw_data

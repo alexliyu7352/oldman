@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import asyncio
+from typing import Any
 
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import FormField, StringField
@@ -13,6 +14,10 @@ from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 class AttrDict:
     def __init__(self, *args, **kw):
         self.__dict__.update(*args, **kw)
+
+    def __getattr__(self, name: str) -> Any:
+        # Only reached for a missing attribute, which still raises; it tells type checkers any is allowed.
+        raise AttributeError(name)
 
 
 class ClassWithProperty(AttrDict):
@@ -25,7 +30,7 @@ class ClassWithProperty(AttrDict):
         self.a_ = vars(value)
 
 
-def make_form(name="F", **fields):
+def make_form(name="F", **fields) -> Any:
     return type(str(name), (Form,), fields)
 
 

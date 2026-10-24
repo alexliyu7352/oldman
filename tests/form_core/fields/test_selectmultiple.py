@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import asyncio
+from typing import Any
 
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import SelectField, SelectMultipleField
@@ -10,7 +11,7 @@ from oldman.web.components.forms._core.form import Form
 from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
 
-def make_form(name="F", **fields):
+def make_form(name="F", **fields) -> Any:
     return type(str(name), (Form,), fields)
 
 

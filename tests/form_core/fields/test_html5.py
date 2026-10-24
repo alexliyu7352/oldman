@@ -1,9 +1,9 @@
 # Adapted from WTForms 3.2.2 (tag 3.2.2 of pallets-eco/wtforms), ported from pytest to unittest.
 # Original path: tests/fields/test_html5.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
-
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import (
@@ -41,7 +41,7 @@ class F(Form):
     decimal_range = DecimalRangeField()
 
 
-def _build_value(key, form_input, expected_html, data=unset_value):
+def _build_value(key, form_input, expected_html, data: Any = unset_value):
     if data is unset_value:
         data = form_input
     if expected_html.startswith("type="):

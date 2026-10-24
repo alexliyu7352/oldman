@@ -28,7 +28,7 @@ class DateTimeField(Field):
 
     widget = widgets.DateTimeInput()
 
-    def __init__(self, label=None, validators=None, format="%Y-%m-%d %H:%M:%S", **kwargs):
+    def __init__(self, label=None, validators=None, format: str | list[str] = "%Y-%m-%d %H:%M:%S", **kwargs):
         super().__init__(label, validators, **kwargs)
         self.format = format if isinstance(format, list) else [format]
         self.strptime_format = clean_datetime_format_for_strptime(self.format)
@@ -62,7 +62,7 @@ class DateField(DateTimeField):
 
     widget = widgets.DateInput()
 
-    def __init__(self, label=None, validators=None, format="%Y-%m-%d", **kwargs):
+    def __init__(self, label=None, validators=None, format: str | list[str] = "%Y-%m-%d", **kwargs):
         super().__init__(label, validators, format, **kwargs)
 
     def process_formdata(self, valuelist):
@@ -88,7 +88,7 @@ class TimeField(DateTimeField):
 
     widget = widgets.TimeInput()
 
-    def __init__(self, label=None, validators=None, format="%H:%M", **kwargs):
+    def __init__(self, label=None, validators=None, format: str | list[str] = "%H:%M", **kwargs):
         super().__init__(label, validators, format, **kwargs)
 
     def process_formdata(self, valuelist):
@@ -114,7 +114,7 @@ class MonthField(DateField):
 
     widget = widgets.MonthInput()
 
-    def __init__(self, label=None, validators=None, format="%Y-%m", **kwargs):
+    def __init__(self, label=None, validators=None, format: str | list[str] = "%Y-%m", **kwargs):
         super().__init__(label, validators, format, **kwargs)
 
 
@@ -126,7 +126,7 @@ class WeekField(DateField):
 
     widget = widgets.WeekInput()
 
-    def __init__(self, label=None, validators=None, format="%Y-W%W", **kwargs):
+    def __init__(self, label=None, validators=None, format: str | list[str] = "%Y-W%W", **kwargs):
         super().__init__(label, validators, format, **kwargs)
 
     def process_formdata(self, valuelist):

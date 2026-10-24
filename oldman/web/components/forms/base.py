@@ -34,8 +34,7 @@ class Form(CoreForm):
     Oldman 后端渲染表单基类。
     """
 
-    # A nested Meta replaces the core's `Meta = DefaultMeta` by design: FormMeta merges every Meta in the MRO.
-    class Meta(DefaultMeta):  # pyrefly: ignore[bad-override]
+    class Meta(DefaultMeta):
         """WTForms 的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
 
         auto_id = "id_%s"

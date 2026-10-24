@@ -2,13 +2,16 @@
 # Original path: tests/test_webob.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+from typing import Any
+
 from oldman.web.components.forms._core.fields import Field
 from oldman.web.components.forms._core.form import BaseForm
 from oldman.web.components.forms._core.utils import WebobInputWrapper, unset_value
 from tests.form_core.support import UpstreamTestCase
 
 try:
-    from webob.multidict import MultiDict
+    # Optional: WebOb is not a dependency, and the tests that need it are skipped without it.
+    from webob.multidict import MultiDict  # pyright: ignore[reportMissingModuleSource]  # pyrefly: ignore[missing-import]
 
     has_webob = True
 except ImportError:
@@ -45,7 +48,7 @@ class SneakyField(Field):
         super().__init__(*args, **kwargs)
         self.sneaky_callable = sneaky_callable
 
-    def process(self, formdata, data=unset_value, **kwargs):
+    def process(self, formdata, data: Any = unset_value, extra_filters=None):
         self.sneaky_callable(formdata)
 
 

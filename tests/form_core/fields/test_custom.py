@@ -11,10 +11,10 @@ from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
 
 class MyCustomField(StringField):
-    def process_data(self, data):
-        if data == "fail":
+    def process_data(self, value):
+        if value == "fail":
             raise ValueError("Contrived Failure")
-        return super().process_data(data)
+        return super().process_data(value)
 
 
 class F(Form):

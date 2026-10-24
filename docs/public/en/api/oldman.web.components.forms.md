@@ -233,7 +233,7 @@ Same as :class:`~wtforms.fields.DateTimeField`, except stores a
 Constructor:
 
 ```python
-DateField(label=None, validators=None, format='%Y-%m-%d', **kwargs)
+DateField(label=None, validators=None, format: str | list[str]='%Y-%m-%d', **kwargs)
 ```
 
 Members:
@@ -253,7 +253,7 @@ A text field which stores a :class:`datetime.datetime` matching one or
 Constructor:
 
 ```python
-DateTimeField(label=None, validators=None, format='%Y-%m-%d %H:%M:%S', **kwargs)
+DateTimeField(label=None, validators=None, format: str | list[str]='%Y-%m-%d %H:%M:%S', **kwargs)
 ```
 
 Members:
@@ -309,7 +309,7 @@ A text field which displays and coerces data of the `decimal.Decimal` type.
 Constructor:
 
 ```python
-DecimalField(label=None, validators=None, places=unset_value, rounding=None, **kwargs)
+DecimalField(label=None, validators=None, places: Any=unset_value, rounding: Any=None, **kwargs)
 ```
 
 Members:
@@ -360,12 +360,15 @@ Field base class
 Constructor:
 
 ```python
-Field(label=None, validators=None, filters=(), description='', id=None, default=None, widget=None, render_kw: Any=None, name=None, _form=None, _prefix='', _translations=None, _meta=None)
+Field(label: Any=None, validators: Any=None, filters: Any=(), description: Any='', id: str | None=None, default: Any=None, widget: Any=None, render_kw: Any=None, name: Any=None, _form: Any=None, _prefix: str='', _translations: Any=None, _meta: Any=None)
 ```
 
 Members:
 
 - `errors: Any = ()`
+- `process_errors: Any = ()`
+- `data: Any`
+- `widget: Any = None`
 - `classmethod def check_validators(validators)`
 - `def gettext(string)` — Get a translation for the given message.
 - `def ngettext(singular, plural, n)` — Get a translation for a message which can be pluralized.
@@ -868,7 +871,7 @@ Same as :class:`~wtforms.fields.DateField`, except represents a month,
 Constructor:
 
 ```python
-MonthField(label=None, validators=None, format='%Y-%m', **kwargs)
+MonthField(label=None, validators=None, format: str | list[str]='%Y-%m', **kwargs)
 ```
 
 ## `MultipleFileField`
@@ -1007,11 +1010,12 @@ class SelectField(SelectFieldBase)
 Constructor:
 
 ```python
-SelectField(label=None, validators=None, coerce: Any=str, choices=None, validate_choice=True, **kwargs)
+SelectField(label=None, validators=None, coerce: Any=str, choices: Any=None, validate_choice=True, **kwargs)
 ```
 
 Members:
 
+- `choices: Any`
 - `def iter_choices()`
 - `def has_groups()`
 - `def iter_groups()`
@@ -1037,7 +1041,7 @@ Members:
 
 - `option_widget: Any = widgets.Option()`
 - `def iter_choices()` — Provides data for choice widget rendering. Must return a sequence or
-- `def has_groups()`
+- `def has_groups() -> bool`
 - `def iter_groups()`
 
 ## `SelectMultipleField`
@@ -1277,7 +1281,7 @@ Same as :class:`~wtforms.fields.DateTimeField`, except stores a
 Constructor:
 
 ```python
-TimeField(label=None, validators=None, format='%H:%M', **kwargs)
+TimeField(label=None, validators=None, format: str | list[str]='%H:%M', **kwargs)
 ```
 
 Members:
@@ -1337,7 +1341,7 @@ Same as :class:`~wtforms.fields.DateField`, except represents a week,
 Constructor:
 
 ```python
-WeekField(label=None, validators=None, format='%Y-W%W', **kwargs)
+WeekField(label=None, validators=None, format: str | list[str]='%Y-W%W', **kwargs)
 ```
 
 Members:
@@ -1920,6 +1924,10 @@ Constructor:
 ```python
 Input(input_type=None)
 ```
+
+Members:
+
+- `validation_attrs: list[str]`
 
 ### `ListWidget`
 

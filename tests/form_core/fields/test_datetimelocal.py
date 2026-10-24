@@ -5,13 +5,14 @@
 import asyncio
 import os
 from datetime import datetime
+from typing import Any
 
 from oldman.web.components.forms._core.fields import DateTimeLocalField
 from oldman.web.components.forms._core.form import Form
 from tests.form_core.support import DummyPostData, UpstreamTestCase
 
 
-def make_form(name="F", **fields):
+def make_form(name="F", **fields) -> Any:
     return type(str(name), (Form,), fields)
 
 

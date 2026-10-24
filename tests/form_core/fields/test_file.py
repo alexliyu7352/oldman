@@ -23,7 +23,8 @@ class TestFileFields(UpstreamTestCase):
     def test_multiple_file_field(self):
 
         class F(Form):
-            files = MultipleFileField()
+            # A field may take the name of a form attribute (here the uploaded files); the field wins.
+            files = MultipleFileField()  # pyrefly: ignore[bad-override]
 
         assert F(DummyPostData(files=["test.txt"])).files.data == ["test.txt"]
         assert F(DummyPostData()).files.data == []

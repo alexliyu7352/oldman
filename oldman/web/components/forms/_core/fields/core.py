@@ -4,7 +4,7 @@
 
 import inspect
 import itertools
-from typing import Any, Self
+from typing import Any, Self, overload
 
 from markupsafe import Markup, escape
 
@@ -20,17 +20,25 @@ class Field:
     """
 
     errors: Any = ()
-    process_errors = ()
+    process_errors: Any = ()
+    # Set by process(); any value, as each field type coerces it.
+    data: Any
     raw_data = None
     validators = ()
-    widget = None
+    widget: Any = None
     _formfield = True
     _translations = DummyTranslations()
     do_not_call_in_templates = True  # Allow Django 1.4 traversal
 
-    # Declared on a form class, a field is really an UnboundField until the form binds it; callers only
-    # ever touch the bound field through a form instance, so that is the type they get.
-    def __new__(cls, *args, **kwargs) -> Self:
+    # Without `_form` a field is declared, not bound: the call returns an UnboundField, which a form
+    # instance replaces with the bound field (see UnboundField.__get__ for how that reads statically).
+    @overload
+    def __new__(cls, *args: Any, _form: Any, **kwargs: Any) -> Self: ...
+
+    @overload
+    def __new__(cls, *args: Any, **kwargs: Any) -> "UnboundField[Self]": ...
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         if "_form" in kwargs:
             return super().__new__(cls)
         else:
@@ -38,19 +46,19 @@ class Field:
 
     def __init__(
         self,
-        label=None,
-        validators=None,
-        filters=(),
-        description="",
-        id=None,
-        default=None,
-        widget=None,
+        label: Any = None,
+        validators: Any = None,
+        filters: Any = (),
+        description: Any = "",
+        id: str | None = None,
+        default: Any = None,
+        widget: Any = None,
         render_kw: Any = None,
-        name=None,
-        _form=None,
-        _prefix="",
-        _translations=None,
-        _meta=None,
+        name: Any = None,
+        _form: Any = None,
+        _prefix: str = "",
+        _translations: Any = None,
+        _meta: Any = None,
     ):
         """
         Construct a new field.
@@ -378,11 +386,11 @@ class Field:
         setattr(obj, name, self.data)
 
 
-class UnboundField:
+class UnboundField[FieldT: Field]:
     _formfield = True
     creation_counter = 0
 
-    def __init__(self, field_class, *args, name=None, **kwargs):
+    def __init__(self, field_class: type[FieldT], *args: Any, name: str | None = None, **kwargs: Any) -> None:
         UnboundField.creation_counter += 1
         self.field_class = field_class
         self.args = args
@@ -393,7 +401,7 @@ class UnboundField:
         if validators:
             self.field_class.check_validators(validators)
 
-    def bind(self, form, name, prefix="", translations=None, **kwargs):
+    def bind(self, form: Any, name: str, prefix: str = "", translations: Any = None, **kwargs: Any) -> FieldT:
         kw = dict(
             self.kwargs,
             name=name,
@@ -403,6 +411,18 @@ class UnboundField:
             **kwargs,
         )
         return self.field_class(*self.args, **kw)
+
+    @overload
+    def __get__(self, obj: None, owner: Any = None) -> "UnboundField[FieldT]": ...
+
+    @overload
+    def __get__(self, obj: object, owner: Any = None) -> FieldT: ...
+
+    def __get__(self, obj: Any, owner: Any = None) -> Any:
+        # At run time this is the plain lookup it always was: the declaration itself. A form instance
+        # keeps the bound field in its own __dict__, which wins over this non-data descriptor; the
+        # second overload tells type checkers so (form.title is a StringField, Form.title is not).
+        return self
 
     def __repr__(self):
         return f"<UnboundField({self.field_class.__name__}, {self.args!r}, {self.kwargs!r})>"
@@ -417,7 +437,7 @@ class Flags:
 
     def __getattr__(self, name):
         if name.startswith("_"):
-            return super().__getattr__(name)
+            raise AttributeError(name)
         return None
 
     def __contains__(self, name):

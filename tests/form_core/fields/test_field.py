@@ -24,10 +24,10 @@ class PrePostTestField(StringField):
         elif self.data.startswith("stop"):
             raise validators.StopValidation("stop with message")
 
-    def post_validate(self, form, stopped):
+    def post_validate(self, form, validation_stopped):
         if self.data == "p":
             raise validators.ValidationError("Post")
-        elif stopped and self.data == "stop-post":
+        elif validation_stopped and self.data == "stop-post":
             raise validators.ValidationError("Post-stopped")
 
 

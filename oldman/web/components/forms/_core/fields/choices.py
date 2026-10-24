@@ -39,7 +39,7 @@ class SelectFieldBase(Field):
         """
         raise NotImplementedError()
 
-    def has_groups(self):
+    def has_groups(self) -> bool:
         return False
 
     def iter_groups(self):
@@ -75,13 +75,14 @@ class SelectFieldBase(Field):
 
 class SelectField(SelectFieldBase):
     widget = widgets.Select()
+    choices: Any
 
     def __init__(
         self,
         label=None,
         validators=None,
         coerce: Any = str,
-        choices=None,
+        choices: Any = None,
         validate_choice=True,
         **kwargs,
     ):

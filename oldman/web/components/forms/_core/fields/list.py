@@ -108,7 +108,7 @@ class FieldList(Field):
                 if k.isdigit():
                     yield int(k)
 
-    async def validate(self, form, extra_validators=()):
+    async def validate(self, form, extra_validators=()):  # pyrefly: ignore[bad-override] -- a container field validates its entries asynchronously; the form awaits it
         """
         Validate this FieldList.
 
@@ -154,7 +154,7 @@ class FieldList(Field):
             setattr(obj, name, value)
 
     def populate_obj(self, obj, name):
-        values = getattr(obj, name, None)
+        values: Any = getattr(obj, name, None)
         try:
             ivalues = iter(values)
         except TypeError:
@@ -164,7 +164,7 @@ class FieldList(Field):
         _fake = type("_fake", (object,), {})
         output = []
         for field, data in zip(self.entries, candidates, strict=False):
-            fake_obj = _fake()
+            fake_obj: Any = _fake()
             fake_obj.data = data
             field.populate_obj(fake_obj, "data")
             output.append(fake_obj.data)
@@ -215,5 +215,5 @@ class FieldList(Field):
         return self.entries[index]
 
     @property
-    def data(self):
+    def data(self):  # pyrefly: ignore[bad-override] -- computed from the entries, where a plain field stores it
         return [f.data for f in self.entries]

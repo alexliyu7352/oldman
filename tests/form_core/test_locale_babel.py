@@ -4,6 +4,7 @@
 
 import asyncio
 from decimal import ROUND_UP, Decimal
+from typing import Any
 
 from oldman.web.components.forms._core import Form
 from oldman.web.components.forms._core.fields import DecimalField
@@ -21,7 +22,7 @@ class F(Form):
     a = DecimalField(use_locale=True)
 
 
-def _format_test(expected, val, locales=unset_value):
+def _format_test(expected, val, locales: Any = unset_value):
     meta = None
     if locales is not unset_value:
         meta = {"locales": locales}
@@ -29,7 +30,7 @@ def _format_test(expected, val, locales=unset_value):
     assert form.a._value() == expected
 
 
-def _parse_test(raw_val, expected, locales=unset_value):
+def _parse_test(raw_val, expected, locales: Any = unset_value):
     meta = None
     if locales is not unset_value:
         meta = {"locales": locales}
@@ -38,7 +39,7 @@ def _parse_test(raw_val, expected, locales=unset_value):
     assert form.a.data == expected
 
 
-def _fail_parse(raw_val, expected_error, locales=unset_value):
+def _fail_parse(raw_val, expected_error, locales: Any = unset_value):
     meta = None
     if locales is not unset_value:
         meta = {"locales": locales}
