@@ -17,19 +17,12 @@ from sqlalchemy import String as SQLAString
 from sqlalchemy import Text as SQLAText
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import NoInspectionAvailable
-from wtforms import (
-    BooleanField,
-    DateField,
-    DateTimeLocalField,
-    IntegerField,
-    StringField,
-    TextAreaField,
-)
-from wtforms.validators import InputRequired
 
 from oldman.storage.models import _get_model_file_config, _resolve_upload_name, register_created_file
 from oldman.storage.registry import storages
 
+from ._core import BooleanField, DateField, DateTimeLocalField, IntegerField, StringField, TextAreaField
+from ._core.validators import InputRequired
 from .base import Form, SanicFormData
 from .choices import ModelChoice
 from .fields import JSONListField, ModelChoiceField, UploadField

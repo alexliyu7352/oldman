@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import itertools
+from typing import Any
 
 from .. import widgets
 from ..utils import unset_value
@@ -58,7 +59,7 @@ class FieldList(Field):
         self._separator = separator
         self._field_separator = unbound_field.kwargs.get("separator", "-")
 
-    def process(self, formdata, data=unset_value, extra_filters=None):
+    def process(self, formdata, data: Any = unset_value, extra_filters=None):
         if extra_filters:
             raise TypeError("FieldList does not accept any filters. Instead, define them on the enclosed field.")
 
@@ -146,7 +147,7 @@ class FieldList(Field):
 
         setattr(obj, name, output)
 
-    def _add_entry(self, formdata=None, data=unset_value, index=None):
+    def _add_entry(self, formdata=None, data: Any = unset_value, index=None):
         assert not self.max_entries or len(self.entries) < self.max_entries, "You cannot have more than max_entries entries in this FieldList"
         if index is None:
             index = self.last_index + 1
@@ -165,7 +166,7 @@ class FieldList(Field):
         self.entries.append(field)
         return field
 
-    def append_entry(self, data=unset_value):
+    def append_entry(self, data: Any = unset_value):
         """
         Create a new entry with optional default data.
 

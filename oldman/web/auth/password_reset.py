@@ -14,7 +14,6 @@ from typing import Any, cast
 
 from sanic import Sanic
 from sanic.response import HTTPResponse
-from wtforms.validators import DataRequired
 
 import oldman.conf as conf
 from oldman.auth import (
@@ -37,6 +36,7 @@ from oldman.web.auth.flows import PageRenderer, resolve_page_renderer, session_i
 from oldman.web.auth.forms import UserPasswordForm
 from oldman.web.auth.session import revoke_user_logins
 from oldman.web.components.forms import EmailField, TailwindForm
+from oldman.web.components.forms.validators import DataRequired
 from oldman.web.request import client_ip
 from oldman.web.response import redirect_response
 from oldman.web.routing import Router, router

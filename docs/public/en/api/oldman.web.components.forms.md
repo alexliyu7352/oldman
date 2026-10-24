@@ -128,6 +128,27 @@ Members:
 - `def resolve_endpoint(form: Any) -> str` — Return the remote provider endpoint, prioritizing an explicit URL over reverse route-name lookup.
 - `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Render a remote select control through a template.
 
+## `BooleanField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class BooleanField(Field)
+```
+
+Represents an ``<input type="checkbox">``. Set the ``checked``-status by using the
+
+Constructor:
+
+```python
+BooleanField(label=None, validators=None, false_values=None, **kwargs)
+```
+
+Members:
+
+- `def process_data(value)`
+- `def process_formdata(valuelist)`
+
 ## `CheckboxGroupField`
 
 class · defined in `oldman.web.components.forms.fields`
@@ -147,6 +168,16 @@ class CheckboxWidget(CheckboxInput)
 ```
 
 Boolean field as a 16px checkbox row: box on the left, label and help text beside it.
+
+## `ColorField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class ColorField(StringField)
+```
+
+Represents an ``<input type="color">``.
 
 ## `ColorPickerField`
 
@@ -189,6 +220,62 @@ Members:
 
 - `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Use the native input without scripts and a hidden field for full HEXA values after mounting.
 
+## `DateField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class DateField(DateTimeField)
+```
+
+Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+
+Constructor:
+
+```python
+DateField(label=None, validators=None, format='%Y-%m-%d', **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
+
+## `DateTimeField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class DateTimeField(Field)
+```
+
+A text field which stores a :class:`datetime.datetime` matching one or
+
+Constructor:
+
+```python
+DateTimeField(label=None, validators=None, format='%Y-%m-%d %H:%M:%S', **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
+
+## `DateTimeLocalField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class DateTimeLocalField(DateTimeField)
+```
+
+Same as :class:`~wtforms.fields.DateTimeField`, but represents an
+
+Constructor:
+
+```python
+DateTimeLocalField(*args, **kwargs)
+```
+
 ## `DateTimePickerWidget`
 
 class · defined in `oldman.web.components.forms.widgets`
@@ -208,6 +295,36 @@ DateTimePickerWidget(*, date_format: str='Y-m-d\\TH:i', enable_time: bool=True, 
 Members:
 
 - `def bind_attrs(field: Field, form: Any) -> dict[str, Any]` — Generate data attributes required by the browser DateTimePicker component.
+
+## `DecimalField`
+
+class · defined in `oldman.web.components.forms._core.fields.numeric`
+
+```python
+class DecimalField(LocaleAwareNumberField)
+```
+
+A text field which displays and coerces data of the `decimal.Decimal` type.
+
+Constructor:
+
+```python
+DecimalField(label=None, validators=None, places=unset_value, rounding=None, **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
+
+## `DecimalRangeField`
+
+class · defined in `oldman.web.components.forms._core.fields.numeric`
+
+```python
+class DecimalRangeField(DecimalField)
+```
+
+Represents an ``<input type="range">``.
 
 ## `EmailField`
 
@@ -229,6 +346,36 @@ Members:
 
 - `def process_formdata(valuelist: list[Any]) -> None`
 - `def pre_validate(form: BaseForm) -> None` — Reject a malformed or oversized address; emptiness is left to DataRequired/Optional.
+
+## `Field`
+
+class · defined in `oldman.web.components.forms._core.fields.core`
+
+```python
+class Field
+```
+
+Field base class
+
+Constructor:
+
+```python
+Field(label=None, validators=None, filters=(), description='', id=None, default=None, widget=None, render_kw: Any=None, name=None, _form=None, _prefix='', _translations=None, _meta=None)
+```
+
+Members:
+
+- `errors: Any = ()`
+- `classmethod def check_validators(validators)`
+- `def gettext(string)` — Get a translation for the given message.
+- `def ngettext(singular, plural, n)` — Get a translation for a message which can be pluralized.
+- `def validate(form, extra_validators=())` — Validates the field and returns True or False. `self.errors` will
+- `def pre_validate(form)` — Override if you need field-level validation. Runs before any other
+- `def post_validate(form, validation_stopped)` — Override if you need to run any field-level validation tasks after
+- `def process(formdata, data: Any=unset_value, extra_filters=None)` — Process incoming data, calling process_data, process_formdata as needed,
+- `def process_data(value)` — Process the Python data applied to this field and store the result.
+- `def process_formdata(valuelist)` — Process data received over the wire from a form.
+- `def populate_obj(obj, name)` — Populates `obj.<name>` with the field's data.
 
 ## `FieldGroup`
 
@@ -269,6 +416,31 @@ Members:
 - `advanced: bool = False`
 - `range_end: str | None = None`
 - `range_label: str | LazyTranslation | None = None`
+
+## `FieldList`
+
+class · defined in `oldman.web.components.forms._core.fields.list`
+
+```python
+class FieldList(Field)
+```
+
+Encapsulate an ordered list of multiple instances of the same field type,
+
+Constructor:
+
+```python
+FieldList(unbound_field, label=None, validators=None, min_entries=0, max_entries=None, separator='-', default=(), **kwargs)
+```
+
+Members:
+
+- `def process(formdata, data: Any=unset_value, extra_filters=None)`
+- `def validate(form, extra_validators=())` — Validate this FieldList.
+- `def populate_obj(obj, name)`
+- `def append_entry(data: Any=unset_value)` — Create a new entry with optional default data.
+- `def pop_entry()` — Removes the last entry from the list and returns it.
+- `property data`
 
 ## `FieldRenderer`
 
@@ -324,6 +496,16 @@ Constructor:
 FileExtension(extensions: Collection[str], message: str | LazyTranslation | None=None) -> None
 ```
 
+## `FileField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class FileField(Field)
+```
+
+Renders a file upload field.
+
 ## `FileSize`
 
 class · defined in `oldman.web.components.forms.fields`
@@ -340,12 +522,42 @@ Constructor:
 FileSize(max_bytes: int, message: str | LazyTranslation | None=None) -> None
 ```
 
+## `Flags`
+
+class · defined in `oldman.web.components.forms._core.fields.core`
+
+```python
+class Flags
+```
+
+Holds a set of flags as attributes.
+
+## `FloatField`
+
+class · defined in `oldman.web.components.forms._core.fields.numeric`
+
+```python
+class FloatField(Field)
+```
+
+A text field, except all input is coerced to an float.  Erroneous input
+
+Constructor:
+
+```python
+FloatField(label=None, validators=None, **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
+
 ## `Form`
 
 class · defined in `oldman.web.components.forms.base`
 
 ```python
-class Form(WTForm)
+class Form(CoreForm)
 ```
 
 Base class for Oldman server-rendered forms.
@@ -387,6 +599,30 @@ Members:
 - `property error_message: str | LazyTranslation | None` — Return the top-level validation message not attributable to one field.
 - `def to_api_response() -> DefaultApiFormResponse` — Convert current form state to a common API response object.
 - `async def prepare_async_fields() -> None` — Prepare fields requiring asynchronous data sources.
+
+## `FormField`
+
+class · defined in `oldman.web.components.forms._core.fields.form`
+
+```python
+class FormField(Field)
+```
+
+Encapsulate a form as a field in another form.
+
+Constructor:
+
+```python
+FormField(form_class, label=None, validators=None, separator='-', **kwargs)
+```
+
+Members:
+
+- `def process(formdata, data: Any=unset_value, extra_filters=None)`
+- `def validate(form, extra_validators=())`
+- `def populate_obj(obj, name)`
+- `property data`
+- `property errors`
 
 ## `FormLayout`
 
@@ -458,6 +694,16 @@ Members:
 - `items: tuple[object, ...]`
 - `description: str | LazyTranslation = ''`
 
+## `HiddenField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class HiddenField(StringField)
+```
+
+HiddenField is a convenience for a StringField with a HiddenInput widget.
+
 ## `InputSpinnerWidget`
 
 class · defined in `oldman.web.components.forms.widgets`
@@ -471,6 +717,37 @@ Emit progressively enhanced increment/decrement controls for WTForms numeric fie
 Members:
 
 - `async def render_async(field: Field, form: Any, **kwargs: Any) -> Markup` — Retain a native number input and declare an outer InputSpinner component.
+
+## `IntegerField`
+
+class · defined in `oldman.web.components.forms._core.fields.numeric`
+
+```python
+class IntegerField(Field)
+```
+
+A text field, except all input is coerced to an integer.  Erroneous input
+
+Constructor:
+
+```python
+IntegerField(label=None, validators=None, **kwargs)
+```
+
+Members:
+
+- `def process_data(value)`
+- `def process_formdata(valuelist)`
+
+## `IntegerRangeField`
+
+class · defined in `oldman.web.components.forms._core.fields.numeric`
+
+```python
+class IntegerRangeField(IntegerField)
+```
+
+Represents an ``<input type="range">``.
 
 ## `JSONListField`
 
@@ -494,6 +771,22 @@ Members:
 - `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Preserve child-field errors and pass list-level failures to the top form message.
 - `def template_entry(index: str='__index__') -> Any` — Create an empty child field outside entries for HTML-template cloning.
 - `staticmethod def encode(value: list[Any]) -> str` — Return stable compact JSON for database Text storage.
+
+## `Label`
+
+class · defined in `oldman.web.components.forms._core.fields.core`
+
+```python
+class Label
+```
+
+An HTML form label.
+
+Constructor:
+
+```python
+Label(field_id, text)
+```
 
 ## `ModelChoice`
 
@@ -565,6 +858,56 @@ Members:
 - `def populate_obj(obj: Any) -> None` — Write permitted cleaned_data fields back to the model instance.
 - `async def save(*, commit: bool=False, session: Any=None) -> Any` — Save the model form and return its instance, leaving transaction commit to the caller.
 - `async def before_save(instance: Any) -> None` — Maintain derived fields after form values and uploaded filenames are assigned but before database writes.
+
+## `MonthField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class MonthField(DateField)
+```
+
+Same as :class:`~wtforms.fields.DateField`, except represents a month,
+
+Constructor:
+
+```python
+MonthField(label=None, validators=None, format='%Y-%m', **kwargs)
+```
+
+## `MultipleFileField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class MultipleFileField(FileField)
+```
+
+A :class:`FileField` that allows choosing multiple files.
+
+Members:
+
+- `def process_formdata(valuelist)`
+
+## `PasswordField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class PasswordField(StringField)
+```
+
+A StringField, except renders an ``<input type="password">``.
+
+## `RadioField`
+
+class · defined in `oldman.web.components.forms._core.fields.choices`
+
+```python
+class RadioField(SelectField)
+```
+
+Like a SelectField, except displays a list of radio buttons.
 
 ## `RichTextField`
 
@@ -647,6 +990,76 @@ Members:
 - `def items()` — Return original field items for debugging and tests.
 - `def to_dict() -> dict[str, Any]` — Convert raw input to an ordinary dict while preserving multi-value lists.
 
+## `SearchField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class SearchField(StringField)
+```
+
+Represents an ``<input type="search">``.
+
+## `SelectField`
+
+class · defined in `oldman.web.components.forms._core.fields.choices`
+
+```python
+class SelectField(SelectFieldBase)
+```
+
+Constructor:
+
+```python
+SelectField(label=None, validators=None, coerce: Any=str, choices=None, validate_choice=True, **kwargs)
+```
+
+Members:
+
+- `def iter_choices()`
+- `def has_groups()`
+- `def iter_groups()`
+- `def process_data(value)`
+- `def process_formdata(valuelist)`
+- `def pre_validate(form)`
+
+## `SelectFieldBase`
+
+class · defined in `oldman.web.components.forms._core.fields.choices`
+
+```python
+class SelectFieldBase(Field)
+```
+
+Constructor:
+
+```python
+SelectFieldBase(label=None, validators=None, option_widget=None, **kwargs)
+```
+
+Members:
+
+- `option_widget: Any = widgets.Option()`
+- `def iter_choices()` — Provides data for choice widget rendering. Must return a sequence or
+- `def has_groups()`
+- `def iter_groups()`
+
+## `SelectMultipleField`
+
+class · defined in `oldman.web.components.forms._core.fields.choices`
+
+```python
+class SelectMultipleField(SelectField)
+```
+
+No different from a normal select field, except this one can take (and
+
+Members:
+
+- `def process_data(value)`
+- `def process_formdata(valuelist)`
+- `def pre_validate(form)`
+
 ## `SlugField`
 
 class · defined in `oldman.web.components.forms.fields`
@@ -667,6 +1080,30 @@ Members:
 
 - `def process_formdata(valuelist: list[Any]) -> None` — Normalize only submitted values without rewriting model initial values used for editing.
 - `def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Generate empty values from a source field while preserving the meaning of user-supplied values.
+
+## `StringField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class StringField(Field)
+```
+
+This field is the base for most of the more complicated fields, and
+
+Members:
+
+- `def process_formdata(valuelist)`
+
+## `SubmitField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class SubmitField(BooleanField)
+```
+
+Represents an ``<input type="submit">``.  This allows checking if a given
 
 ## `SwitchCardWidget`
 
@@ -811,6 +1248,46 @@ class TailwindTableFilterForm(TableFilterForm)
 
 Default Tailwind base for business table-filter forms.
 
+## `TelField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class TelField(StringField)
+```
+
+Represents an ``<input type="tel">``.
+
+## `TextAreaField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class TextAreaField(StringField)
+```
+
+This field represents an HTML ``<textarea>`` and can be used to take
+
+## `TimeField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class TimeField(DateTimeField)
+```
+
+Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+
+Constructor:
+
+```python
+TimeField(label=None, validators=None, format='%H:%M', **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
+
 ## `UploadField`
 
 class · defined in `oldman.web.components.forms.fields`
@@ -824,6 +1301,52 @@ A WTForms field binding one Sanic upload.
 Members:
 
 - `def process_data(value: Any) -> None` — Do not treat the database's logical filename as a new upload when editing models.
+
+## `URLField`
+
+class · defined in `oldman.web.components.forms._core.fields.simple`
+
+```python
+class URLField(StringField)
+```
+
+Represents an ``<input type="url">``.
+
+## `ValidationError`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class ValidationError(ValueError)
+```
+
+Raised when a validator fails to validate its input.
+
+Constructor:
+
+```python
+ValidationError(message='', *args, **kwargs)
+```
+
+## `WeekField`
+
+class · defined in `oldman.web.components.forms._core.fields.datetime`
+
+```python
+class WeekField(DateField)
+```
+
+Same as :class:`~wtforms.fields.DateField`, except represents a week,
+
+Constructor:
+
+```python
+WeekField(label=None, validators=None, format='%Y-W%W', **kwargs)
+```
+
+Members:
+
+- `def process_formdata(valuelist)`
 
 ## Module `oldman.web.components.forms.models`
 
@@ -866,3 +1389,748 @@ def layout_width_classes(width: str) -> str
 ```
 
 Return declarative Tailwind grid-column spans.
+
+## Module `oldman.web.components.forms.validators`
+
+Field validators for Oldman forms.
+
+Import with `from oldman.web.components.forms.validators import <name>`.
+
+### `any_of`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+any_of = AnyOf
+```
+
+### `AnyOf`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class AnyOf
+```
+
+Compares the incoming data to a sequence of valid inputs.
+
+Constructor:
+
+```python
+AnyOf(values, message=None, values_formatter=None)
+```
+
+Members:
+
+- `staticmethod def default_values_formatter(values)`
+
+### `data_required`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+data_required = DataRequired
+```
+
+### `DataRequired`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class DataRequired
+```
+
+Checks the field's data is 'truthy' otherwise stops the validation chain.
+
+Constructor:
+
+```python
+DataRequired(message=None)
+```
+
+### `Disabled`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class Disabled
+```
+
+Set a field disabled.
+
+Constructor:
+
+```python
+Disabled()
+```
+
+### `disabled`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+disabled = Disabled
+```
+
+### `Email`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class Email
+```
+
+Validates an email address. Requires email_validator package to be
+
+Constructor:
+
+```python
+Email(message=None, granular_message=False, check_deliverability=False, allow_smtputf8=True, allow_empty_local=False)
+```
+
+### `email`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+email = Email
+```
+
+### `equal_to`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+equal_to = EqualTo
+```
+
+### `EqualTo`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class EqualTo
+```
+
+Compares the values of two fields.
+
+Constructor:
+
+```python
+EqualTo(fieldname, message=None)
+```
+
+### `input_required`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+input_required = InputRequired
+```
+
+### `InputRequired`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class InputRequired
+```
+
+Validates that input was provided for this field.
+
+Constructor:
+
+```python
+InputRequired(message=None)
+```
+
+### `ip_address`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+ip_address = IPAddress
+```
+
+### `IPAddress`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class IPAddress
+```
+
+Validates an IP address.
+
+Constructor:
+
+```python
+IPAddress(ipv4=True, ipv6=False, message=None)
+```
+
+Members:
+
+- `classmethod def check_ipv4(value)`
+- `classmethod def check_ipv6(value)`
+
+### `Length`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class Length
+```
+
+Validates the length of a string.
+
+Constructor:
+
+```python
+Length(min=-1, max=-1, message=None)
+```
+
+### `length`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+length = Length
+```
+
+### `mac_address`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+mac_address = MacAddress
+```
+
+### `MacAddress`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class MacAddress(Regexp)
+```
+
+Validates a MAC address.
+
+Constructor:
+
+```python
+MacAddress(message=None)
+```
+
+### `none_of`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+none_of = NoneOf
+```
+
+### `NoneOf`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class NoneOf
+```
+
+Compares the incoming data to a sequence of invalid inputs.
+
+Constructor:
+
+```python
+NoneOf(values, message=None, values_formatter=None)
+```
+
+Members:
+
+- `staticmethod def default_values_formatter(v)`
+
+### `number_range`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+number_range = NumberRange
+```
+
+### `NumberRange`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class NumberRange
+```
+
+Validates that a number is of a minimum and/or maximum value, inclusive.
+
+Constructor:
+
+```python
+NumberRange(min=None, max=None, message=None)
+```
+
+### `Optional`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class Optional
+```
+
+Allows empty input and stops the validation chain from continuing.
+
+Constructor:
+
+```python
+Optional(strip_whitespace=True)
+```
+
+### `optional`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+optional = Optional
+```
+
+### `ReadOnly`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class ReadOnly
+```
+
+Set a field readonly.
+
+Constructor:
+
+```python
+ReadOnly()
+```
+
+### `readonly`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+readonly = ReadOnly
+```
+
+### `Regexp`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class Regexp
+```
+
+Validates the field against a user provided regexp.
+
+Constructor:
+
+```python
+Regexp(regex, flags=0, message=None)
+```
+
+### `regexp`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+regexp = Regexp
+```
+
+### `StopValidation`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class StopValidation(Exception)
+```
+
+Causes the validation chain to stop.
+
+Constructor:
+
+```python
+StopValidation(message='', *args, **kwargs)
+```
+
+### `URL`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class URL(Regexp)
+```
+
+Simple regexp based url validation. Much like the email validator, you
+
+Constructor:
+
+```python
+URL(require_tld=True, allow_ip=True, message=None)
+```
+
+### `url`
+
+value · defined in `oldman.web.components.forms._core.validators`
+
+```python
+url = URL
+```
+
+### `UUID`
+
+class · defined in `oldman.web.components.forms._core.validators`
+
+```python
+class UUID
+```
+
+Validates a UUID.
+
+Constructor:
+
+```python
+UUID(message=None)
+```
+
+## Module `oldman.web.components.forms.widgets`
+
+Form widgets: Oldman's own and the form core's HTML widgets.
+
+Import with `from oldman.web.components.forms.widgets import <name>`.
+
+### `CheckboxInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class CheckboxInput(Input)
+```
+
+Render a checkbox.
+
+### `ColorInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class ColorInput(Input)
+```
+
+Renders an input with type "color".
+
+### `DateInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class DateInput(Input)
+```
+
+Renders an input with type "date".
+
+### `DateTimeInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class DateTimeInput(Input)
+```
+
+Renders an input with type "datetime".
+
+### `DateTimeLocalInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class DateTimeLocalInput(Input)
+```
+
+Renders an input with type "datetime-local".
+
+### `EmailInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class EmailInput(Input)
+```
+
+Renders an input with type "email".
+
+### `FileInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class FileInput(Input)
+```
+
+Render a file chooser input.
+
+Constructor:
+
+```python
+FileInput(multiple=False)
+```
+
+### `HiddenInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class HiddenInput(Input)
+```
+
+Render a hidden input.
+
+Constructor:
+
+```python
+HiddenInput(*args, **kwargs)
+```
+
+### `html_params`
+
+function · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+def html_params(**kwargs)
+```
+
+Generate HTML attribute syntax from inputted keyword arguments.
+
+### `Input`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class Input
+```
+
+Render a basic ``<input>`` field.
+
+Constructor:
+
+```python
+Input(input_type=None)
+```
+
+### `ListWidget`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class ListWidget
+```
+
+Renders a list of fields as a `ul` or `ol` list.
+
+Constructor:
+
+```python
+ListWidget(html_tag='ul', prefix_label=True)
+```
+
+### `MonthInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class MonthInput(Input)
+```
+
+Renders an input with type "month".
+
+### `NumberInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class NumberInput(Input)
+```
+
+Renders an input with type "number".
+
+Constructor:
+
+```python
+NumberInput(step=None, min=None, max=None)
+```
+
+### `Option`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class Option
+```
+
+Renders the individual option from a select field.
+
+### `PasswordInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class PasswordInput(Input)
+```
+
+Render a password input.
+
+Constructor:
+
+```python
+PasswordInput(hide_value=True)
+```
+
+### `RadioInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class RadioInput(Input)
+```
+
+Render a single radio button.
+
+### `RangeInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class RangeInput(Input)
+```
+
+Renders an input with type "range".
+
+Constructor:
+
+```python
+RangeInput(step=None)
+```
+
+### `SearchInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class SearchInput(Input)
+```
+
+Renders an input with type "search".
+
+### `Select`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class Select
+```
+
+Renders a select field.
+
+Constructor:
+
+```python
+Select(multiple=False)
+```
+
+Members:
+
+- `classmethod def render_option(value, label, selected, **kwargs)`
+
+### `SubmitInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class SubmitInput(Input)
+```
+
+Renders a submit button.
+
+### `TableWidget`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class TableWidget
+```
+
+Renders a list of fields as a set of table rows with th/td pairs.
+
+Constructor:
+
+```python
+TableWidget(with_table_tag=True)
+```
+
+### `TelInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class TelInput(Input)
+```
+
+Renders an input with type "tel".
+
+### `TextArea`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class TextArea
+```
+
+Renders a multi-line text area.
+
+### `TextInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class TextInput(Input)
+```
+
+Render a single-line text input.
+
+### `TimeInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class TimeInput(Input)
+```
+
+Renders an input with type "time".
+
+### `URLInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class URLInput(Input)
+```
+
+Renders an input with type "url".
+
+### `WeekInput`
+
+class · defined in `oldman.web.components.forms._core.widgets.core`
+
+```python
+class WeekInput(Input)
+```
+
+Renders an input with type "week".

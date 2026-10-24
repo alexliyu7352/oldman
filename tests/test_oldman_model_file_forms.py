@@ -10,13 +10,12 @@ from unittest.mock import patch
 from sanic.request import File
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from wtforms import StringField
-from wtforms.validators import DataRequired
 
 from oldman.storage import InMemoryStorage, InvalidStorageName, StorageBackendError, file_column, storages
 from oldman.storage.base import StorageContent
 from oldman.storage.models import _CREATED_FILES_KEY, _get_model_file_config
-from oldman.web.components.forms import FileExtension, FileSize, Form, ModelForm, SanicFormData, UploadField
+from oldman.web.components.forms import FileExtension, FileSize, Form, ModelForm, SanicFormData, StringField, UploadField
+from oldman.web.components.forms.validators import DataRequired
 
 
 def upload_to_owner(instance: Any, filename: str) -> str:

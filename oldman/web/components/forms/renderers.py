@@ -9,13 +9,12 @@ from collections.abc import Awaitable, Callable, Iterable
 from typing import Any, cast
 
 from markupsafe import Markup
-from wtforms import BooleanField, Field, PasswordField, RadioField, SelectField, SelectMultipleField
-from wtforms.fields import HiddenField
 
 from oldman.i18n import gettext_lazy
 from oldman.web.html import css_classes, void_tag
 from oldman.web.template import render_component_template
 
+from ._core import BooleanField, Field, HiddenField, PasswordField, RadioField, SelectField, SelectMultipleField
 from .fields import CheckboxGroupField, JSONListField, SlugField, UploadField
 from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget, DateTimePickerWidget, InputSpinnerWidget
 

@@ -48,7 +48,7 @@ notice. Open a page for signatures, docstring summaries and class members.
 | [`oldman.web.authentication`](oldman.web.authentication.md) | 39 | Request authentication: who is calling, and how they proved it. |
 | [`oldman.web.components`](oldman.web.components.md) | 4 | @author:alex |
 | [`oldman.web.components.charts`](oldman.web.components.charts.md) | 11 | Backend Chart component entry point. |
-| [`oldman.web.components.forms`](oldman.web.components.forms.md) | 46 | Backend Form component package entry point. |
+| [`oldman.web.components.forms`](oldman.web.components.forms.md) | 138 | Backend Form component package entry point. |
 | [`oldman.web.components.selects`](oldman.web.components.selects.md) | 13 | Backend Oldman Select/Autocomplete component entry point. |
 | [`oldman.web.components.tables`](oldman.web.components.tables.md) | 26 | Backend Oldman Table component entry point. |
 | [`oldman.web.i18n`](oldman.web.i18n.md) | 22 | Web internationalization service. |

@@ -51,7 +51,6 @@ dependencies = [
     "tenacity>=9.1.2",
     "typer>=0.26.0,<0.28",  # The CLI imports typer._click, Typer's private bundled Click (0.26+).
     "uuid6>=2025.0.1",
-    "wtforms>=3.2",
     "zstandard>=0.25.0",  # zstd Content-Encoding (oldman.contrib.http)
     "aiosmtplib>=5.1.3",
 ]

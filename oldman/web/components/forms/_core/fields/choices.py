@@ -3,6 +3,7 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import itertools
+from typing import Any
 
 from .. import widgets
 from ..fields.core import Field
@@ -16,7 +17,7 @@ __all__ = (
 
 
 class SelectFieldBase(Field):
-    option_widget = widgets.Option()
+    option_widget: Any = widgets.Option()
 
     """
     Base class for fields which can be iterated to produce options.
@@ -79,7 +80,7 @@ class SelectField(SelectFieldBase):
         self,
         label=None,
         validators=None,
-        coerce=str,
+        coerce: Any = str,
         choices=None,
         validate_choice=True,
         **kwargs,

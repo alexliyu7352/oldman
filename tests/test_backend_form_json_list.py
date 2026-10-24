@@ -8,10 +8,9 @@ import unittest
 from sqlalchemy import Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from wtforms import StringField
-from wtforms.validators import Length
 
-from oldman.web.components.forms import JSONListField, TailwindForm, TailwindModelForm
+from oldman.web.components.forms import JSONListField, StringField, TailwindForm, TailwindModelForm
+from oldman.web.components.forms.validators import Length
 
 
 class JSONListBase(DeclarativeBase):

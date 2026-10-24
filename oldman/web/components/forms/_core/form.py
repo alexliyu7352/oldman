@@ -6,7 +6,7 @@ import itertools
 from collections import OrderedDict
 
 from .meta import DefaultMeta
-from .utils import unset_value
+from .utils import comes_from_wtforms, unset_value
 
 __all__ = ("BaseForm", "Form")
 
@@ -198,6 +198,11 @@ class FormMeta(type):
                 if not name.startswith("_"):
                     unbound_field = getattr(cls, name)
                     if hasattr(unbound_field, "_formfield"):
+                        if comes_from_wtforms(unbound_field):
+                            raise TypeError(
+                                f"{cls.__name__}.{name} is a wtforms {unbound_field.field_class.__name__}; Oldman forms do not use "
+                                "WTForms. Import the field from oldman.web.components.forms instead."
+                            )
                         fields.append((name, unbound_field))
             # We keep the name as the second element of the sort
             # to ensure a stable sort.

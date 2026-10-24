@@ -2,6 +2,8 @@
 # Original path: src/wtforms/fields/form.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+from typing import Any
+
 from .. import widgets
 from ..utils import unset_value
 from .core import Field
@@ -32,7 +34,7 @@ class FormField(Field):
         if validators:
             raise TypeError("FormField does not accept any validators. Instead, define them on the enclosed form.")
 
-    def process(self, formdata, data=unset_value, extra_filters=None):
+    def process(self, formdata, data: Any = unset_value, extra_filters=None):
         if extra_filters:
             raise TypeError("FormField cannot take filters, as the encapsulateddata is not mutable.")
 

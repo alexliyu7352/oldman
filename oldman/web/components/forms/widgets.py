@@ -1,4 +1,7 @@
-"""Form widget 类。"""
+"""Form widgets: Oldman's own and the form core's HTML widgets.
+
+Form widget 类。
+"""
 
 from __future__ import annotations
 
@@ -7,14 +10,44 @@ from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 from markupsafe import Markup
-from wtforms import Field, SelectMultipleField
-from wtforms.fields import SelectFieldBase
-from wtforms.widgets import CheckboxInput, TextInput
-from wtforms.widgets import Select as SelectWidget
 
 from oldman.i18n import gettext_lazy
 from oldman.web.components.selects.signing import SelectContext, sign_select_context
 from oldman.web.template import render_component_template
+
+from ._core import Field, SelectFieldBase, SelectMultipleField
+
+# The core's HTML widgets are part of this module's public surface as well.
+from ._core.widgets import (
+    CheckboxInput,
+    ColorInput,
+    DateInput,
+    DateTimeInput,
+    DateTimeLocalInput,
+    EmailInput,
+    FileInput,
+    HiddenInput,
+    Input,
+    ListWidget,
+    MonthInput,
+    NumberInput,
+    Option,
+    PasswordInput,
+    RadioInput,
+    RangeInput,
+    SearchInput,
+    Select,
+    SubmitInput,
+    TableWidget,
+    TelInput,
+    TextArea,
+    TextInput,
+    TimeInput,
+    URLInput,
+    WeekInput,
+    html_params,
+)
+from ._core.widgets import Select as SelectWidget
 
 _DECREASE_VALUE_LABEL = gettext_lazy("Decrease value")
 _INCREASE_VALUE_LABEL = gettext_lazy("Increase value")
@@ -453,6 +486,33 @@ def autocomplete_input_attrs(field: Field, attrs: dict[str, Any]) -> dict[str, A
 
 
 __all__ = [
+    "CheckboxInput",
+    "ColorInput",
+    "DateInput",
+    "DateTimeInput",
+    "DateTimeLocalInput",
+    "EmailInput",
+    "FileInput",
+    "HiddenInput",
+    "Input",
+    "ListWidget",
+    "MonthInput",
+    "NumberInput",
+    "Option",
+    "PasswordInput",
+    "RadioInput",
+    "RangeInput",
+    "SearchInput",
+    "Select",
+    "SubmitInput",
+    "TableWidget",
+    "TelInput",
+    "TextArea",
+    "TextInput",
+    "TimeInput",
+    "URLInput",
+    "WeekInput",
+    "html_params",
     "AjaxAutocompleteWidget",
     "AjaxSelectWidget",
     "CheckboxWidget",

@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from markupsafe import Markup
-from wtforms import StringField
-from wtforms.validators import Optional
 
 from oldman.db import DatabaseManager
 from oldman.db import db_manager as default_db_manager
@@ -22,8 +20,10 @@ from oldman.web.components.forms import (
     AjaxSelectMultipleField,
     AjaxSelectWidget,
     SanicFormData,
+    StringField,
     TailwindForm,
 )
+from oldman.web.components.forms.validators import Optional
 from oldman.web.components.selects import (
     DataSelectProvider,
     ModelSelectProvider,

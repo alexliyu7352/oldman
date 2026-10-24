@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 import unittest
 
-from wtforms import StringField
-
-from oldman.web.components.forms import TailwindForm
+from oldman.web.components.forms import StringField, TailwindForm
 
 
 class NativeProfileForm(TailwindForm):

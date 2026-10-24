@@ -8,26 +8,30 @@ from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy import inspect as sqlalchemy_inspect
-from wtforms import BooleanField, DateTimeLocalField, PasswordField, SelectField, StringField
-from wtforms.validators import DataRequired, InputRequired, Length, Optional, Regexp, ValidationError
 
 from oldman.auth import normalize_email, user_identity, user_identity_matches
 from oldman.db import explicit_primary_key_column, session_dialect
 from oldman.i18n import gettext, gettext_lazy
 from oldman.web.auth.permissions import can_manage_user, permissions_not_held, roles_installed
 from oldman.web.components.forms import (
+    BooleanField,
     CheckboxGroupField,
     CheckboxWidget,
+    DateTimeLocalField,
     DateTimePickerWidget,
     EmailField,
     FieldLayout,
     FormLayout,
+    PasswordField,
     Row,
+    SelectField,
+    StringField,
     TailwindForm,
     TailwindModelForm,
     TailwindTableFilterForm,
 )
 from oldman.web.components.forms.models import model_field_for_column
+from oldman.web.components.forms.validators import DataRequired, InputRequired, Length, Optional, Regexp, ValidationError
 
 PASSWORD_PATTERN = r"^(?=.*[A-Za-z])(?=.*\d).{8,128}$"
 PASSWORD_MESSAGE = cast(

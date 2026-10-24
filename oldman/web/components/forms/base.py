@@ -6,18 +6,16 @@ from collections.abc import Iterable, Mapping
 from typing import Any, Self, cast
 
 from markupsafe import Markup
-from wtforms import Field
-from wtforms import Form as WTForm
-from wtforms.fields import HiddenField
-from wtforms.form import BaseForm
-from wtforms.i18n import DummyTranslations
-from wtforms.meta import DefaultMeta
-from wtforms.validators import ValidationError
 
 from oldman.i18n import LazyTranslation, gettext_lazy
 from oldman.i18n.translations import current_translations
 from oldman.web.api import ApiErrorCode, DefaultApiFormResponse
 
+from ._core import Field, HiddenField, ValidationError
+from ._core import Form as CoreForm
+from ._core.form import BaseForm
+from ._core.i18n import DummyTranslations
+from ._core.meta import DefaultMeta
 from .fields import JSONListField
 from .layouts import Actions, FieldGroup, FieldLayout, FormLayout, FormStep, Row
 from .renderers import _FORM_INVALID_MESSAGE, FieldRenderer, FormRenderer
@@ -90,13 +88,14 @@ class SanicFormData:
         return key in self.files or key in self.data
 
 
-class Form(WTForm):
+class Form(CoreForm):
     """Base class for Oldman server-rendered forms.
 
     Oldman 后端渲染表单基类。
     """
 
-    class Meta(DefaultMeta):
+    # A nested Meta replaces the core's `Meta = DefaultMeta` by design: FormMeta merges every Meta in the MRO.
+    class Meta(DefaultMeta):  # pyrefly: ignore[bad-override]
         """WTForms 的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
 
         auto_id = "id_%s"

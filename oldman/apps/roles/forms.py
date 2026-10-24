@@ -8,8 +8,6 @@ from __future__ import annotations
 from typing import Any, cast
 
 from sqlalchemy import select
-from wtforms import StringField, ValidationError
-from wtforms.validators import DataRequired, Length, Optional
 
 from oldman.apps import AppNotInstalledError
 from oldman.apps.roles.models import Role
@@ -17,7 +15,8 @@ from oldman.apps.roles.store import checked_permission_names
 from oldman.auth.permissions import declared_permissions, get_permission
 from oldman.i18n import gettext, gettext_lazy
 from oldman.web.auth.permissions import permissions_not_held
-from oldman.web.components.forms import CheckboxGroupField, FieldLayout, TailwindModelForm
+from oldman.web.components.forms import CheckboxGroupField, FieldLayout, StringField, TailwindModelForm, ValidationError
+from oldman.web.components.forms.validators import DataRequired, Length, Optional
 
 
 def permission_choices(request: Any) -> dict[Any, list[tuple[str, Any]]]:

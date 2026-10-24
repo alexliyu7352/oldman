@@ -4,12 +4,13 @@
 
 import inspect
 import itertools
+from typing import Any, Self
 
 from markupsafe import Markup, escape
 
 from .. import widgets
 from ..i18n import DummyTranslations
-from ..utils import unset_value
+from ..utils import comes_from_wtforms, unset_value
 from ..validators import StopValidation, ValidationError
 
 
@@ -18,7 +19,7 @@ class Field:
     Field base class
     """
 
-    errors = ()
+    errors: Any = ()
     process_errors = ()
     raw_data = None
     validators = ()
@@ -27,7 +28,9 @@ class Field:
     _translations = DummyTranslations()
     do_not_call_in_templates = True  # Allow Django 1.4 traversal
 
-    def __new__(cls, *args, **kwargs):
+    # Declared on a form class, a field is really an UnboundField until the form binds it; callers only
+    # ever touch the bound field through a form instance, so that is the type they get.
+    def __new__(cls, *args, **kwargs) -> Self:
         if "_form" in kwargs:
             return super().__new__(cls)
         else:
@@ -42,7 +45,7 @@ class Field:
         id=None,
         default=None,
         widget=None,
-        render_kw=None,
+        render_kw: Any = None,
         name=None,
         _form=None,
         _prefix="",
@@ -173,6 +176,12 @@ class Field:
                 if inspect.isclass(validator):
                     raise TypeError(f"{validator} is not a valid validator because it is a class, it should be an instance")
 
+                if comes_from_wtforms(validator):
+                    raise TypeError(
+                        f"{validator!r} is a wtforms validator; Oldman forms do not use WTForms. "
+                        "Import it from oldman.web.components.forms.validators instead."
+                    )
+
     def gettext(self, string):
         """
         Get a translation for the given message.
@@ -275,7 +284,7 @@ class Field:
         """
         pass
 
-    def process(self, formdata, data=unset_value, extra_filters=None):
+    def process(self, formdata, data: Any = unset_value, extra_filters=None):
         """
         Process incoming data, calling process_data, process_formdata as needed,
         and run filters.

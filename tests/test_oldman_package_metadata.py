@@ -36,7 +36,6 @@ REQUIRED_DEFAULT_DEPENDENCIES = {
     "sqlalchemy",
     "typer",
     "uuid6",
-    "wtforms",
     "zstandard",
 }
 FORBIDDEN_SERVER_DB_DRIVERS = {"aiomysql", "asyncpg", "mysqlclient", "psycopg", "psycopg2"}

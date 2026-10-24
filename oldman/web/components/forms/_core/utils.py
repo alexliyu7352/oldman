@@ -64,6 +64,17 @@ class UnsetValue:
 unset_value = UnsetValue()
 
 
+def comes_from_wtforms(obj):
+    """Whether ``obj`` is an instance of a class defined in the wtforms package.
+
+    WTForms fields and validators share this core's duck-typed protocol, so one left over from
+    ``from wtforms import ...`` would be bound or called as if it were ours and keep WTForms' own
+    behaviour (translations, error classes). Callers reject such objects instead.
+    """
+    module = type(obj).__module__
+    return module == "wtforms" or module.startswith("wtforms.")
+
+
 class WebobInputWrapper:
     """
     Wrap a webob MultiDict for use as passing as `formdata` to Field.

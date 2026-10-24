@@ -9,8 +9,6 @@ from typing import Any
 
 from sqlalchemy import Column, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from wtforms import BooleanField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, ValidationError
-from wtforms.validators import DataRequired, InputRequired, Optional
 
 from oldman.web.api.enums import ApiErrorCode
 from oldman.web.api.responses import DefaultApiFormResponse
@@ -19,6 +17,7 @@ from oldman.web.components.forms import (
     AjaxAutocompleteWidget,
     AjaxSelectMultipleField,
     AjaxSelectWidget,
+    BooleanField,
     CheckboxGroupField,
     CheckboxWidget,
     ColorPickerField,
@@ -30,20 +29,27 @@ from oldman.web.components.forms import (
     FormLayout,
     FormStep,
     InputSpinnerWidget,
+    IntegerField,
     ModelChoice,
     ModelChoiceField,
+    RadioField,
     RichTextField,
     Row,
     SanicFormData,
+    SelectField,
+    SelectMultipleField,
     SlugField,
+    StringField,
     SwitchWidget,
     TagsField,
     TagsSelectWidget,
     TailwindForm,
     TailwindModelForm,
     TailwindTableFilterForm,
+    ValidationError,
 )
 from oldman.web.components.forms.models import model_field_for_column
+from oldman.web.components.forms.validators import DataRequired, InputRequired, Optional
 from oldman.web.components.selects import verify_select_context
 
 
@@ -971,7 +977,7 @@ class FormLifecycleContractTest(unittest.TestCase):
 
     def test_a_hidden_field_value_reaches_cleaned_data(self) -> None:
         """A HiddenField carries data; skipping it made the field unusable."""
-        from wtforms.fields import HiddenField, StringField
+        from oldman.web.components.forms import HiddenField, StringField
 
         class RecordForm(Form):
             record_id = HiddenField("id")
@@ -985,7 +991,7 @@ class FormLifecycleContractTest(unittest.TestCase):
 
     def test_clean_returning_a_dict_merges_instead_of_replacing(self) -> None:
         """Replacing meant `return {"extra": 1}` silently discarded every field."""
-        from wtforms.fields import StringField
+        from oldman.web.components.forms import StringField
 
         class AddingForm(Form):
             title = StringField("title")
@@ -1001,7 +1007,7 @@ class FormLifecycleContractTest(unittest.TestCase):
 
     def test_clean_can_still_override_a_key(self) -> None:
         """Merging must not take away the ability to replace a value."""
-        from wtforms.fields import StringField
+        from oldman.web.components.forms import StringField
 
         class OverridingForm(Form):
             title = StringField("title")

@@ -9,15 +9,15 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from slugify import slugify
-from wtforms import FieldList, FileField, FormField, SelectField, SelectMultipleField, StringField, TextAreaField, ValidationError
-from wtforms import Form as WTForm
-from wtforms.fields import EmailField as HTML5EmailField
-from wtforms.form import BaseForm
-from wtforms.utils import unset_value
-from wtforms.widgets import CheckboxInput
 
 from oldman.i18n import LazyTranslation
 
+from ._core import EmailField as HTML5EmailField
+from ._core import FieldList, FileField, FormField, SelectField, SelectMultipleField, StringField, TextAreaField, ValidationError
+from ._core import Form as CoreForm
+from ._core.form import BaseForm
+from ._core.utils import unset_value
+from ._core.widgets import CheckboxInput
 from .choices import ModelChoice
 from .widgets import AjaxAutocompleteWidget, AjaxSelectWidget, ColorPickerWidget, RichTextWidget, TagsInputWidget
 
@@ -349,7 +349,7 @@ class FileSize:
         self.max_bytes = max_bytes
         self.message = message
 
-    def __call__(self, form: WTForm, field: UploadField) -> None:
+    def __call__(self, form: CoreForm, field: UploadField) -> None:
         del form
         file = field.data
         if file is None:
@@ -381,7 +381,7 @@ class FileExtension:
         self.extensions = frozenset(normalized)
         self.message = message
 
-    def __call__(self, form: WTForm, field: UploadField) -> None:
+    def __call__(self, form: CoreForm, field: UploadField) -> None:
         del form
         file = field.data
         if file is None:

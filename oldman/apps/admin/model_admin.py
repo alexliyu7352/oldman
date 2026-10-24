@@ -15,8 +15,6 @@ from sqlalchemy.exc import StatementError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import String, Text
-from wtforms import BooleanField
-from wtforms.validators import InputRequired
 
 from oldman.apps.admin.crud import coerce_value
 from oldman.apps.admin.permissions import has_admin_permission
@@ -27,7 +25,9 @@ from oldman.web.auth.permissions import has_perm
 from oldman.web.auth.tables import user_cell_value, user_row_actions
 from oldman.web.auth.user_management import user_change_text
 from oldman.web.authentication import request_user
+from oldman.web.components.forms import BooleanField
 from oldman.web.components.forms.models import model_field_for_column
+from oldman.web.components.forms.validators import InputRequired
 from oldman.web.components.tables import Column as WebTableColumn
 from oldman.web.components.tables import badge, date_cell
 from oldman.web.components.tables.views import normalize_display_value

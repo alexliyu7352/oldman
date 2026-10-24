@@ -14,13 +14,12 @@ from babel.messages.mofile import write_mo
 from babel.support import Translations
 from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup
-from wtforms import StringField
 
 from oldman.apps.admin.model_admin import ModelAdmin
 from oldman.apps.admin.table import AdminModelTable
 from oldman.i18n import bind_translations, gettext_lazy, reset_translations
 from oldman.i18n.catalogs import CatalogLoader
-from oldman.web.components.forms import TailwindForm
+from oldman.web.components.forms import StringField, TailwindForm
 from oldman.web.components.tables import BaseTableView, TableResult
 from oldman.web.template import template_globals
 
