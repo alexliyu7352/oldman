@@ -87,7 +87,7 @@ class TagsInputWidget(TextInput):
         self.delimiter = delimiter
 
     def __call__(self, field: Field, **kwargs: Any) -> Markup:
-        """保留 WTForms 文本输入合同并附加标签配置。"""
+        """保留表单核心文本输入的约定并附加标签配置。"""
         kwargs.setdefault("data-om-component", "tags-input")
         kwargs.setdefault("data-om-tags-delimiter", self.delimiter)
         return super().__call__(field, **kwargs)
@@ -153,9 +153,9 @@ class ColorPickerWidget:
 
 
 class InputSpinnerWidget:
-    """Emit progressively enhanced increment/decrement controls for WTForms numeric fields.
+    """Emit progressively enhanced increment/decrement controls for numeric fields.
 
-    为 WTForms 数字字段输出可渐进增强的加减控件。
+    为数字字段输出可渐进增强的加减控件。
     """
 
     async def render_async(self, field: Field, form: Any, **kwargs: Any) -> Markup:
@@ -218,9 +218,9 @@ class RichTextWidget:
 
 
 class AjaxSelectWidget(SelectWidget):
-    """WTForms widget for remote Select providers.
+    """Widget for remote Select providers.
 
-    远程 Select provider 的 WTForms widget。
+    远程 Select provider 的 widget。
     """
 
     def __init__(
@@ -323,9 +323,9 @@ class AjaxSelectWidget(SelectWidget):
 
 
 class AjaxAutocompleteWidget:
-    """WTForms widget for remote Autocomplete providers.
+    """Widget for remote Autocomplete providers.
 
-    远程 Autocomplete provider 的 WTForms widget。
+    远程 Autocomplete provider 的 widget。
     """
 
     def __init__(
@@ -462,7 +462,7 @@ class DateTimePickerWidget:
 
 
 def select_options(field: Field) -> list[dict[str, object]]:
-    """把 WTForms choices 转换为模板 option 上下文。"""
+    """把字段 choices 转换为模板 option 上下文。"""
     data = getattr(field, "data", None)
     selected_values = {str(item) for item in data} if isinstance(data, (list, tuple, set)) else {str(data)} if data not in {None, ""} else set()
     options: list[dict[str, object]] = []

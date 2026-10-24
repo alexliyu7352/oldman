@@ -35,15 +35,15 @@ class Form(CoreForm):
     """
 
     class Meta(DefaultMeta):
-        """WTForms 的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
+        """表单核心的选项:Django 风格的字段 id,翻译取当前请求的词条目录。"""
 
         auto_id = "id_%s"
 
         def get_translations(self, form: BaseForm) -> Any:
-            """Return the request catalog through WTForms' native i18n hook.
+            """Return the request's message catalog, or the current one outside a request.
 
-            Without one, WTForms' own untranslated messages - what its fields fall back to when
-            this returns None, as ``DefaultMeta`` itself does with ``locales = False``.
+            Without either, the messages stay as written (``DummyTranslations``), which is also what
+            fields do with the None that ``DefaultMeta.get_translations`` returns.
             """
             request_context = getattr(getattr(form, "request", None), "ctx", None)
             request_catalog = getattr(request_context, "translations", None)
@@ -51,7 +51,7 @@ class Form(CoreForm):
             return catalog if catalog is not None else DummyTranslations()
 
         def bind_field(self, form, unbound_field, options):
-            """在 WTForms 字段绑定源头生成 Django 风格 id。"""
+            """在表单核心绑定字段的源头生成 Django 风格 id。"""
             field_options = dict(options)
             render_kw = unbound_field.kwargs.get("render_kw") or {}
             explicit_id = unbound_field.kwargs.get("id") or render_kw.get("id")
@@ -105,7 +105,7 @@ class Form(CoreForm):
 
         for field in self._fields.values():
             if isinstance(getattr(field, "widget", None), (AjaxSelectWidget, AjaxAutocompleteWidget)):
-                # 远程选项不在初始 HTML choices 内，WTForms 本地 choices 校验会误杀合法提交。
+                # 远程选项不在初始 HTML choices 内，SelectField 按本地 choices 校验会误杀合法提交。
                 cast(Any, field).validate_choice = False
 
     @classmethod

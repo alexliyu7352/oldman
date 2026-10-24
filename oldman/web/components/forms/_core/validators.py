@@ -351,8 +351,8 @@ class Regexp:
 
 class Email:
     """
-    Validates an email address. Requires email_validator package to be
-    installed. For ex: pip install wtforms[email].
+    Validates an email address. Requires the email_validator package to be
+    installed: pip install email-validator.
 
     :param message:
         Error message to raise in case of a validation error.

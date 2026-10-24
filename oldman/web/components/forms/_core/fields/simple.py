@@ -97,9 +97,8 @@ class FileField(Field):
     """Renders a file upload field.
 
     By default, the value will be the filename sent in the form data.
-    WTForms **does not** deal with frameworks' file handling capabilities.
-    A WTForms extension for a framework may replace the filename value
-    with an object representing the uploaded data.
+    To receive the uploaded file itself, use ``UploadField`` from
+    ``oldman.web.components.forms``, which binds the Sanic upload.
     """
 
     widget = widgets.FileInput()

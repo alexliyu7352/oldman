@@ -422,7 +422,7 @@ class FieldRenderer:
     label_class = ""
     boolean_label_class = ""
     boolean_wrapper_class = ""
-    #: Presentation used when a BooleanField keeps WTForms' plain CheckboxInput: checkbox | switch | switch-card.
+    #: Presentation used when a BooleanField keeps the plain CheckboxInput widget: checkbox | switch | switch-card.
     default_boolean_presentation = "checkbox"
     radio_group_class = ""
     radio_input_class = ""
@@ -481,7 +481,7 @@ class FieldRenderer:
     ) -> list[dict[str, Any]]:
         """单选组、复选框组里每个选项的控件、label 属性与文字。
 
-        WTForms 在字段必填时给每个选项都标 required：单选组要的是选一个，浏览器按组检查，可以保留；
+        表单核心在字段必填时给每个选项都标 required：单选组要的是选一个，浏览器按组检查，可以保留；
         复选框上它会要求每个框都勾上，所以复选框组传 ``required_on_each=False``。
         """
         options: list[dict[str, Any]] = []

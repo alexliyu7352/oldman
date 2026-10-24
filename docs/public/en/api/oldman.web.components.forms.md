@@ -50,7 +50,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class AjaxAutocompleteWidget
 ```
 
-WTForms widget for remote Autocomplete providers.
+Widget for remote Autocomplete providers.
 
 Constructor:
 
@@ -114,7 +114,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class AjaxSelectWidget(SelectWidget)
 ```
 
-WTForms widget for remote Select providers.
+Widget for remote Select providers.
 
 Constructor:
 
@@ -228,7 +228,7 @@ class · defined in `oldman.web.components.forms._core.fields.datetime`
 class DateField(DateTimeField)
 ```
 
-Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+Same as :class:`DateTimeField`, except stores a
 
 Constructor:
 
@@ -268,7 +268,7 @@ class · defined in `oldman.web.components.forms._core.fields.datetime`
 class DateTimeLocalField(DateTimeField)
 ```
 
-Same as :class:`~wtforms.fields.DateTimeField`, but represents an
+Same as :class:`DateTimeField`, but represents an
 
 Constructor:
 
@@ -713,7 +713,7 @@ class · defined in `oldman.web.components.forms.widgets`
 class InputSpinnerWidget
 ```
 
-Emit progressively enhanced increment/decrement controls for WTForms numeric fields.
+Emit progressively enhanced increment/decrement controls for numeric fields.
 
 Members:
 
@@ -758,7 +758,7 @@ class · defined in `oldman.web.components.forms.fields`
 class JSONListField(FieldList)
 ```
 
-Bind a JSON array in Text to a WTForms scalar-field list.
+Bind a JSON array in Text to a list of scalar fields.
 
 Constructor:
 
@@ -768,7 +768,7 @@ JSONListField(unbound_field: Any, *args: Any, **kwargs: Any) -> None
 
 Members:
 
-- `def process(formdata: Any, data: Any=unset_value, extra_filters: Any=None) -> None` — Decode model values and check submitted indexes/counts before WTForms truncation.
+- `def process(formdata: Any, data: Any=unset_value, extra_filters: Any=None) -> None` — Decode model values and check submitted indexes/counts before FieldList truncates them.
 - `async def validate(form: BaseForm, extra_validators: Any=()) -> bool` — Preserve child-field errors and pass list-level failures to the top form message.
 - `def template_entry(index: str='__index__') -> Any` — Create an empty child field outside entries for HTML-template cloning.
 - `staticmethod def encode(value: list[Any]) -> str` — Return stable compact JSON for database Text storage.
@@ -829,7 +829,7 @@ ModelChoiceField(*args: Any, model_choice: ModelChoice, coerce: Any=int, **kwarg
 
 Members:
 
-- `async def prepare_choices(form: Any) -> None` — Load local candidates into WTForms choices.
+- `async def prepare_choices(form: Any) -> None` — Load local candidates into the field's choices.
 - `def pre_validate(form: BaseForm) -> None` — Require submitted values to belong to currently visible choices.
 
 ## `ModelForm`
@@ -854,7 +854,7 @@ Members:
 - `classmethod def from_query(request, *, instance: Any=None, session: Any=None, initial: dict[str, Any] | None=None, prefix: str='', **kwargs: Any) -> Self` — Create a model filter form from Sanic query parameters.
 - `classmethod def get_model() -> type[Any]` — Return the model class declared by Meta.model.
 - `classmethod def get_model_fields() -> tuple[str, ...]` — Return editable fields declared by Meta.fields.
-- `classmethod def inject_model_fields() -> None` — Map SQLAlchemy model fields to WTForms fields.
+- `classmethod def inject_model_fields() -> None` — Map SQLAlchemy model fields to form fields.
 - `async def validate(extra_validators: dict[str, Any] | None=None) -> bool` — Validate ordinary fields and require new uploads for non-nullable file columns while allowing retained files on edit.
 - `def populate_obj(obj: Any) -> None` — Write permitted cleaned_data fields back to the model instance.
 - `async def save(*, commit: bool=False, session: Any=None) -> Any` — Save the model form and return its instance, leaving transaction commit to the caller.
@@ -868,7 +868,7 @@ class · defined in `oldman.web.components.forms._core.fields.datetime`
 class MonthField(DateField)
 ```
 
-Same as :class:`~wtforms.fields.DateField`, except represents a month,
+Same as :class:`DateField`, except represents a month,
 
 Constructor:
 
@@ -1278,7 +1278,7 @@ class · defined in `oldman.web.components.forms._core.fields.datetime`
 class TimeField(DateTimeField)
 ```
 
-Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+Same as :class:`DateTimeField`, except stores a
 
 Constructor:
 
@@ -1298,7 +1298,7 @@ class · defined in `oldman.web.components.forms.fields`
 class UploadField(FileField)
 ```
 
-A WTForms field binding one Sanic upload.
+A form field binding one Sanic upload.
 
 Members:
 
@@ -1338,7 +1338,7 @@ class · defined in `oldman.web.components.forms._core.fields.datetime`
 class WeekField(DateField)
 ```
 
-Same as :class:`~wtforms.fields.DateField`, except represents a week,
+Same as :class:`DateField`, except represents a week,
 
 Constructor:
 
@@ -1374,7 +1374,7 @@ function · defined in `oldman.web.components.forms.models`
 def model_field_for_column(column: Any, *, mapper: Any=None, label: str | None=None, description: str | None=None, model_choice: ModelChoice | None=None) -> Any
 ```
 
-Convert a SQLAlchemy Column to a WTForms field declaration.
+Convert a SQLAlchemy Column to a form field declaration.
 
 ## Module `oldman.web.components.forms.renderers`
 
@@ -1482,7 +1482,7 @@ class · defined in `oldman.web.components.forms._core.validators`
 class Email
 ```
 
-Validates an email address. Requires email_validator package to be
+Validates an email address. Requires the email_validator package to be
 
 Constructor:
 

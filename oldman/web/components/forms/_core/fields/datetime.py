@@ -56,7 +56,7 @@ class DateTimeField(Field):
 
 class DateField(DateTimeField):
     """
-    Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+    Same as :class:`DateTimeField`, except stores a
     :class:`datetime.date`.
     """
 
@@ -82,7 +82,7 @@ class DateField(DateTimeField):
 
 class TimeField(DateTimeField):
     """
-    Same as :class:`~wtforms.fields.DateTimeField`, except stores a
+    Same as :class:`DateTimeField`, except stores a
     :class:`datetime.time`.
     """
 
@@ -108,7 +108,7 @@ class TimeField(DateTimeField):
 
 class MonthField(DateField):
     """
-    Same as :class:`~wtforms.fields.DateField`, except represents a month,
+    Same as :class:`DateField`, except represents a month,
     stores a :class:`datetime.date` with `day = 1`.
     """
 
@@ -120,7 +120,7 @@ class MonthField(DateField):
 
 class WeekField(DateField):
     """
-    Same as :class:`~wtforms.fields.DateField`, except represents a week,
+    Same as :class:`DateField`, except represents a week,
     stores a :class:`datetime.date` of the monday of the given week.
     """
 
@@ -151,7 +151,7 @@ class WeekField(DateField):
 
 class DateTimeLocalField(DateTimeField):
     """
-    Same as :class:`~wtforms.fields.DateTimeField`, but represents an
+    Same as :class:`DateTimeField`, but represents an
     ``<input type="datetime-local">``.
     """
 

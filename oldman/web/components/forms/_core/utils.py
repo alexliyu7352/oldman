@@ -81,7 +81,7 @@ class WebobInputWrapper:
     """
     Wrap a webob MultiDict for use as passing as `formdata` to Field.
 
-    Since for consistency, we have decided in WTForms to support as input a
+    Since for consistency, the form core supports as input a
     small subset of the API provided in common between cgi.FieldStorage,
     Django's QueryDict, and Werkzeug's MultiDict, we need to wrap Webob, the
     only supported framework whose multidict does not fit this API, but is

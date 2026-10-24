@@ -44,9 +44,9 @@ def model_field_for_column(
     description: str | None = None,
     model_choice: ModelChoice | None = None,
 ) -> Any:
-    """Convert a SQLAlchemy Column to a WTForms field declaration.
+    """Convert a SQLAlchemy Column to a form field declaration.
 
-    把 SQLAlchemy Column 转换为 WTForms 字段定义。
+    把 SQLAlchemy Column 转换为表单字段定义。
 
     标签和帮助文字的优先级：显式参数（Meta.labels / Meta.help_texts）> 列的 ``info["label"]`` /
     ``info["help_text"]`` > 字段名转写。
@@ -282,9 +282,9 @@ class ModelForm(Form):
 
     @classmethod
     def inject_model_fields(cls) -> None:
-        """Map SQLAlchemy model fields to WTForms fields.
+        """Map SQLAlchemy model fields to form fields.
 
-        把 SQLAlchemy 模型字段映射为 WTForms 字段。
+        把 SQLAlchemy 模型字段映射为表单字段。
         """
         meta = getattr(cls, "Meta", None)
         model = getattr(meta, "model", None)

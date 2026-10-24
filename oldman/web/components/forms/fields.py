@@ -197,9 +197,9 @@ class RichTextField(TextAreaField):
 
 
 class JSONListField(FieldList):
-    """Bind a JSON array in Text to a WTForms scalar-field list.
+    """Bind a JSON array in Text to a list of scalar fields.
 
-    把 Text 中的 JSON 数组绑定为 WTForms 标量字段列表。
+    把 Text 中的 JSON 数组绑定为标量字段列表。
     """
 
     def __init__(self, unbound_field: Any, *args: Any, **kwargs: Any) -> None:
@@ -211,9 +211,9 @@ class JSONListField(FieldList):
         super().__init__(unbound_field, *args, **kwargs)
 
     def process(self, formdata: Any, data: Any = unset_value, extra_filters: Any = None) -> None:
-        """Decode model values and check submitted indexes/counts before WTForms truncation.
+        """Decode model values and check submitted indexes/counts before FieldList truncates them.
 
-        解码模型值，并在 WTForms 截断前检查提交索引和数量。
+        解码模型值，并在 FieldList 截断前检查提交索引和数量。
         """
         self._process_list_errors = []
         decoded = data if data is unset_value else self._decode_model_value(data)
@@ -303,9 +303,9 @@ class JSONListField(FieldList):
 
 
 class UploadField(FileField):
-    """A WTForms field binding one Sanic upload.
+    """A form field binding one Sanic upload.
 
-    绑定 Sanic 单个上传文件的 WTForms 字段。
+    绑定 Sanic 单个上传文件的表单字段。
     """
 
     def process_data(self, value: Any) -> None:
@@ -377,7 +377,7 @@ class FileExtension:
 class CheckboxGroupField(SelectMultipleField):
     """Several values from fixed choices, shown as a list of checkboxes instead of a list box.
 
-    Choices may be grouped the WTForms way, a dict of group label to choices; each group
+    Choices may be grouped as SelectField accepts them, a dict of group label to choices; each group
     gets its own small heading. It submits like any multiple select: the checked values.
     Render it through the form (``await form.render()`` / ``render_field``), which lays the
     checkboxes out; calling the field directly still gives the multiple select.
@@ -404,9 +404,9 @@ class ModelChoiceField(SelectField):
         self._choices_prepared = False
 
     async def prepare_choices(self, form: Any) -> None:
-        """Load local candidates into WTForms choices.
+        """Load local candidates into the field's choices.
 
-        加载本地候选项并写入 WTForms choices。
+        加载本地候选项并写入字段的 choices。
         """
         if self._choices_prepared:
             return
@@ -438,7 +438,7 @@ AllowedValuesResolver = Callable[[Any, list[str]], Awaitable[Iterable[Any]]]
 class RemoteChoiceValidationMixin:
     """Validate a submitted remote-select value against a source the form declares.
 
-    A remote select renders no local choices, so WTForms has nothing to validate against
+    A remote select renders no local choices, so SelectField has nothing to validate against
     and these fields disable choice validation outright. That leaves the submitted value
     unchecked: any integer the browser sends is accepted.
 
@@ -469,7 +469,7 @@ class RemoteChoiceValidationMixin:
         """Take the validation source here, so the three field variants do not each copy it.
 
         The mixin sits first in all three MROs, so it can consume its own keyword and
-        pass everything else down to whichever WTForms field this is combined with.
+        pass everything else down to whichever field class this is combined with.
         """
         self.allowed_values = allowed_values
         super().__init__(*args, **kwargs)
@@ -619,7 +619,7 @@ class AjaxSelectMultipleField(RemoteChoiceValidationMixin, SelectMultipleField):
 
         清空远程多选是合法提交：空值丢掉，结果是空列表。
 
-        前端清空时提交一个空字符串（和单选一致），不提交这个 key 时 WTForms 给的是空列表。
+        前端清空时提交一个空字符串（和单选一致），不提交这个 key 时表单核心给的是空列表。
         两条路径都应该落到 `[]`，不然调用方要为"提交了空"和"没提交"写两种处理。
         """
         super().process_formdata([value for value in valuelist if value not in {"", None}])

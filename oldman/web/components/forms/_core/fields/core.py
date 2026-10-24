@@ -158,12 +158,12 @@ class Field:
         """
         Render this field as HTML, using keyword args as additional attributes.
 
-        This delegates rendering to
-        :meth:`meta.render_field <wtforms.meta.DefaultMeta.render_field>`
-        whose default behavior is to call the field's widget, passing any
-        keyword arguments from this call along to the widget.
+        This delegates rendering to ``meta.render_field``
+        (:meth:`DefaultMeta.render_field`), whose default behavior is to call
+        the field's widget, passing any keyword arguments from this call along
+        to the widget.
 
-        In all of the WTForms HTML widgets, keyword arguments are turned to
+        In all of the built-in HTML widgets, keyword arguments are turned to
         HTML attributes, though in theory a widget is free to do anything it
         wants with the supplied keyword arguments, and widgets don't have to
         even do anything related to HTML.
