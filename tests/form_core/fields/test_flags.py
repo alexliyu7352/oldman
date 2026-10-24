@@ -37,7 +37,8 @@ class TestFlagsFields(UpstreamTestCase):
 
     def test_repr(self):
         (flags,) = self.fixtures("flags")
-        assert repr(flags) == "<wtforms.fields.Flags: {required=True}>"
+        # Oldman: the repr no longer names the wtforms package.
+        assert repr(flags) == "<Flags: {required=True}>"
 
     def test_underscore_property(self):
         (flags,) = self.fixtures("flags")

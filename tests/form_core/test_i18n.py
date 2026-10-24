@@ -5,8 +5,10 @@
 import asyncio
 
 from oldman.web.components.forms._core import StringField, form, validators
-from oldman.web.components.forms._core.i18n import get_translations
-from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
+
+# Not ported: test_failure and test_python3_nowrap, which exercised i18n.get_translations, the loader of WTForms'
+# own message catalogs; neither the catalogs nor the loader are carried over.
+from tests.form_core.support import DummyPostData, UpstreamTestCase
 
 
 def gettext_lower(self, s):
@@ -25,14 +27,6 @@ class Lower_Translator:
 
     gettext = gettext_lower
     ngettext = ngettext_lower
-
-
-def _test_converter(translator):
-    translations = get_translations([], getter=lambda x: translator)
-    assert translations.gettext("Foo") == "foo"
-    assert translations.ngettext("Foo", "Foos", 1) == "foo"
-    assert translations.ngettext("Foo", "Foos", 2) == "foos"
-    return translations
 
 
 class CoreForm1(form.Form):
@@ -74,15 +68,6 @@ class TranslationsForm2(form.Form):
 
 class TestI18n(UpstreamTestCase):
     fixture_functions = {}
-
-    def test_failure(self):
-        with raises(IOError):
-            get_translations([])
-
-    def test_python3_nowrap(self):
-        translator = Lower_Translator()
-        translations = _test_converter(translator)
-        assert translations is translator
 
     def test_core_fallback(self):
         form = _common_test("This field is required.", {"meta": {"locales": False}})

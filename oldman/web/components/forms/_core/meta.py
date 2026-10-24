@@ -2,7 +2,6 @@
 # Original path: src/wtforms/meta.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
-from . import i18n
 from .utils import WebobInputWrapper
 from .widgets.core import clean_key
 
@@ -73,33 +72,16 @@ class DefaultMeta:
 
     # -- i18n
 
+    # The locale a locale-aware number field (DecimalField(use_locale=True)) formats and parses with.
     locales = False
-    cache_translations = True
-    translations_cache = {}
 
     def get_translations(self, form):
+        """Return the object that translates this form's messages (its gettext and ngettext), or None.
+
+        None leaves the messages untranslated. Oldman's Form.Meta returns the request's catalog; WTForms'
+        own message catalogs are not carried over, so there is nothing else to look up.
         """
-        Override in subclasses to provide alternate translations factory.
-        See the i18n documentation for more.
-
-        :param form: The form.
-        :return: An object that provides gettext() and ngettext() methods.
-        """
-        locales = self.locales
-        if locales is False:
-            return None
-
-        if self.cache_translations:
-            # Make locales be a hashable value
-            locales = tuple(locales) if locales else None
-
-            translations = self.translations_cache.get(locales)
-            if translations is None:
-                translations = self.translations_cache[locales] = i18n.get_translations(locales)
-
-            return translations
-
-        return i18n.get_translations(locales)
+        return None
 
     # -- General
 
