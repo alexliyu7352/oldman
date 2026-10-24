@@ -21,13 +21,13 @@ Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/
 
 公开基类均在 `oldman.web.components.forms`：`Form` / `ModelForm` 是无主题表单，`TailwindForm` / `TailwindModelForm` 是 Dashboard 使用的表单；`TableFilterForm` / `TailwindTableFilterForm` 用于 Table 筛选。Demo 的 BasicFieldsForm、ExampleProjectForm、ExampleProjectFilterForm 分别展示后三种实际用法。
 
-普通字段和同步 validator 直接来自 WTForms。Oldman 提供请求绑定、异步清洗、数据库选择、ModelForm、布局和渲染；不要求用户继承一套重复的字段代理。Tailwind 子类使用共享 `om-*` 样式，适合 Dashboard/Admin；无主题基类用于自己提供 renderer 的应用。
+字段、同步 validator 和 HTML widget 来自框架自己的表单核心：字段（`StringField`、`IntegerField`、`SelectField`、`FieldList` 等）和 `ValidationError` 从 `oldman.web.components.forms` 导入，校验器（`DataRequired`、`Length`、`URL` 等）从 `oldman.web.components.forms.validators` 导入，`TextInput`、`Select` 这类 widget 从 `oldman.web.components.forms.widgets` 导入。核心改写自 WTForms 3.2.2（许可证见仓库的 `LICENSES/`），用法和 WTForms 相同，但框架不依赖、也不接受 WTForms 的对象：表单类上放着 `from wtforms import ...` 的字段，或字段的 validators 里有 wtforms 的校验器，都会直接报 TypeError 并写明改从哪里导入。WTForms 自带的 CSRF 没有带过来，`Meta.csrf = True` 同样报错；表单视图的 CSRF 用 `@csrf_protect()`。Oldman 在核心之上提供请求绑定、异步清洗、数据库选择、ModelForm、布局和渲染；不要求用户继承一套重复的字段代理。Tailwind 子类使用共享 `om-*` 样式，适合 Dashboard/Admin；无主题基类用于自己提供 renderer 的应用。
 
 一个表单实例属于一次请求，不能做进程级单例。
 
 ## 绑定与清洗
 
-常用构造参数为 `request`、`data`、`files`、`obj`、`session`、`initial`、`prefix`、`csrf_token`、`select_secret_key`。`data` 是提交数据，`initial` 是初值；`data=` 与 WTForms `formdata=` 不能同时传。ModelForm 使用 `instance=`，不使用 `obj=`。
+常用构造参数为 `request`、`data`、`files`、`obj`、`session`、`initial`、`prefix`、`csrf_token`、`select_secret_key`。`data` 是提交数据，`initial` 是初值；`data=` 与 `formdata=` 不能同时传。ModelForm 使用 `instance=`，不使用 `obj=`。
 
 - `Form.from_request(request, ...)`：POST/PUT/PATCH 绑定 `request.form` 和 `request.files`；GET 为未绑定。
 - `Form.from_query(request, ...)`：绑定查询参数，即使参数为空也是已绑定，适合筛选。
@@ -35,7 +35,7 @@ Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/
 - 未绑定校验返回 False，不生成错误，也不运行异步 choices 查询。
 - `form.data` 是保存的输入映射；有效值读 `form.cleaned_data`，不要把全部用户输入直接写到模型。
 
-例如 ExampleProjectForm 的以下两个完整方法分别处理唯一 slug 与日期范围。它们仍位于原类内部；`select` 来自 SQLAlchemy，`ValidationError` 来自 WTForms，`_` 是 `oldman.i18n.gettext_lazy`，ExampleProject 是 Demo 模型：
+例如 ExampleProjectForm 的以下两个完整方法分别处理唯一 slug 与日期范围。它们仍位于原类内部；`select` 来自 SQLAlchemy，`ValidationError` 来自 `oldman.web.components.forms`，`_` 是 `oldman.i18n.gettext_lazy`，ExampleProject 是 Demo 模型：
 
 ```python
     async def clean_slug(self) -> str:
@@ -60,11 +60,11 @@ Agent 写代码前先读[Dashboard CRUD 指南](https://github.com/alexliyu7352/
 
 这里的查询用于友好提示，不替代模型上的唯一约束。并发提交仍可能在数据库写入时失败；不能把数据库异常一律变成“字段无效”。
 
-顺序是准备异步字段 → WTForms 同步校验 → 无字段错误的 `clean_<name>()` → 整个 `clean()`。字段 cleaner 必须是异步方法，返回最终值；返回 None 就是最终值为 None。仅校验时也应返回原值，框架无法判断你是不是忘了 return。
+顺序是准备异步字段 → 字段同步校验 → 无字段错误的 `clean_<name>()` → 整个 `clean()`。字段 cleaner 必须是异步方法，返回最终值；返回 None 就是最终值为 None。仅校验时也应返回原值，框架无法判断你是不是忘了 return。
 
 即使部分字段失败，表单 `clean()` 仍会执行。它看到的 `cleaned_data` 只包含已通过字段校验的值；返回 None 保留原数据，返回 dict 则把其中的键**合并**进去，同名键以返回值为准。所以 `return {"extra": 1}` 是补一个键，不会丢掉别的字段。`cleaned_data` 属性返回副本，不能通过原地改这个副本指望修改内部状态。
 
-隐藏字段的值**会**进入 `cleaned_data`，和 WTForms 的 `form.data` 一致——`HiddenField("record_id")` 声明出来就是为了读回来。渲染器按类型跳过它只是因为隐藏字段由 `hidden_fields()` 统一输出，那是渲染的事，不是数据的事。
+隐藏字段的值**会**进入 `cleaned_data`，和其他字段一样——`HiddenField("record_id")` 声明出来就是为了读回来。渲染器按类型跳过它只是因为隐藏字段由 `hidden_fields()` 统一输出，那是渲染的事，不是数据的事。
 
 `ValidationError` 是正常校验失败：字段 cleaner 的异常写字段错误，表单 `clean()` 的异常写唯一 `error_message`。也可用 `add_error(field_name, message)` 添加真实字段错误，最终该字段从 cleaned_data 排除；Demo 的 StreamProfileForm.clean_name 使用这一方式。无效字段名和 `__all__` 会报错；TypeError、数据库异常等程序错误继续抛出，不掩盖为校验错误。
 
@@ -200,7 +200,7 @@ ModelForm 从列生成字段时，标签与帮助文字按三层取值：显式�
 | `SwitchCardWidget` / `SwitchWidget` / `CheckboxWidget` | BooleanField 的三种呈现：带边框的开关卡片（标签与帮助文字在左、开关在右，Tailwind 渲染器的默认）、行内开关、复选框行。都仍提交普通 checkbox 值；帮助文字来自字段的 `description`，也就是 Django 的 help_text |
 | `TagsInputWidget` | 为普通文本字段增加 tags-input DOM；需要规范化时使用 TagsField |
 | `TagsSelectWidget` | 用现有 Select 增强本地多选；提交选项列表，不变成分隔符字符串 |
-| `CheckboxGroupField` | 列表；从固定 choices 里选多个，渲染成一组复选框而不是多选列表框。choices 可以按 WTForms 的写法分组（dict：组名 → choices），每组上方一个小标题。和其他多选一样只接受列出的值；加 `DataRequired()` 表示至少勾一个，不会让每个复选框都变成必填。要经过 `await form.render()` / `render_field()` 渲染，直接调用字段得到的仍是多选列表框 |
+| `CheckboxGroupField` | 列表；从固定 choices 里选多个，渲染成一组复选框而不是多选列表框。choices 可以分组（dict：组名 → choices），每组上方一个小标题。和其他多选一样只接受列出的值；加 `DataRequired()` 表示至少勾一个，不会让每个复选框都变成必填。要经过 `await form.render()` / `render_field()` 渲染，直接调用字段得到的仍是多选列表框 |
 | `JSONListField` | Text 中的 JSON 数组 ↔ 一维标量字段列表；新增/删除由 form-repeater 处理 |
 | `InputSpinnerWidget` | Integer/Decimal 等字段的加减控件；底层仍是 number input |
 | `DateTimePickerWidget` | 配合原有日期/时间字段增加选择器，字段负责实际格式验证 |
@@ -212,7 +212,7 @@ ModelForm 从列生成字段时，标签与帮助文字按三层取值：显式�
 
 需要异步 Widget 的字段必须通过 `await form.render()` / `await form.render_field()` 或异步模板渲染，不直接同步调用 `field()`。
 
-Demo 的 StreamProfileForm 字段节选如下。StringField、DataRequired、URL 仍来自 WTForms：
+Demo 的 StreamProfileForm 字段节选如下。StringField 来自 `oldman.web.components.forms`，DataRequired、URL 来自 `oldman.web.components.forms.validators`：
 
 ```python
     sources_json = JSONListField(
@@ -301,7 +301,7 @@ LogoSelectForm 自己的 `__init__()` 把 initial_logo 的国家和已选值写�
 
 `AjaxSelectField.initial_choice(value, label)` 放入唯一一条 option 并选中它；`AjaxSelectMultipleField.initial_choices([(value, label), ...])` 按传入顺序回显多选；`AjaxAutocompleteField.initial_choice(value, label)` 把 ID 写进字段值、把标签写进输入框。三者都会跳过空值，以及表单带着提交数据处理过的情况（`raw_data is not None`），所以在 `__init__` 里无条件调用即可，不用自己判断 `is_bound`。判断的是有没有提交，而不是提交了什么：多选一个都不选时浏览器不提交这个 key，`raw_data` 是空列表，此时回显旧值等于把用户的清空吃掉。这样首次 HTML 有已选值，远程初值查询也能继续回显；不能用搜索第一页代替已选值查询。没有 profile 时返回 None，页面提示准备 fixture，不伪造一个已保存对象。
 
-远程字段**默认不校验提交值**：它们没有本地 choices，WTForms 无从比对，所以浏览器送什么整数都会被接受。要校验就给字段声明 `allowed_values`——一个 `async (request, values) -> 可迭代的允许值` 的可调用对象，返回本次请求允许提交的那些值，其余提交一律报 `Not a valid choice.`。
+远程字段**默认不校验提交值**：它们没有本地 choices，字段无从比对，所以浏览器送什么整数都会被接受。要校验就给字段声明 `allowed_values`——一个 `async (request, values) -> 可迭代的允许值` 的可调用对象，返回本次请求允许提交的那些值，其余提交一律报 `Not a valid choice.`。
 
 ```python
 async def my_logos(request, values):
@@ -361,4 +361,4 @@ ExampleLogoProvider.get_option() 用 SelectChoice 返回纯文本标签和可信
 
 LogoMultipleSelectForm 在同页演示多个已选值、图文搜索和继续加载，但没有声称把多个 Logo 保存到单个 logo_id 外键；它不是新增的一套多对多持久化 API。
 
-远程选项不在初始 HTML choices 中，因此字段关闭 WTForms 的本地 choices 验证；**保存时仍必须验证提交 ID 存在且当前用户可选**。签名证明的是 Widget 绑定，不替代对象权限；不能因为搜索列表过滤过就信任手工构造的 POST。
+远程选项不在初始 HTML choices 中，因此字段关闭本地 choices 验证；**保存时仍必须验证提交 ID 存在且当前用户可选**。签名证明的是 Widget 绑定，不替代对象权限；不能因为搜索列表过滤过就信任手工构造的 POST。

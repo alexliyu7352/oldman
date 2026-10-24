@@ -92,7 +92,7 @@ Setup: one AMD Ryzen 7 3800X, Python 3.13.11; each service ran one worker pinned
 - Security: CSRF, rate limits on sign-in and MCP, password-reset tokens, and every session and token revoked after a password change or deactivation.
 - Processes: Web services, workers and schedulers hold a PID lock and stop as a whole process group, forced and confirmed after a timeout.
 - Simplified and Traditional Chinese translations built in; a project's own text goes through the same extract, translate and compile pipeline.
-- Built on proven libraries: Sanic, SQLAlchemy, Alembic, Jinja, WTForms, Taskiq and NATS, not a second set of foundations.
+- Built on proven libraries: Sanic, SQLAlchemy, Alembic, Jinja, Taskiq and NATS, with a form core adapted from WTForms, not a second set of foundations.
 
 ## Compared with the usual stack
 

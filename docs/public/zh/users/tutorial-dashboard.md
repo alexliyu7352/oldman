@@ -144,7 +144,7 @@ async def example_project_create(request: Request):
     return modal_success_response(_("Project created."), table_target="#example-projects-table")
 ```
 
-`ExampleProjectForm.Meta.fields` 是允许修改的字段白名单；请求不能借此任意更新模型字段。Form 沿用 WTForms 的字段和同步验证，并增加实际业务清理：
+`ExampleProjectForm.Meta.fields` 是允许修改的字段白名单；请求不能借此任意更新模型字段。Form 用框架的字段和同步验证，并增加实际业务清理：
 
 - `clean_slug()` 用当前 Session 检查重复 slug；编辑时排除当前实例。
 - `clean()` 检查结束日期不能早于开始日期。此错误不是单个字段错误，显示在表单顶部 message 区域。

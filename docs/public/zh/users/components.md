@@ -238,7 +238,7 @@ Accordion 的多个 details 共用 name，折叠外观来自 om-disclosure 等�
 
 | 使用需求 | 后端/前端能力 | 实际页面 |
 | --- | --- | --- |
-| 普通输入、同步/异步校验 | WTForms 字段 + TailwindForm + form / form-validator | /examples/forms/basics、validation |
+| 普通输入、同步/异步校验 | 框架字段 + TailwindForm + form / form-validator | /examples/forms/basics、validation |
 | 日期时间、颜色、数字加减、输入 mask | DateTimePickerWidget、ColorPickerField、InputSpinnerWidget、form-mask | /examples/forms/date-time、color-picker、input-spinner、masks |
 | slug 与分隔符标签 | SlugField / slug-input；TagsField / tags-input；二者不能混用 | /examples/forms/slug、tags |
 | 固定选项多选标签 | TagsSelectWidget；仍提交多选值列表 | /examples/forms/tags |
@@ -255,7 +255,7 @@ Accordion 的多个 details 共用 name，折叠外观来自 om-disclosure 等�
 
 打开 `/examples/forms/sliders`。这个页面使用共享 Slider 写入表单中的 utilization 数值。
 
-[forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 的完整字段类如下。TailwindForm 来自 oldman.web.components.forms，IntegerField 来自 WTForms，InputRequired/NumberRange 来自 wtforms.validators，_ 为 gettext_lazy：
+[forms.py](https://github.com/alexliyu7352/oldman-epg-dashboard/blob/main/apps/examples/forms.py) 的完整字段类如下。TailwindForm 与 IntegerField 来自 oldman.web.components.forms，InputRequired/NumberRange 来自 oldman.web.components.forms.validators，_ 为 gettext_lazy：
 
 ```python
 class SliderExampleForm(TailwindForm):

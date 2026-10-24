@@ -16,7 +16,7 @@ Agent 开发应用时先读 [Agent 应用开发指南](../agents/README.md)：�
 | [远程文件](remote.md) | 运维工具菜单里的远程 Python 文件与脚本：基础地址、缓存与刷新、文件约定、凭据 |
 | [Web 请求与模板](web.md) | 路由、模板加载、Session、权限、CSRF 和错误页 |
 | [权限](permissions.md) | 在代码里声明权限、命名规则和启动时的检查；角色与角色缓存 |
-| [表单与字段](forms.md) | WTForms 分工、绑定/校验、ModelForm、布局、远程选项 |
+| [表单与字段](forms.md) | 字段与校验器的来源、绑定/校验、ModelForm、布局、远程选项 |
 | [Table](tables.md) | HTML/JSON 数据、数据库查询、列路径、排序和稳定 DOM |
 | [Chart](charts.md) | data endpoint、外壳、请求白名单、时间窗口和结果对象 |
 | [响应协议](responses.md) | JSON/Form/HTML 边界、有序 actions、目标和错误处理 |

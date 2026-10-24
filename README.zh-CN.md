@@ -92,7 +92,7 @@ Oldman 基于 Sanic，认证与中间层几乎不增加开销：
 - 安全：CSRF、登录与 MCP 限流、密码重置令牌、改密或停用后撤销全部会话和令牌。
 - 进程：Web、Worker、Scheduler 都有 PID 锁和整组停止，超时后强制结束并确认退出。
 - 内置简体、繁体中文翻译，项目自己的文案走同一条提取、翻译、编译流程。
-- 站在成熟实现上：Sanic、SQLAlchemy、Alembic、Jinja、WTForms、Taskiq、NATS，不另造一套底层。
+- 站在成熟实现上：Sanic、SQLAlchemy、Alembic、Jinja、Taskiq、NATS，表单核心改写自 WTForms，不另造一套底层。
 
 ## 和常见组合比较
 

@@ -88,12 +88,11 @@ terminal. Check with `./run.sh db status`: the App must show `pending=none`. Nev
 from __future__ import annotations
 
 from sqlalchemy import select
-from wtforms import BooleanField, StringField, ValidationError
-from wtforms.validators import DataRequired, Length, Optional
 
 from apps.customers.models import Customer
 from oldman.i18n import gettext_lazy as _
-from oldman.web.components.forms import EmailField, FieldLayout, TailwindModelForm
+from oldman.web.components.forms import BooleanField, EmailField, FieldLayout, StringField, TailwindModelForm, ValidationError
+from oldman.web.components.forms.validators import DataRequired, Length, Optional
 
 
 class CustomerForm(TailwindModelForm):
@@ -126,7 +125,9 @@ class CustomerForm(TailwindModelForm):
         return email
 ```
 
-- `Meta.fields` is the whitelist of what a request may change. Fields are WTForms fields; `EmailField` stores the
+- `Meta.fields` is the whitelist of what a request may change. Fields, `ValidationError` and widgets come from
+  `oldman.web.components.forms`, validators from `oldman.web.components.forms.validators`; never import `wtforms`
+  (Oldman does not depend on it, and a WTForms field or validator in a form raises `TypeError`). `EmailField` stores the
   address stripped and lowercased, so `clean_email` compares one spelling.
 - An `async def clean_<field>()` can query the form's session; raise `ValidationError` for a field error. A
   `clean()` method that raises reports a whole-form error at the top of the form.
