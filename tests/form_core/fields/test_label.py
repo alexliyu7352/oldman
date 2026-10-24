@@ -2,7 +2,10 @@
 # Original path: tests/fields/test_label.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+from typing import cast
+
 from oldman.web.components.forms._core.fields import Label, StringField
+from oldman.web.components.forms._core.fields.core import UnboundField
 from oldman.web.components.forms._core.form import Form
 from tests.form_core.support import UpstreamTestCase
 
@@ -19,13 +22,13 @@ class TestLabelFields(UpstreamTestCase):
         assert label.__html__() == expected
         assert label().__html__() == expected
         assert label("hello") == '<label for="test">hello</label>'
-        assert StringField("hi").bind(Form(), "a").label.text == "hi"
+        assert cast(UnboundField, StringField("hi")).bind(Form(), "a").label.text == "hi"
         assert repr(label) == "Label('test', 'Caption')"
 
     def test_auto_label(self):
-        t1 = StringField().bind(Form(), "foo_bar")
+        t1 = cast(UnboundField, StringField()).bind(Form(), "foo_bar")
         assert t1.label.text == "Foo Bar"
-        t2 = StringField("").bind(Form(), "foo_bar")
+        t2 = cast(UnboundField, StringField("")).bind(Form(), "foo_bar")
         assert t2.label.text == ""
 
     def test_override_for(self):

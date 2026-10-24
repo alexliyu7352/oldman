@@ -3,11 +3,13 @@
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
 import asyncio
+from typing import cast
 
 from markupsafe import Markup
 
 from oldman.web.components.forms._core import meta, validators
 from oldman.web.components.forms._core.fields import Field, StringField
+from oldman.web.components.forms._core.fields.core import UnboundField
 from oldman.web.components.forms._core.form import Form
 from tests.form_core.support import DummyPostData, UpstreamTestCase, raises
 
@@ -46,7 +48,7 @@ class TestFieldFields(UpstreamTestCase):
     fixture_functions = {}
 
     def test_unbound_field(self):
-        unbound = F.a
+        unbound = cast(UnboundField, F.a)
         assert unbound.creation_counter != 0
         assert unbound.field_class is StringField
         assert unbound.args == ()

@@ -2,14 +2,17 @@
 # Original path: tests/fields/test_flags.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+from typing import cast
+
 from oldman.web.components.forms._core import validators
 from oldman.web.components.forms._core.fields import StringField
+from oldman.web.components.forms._core.fields.core import UnboundField
 from oldman.web.components.forms._core.form import Form
 from tests.form_core.support import UpstreamTestCase, raises
 
 
 def flags():
-    return StringField(validators=[validators.DataRequired()]).bind(Form(), "a").flags
+    return cast(UnboundField, StringField(validators=[validators.DataRequired()])).bind(Form(), "a").flags
 
 
 class TestFlagsFields(UpstreamTestCase):

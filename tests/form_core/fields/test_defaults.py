@@ -2,7 +2,10 @@
 # Original path: tests/fields/test_defaults.py.
 # BSD 3-Clause notice: LICENSES/WTForms-BSD-3-Clause.txt.
 
+from typing import cast
+
 from oldman.web.components.forms._core.fields import StringField
+from oldman.web.components.forms._core.fields.core import UnboundField
 from oldman.web.components.forms._core.form import Form
 from oldman.web.components.forms._core.utils import unset_value
 from tests.form_core.support import UpstreamTestCase
@@ -17,10 +20,10 @@ class TestDefaultsFields(UpstreamTestCase):
         def default_callable():
             return expected
 
-        test_value = StringField(default=expected).bind(Form(), "a")
+        test_value = cast(UnboundField, StringField(default=expected)).bind(Form(), "a")
         test_value.process(None)
         assert test_value.data == expected
-        test_callable = StringField(default=default_callable).bind(Form(), "a")
+        test_callable = cast(UnboundField, StringField(default=default_callable)).bind(Form(), "a")
         test_callable.process(None)
         assert test_callable.data == expected
 
