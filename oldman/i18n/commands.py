@@ -67,8 +67,13 @@ def _extract_catalog(
     source: str,
     keywords: list[str],
     cwd: Path | None = None,
+    ignore_dirs: str | None = None,
 ) -> None:
-    """Run Babel extraction for one explicit source/config pair."""
+    """Run Babel extraction for one explicit source/config pair.
+
+    ``ignore_dirs`` replaces Babel's directory filter, which by default also skips every directory whose
+    name starts with an underscore.
+    """
     subprocess.run(
         [
             *PYBABEL_COMMAND,
@@ -76,6 +81,7 @@ def _extract_catalog(
             "-F",
             config,
             *keywords,
+            *([f"--ignore-dirs={ignore_dirs}"] if ignore_dirs is not None else []),
             "-o",
             str(output),
             source,
@@ -157,6 +163,9 @@ def _extract_framework_catalog(output: Path) -> None:
             source=framework_root.name,
             keywords=KEYWORDS,
             cwd=framework_root.parent,
+            # The form core lives in an underscore-prefixed package (oldman/web/components/forms/_core); Babel's
+            # default filter would skip it and leave its field and validator messages out of the catalog.
+            ignore_dirs=".* ._ __pycache__",
         )
 
 

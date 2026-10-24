@@ -61,3 +61,42 @@ class FrameworkTranslationsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FormCoreMessagesTest(unittest.IsolatedAsyncioTestCase):
+    """The form core's field and validator messages are in the framework catalog, so a Chinese form shows them in Chinese."""
+
+    def test_the_framework_template_carries_the_form_core_messages(self) -> None:
+        template_ids = {message.id for message in framework_i18n().build_template() if message.id}
+        for message_id in (
+            "Not a valid integer value.",
+            "Number must be at least %(min)s.",
+            ("Field must be at least %(min)d character long.", "Field must be at least %(min)d characters long."),
+            "Invalid URL.",
+        ):
+            with self.subTest(message_id=message_id):
+                self.assertIn(message_id, template_ids)
+
+    async def test_validation_messages_follow_the_request_language(self) -> None:
+        from oldman.i18n.translations import current_translations
+        from oldman.web.components.forms import IntegerField, StringField, TailwindForm
+        from oldman.web.components.forms.validators import Length, NumberRange
+
+        class Profile(TailwindForm):
+            name = StringField("Name", validators=[Length(min=3)])
+            age = IntegerField("Age", validators=[NumberRange(min=1)])
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            roots = translation_roots(Path(temporary_directory), ())
+            for language in ("zh_Hans", "zh_Hant"):
+                with self.subTest(language=language):
+                    token = current_translations.set(CatalogLoader(roots).load(language))
+                    try:
+                        short = Profile(data={"name": "x", "age": "0"})
+                        await short.validate()
+                        not_a_number = Profile(data={"name": "Ann", "age": "abc"})
+                        await not_a_number.validate()
+                    finally:
+                        current_translations.reset(token)
+                    for message in (*short.errors["name"], *short.errors["age"], not_a_number.errors["age"][0]):
+                        self.assertRegex(str(message), r"[一-鿿]", f"{language}: {message!r} is not translated")

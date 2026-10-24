@@ -1808,10 +1808,12 @@ msgstr "文件太大。"
 msgid "File extension is not allowed."
 msgstr "不允许该文件扩展名。"
 
+#: oldman/web/components/forms/_core/fields/choices.py
 #: oldman/web/components/forms/fields.py
 msgid "Not a valid choice."
 msgstr "不是有效的选项。"
 
+#: oldman/web/components/forms/_core/validators.py
 #: oldman/web/components/forms/models.py
 msgid "This field is required."
 msgstr "此字段为必填项。"
@@ -1881,6 +1883,142 @@ msgstr "增大数值"
 #: oldman/web/components/forms/widgets.py
 msgid "Choose color"
 msgstr "选择颜色"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid field name '%s'."
+msgstr "无效的字段名“%s”。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be equal to %(other_name)s."
+msgstr "此字段必须与 %(other_name)s 相同。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be at least %(min)d character long."
+msgid_plural "Field must be at least %(min)d characters long."
+msgstr[0] "此字段至少需要 %(min)d 个字符。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field cannot be longer than %(max)d character."
+msgid_plural "Field cannot be longer than %(max)d characters."
+msgstr[0] "此字段不能超过 %(max)d 个字符。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be exactly %(max)d character long."
+msgid_plural "Field must be exactly %(max)d characters long."
+msgstr[0] "此字段必须正好是 %(max)d 个字符。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be between %(min)d and %(max)d characters long."
+msgstr "此字段的长度必须在 %(min)d 到 %(max)d 个字符之间。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be at least %(min)s."
+msgstr "数值不能小于 %(min)s。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be at most %(max)s."
+msgstr "数值不能大于 %(max)s。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be between %(min)s and %(max)s."
+msgstr "数值必须在 %(min)s 到 %(max)s 之间。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid input."
+msgstr "输入无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid email address."
+msgstr "电子邮件地址无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid IP address."
+msgstr "IP 地址无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid Mac address."
+msgstr "MAC 地址无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid URL."
+msgstr "网址无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid UUID."
+msgstr "UUID 无效。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid value, must be one of: %(values)s."
+msgstr "值无效，必须是以下之一：%(values)s。"
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid value, can't be any of: %(values)s."
+msgstr "值无效，不能是以下任何一个：%(values)s。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "This field cannot be edited."
+msgstr "此字段不能修改。"
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "This field is disabled and cannot have a value."
+msgstr "此字段已停用，不能有值。"
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Invalid Choice: could not coerce."
+msgstr "选项无效：无法转换类型。"
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Choices cannot be None."
+msgstr "选项不能为 None。"
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Invalid choice(s): one or more data inputs could not be coerced."
+msgstr "选项无效：有提交的值无法转换类型。"
+
+#: oldman/web/components/forms/_core/fields/choices.py
+#, python-format
+msgid "'%(value)s' is not a valid choice for this field."
+msgid_plural "'%(value)s' are not valid choices for this field."
+msgstr[0] "'%(value)s' 不是此字段的有效选项。"
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid datetime value."
+msgstr "不是有效的日期时间。"
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid date value."
+msgstr "不是有效的日期。"
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid time value."
+msgstr "不是有效的时间。"
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid week value."
+msgstr "不是有效的周。"
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid integer value."
+msgstr "不是有效的整数。"
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid decimal value."
+msgstr "不是有效的小数。"
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid float value."
+msgstr "不是有效的浮点数。"
 
 #: oldman/web/components/selects/providers.py
 #, python-format

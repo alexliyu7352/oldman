@@ -1779,10 +1779,12 @@ msgstr ""
 msgid "File extension is not allowed."
 msgstr ""
 
+#: oldman/web/components/forms/_core/fields/choices.py
 #: oldman/web/components/forms/fields.py
 msgid "Not a valid choice."
 msgstr ""
 
+#: oldman/web/components/forms/_core/validators.py
 #: oldman/web/components/forms/models.py
 msgid "This field is required."
 msgstr ""
@@ -1851,6 +1853,146 @@ msgstr ""
 #: frontend/packages/oldman-web/src/components/color-picker.ts
 #: oldman/web/components/forms/widgets.py
 msgid "Choose color"
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid field name '%s'."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be equal to %(other_name)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be at least %(min)d character long."
+msgid_plural "Field must be at least %(min)d characters long."
+msgstr[0] ""
+msgstr[1] ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field cannot be longer than %(max)d character."
+msgid_plural "Field cannot be longer than %(max)d characters."
+msgstr[0] ""
+msgstr[1] ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be exactly %(max)d character long."
+msgid_plural "Field must be exactly %(max)d characters long."
+msgstr[0] ""
+msgstr[1] ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Field must be between %(min)d and %(max)d characters long."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be at least %(min)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be at most %(max)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Number must be between %(min)s and %(max)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid input."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid email address."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid IP address."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid Mac address."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid URL."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "Invalid UUID."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid value, must be one of: %(values)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+#, python-format
+msgid "Invalid value, can't be any of: %(values)s."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "This field cannot be edited."
+msgstr ""
+
+#: oldman/web/components/forms/_core/validators.py
+msgid "This field is disabled and cannot have a value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Invalid Choice: could not coerce."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Choices cannot be None."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/choices.py
+msgid "Invalid choice(s): one or more data inputs could not be coerced."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/choices.py
+#, python-format
+msgid "'%(value)s' is not a valid choice for this field."
+msgid_plural "'%(value)s' are not valid choices for this field."
+msgstr[0] ""
+msgstr[1] ""
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid datetime value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid date value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid time value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/datetime.py
+msgid "Not a valid week value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid integer value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid decimal value."
+msgstr ""
+
+#: oldman/web/components/forms/_core/fields/numeric.py
+msgid "Not a valid float value."
 msgstr ""
 
 #: oldman/web/components/selects/providers.py
