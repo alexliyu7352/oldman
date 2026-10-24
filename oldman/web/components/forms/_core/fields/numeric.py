@@ -37,6 +37,9 @@ class LocaleAwareNumberField(Field):
         self.use_locale = use_locale
         if use_locale:
             self.number_format = number_format
+            # Known limit: Oldman's Form.Meta sets no `locales`, so on an Oldman form this raises
+            # TypeError ('bool' object is not subscriptable). Parsing numbers in the request's language
+            # would be a new feature; until then use_locale needs a Meta that sets `locales`.
             self.locale = kwargs["_form"].meta.locales[0]
             self._init_babel()
 

@@ -115,6 +115,8 @@ class BaseForm:
             ``data``. Only used if ``formdata`` is not passed.
         """
         formdata = self.meta.wrap_formdata(self, formdata)
+        # The input a form validates is the one it processed last: calling process() again re-binds
+        # it, or, without formdata, unbinds it. The framework never re-processes a whole form.
         self.is_bound = formdata is not None
         self._input_data = formdata.to_dict() if isinstance(formdata, SanicFormData) else {}
 
@@ -463,7 +465,10 @@ class Form(BaseForm, metaclass=FormMeta):
 
         for name, field in self._fields.items():
             # Set all the fields to attributes so that they obscure the class
-            # attributes with the same names.
+            # attributes with the same names. Known limit: a field named like an instance attribute
+            # replaces it (initial, obj, files, prefix here; request and session in the framework's
+            # Form, whose ModelForm.save() reads self.session), and the framework Form's csrf_token and
+            # select_secret_key, set after this, replace a field of that name.
             setattr(self, name, field)
         self.process(bound_formdata, obj, data=initial, **kwargs)
         self._set_list_error_message()
