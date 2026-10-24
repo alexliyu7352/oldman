@@ -59,10 +59,6 @@ class FrameworkTranslationsTest(unittest.TestCase):
         self.assertEqual("修改密码", translations.gettext("Change Password"))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class FormCoreMessagesTest(unittest.IsolatedAsyncioTestCase):
     """The form core's field and validator messages are in the framework catalog, so a Chinese form shows them in Chinese."""
 
@@ -100,3 +96,7 @@ class FormCoreMessagesTest(unittest.IsolatedAsyncioTestCase):
                         current_translations.reset(token)
                     for message in (*short.errors["name"], *short.errors["age"], not_a_number.errors["age"][0]):
                         self.assertRegex(str(message), r"[一-鿿]", f"{language}: {message!r} is not translated")
+
+
+if __name__ == "__main__":
+    unittest.main()
